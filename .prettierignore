@@ -1,0 +1,4 @@
+pnpm-lock.yaml
+# Hand-maintained docs (tables and wording are formatted deliberately).
+*.md
+LICENSE

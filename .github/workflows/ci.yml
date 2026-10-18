@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6 # version comes from packageManager
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm turbo run lint typecheck test
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      # GitHub service containers cannot pass --replSet to mongod, so start Mongo (replica set)
+      # and Valkey from docker-compose.yml and wait until their healthchecks pass.
+      - run: docker compose up -d --wait mongo valkey
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run test:int
+        env:
+          MONGODB_URI: mongodb://localhost:27017/pingdost?replicaSet=rs0
+          REDIS_URL: redis://localhost:6379
+      - if: failure()
+        run: docker compose logs --tail=200

@@ -1,0 +1,81 @@
+# PingDost — Claude session guide
+
+PingDost (pingdost.com) is a privacy-first, offline-capable messenger: E2EE 1:1 and group chat, encrypted attachments, Bluetooth nearby and mesh relay, QR-linked web clients, and 1:1 WebRTC calls.
+
+- **Platforms:** Android + web now; iOS deferred.
+- **Repo:** pnpm + Turborepo monorepo, Node 24, TypeScript strict.
+
+## Where things are
+- `privacy_first_messaging_app_requirements.md` (**REQ**): the baseline requirements. **Read only the § sections a phase file lists; never read the whole file.**
+- `docs/ARCHITECTURE.md`: locked decisions A1–A12 (⚠ marks deviations from REQ). Read only the A-sections a phase lists.
+- `docs/ROADMAP.md`: phase list, dependencies and status (⬜ todo · 🔄 in progress · ✅ done).
+- `docs/phases/phase-NN-*.md`: the checklist for each phase.
+- `docs/PROGRESS.md`: handoff log, newest entry first.
+- `docs/CHANGES.md`: requirement changes and deviations, newest first.
+- `docs/decisions/`: ADRs (see `docs/decisions/README.md` for the expected ones).
+
+## Session protocol
+
+### "start phase N"
+1. Read `docs/ROADMAP.md`, the **top entry only** of `docs/PROGRESS.md`, `docs/CHANGES.md`, and `docs/phases/phase-NN-*.md`.
+2. Check the phase's "Depends on" phases are ✅. If one is not, tell the user and stop, unless they say to proceed.
+3. Read only the REQ §§, ARCHITECTURE A-sections and ADRs listed under "Read first". Look at existing code only where the phase touches it.
+4. Mark the phase 🔄 in ROADMAP. Work through the task checklist. Stay inside the phase scope; anything else goes to "Handoff notes" for a later phase.
+5. Record any new or changed decision as an ADR (copy `docs/decisions/0000-template.md`; next free number). Update `docs/ARCHITECTURE.md` if a locked decision changes.
+6. Run every check under "Done when". Report results honestly: failures, skips, and device checks the user must do.
+7. **Finish:**
+   - prepend a handoff entry to `docs/PROGRESS.md` (template inside);
+   - mark the phase ✅ (or leave 🔄 with the remaining items listed);
+   - fix any later phase files this phase changed;
+   - `git commit` with the message `phase NN: <title>`.
+   - Pushing: see the "Git" rule below.
+
+### "continue phase N"
+Read the top PROGRESS entry (the partial checklist) and the phase file, then resume from the first unchecked item.
+
+### "change: <description>"
+A requirement changed.
+1. Add an entry to `docs/CHANGES.md` (date, change, affected phases).
+2. Update the affected phase files, ROADMAP, and ARCHITECTURE if needed.
+3. Finished phases are not reworked unless the user asks. Instead, add a follow-up task to the next suitable phase.
+
+### "status"
+Summarize ROADMAP and the top PROGRESS entry in a few lines.
+
+## Standing rules
+- **Budget is very low.** Prefer free tiers and OSS. **Stop and tell the user before anything that costs money or needs a credit card.**
+- **Manual steps.** For anything the user must do by hand (account signups, Google/Firebase consoles, phone settings), give short numbered steps.
+- **Privacy and security (ARCHITECTURE A10):**
+  - no plaintext, keys, OTPs, tokens, recovery phrases or ciphertext in logs;
+  - no custom cryptography;
+  - server secrets never go into client bundles;
+  - privacy wording is "no permanent server-side chat history".
+- **Licenses.** Dependencies must use permissive or OSI licenses. Check the license before adding a dependency.
+- **Versions.** Before installing a library, check its current version and API in the docs or via web search; the plan was written in Oct 2026, so do not trust memory. Pin exact versions.
+- **Expo work.** Load the `expo:expo-overview` skill before touching `apps/mobile`.
+- **Tokens.**
+  - Keep exploration narrow.
+  - Don't re-read files you just wrote.
+  - Prefer targeted test runs (`pnpm --filter <pkg> test`) over full builds while iterating.
+  - Avoid spawning subagents unless a task truly needs parallel search.
+- **Environment.** Windows 11; use PowerShell or Git Bash. Docker Desktop provides the local infra. Android phones are attached over adb. There is no Mac.
+- **Git:** commit at the end of every phase (the user pre-authorized this). Push only if Phase 1 recorded that the user approved end-of-phase pushes; see the "Git remote" line below.
+
+## Git remote
+- Push policy: **do not push.** Commit at the end of each phase; the user pushes manually (decided 2026-10-18, Phase 1).
+- Remote: the user creates a public GitHub repo `pingdost` by hand (no `gh` CLI on this PC); add it as `origin` once they share the URL.
+- License: **AGPL-3.0-or-later**.
+
+## Commands
+- `pnpm install`: install everything (pnpm 10.28.1 via `packageManager`). Shared exact versions live in the `catalog:` in `pnpm-workspace.yaml`.
+- `pnpm infra:up` / `pnpm infra:down` / `pnpm infra:logs`: MongoDB 8.0 (replica set `rs0`), Valkey 8.1, Mailpit (SMTP :1025, UI http://localhost:8025). `up` waits for healthchecks. Start Docker Desktop first.
+- `pnpm lint` / `pnpm typecheck` / `pnpm test`: Turborepo across packages (ESLint typed lint, `tsc --noEmit`, Vitest unit tests).
+- `pnpm test:int`: integration tests (`src/**/*.int.test.ts`, via a package's `test:int` script) against the docker-compose services.
+- `pnpm --filter @pingdost/<pkg> test`: one package's unit tests (preferred while iterating). `pnpm test:watch`: all unit projects in watch mode.
+- `pnpm format` / `pnpm format:check`: Prettier (Markdown is excluded).
+- Add `--force` to a `pnpm turbo run …` call to bypass the Turbo cache.
+- Test conventions:
+  - unit tests are `src/**/*.test.ts`, and each package with tests has a `vitest.config.ts` using `defineProject` (copy `packages/config/vitest.config.ts`);
+  - integration tests are `*.int.test.ts`, with a `vitest.int.config.ts` and the script `"test:int": "vitest run --config vitest.int.config.ts"`;
+  - env vars that `test:int` needs must be listed in `passThroughEnv` in `turbo.json` (Turbo strict env mode).
+- Tooling notes: TypeScript is pinned to 6.0.x because typescript-eslint 8.71 supports `<6.1`; TS 6 defaults `types` to `[]`, so a package that needs Node types sets `"types": ["node"]`. Git Bash failed to fork in this environment (2026-10-18), so use PowerShell.

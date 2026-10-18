@@ -1,0 +1,92 @@
+// @ts-check
+import js from '@eslint/js';
+import { defineConfig, globalIgnores } from 'eslint/config';
+import prettier from 'eslint-config-prettier/flat';
+import { importX } from 'eslint-plugin-import-x';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+
+export default defineConfig(
+  globalIgnores([
+    '**/node_modules/',
+    '**/dist/',
+    '**/build/',
+    '**/coverage/',
+    '**/.turbo/',
+    '**/.expo/',
+    '**/target/',
+    'apps/mobile/android/',
+    'apps/mobile/ios/',
+  ]),
+
+  js.configs.recommended,
+  tseslint.configs.recommendedTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ['**/*.js', '**/*.mjs', '**/*.cjs'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: { globals: globals.node },
+  },
+
+  {
+    plugins: { 'import-x': importX },
+    settings: { 'import-x/internal-regex': '^@pingdost/' },
+    rules: {
+      'import-x/first': 'error',
+      'import-x/newline-after-import': 'error',
+      'import-x/no-duplicates': 'error',
+      'import-x/order': [
+        'error',
+        {
+          groups: ['builtin', 'external', 'internal', ['parent', 'sibling', 'index']],
+          'newlines-between': 'always',
+          alphabetize: { order: 'asc', caseInsensitive: true },
+        },
+      ],
+      '@typescript-eslint/consistent-type-imports': 'error',
+    },
+  },
+
+  // ARCHITECTURE A10: server secrets never reach client bundles.
+  {
+    files: ['packages/config/src/public.ts', 'packages/config/src/errors.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['./server', './index'],
+              message: 'public config must not import server config.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['apps/mobile/**', 'apps/web/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@pingdost/config',
+              message: 'Clients may import only @pingdost/config/public (ARCHITECTURE A10).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  prettier,
+);

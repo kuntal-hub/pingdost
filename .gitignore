@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build output and caches
+dist/
+build/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Expo / React Native native build dirs
+.expo/
+apps/mobile/android/
+apps/mobile/ios/
+**/android/build/
+**/android/.gradle/
+**/ios/build/
+**/ios/Pods/
+
+# Rust
+target/
+
+# Local env (only the example is committed)
+.env
+.env.*
+!.env.example
+
+# Local data (dev attachment store, etc.)
+.data/
+
+# Signing material and Google config: never commit
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+
+# Logs and OS / editor noise
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

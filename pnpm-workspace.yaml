@@ -1,0 +1,18 @@
+packages:
+  - apps/*
+  - packages/*
+  - tools/*
+
+# Install scripts (pnpm blocks them unless listed). false = deliberately skipped.
+allowBuilds:
+  # postinstall only verifies the native binary, which ships via optionalDependencies.
+  unrs-resolver: false
+
+# Shared exact versions; packages reference them as "catalog:".
+catalog:
+  '@types/node': 24.19.2
+  # typescript-eslint 8.71 supports TypeScript < 6.1, so stay on 6.0.x (not 7.x).
+  typescript: 6.0.3
+  vite: 8.3.4
+  vitest: 5.0.5
+  zod: 4.6.7

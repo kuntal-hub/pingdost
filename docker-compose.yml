@@ -1,0 +1,60 @@
+# Local development infrastructure (ARCHITECTURE A1). Start with `pnpm infra:up`.
+# Later phases add profiles: `s3` (MinIO, Phase 14) and `calls` (coturn, Phase 25).
+name: pingdost
+
+services:
+  mongo:
+    image: mongo:8.0.34
+    # Single-node replica set: needed for majority writes and transactions.
+    command: ['--replSet', 'rs0', '--bind_ip_all']
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+    healthcheck:
+      # Initiates the replica set on first run; healthy once this node is primary.
+      # The member host is localhost:27017 so clients on the host (and CI) can connect.
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - "try { rs.status() } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }) } quit(db.hello().isWritablePrimary ? 0 : 1)"
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+      start_interval: 1s
+
+  valkey:
+    image: valkey/valkey:8.1.10-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+      start_interval: 1s
+
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # web UI: http://localhost:8025
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+      start_interval: 1s
+
+volumes:
+  mongo-data:
+  mongo-config:
+  valkey-data:
