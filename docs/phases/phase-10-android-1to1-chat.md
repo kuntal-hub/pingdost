@@ -46,3 +46,8 @@ Reactions, edit, search and other extras (11); push (12); groups (13); attachmen
 - **Never use expo-sqlite's `withExclusiveTransactionAsync`** (or `useNewConnection`): the extra connection has no SQLCipher key and fails with "file is not a database". Use `withTransactionAsync` or `BEGIN IMMEDIATE … COMMIT` on the keyed connection from `getCryptoContext()`.
 - Persist every Olm session as a pickle (pickle key from `src/crypto/secrets.ts`) and re-save the account after one-time keys change.
 - `@pingdost/crypto/conformance` and the dev route `(dev)/crypto` stay available for regression checks on new devices.
+
+**From Phase 4 (ADR 0006):**
+- Before the app first uses `@pingdost/protocol`, install on `globalThis`:
+  - a `TextDecoder` that supports `fatal: true` (protobuf-es needs it; Hermes may lack it). Check the polyfill's license and version first.
+  - `crypto.getRandomValues` (for `uuid`), e.g. from `expo-crypto`.

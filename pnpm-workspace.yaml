@@ -10,10 +10,13 @@ packages:
 nodeLinker: hoisted
 
 # Install scripts (pnpm blocks them unless listed). false = deliberately skipped.
+# Note: `pnpm add` rewrites this file and drops comments; restore them after it does.
 allowBuilds:
   # postinstall only verifies the native binary, which ships via optionalDependencies.
   unrs-resolver: false
   esbuild: false
+  # postinstall only swaps the JS shim for the platform binary; the shim finds it anyway.
+  '@bufbuild/buf': false
 
 # Shared exact versions; packages reference them as "catalog:".
 catalog:

@@ -1,0 +1,33 @@
+// PingDost wire protocol v1: the envelope (ARCHITECTURE A4, A5, REQ §16.3).
+//
+// An Envelope is visible to the server and to relays. Everything a user wrote is inside
+// `ciphertext`, an encrypted Content (content.proto).
+syntax = "proto3";
+
+package pingdost.v1;
+
+enum CryptoType {
+  CRYPTO_TYPE_UNSPECIFIED = 0;
+  // Olm pre-key message: the first messages of a new 1:1 device session.
+  CRYPTO_TYPE_OLM_PREKEY = 1;
+  // Olm normal message.
+  CRYPTO_TYPE_OLM = 2;
+  // Megolm group message.
+  CRYPTO_TYPE_MEGOLM = 3;
+}
+
+message Envelope {
+  // UUIDv5 of (message ID, recipient device ID), 16 bytes, so retransmits of a message
+  // to a device reuse it (ARCHITECTURE A3, A8).
+  bytes envelope_id = 1;
+  // Device IDs, 16 bytes each.
+  bytes sender_device_id = 2;
+  bytes recipient_device_id = 3;
+  CryptoType crypto_type = 4;
+  // The group (16 bytes) for group traffic; required for MEGOLM.
+  optional bytes group_id = 5;
+  // The Megolm session ID as vodozemac reports it (base64); MEGOLM only.
+  string megolm_session_id = 6;
+  // Olm or Megolm ciphertext of an encoded, padded Content.
+  bytes ciphertext = 7;
+}

@@ -1,0 +1,10 @@
+# `pnpm --filter @pingdost/protocol gen` regenerates src/gen/ (committed; never hand-edit).
+version: v2
+inputs:
+  - directory: proto
+clean: true
+plugins:
+  - local: protoc-gen-es
+    out: src/gen
+    opt:
+      - target=ts

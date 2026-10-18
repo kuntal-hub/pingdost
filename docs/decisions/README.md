@@ -10,6 +10,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0003](0003-e2ee-protocol-and-library.md) | E2EE: vodozemac (Olm + Megolm) via a uniffi wrapper | 02 | Accepted (user-approved gate) |
 | [0004](0004-attachment-encryption.md) | Attachment encryption: XChaCha20-Poly1305 STREAM in the Rust crate | 02 | Accepted (user-approved) |
 | [0005](0005-native-crypto-binding-and-mobile-build.md) | Native crypto binding & Android build: ubrn `jsi2`, SQLCipher, 64-bit ABIs | 03 | Accepted |
+| [0006](0006-wire-protocol-encoding.md) | Wire protocol encoding: versions, IDs, limits, padding, flags, error codes | 04 | Accepted |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 

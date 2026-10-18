@@ -61,3 +61,10 @@ UI, groups (13), attachments (14), nearby (22).
 - All the integration scenarios and unit tests pass.
 - The plaintext-marker scan finds nothing on the server side.
 - `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 4 (ADR 0006):**
+- `encodeContent` already pads to the size buckets, so "encode → pad → encrypt" is `encodeContent` → encrypt. `decodeContent` ignores padding.
+- Check that `ContentHeader.sender_user_id` owns the sending device. Show `UNKNOWN_BODY` decode errors as "update needed" rather than dropping the message.
+- int64 fields are `bigint` in protobuf-es.
+- The `MessageState` transition table in `shared-types` is a first version: change it if the engine needs another edge, and keep its tests.

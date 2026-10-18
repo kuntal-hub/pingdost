@@ -62,3 +62,7 @@ Mobile UI (07), WS notifications (08), pairing (16), primary replacement (19).
 
 ## Handoff notes
 Phase 7 needs Google OAuth client IDs. Write the console steps in PROGRESS: Google Cloud project → OAuth consent screen → Web client ID + Android client ID (package `com.pingdost.app` + debug keystore SHA-1). This is free.
+
+**From Phase 4 (ADR 0006):**
+- Device IDs are client-generated UUIDv7. DTO stubs are in `@pingdost/shared-types` (`devices.ts`, `keys.ts`, `profile.ts`); keys and signatures are unpadded base64 (`UnpaddedBase64Schema`).
+- `CryptoProvider` is final: add the account signing-key object by adding members only, and add its scenarios to the conformance suite (`runCryptoConformance`).

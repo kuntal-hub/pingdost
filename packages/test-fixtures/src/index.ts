@@ -1,3 +1,3 @@
-// @pingdost/test-fixtures: shared protocol and crypto test vectors and payloads.
-// Implemented in a later phase; see docs/ROADMAP.md.
+// @pingdost/test-fixtures: shared test vectors, imported as JSON subpaths
+// (`@pingdost/test-fixtures/crypto/*.json`, `@pingdost/test-fixtures/protocol/*.json`).
 export {};

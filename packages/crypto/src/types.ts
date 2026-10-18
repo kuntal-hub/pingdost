@@ -1,10 +1,14 @@
 /**
- * Draft `CryptoProvider` interface (Phase 2; Phase 4 finalizes it). Everything above the
- * crypto package talks to this interface only, never to vodozemac or generated bindings.
+ * The `CryptoProvider` interface (ADR 0003; drafted in Phase 2, final since Phase 4).
+ * Everything above the crypto package talks to this interface only, never to vodozemac or
+ * generated bindings. Every implementation must pass `runCryptoConformance`.
  *
- * Keys and signatures are base64 strings; message bodies and plaintext are bytes.
- * Every stateful object must be pickled (encrypted with a 32-byte pickle key) before it
- * is stored, and disposed when no longer needed.
+ * Keys and signatures are unpadded base64 strings (as vodozemac encodes them); message
+ * bodies and plaintext are bytes. Every stateful object must be pickled (encrypted with a
+ * 32-byte pickle key) before it is stored, and disposed when no longer needed.
+ *
+ * Later phases extend it by adding members only: the account identity signing key
+ * (Phase 6) and attachment stream encryption (Phase 14, ADR 0004).
  */
 
 /** A device's public identity keys (base64). */

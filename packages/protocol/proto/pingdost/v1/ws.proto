@@ -1,0 +1,138 @@
+// PingDost wire protocol v1: WebSocket frames (ARCHITECTURE A3, A4).
+//
+// Each WebSocket binary message holds one ClientFrame or ServerFrame.
+syntax = "proto3";
+
+package pingdost.v1;
+
+import "pingdost/v1/packet.proto";
+
+message ClientFrame {
+  // Chosen by the client and echoed in the server's reply (AuthOk, Accepted, ServerError,
+  // Pong).
+  // 0 when no reply is expected.
+  uint32 request_id = 1;
+
+  oneof body {
+    Auth auth = 2;
+    Send send = 3;
+    Ack ack = 4;
+    Presence presence = 5;
+    Typing typing = 6;
+    Ephemeral ephemeral = 7;
+    Ping ping = 8;
+  }
+}
+
+message ServerFrame {
+  // The ClientFrame.request_id this frame answers; 0 for frames the server initiates.
+  uint32 request_id = 1;
+
+  oneof body {
+    AuthOk auth_ok = 2;
+    Accepted accepted = 3;
+    Deliver deliver = 4;
+    Presence presence = 5;
+    Typing typing = 6;
+    Ephemeral ephemeral = 7;
+    OtkLow otk_low = 8;
+    Revoked revoked = 9;
+    ServerError error = 10;
+    Pong pong = 11;
+  }
+}
+
+// The first frame on a connection.
+message Auth {
+  // Device-bound access token. Secret: never logged.
+  string access_token = 1;
+  // The client's protocol major version.
+  uint32 protocol_version = 2;
+}
+
+message AuthOk {
+  bytes user_id = 1;
+  bytes device_id = 2;
+  // Server clock, epoch milliseconds, so clients can estimate skew.
+  int64 server_time_ms = 3;
+  // How often the client should Ping when the socket is otherwise idle.
+  uint32 heartbeat_interval_ms = 4;
+}
+
+// Sends one packet of kind ENVELOPE to the mailbox.
+message Send {
+  TransportPacket packet = 1;
+}
+
+// The server holds the envelope, so the sender may leave `sending` for `sent_to_server`.
+// Never a delivery receipt (REQ §8.3).
+message Accepted {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    // Written to the mailbox (Redis or Mongo).
+    STATUS_STORED = 1;
+    // Handed to the recipient device's socket, which acknowledged it in transport.
+    STATUS_DELIVERED_TRANSPORT = 2;
+  }
+
+  bytes packet_id = 1;
+  bytes envelope_id = 2;
+  Status status = 3;
+}
+
+// A packet of kind ENVELOPE for this device.
+message Deliver {
+  TransportPacket packet = 1;
+}
+
+// Client → server: whether this client is in the foreground.
+// Server → client: a contact's presence, if their privacy settings allow it.
+message Presence {
+  // Server → client only.
+  bytes user_id = 1;
+  bool online = 2;
+}
+
+// A typing indicator, relayed in memory to online devices only.
+message Typing {
+  // Client → server: the devices to notify (16 bytes each).
+  repeated bytes recipient_device_ids = 1;
+  // Server → client: the typing device, taken from the sender's authenticated socket.
+  bytes sender_device_id = 2;
+  // The group, for group conversations.
+  optional bytes group_id = 3;
+  bool active = 4;
+}
+
+// A packet of kind EPHEMERAL, relayed in memory to the online recipient device only.
+message Ephemeral {
+  TransportPacket packet = 1;
+}
+
+// This device should upload more one-time keys.
+message OtkLow {
+  uint32 remaining = 1;
+}
+
+// This device was revoked: the client signs out and wipes local data.
+message Revoked {
+  int64 revoked_at_ms = 1;
+}
+
+// Named so the generated type does not shadow the global `Error`.
+message ServerError {
+  // An ErrorCode value from @pingdost/shared-types, shared with REST problem+json.
+  string code = 1;
+  // Whether the same request may succeed if retried later.
+  bool retryable = 2;
+  // A short, fixed description. Never contains secrets or user content.
+  string message = 3;
+}
+
+message Ping {
+  uint32 nonce = 1;
+}
+
+message Pong {
+  uint32 nonce = 1;
+}

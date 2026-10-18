@@ -72,12 +72,17 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
 
 ## Commands
 - `pnpm install`: install everything (pnpm 10.28.1 via `packageManager`). Shared exact versions live in the `catalog:` in `pnpm-workspace.yaml`.
+  - `pnpm add` can rewrite `pnpm-workspace.yaml` and drop its comments; restore them (`git diff`) afterwards.
 - `pnpm infra:up` / `pnpm infra:down` / `pnpm infra:logs`: MongoDB 8.0 (replica set `rs0`), Valkey 8.1, Mailpit (SMTP :1025, UI http://localhost:8025). `up` waits for healthchecks. Start Docker Desktop first.
 - `pnpm lint` / `pnpm typecheck` / `pnpm test`: Turborepo across packages (ESLint typed lint, `tsc --noEmit`, Vitest unit tests).
 - `pnpm test:int`: integration tests (`src/**/*.int.test.ts`, via a package's `test:int` script) against the docker-compose services.
 - `pnpm --filter @pingdost/<pkg> test`: one package's unit tests (preferred while iterating). `pnpm test:watch`: all unit projects in watch mode.
 - `pnpm format` / `pnpm format:check`: Prettier (Markdown is excluded).
 - Add `--force` to a `pnpm turbo run …` call to bypass the Turbo cache.
+- **Protocol** (`packages/protocol`, ADR 0006):
+  - `pnpm --filter @pingdost/protocol gen` regenerates `src/gen/` from `proto/` (committed; never hand-edit). CI fails if the committed code differs.
+  - The package's `lint` also runs `buf lint`.
+  - `pnpm --filter @pingdost/protocol make-vectors` rewrites `packages/test-fixtures/protocol/v1.json`; run it only for a deliberate wire change.
 - **Rust / crypto** (toolchain pinned in `rust-toolchain.toml`; needs VS 2022 Build Tools C++ for the MSVC linker):
   - `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo clippy --workspace --target wasm32-unknown-unknown -- -D warnings`, the same with `--target aarch64-linux-android`, `cargo fmt --all`;
   - `pnpm --filter @pingdost/crypto build:wasm` rebuilds the WASM module and regenerates `packages/crypto/src/generated/` (committed; never hand-edit). It needs `wasm-bindgen-cli` at the exact `wasm-bindgen` version in `Cargo.lock` (now 0.2.129: `cargo install wasm-bindgen-cli --version 0.2.129 --locked`);

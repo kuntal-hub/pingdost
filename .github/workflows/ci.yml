@@ -25,7 +25,31 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
+      # @pingdost/protocol's lint also runs `buf lint`.
       - run: pnpm turbo run lint typecheck test
+
+  protocol:
+    name: Protocol schemas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generated code is committed and up to date
+        run: |
+          pnpm --filter @pingdost/protocol gen
+          git status --porcelain -- packages/protocol/src/gen
+          test -z "$(git status --porcelain -- packages/protocol/src/gen)"
+      - name: No breaking wire changes against main
+        if: github.event_name == 'pull_request'
+        working-directory: packages/protocol
+        run: >-
+          pnpm exec buf breaking
+          --against "https://github.com/${{ github.repository }}.git#branch=main,subdir=packages/protocol"
 
   rust:
     name: Rust crypto crate

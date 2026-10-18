@@ -1,0 +1,50 @@
+// PingDost wire protocol v1: nearby and mesh relay messages (REQ §11.3, §11.4).
+//
+// Placeholders: Phase 22 defines the nearby handshake and Phase 23 fills out MeshHeader
+// (routing tokens, integrity metadata). Both extend these messages by adding fields only.
+syntax = "proto3";
+
+package pingdost.v1;
+
+// What a relay sees and checks before storing or forwarding a packet.
+message MeshHeader {
+  // UUIDv7, 16 bytes; the seen-packet cache key.
+  bytes packet_id = 1;
+  int64 created_at_ms = 2;
+  int64 expires_at_ms = 3;
+  bytes dst_routing_token = 4;
+  uint32 hop_budget = 5;
+  bytes origin_token = 6;
+  // Set for chunks of a file transfer.
+  MeshChunkRef chunk_ref = 7;
+}
+
+// Identifies one chunk of an attachment (ADR 0004 chunk index and hash list).
+message MeshChunkRef {
+  // The AttachmentManifest.attachment_id.
+  bytes transfer_id = 1;
+  uint32 index = 2;
+  uint32 count = 3;
+  // SHA-256 of this chunk's ciphertext, checkable against the hash list without the key.
+  bytes chunk_sha256 = 4;
+}
+
+// Payload of PACKET_KIND_MESH_CHUNK.
+message MeshChunk {
+  MeshChunkRef ref = 1;
+  // One ciphertext chunk.
+  bytes data = 2;
+}
+
+// Payload of PACKET_KIND_MESH_ACK: a relay accepted the packet (`relayed`, REQ §8.3).
+message MeshAck {
+  bytes packet_id = 1;
+}
+
+// Payload of PACKET_KIND_HELLO: the first packet between two nearby peers.
+message Hello {
+  // The highest protocol major version this peer speaks.
+  uint32 protocol_version = 1;
+  // An opaque, rotating token for this peer (Phase 22 defines it).
+  bytes peer_token = 2;
+}

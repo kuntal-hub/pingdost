@@ -1,4 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src"]
+  "compilerOptions": {
+    // fetch, AbortController and URLSearchParams, as browsers and React Native provide them.
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["src", "vitest.config.ts"]
 }

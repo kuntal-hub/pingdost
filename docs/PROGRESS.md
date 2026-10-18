@@ -17,6 +17,39 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-19 — Phase 04: Protocol & shared contracts — ✅ done
+**Done:**
+- `packages/protocol`:
+  - buf v2 config and `proto/pingdost/v1/{packet,envelope,content,ws,mesh}.proto`, with protoc-gen-es output committed in `src/gen/`;
+  - codecs (`encode*`/`decode*` for TransportPacket, Envelope, Content, ClientFrame, ServerFrame) and `ProtocolError`;
+  - Content padding buckets, ID helpers (`uuidv7`, `envelopeIdFor`, UUID/base64), and 44 golden vectors in `packages/test-fixtures/protocol/v1.json`.
+- `packages/shared-types`: Zod v4 DTO stubs (auth, profile, devices, keys, groups, attachments, pairing, health), `ErrorCode` + `ERROR_STATUS`, problem+json, pagination, `MessageState` + transitions.
+- `packages/api-client`: `createApiClient` (problem+json → `ApiError`, timeouts, GET retries, shared token refresh) + `health()`.
+- `packages/crypto`: `CryptoProvider` marked final; `runCryptoConformance(provider, vectors)` (14 scenarios + 3 stored vectors) runs on WASM in Vitest.
+- CI: `buf lint` (in the protocol `lint`), a job that fails if regenerated code differs from the commit, and `buf breaking` against main on pull requests.
+- Docs: ADR 0006, ARCHITECTURE A4/A8, CLAUDE.md commands; handoff notes in phases 05, 06, 08, 09, 10 (Phase 8's `Send` now carries one packet per frame).
+
+**Deviations / decisions (ADR 0006; no REQ changes):**
+- int64 is `bigint` in the generated TS (protobuf-es has no `number` mapping); REST/app code keeps `number` ms.
+- Users and devices use UUIDv7 too; device IDs are client-generated.
+- `PACKET_KIND_EPHEMERAL` marks never-stored packets; the `flags` bitmask defines `URGENT` (call wake), not EPHEMERAL.
+- The WS error frame is `ServerError`, with string `ErrorCode`s shared with REST.
+- New deps (licenses checked): `@bufbuild/buf` 1.74.0, `@bufbuild/protobuf` and `@bufbuild/protoc-gen-es` 2.16.0, `uuid` 14.0.3. `@bufbuild/buf`'s postinstall is skipped (`allowBuilds: false`).
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test --force`: 35/35 tasks, 201 tests (protocol 77, config 66, crypto 22, shared-types 14, api-client 12, mobile 7, ui-tokens 3). `pnpm format:check` passes.
+- `buf lint` is clean, and `buf generate` reproduces the committed code byte for byte.
+- `buf breaking` against this commit (`.git#ref=HEAD`) passes; see the commit check below.
+- **Not run:** GitHub CI (no remote yet). The `buf breaking` step needs the public repo URL and runs on pull requests only.
+
+**Known issues / tech debt:**
+- `pnpm add` rewrote `pnpm-workspace.yaml` without its comments (restored; noted in CLAUDE.md).
+- One turbo run failed with a transient "Unexpected end of JSON input" in an unchanged package; the re-run passed (likely a OneDrive sync race).
+- The mobile app does not use `@pingdost/protocol` yet; it needs `TextDecoder` and `getRandomValues` polyfills first (Phase 10 handoff).
+- Earlier items still open: binding drift check, pickle-key zeroization (Phase 27), placeholder `OWNER` in `repository.url`, stale `C:\dev\pd`.
+
+**Next:** Phase 05 (server foundation + password auth). Phase 21 (nearby spike) can also run any time.
+
 ## 2026-10-19 — Phase 03: Crypto spike B (mobile shell + native crypto) — ✅ done
 **Crypto gate closed.** The REQ §7.1 proof now covers Android (real phone) and web/Node. On a vivo V2437 (Android 16, arm64) and the x86_64 emulator, all of these pass: the 14 Phase 2 scenarios, the 3 WASM-made vectors, and all 6 phone ↔ Node interop steps (Olm and Megolm, both directions).
 

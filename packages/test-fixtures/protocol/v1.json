@@ -1,0 +1,674 @@
+{
+  "protocolVersion": 1,
+  "nowMs": 1760000001000,
+  "vectors": [
+    {
+      "name": "envelope/olm-prekey",
+      "type": "pingdost.v1.Envelope",
+      "json": {
+        "envelopeId": "u7CcJRhkUMqgvusYnA/T7w==",
+        "senderDeviceId": "AZLxoAAAcACAAAAAAAAAog==",
+        "recipientDeviceId": "AZLxoAAAcACAAAAAAAAAsg==",
+        "cryptoType": "CRYPTO_TYPE_OLM_PREKEY",
+        "ciphertext": "ASA/Xn2cu9r5GDdWdZSz0vEQL05tjKvK6QgnRmWEo8LhAB8+XXybutn4FzZVdJOy"
+      },
+      "binary": "ChC7sJwlGGRQyqC+6xicD9PvEhABkvGgAABwAIAAAAAAAACiGhABkvGgAABwAIAAAAAAAACyIAE6MAEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTsg=="
+    },
+    {
+      "name": "envelope/olm",
+      "type": "pingdost.v1.Envelope",
+      "json": {
+        "envelopeId": "u7CcJRhkUMqgvusYnA/T7w==",
+        "senderDeviceId": "AZLxoAAAcACAAAAAAAAAog==",
+        "recipientDeviceId": "AZLxoAAAcACAAAAAAAAAsg==",
+        "cryptoType": "CRYPTO_TYPE_OLM",
+        "ciphertext": "AiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz"
+      },
+      "binary": "ChC7sJwlGGRQyqC+6xicD9PvEhABkvGgAABwAIAAAAAAAACiGhABkvGgAABwAIAAAAAAAACyIAI6MAIhQF9+nbzb+hk4V3aVtNPyETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUsw=="
+    },
+    {
+      "name": "envelope/megolm",
+      "type": "pingdost.v1.Envelope",
+      "json": {
+        "envelopeId": "u7CcJRhkUMqgvusYnA/T7w==",
+        "senderDeviceId": "AZLxoAAAcACAAAAAAAAAog==",
+        "recipientDeviceId": "AZLxoAAAcACAAAAAAAAAsg==",
+        "cryptoType": "CRYPTO_TYPE_MEGOLM",
+        "groupId": "AZLxoAAAcACAAAAAAAAAYQ==",
+        "megolmSessionId": "ZXhhbXBsZS1tZWdvbG0tc2Vzc2lvbi1pZA",
+        "ciphertext": "AyJBYH+evdz7GjlYd5a11PMSMVBvjq3M6wopSGeGpcTjAiFAX36dvNv6GThXdpW0"
+      },
+      "binary": "ChC7sJwlGGRQyqC+6xicD9PvEhABkvGgAABwAIAAAAAAAACiGhABkvGgAABwAIAAAAAAAACyIAMqEAGS8aAAAHAAgAAAAAAAAGEyIlpYaGhiWEJzWlMxdFpXZHZiRzB0YzJWemMybHZiaTFwWkE6MAMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzOsKKUhnhqXE4wIhQF9+nbzb+hk4V3aVtA=="
+    },
+    {
+      "name": "ack",
+      "type": "pingdost.v1.Ack",
+      "json": {
+        "envelopeIds": ["u7CcJRhkUMqgvusYnA/T7w=="]
+      },
+      "binary": "ChC7sJwlGGRQyqC+6xicD9Pv"
+    },
+    {
+      "name": "mesh-ack",
+      "type": "pingdost.v1.MeshAck",
+      "json": {
+        "packetId": "AZLxoAAAcACAAAAAAAABAQ=="
+      },
+      "binary": "ChABkvGgAABwAIAAAAAAAAEB"
+    },
+    {
+      "name": "mesh-chunk",
+      "type": "pingdost.v1.MeshChunk",
+      "json": {
+        "ref": {
+          "transferId": "AZLxoAAAcACAAAAAAAAAcQ==",
+          "index": 2,
+          "count": 3,
+          "chunkSha256": "ByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcg="
+        },
+        "data": "CShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqg=="
+      },
+      "binary": "CjgKEAGS8aAAAHAAgAAAAAAAAHEQAhgDIiAHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdDvDi1Ma4qpyBJACShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqg=="
+    },
+    {
+      "name": "hello",
+      "type": "pingdost.v1.Hello",
+      "json": {
+        "protocolVersion": 1,
+        "peerToken": "UlRLAQIDBAU="
+      },
+      "binary": "CAESCFJUSwECAwQF"
+    },
+    {
+      "name": "mesh-header",
+      "type": "pingdost.v1.MeshHeader",
+      "json": {
+        "packetId": "AZLxoAAAcACAAAAAAAABBA==",
+        "createdAtMs": "1760000000000",
+        "expiresAtMs": "1761209600000",
+        "dstRoutingToken": "UlRLAQIDBAU=",
+        "hopBudget": 8,
+        "originToken": "BSRDYoGgv94=",
+        "chunkRef": {
+          "transferId": "AZLxoAAAcACAAAAAAAAAcQ==",
+          "index": 2,
+          "count": 3,
+          "chunkSha256": "ByZFZIOiweD/Hj1ce5q52PcWNVRzkrHQ7w4tTGuKqcg="
+        }
+      },
+      "binary": "ChABkvGgAABwAIAAAAAAAAEEEICAs8GcMxiAkJeCoTMiCFJUSwECAwQFKAgyCAUkQ2KBoL/eOjgKEAGS8aAAAHAAgAAAAAAAAHEQAhgDIiAHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdDvDi1Ma4qpyA=="
+    },
+    {
+      "name": "packet/envelope",
+      "type": "pingdost.v1.TransportPacket",
+      "json": {
+        "version": 1,
+        "packetId": "AZLxoAAAcACAAAAAAAABAQ==",
+        "kind": "PACKET_KIND_ENVELOPE",
+        "dst": "AZLxoAAAcACAAAAAAAAAsg==",
+        "createdAtMs": "1760000000000",
+        "expiresAtMs": "1761209600000",
+        "payload": "ChC7sJwlGGRQyqC+6xicD9PvEhABkvGgAABwAIAAAAAAAACiGhABkvGgAABwAIAAAAAAAACyIAI6MAIhQF9+nbzb+hk4V3aVtNPyETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUsw=="
+      },
+      "binary": "CAESEAGS8aAAAHAAgAAAAAAAAQEYASIQAZLxoAAAcACAAAAAAAAAsiiAgLPBnDMwgJCXgqEzSmoKELuwnCUYZFDKoL7rGJwP0+8SEAGS8aAAAHAAgAAAAAAAAKIaEAGS8aAAAHAAgAAAAAAAALIgAjowAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz"
+    },
+    {
+      "name": "packet/ack",
+      "type": "pingdost.v1.TransportPacket",
+      "json": {
+        "version": 1,
+        "packetId": "AZLxoAAAcACAAAAAAAABAg==",
+        "kind": "PACKET_KIND_ACK",
+        "dst": "AZLxoAAAcACAAAAAAAAAog==",
+        "createdAtMs": "1760000000000",
+        "expiresAtMs": "1761209600000",
+        "payload": "ChC7sJwlGGRQyqC+6xicD9Pv"
+      },
+      "binary": "CAESEAGS8aAAAHAAgAAAAAAAAQIYAiIQAZLxoAAAcACAAAAAAAAAoiiAgLPBnDMwgJCXgqEzShIKELuwnCUYZFDKoL7rGJwP0+8="
+    },
+    {
+      "name": "packet/mesh-ack",
+      "type": "pingdost.v1.TransportPacket",
+      "json": {
+        "version": 1,
+        "packetId": "AZLxoAAAcACAAAAAAAABAw==",
+        "kind": "PACKET_KIND_MESH_ACK",
+        "dst": "UlRLAQIDBAU=",
+        "createdAtMs": "1760000000000",
+        "expiresAtMs": "1761209600000",
+        "hopBudget": 7,
+        "payload": "ChABkvGgAABwAIAAAAAAAAEB"
+      },
+      "binary": "CAESEAGS8aAAAHAAgAAAAAAAAQMYAyIIUlRLAQIDBAUogICzwZwzMICQl4KhMzgHShIKEAGS8aAAAHAAgAAAAAAAAQE="
+    },
+    {
+      "name": "packet/mesh-chunk",
+      "type": "pingdost.v1.TransportPacket",
+      "json": {
+        "version": 1,
+        "packetId": "AZLxoAAAcACAAAAAAAABBA==",
+        "kind": "PACKET_KIND_MESH_CHUNK",
+        "dst": "UlRLAQIDBAU=",
+        "createdAtMs": "1760000000000",
+        "expiresAtMs": "1761209600000",
+        "hopBudget": 8,
+        "payload": "CjgKEAGS8aAAAHAAgAAAAAAAAHEQAhgDIiAHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdDvDi1Ma4qpyBJACShHZoWkw+IBID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7LR8A8uTWyLqg=="
+      },
+      "binary": "CAESEAGS8aAAAHAAgAAAAAAAAQQYBCIIUlRLAQIDBAUogICzwZwzMICQl4KhMzgISnwKOAoQAZLxoAAAcACAAAAAAAAAcRACGAMiIAcmRWSDosHg/x49XHuaudj3FjVUc5Kx0O8OLUxriqnIEkAJKEdmhaTD4gEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTstHwDy5NbIuq"
+    },
+    {
+      "name": "packet/ephemeral",
+      "type": "pingdost.v1.TransportPacket",
+      "json": {
+        "version": 1,
+        "packetId": "AZLxoAAAcACAAAAAAAABBQ==",
+        "kind": "PACKET_KIND_EPHEMERAL",
+        "dst": "AZLxoAAAcACAAAAAAAAAsg==",
+        "createdAtMs": "1760000000000",
+        "expiresAtMs": "1761209600000",
+        "flags": 1,
+        "payload": "ChC7sJwlGGRQyqC+6xicD9PvEhABkvGgAABwAIAAAAAAAACiGhABkvGgAABwAIAAAAAAAACyIAE6MAEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTsg=="
+      },
+      "binary": "CAESEAGS8aAAAHAAgAAAAAAAAQUYBSIQAZLxoAAAcACAAAAAAAAAsiiAgLPBnDMwgJCXgqEzQAFKagoQu7CcJRhkUMqgvusYnA/T7xIQAZLxoAAAcACAAAAAAAAAohoQAZLxoAAAcACAAAAAAAAAsiABOjABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7I="
+    },
+    {
+      "name": "packet/hello",
+      "type": "pingdost.v1.TransportPacket",
+      "json": {
+        "version": 1,
+        "packetId": "AZLxoAAAcACAAAAAAAABBg==",
+        "kind": "PACKET_KIND_HELLO",
+        "dst": "UlRLAQIDBAU=",
+        "createdAtMs": "1760000000000",
+        "expiresAtMs": "1761209600000",
+        "payload": "CAESCFJUSwECAwQF"
+      },
+      "binary": "CAESEAGS8aAAAHAAgAAAAAAAAQYYBiIIUlRLAQIDBAUogICzwZwzMICQl4KhM0oMCAESCFJUSwECAwQF"
+    },
+    {
+      "name": "content/text",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "text": {
+          "body": "Hello, PingDost!"
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDMSEgoQSGVsbG8sIFBpbmdEb3N0IXqoAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/reaction",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "reaction": {
+          "targetMessageId": "AZLxoAAAcACAAAAAAAAAAg==",
+          "emoji": "👍"
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDMaGAoQAZLxoAAAcACAAAAAAAAAAhIE8J+RjXqiAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/edit",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "edit": {
+          "targetMessageId": "AZLxoAAAcACAAAAAAAAAAg==",
+          "body": "Hello again"
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDMiHwoQAZLxoAAAcACAAAAAAAAAAhILSGVsbG8gYWdhaW56mwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/delete",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "delete": {
+          "targetMessageId": "AZLxoAAAcACAAAAAAAAAAg=="
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDMqEgoQAZLxoAAAcACAAAAAAAAAAnqoAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/receipt",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "receipt": {
+          "type": "TYPE_DELIVERED",
+          "messageIds": ["AZLxoAAAcACAAAAAAAAAAg==", "AZLxoAAAcACAAAAAAAAAAw=="],
+          "hopCount": 3
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDMyKAgBEhABkvGgAABwAIAAAAAAAAACEhABkvGgAABwAIAAAAAAAAADGAN6kgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/attachment-manifest",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "attachmentManifest": {
+          "attachmentId": "AZLxoAAAcACAAAAAAAAAcQ==",
+          "scheme": "xchacha20poly1305-stream-be32-64k/1",
+          "key": "CypJaIemxeQDIkFgf5693PsaOVh3lrXU8xIxUG+Orcw=",
+          "noncePrefix": "DSxLaomox+YFJENigaC/3v0cOw==",
+          "plaintextSize": "150000",
+          "chunkSize": 65536,
+          "chunkCount": 3,
+          "mimeType": "image/jpeg",
+          "fileName": "photo.jpg",
+          "ciphertextSha256": "ETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUs9I=",
+          "chunkHashListSha256": "EzJRcI+uzewLKkloh6bF5AMiQWB/nr3c+xo5WHeWtdQ="
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDM60wEKEAGS8aAAAHAAgAAAAAAAAHESI3hjaGFjaGEyMHBvbHkxMzA1LXN0cmVhbS1iZTMyLTY0ay8xGiALKkloh6bF5AMiQWB/nr3c+xo5WHeWtdTzEjFQb46tzCITDSxLaomox+YFJENigaC/3v0cOyjwkwkwgIAEOANCCmltYWdlL2pwZWdKCXBob3RvLmpwZ1IgETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUs9JaIBMyUXCPrs3sCypJaIemxeQDIkFgf5693PsaOVh3lrXUeuYFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/group-control",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "groupControl": {
+          "groupId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "action": "ACTION_CREATE",
+          "memberUserIds": ["AZLxoAAAcACAAAAAAAAAoQ==", "AZLxoAAAcACAAAAAAAAAsQ=="],
+          "name": "Weekend trip"
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDNCRgoQAZLxoAAAcACAAAAAAAAAYRABGhABkvGgAABwAIAAAAAAAAChGhABkvGgAABwAIAAAAAAAACxIgxXZWVrZW5kIHRyaXB6dQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/room-key",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "roomKey": {
+          "groupId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "sessionId": "ZXhhbXBsZS1tZWdvbG0tc2Vzc2lvbi1pZA",
+          "sessionKey": "c2Vzc2lvbi1rZXktc3RhbmQtaW4"
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDNKUwoQAZLxoAAAcACAAAAAAAAAYRIiWlhoaGJYQnNaUzF0WldkdmJHMHRjMlZ6YzJsdmJpMXBaQRobYzJWemMybHZiaTFyWlhrdGMzUmhibVF0YVc0emgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/sync-chunk",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "syncChunk": {
+          "syncId": "AZLxoAAAcACAAAAAAAAAgQ==",
+          "sequence": 4,
+          "last": true,
+          "data": "FzZVdJOy0fAPLk1si6rJ6AcmRWSDosHg/x49XHuaudj3FjVUc5Kx0A=="
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDNSQAoQAZLxoAAAcACAAAAAAAAAgRAEGAEiKBc2VXSTstHwDy5NbIuqyegHJkVkg6LB4P8ePVx7mrnY9xY1VHOSsdB6ewAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/call-signal",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "callSignal": {
+          "callId": "AZLxoAAAcACAAAAAAAAAkQ==",
+          "type": "TYPE_OFFER",
+          "video": true,
+          "sdp": "v=0\r\n"
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDNaHQoQAZLxoAAAcACAAAAAAAAAkRABGAEiBXY9MA0Kep0BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/session-reset",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "sessionReset": {
+          "sessionId": "b2xkLXNlc3Npb24"
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDNiEQoPYjJ4a0xYTmxjM05wYjI0eqkBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/key-change",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "keyChange": {
+          "keyVersion": 4
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDNqAggEergBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/text-reply",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000",
+          "replyTo": "AZLxoAAAcACAAAAAAAAAAg=="
+        },
+        "text": {
+          "body": "Replying"
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      },
+      "binary": "ClEIARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDMyEAGS8aAAAHAAgAAAAAAAAAISCgoIUmVwbHlpbmd6ngEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "client-frame/auth",
+      "type": "pingdost.v1.ClientFrame",
+      "json": {
+        "requestId": 1,
+        "auth": {
+          "accessToken": "access-token-stand-in",
+          "protocolVersion": 1
+        }
+      },
+      "binary": "CAESGQoVYWNjZXNzLXRva2VuLXN0YW5kLWluEAE="
+    },
+    {
+      "name": "client-frame/send",
+      "type": "pingdost.v1.ClientFrame",
+      "json": {
+        "requestId": 7,
+        "send": {
+          "packet": {
+            "version": 1,
+            "packetId": "AZLxoAAAcACAAAAAAAABAQ==",
+            "kind": "PACKET_KIND_ENVELOPE",
+            "dst": "AZLxoAAAcACAAAAAAAAAsg==",
+            "createdAtMs": "1760000000000",
+            "expiresAtMs": "1761209600000",
+            "payload": "ChC7sJwlGGRQyqC+6xicD9PvEhABkvGgAABwAIAAAAAAAACiGhABkvGgAABwAIAAAAAAAACyIAI6MAIhQF9+nbzb+hk4V3aVtNPyETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUsw=="
+          }
+        }
+      },
+      "binary": "CAcapQEKogEIARIQAZLxoAAAcACAAAAAAAABARgBIhABkvGgAABwAIAAAAAAAACyKICAs8GcMzCAkJeCoTNKagoQu7CcJRhkUMqgvusYnA/T7xIQAZLxoAAAcACAAAAAAAAAohoQAZLxoAAAcACAAAAAAAAAsiACOjACIUBffp282/oZOFd2lbTT8hEwT26NrMvqCShHZoWkw+IBID9efZy72vkYN1Z1lLM="
+    },
+    {
+      "name": "client-frame/ack",
+      "type": "pingdost.v1.ClientFrame",
+      "json": {
+        "ack": {
+          "envelopeIds": ["u7CcJRhkUMqgvusYnA/T7w=="]
+        }
+      },
+      "binary": "IhIKELuwnCUYZFDKoL7rGJwP0+8="
+    },
+    {
+      "name": "client-frame/presence",
+      "type": "pingdost.v1.ClientFrame",
+      "json": {
+        "presence": {
+          "online": true
+        }
+      },
+      "binary": "KgIQAQ=="
+    },
+    {
+      "name": "client-frame/typing",
+      "type": "pingdost.v1.ClientFrame",
+      "json": {
+        "typing": {
+          "recipientDeviceIds": ["AZLxoAAAcACAAAAAAAAAsg=="],
+          "groupId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "active": true
+        }
+      },
+      "binary": "MiYKEAGS8aAAAHAAgAAAAAAAALIaEAGS8aAAAHAAgAAAAAAAAGEgAQ=="
+    },
+    {
+      "name": "client-frame/ephemeral",
+      "type": "pingdost.v1.ClientFrame",
+      "json": {
+        "requestId": 7,
+        "ephemeral": {
+          "packet": {
+            "version": 1,
+            "packetId": "AZLxoAAAcACAAAAAAAABBQ==",
+            "kind": "PACKET_KIND_EPHEMERAL",
+            "dst": "AZLxoAAAcACAAAAAAAAAsg==",
+            "createdAtMs": "1760000000000",
+            "expiresAtMs": "1761209600000",
+            "flags": 1,
+            "payload": "ChC7sJwlGGRQyqC+6xicD9PvEhABkvGgAABwAIAAAAAAAACiGhABkvGgAABwAIAAAAAAAACyIAE6MAEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTsg=="
+          }
+        }
+      },
+      "binary": "CAc6pwEKpAEIARIQAZLxoAAAcACAAAAAAAABBRgFIhABkvGgAABwAIAAAAAAAACyKICAs8GcMzCAkJeCoTNAAUpqChC7sJwlGGRQyqC+6xicD9PvEhABkvGgAABwAIAAAAAAAACiGhABkvGgAABwAIAAAAAAAACyIAE6MAEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTsg=="
+    },
+    {
+      "name": "client-frame/ping",
+      "type": "pingdost.v1.ClientFrame",
+      "json": {
+        "requestId": 9,
+        "ping": {
+          "nonce": 42
+        }
+      },
+      "binary": "CAlCAggq"
+    },
+    {
+      "name": "server-frame/auth-ok",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "requestId": 1,
+        "authOk": {
+          "userId": "AZLxoAAAcACAAAAAAAAAsQ==",
+          "deviceId": "AZLxoAAAcACAAAAAAAAAsg==",
+          "serverTimeMs": "1760000000000",
+          "heartbeatIntervalMs": 25000
+        }
+      },
+      "binary": "CAESLwoQAZLxoAAAcACAAAAAAAAAsRIQAZLxoAAAcACAAAAAAAAAshiAgLPBnDMgqMMB"
+    },
+    {
+      "name": "server-frame/accepted",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "requestId": 7,
+        "accepted": {
+          "packetId": "AZLxoAAAcACAAAAAAAABAQ==",
+          "envelopeId": "u7CcJRhkUMqgvusYnA/T7w==",
+          "status": "STATUS_STORED"
+        }
+      },
+      "binary": "CAcaJgoQAZLxoAAAcACAAAAAAAABARIQu7CcJRhkUMqgvusYnA/T7xgB"
+    },
+    {
+      "name": "server-frame/deliver",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "deliver": {
+          "packet": {
+            "version": 1,
+            "packetId": "AZLxoAAAcACAAAAAAAABAQ==",
+            "kind": "PACKET_KIND_ENVELOPE",
+            "dst": "AZLxoAAAcACAAAAAAAAAsg==",
+            "createdAtMs": "1760000000000",
+            "expiresAtMs": "1761209600000",
+            "payload": "ChC7sJwlGGRQyqC+6xicD9PvEhABkvGgAABwAIAAAAAAAACiGhABkvGgAABwAIAAAAAAAACyIAI6MAIhQF9+nbzb+hk4V3aVtNPyETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUsw=="
+          }
+        }
+      },
+      "binary": "IqUBCqIBCAESEAGS8aAAAHAAgAAAAAAAAQEYASIQAZLxoAAAcACAAAAAAAAAsiiAgLPBnDMwgJCXgqEzSmoKELuwnCUYZFDKoL7rGJwP0+8SEAGS8aAAAHAAgAAAAAAAAKIaEAGS8aAAAHAAgAAAAAAAALIgAjowAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz"
+    },
+    {
+      "name": "server-frame/presence",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "presence": {
+          "userId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "online": true
+        }
+      },
+      "binary": "KhQKEAGS8aAAAHAAgAAAAAAAAKEQAQ=="
+    },
+    {
+      "name": "server-frame/typing",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "typing": {
+          "senderDeviceId": "AZLxoAAAcACAAAAAAAAAog==",
+          "groupId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "active": true
+        }
+      },
+      "binary": "MiYSEAGS8aAAAHAAgAAAAAAAAKIaEAGS8aAAAHAAgAAAAAAAAGEgAQ=="
+    },
+    {
+      "name": "server-frame/ephemeral",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "ephemeral": {
+          "packet": {
+            "version": 1,
+            "packetId": "AZLxoAAAcACAAAAAAAABBQ==",
+            "kind": "PACKET_KIND_EPHEMERAL",
+            "dst": "AZLxoAAAcACAAAAAAAAAsg==",
+            "createdAtMs": "1760000000000",
+            "expiresAtMs": "1761209600000",
+            "flags": 1,
+            "payload": "ChC7sJwlGGRQyqC+6xicD9PvEhABkvGgAABwAIAAAAAAAACiGhABkvGgAABwAIAAAAAAAACyIAE6MAEgP159nLva+Rg3VnWUs9LxEC9ObYyryukIJ0ZlhKPC4QAfPl18m7rZ+Bc2VXSTsg=="
+          }
+        }
+      },
+      "binary": "OqcBCqQBCAESEAGS8aAAAHAAgAAAAAAAAQUYBSIQAZLxoAAAcACAAAAAAAAAsiiAgLPBnDMwgJCXgqEzQAFKagoQu7CcJRhkUMqgvusYnA/T7xIQAZLxoAAAcACAAAAAAAAAohoQAZLxoAAAcACAAAAAAAAAsiABOjABID9efZy72vkYN1Z1lLPS8RAvTm2Mq8rpCCdGZYSjwuEAHz5dfJu62fgXNlV0k7I="
+    },
+    {
+      "name": "server-frame/otk-low",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "otkLow": {
+          "remaining": 5
+        }
+      },
+      "binary": "QgIIBQ=="
+    },
+    {
+      "name": "server-frame/revoked",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "revoked": {
+          "revokedAtMs": "1760000000000"
+        }
+      },
+      "binary": "SgcIgICzwZwz"
+    },
+    {
+      "name": "server-frame/error",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "requestId": 7,
+        "error": {
+          "code": "RATE_LIMITED",
+          "retryable": true,
+          "message": "Too many requests"
+        }
+      },
+      "binary": "CAdSIwoMUkFURV9MSU1JVEVEEAEaEVRvbyBtYW55IHJlcXVlc3Rz"
+    },
+    {
+      "name": "server-frame/pong",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "requestId": 9,
+        "pong": {
+          "nonce": 42
+        }
+      },
+      "binary": "CAlaAggq"
+    }
+  ]
+}

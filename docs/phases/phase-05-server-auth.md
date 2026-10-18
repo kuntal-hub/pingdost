@@ -63,3 +63,9 @@ Google, devices and keys (06); WebSocket (08).
 - `pnpm --filter @pingdost/server test:int` is green for all auth flows; OTP emails are visible in Mailpit.
 - `pnpm --filter @pingdost/server dev` starts; `/readyz` returns OK with infra up and fails cleanly with Mongo down.
 - `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 4 (ADR 0006):**
+- `@pingdost/shared-types` already has stub DTOs for these routes (`auth.ts`, `profile.ts`, `health.ts`), plus `ErrorCode`, `ERROR_STATUS`, `ProblemSchema` and `problemType()`. Finalize them here: add codes freely, but never rename one.
+- User IDs are UUIDv7 strings (canonical lowercase).
+- `@pingdost/api-client` `createApiClient` exists (health only); add the auth endpoint functions to it.

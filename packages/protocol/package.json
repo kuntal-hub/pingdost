@@ -8,10 +8,23 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint . && buf lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "gen": "buf generate",
+    "make-vectors": "tsx scripts/make-vectors.ts"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "2.16.0",
+    "uuid": "14.0.3"
   },
   "devDependencies": {
-    "typescript": "catalog:"
+    "@bufbuild/buf": "1.74.0",
+    "@bufbuild/protoc-gen-es": "2.16.0",
+    "@pingdost/test-fixtures": "workspace:*",
+    "@types/node": "catalog:",
+    "tsx": "4.23.15",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

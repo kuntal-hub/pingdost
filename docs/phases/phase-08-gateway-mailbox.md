@@ -12,18 +12,18 @@ Build an authenticated WebSocket gateway and a reliable ciphertext delivery mail
 ## Tasks
 - [ ] **WS endpoint `/v1/ws`** (`@fastify/websocket`):
   - The first frame must be `Auth{accessToken}` within 5 s (no tokens in the URL); verify the JWT, the session and that the device is active.
-  - One live socket per device: a newer one replaces the old, which receives `Error{code:REPLACED}`.
+  - One live socket per device: a newer one replaces the old, which receives `ServerError{code:CONNECTION_REPLACED}`.
   - Ping/pong heartbeat, max frame size, per-socket rate limits (in-memory), and backpressure handling.
   - The in-memory connection registry `deviceId → socket`.
   - Hook up `Revoked` from Phase 6 to close revoked devices' sockets.
-- [ ] **Send path** `Send{envelopes[]}`. For each envelope:
-  1. Check the sender device equals the socket device, the recipient device exists and is active, the size is ≤ `ENVELOPE_MAX_BYTES`, and the sender is not blocked by the recipient (block list arrives in Phase 11; leave a hook).
+- [ ] **Send path** `Send{packet}`: one ENVELOPE packet per frame (clients pipeline several), answered by one `Accepted` or `ServerError` with the same `request_id`. For each envelope:
+  1. Decode with `decodeClientFrame` + `decodeEnvelope` (size, version, expiry). Check `packet.dst` equals the envelope's recipient, the sender device equals the socket device, the recipient device exists and is active, and the sender is not blocked by the recipient (block list arrives in Phase 11; leave a hook).
   2. **Server sets `createdAt` = receive time and `expiresAt` = createdAt + `MESSAGE_MAX_RETENTION_SECONDS`.**
   3. **Dedupe** by envelopeId: if it is already stored, re-acknowledge with the same status.
   4. **Online path:** recipient connected → `Deliver` → wait for `Ack` up to `MESSAGE_ONLINE_ACK_TIMEOUT_MS` → reply `Accepted{DELIVERED_TRANSPORT}`. On timeout, fall through to offline.
   5. **Offline path:** a Redis MULTI per A3 (`env:`, `mbx:`, `due`), then `Accepted{STORED}`, then `PushNotifier.wake(recipientDeviceId)` (a no-op interface until Phase 12).
   6. Redis down → write directly to Mongo `pending_envelopes` → `Accepted{STORED}`.
-  7. Both down → `Error{retryable:true}`. The client keeps it in its outbox.
+  7. Both down → `ServerError{code:MAILBOX_UNAVAILABLE, retryable:true}`. The client keeps it in its outbox.
 - [ ] **Fetch on (re)connect:** after `AuthOk`, stream pending envelopes from Redis + Mongo, merged, deduped and ordered by createdAt, in batches with flow control.
   - Clients `Ack{envelopeIds[]}`. The ACK deletes from Redis (MULTI DEL/ZREM/ZREM) and Mongo (deleteMany by `_id`). It is idempotent.
 - [ ] **Mongo `pending_envelopes`** (REQ §16.3): unique `_id` = envelopeId; indexes `{recipientDeviceId, createdAt}` and TTL `{expiresAt}` with expireAfterSeconds 0. It holds no plaintext fields.
@@ -56,3 +56,9 @@ Real E2EE payloads (09), push (12), groups routing (13), attachments (14).
 - `/metrics` exposes the A3 metrics.
 - The Redis budget ADR is written with measured numbers.
 - `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 4 (ADR 0006):**
+- Frames are in `packages/protocol/proto/pingdost/v1/ws.proto`. Use the codecs (`decodeClientFrame`, `encodeServerFrame`, `decodeEnvelope`) with `envelopeMaxBytes` from config; they enforce the size, version and expiry rules.
+- Errors go out as `ServerError{code, retryable, message}` with `ErrorCode` strings from `@pingdost/shared-types`. `Accepted` echoes `request_id` and carries `packet_id` + `envelope_id`.
+- `Typing` lists recipient device IDs; the server sets `sender_device_id` from the socket.
