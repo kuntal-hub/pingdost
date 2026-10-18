@@ -19,6 +19,8 @@ apps/mobile/ios/
 
 # Rust
 target/
+# Native crypto libraries (`pnpm --filter @pingdost/crypto-native build:android`)
+packages/crypto-native/android/src/main/jniLibs/
 
 # Local env (only the example is committed)
 .env

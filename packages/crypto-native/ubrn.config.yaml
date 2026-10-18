@@ -1,0 +1,22 @@
+# uniffi-bindgen-react-native config, `jsi2` flavour (ADR 0005): the crate ships as
+# lib<name>.so per ABI and loads through the @ubjs/react-native player, so this package has
+# no C++ or Kotlin of its own. `pnpm --filter @pingdost/crypto-native build:android` builds
+# the .so files (git-ignored) and regenerates the TypeScript bindings (committed).
+rust:
+  directory: ../..
+  manifestPath: crates/pingdost-crypto/Cargo.toml
+
+android:
+  # Matches the app's minSdkVersion floor; passed to cargo-ndk as --platform.
+  apiLevel: 24
+  # Set here, not in package.json `codegenConfig`: that field would make React Native
+  # autolinking expect a codegen spec this assets-only library does not have.
+  packageName: com.pingdost.cryptonative
+
+jsi2:
+  ts: src/generated
+  # The player ships only these two ABIs.
+  androidTargets: [arm64-v8a, x86_64]
+
+turboModule:
+  entrypoint: src/generated/entry.ts

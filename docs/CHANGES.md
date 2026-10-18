@@ -4,6 +4,14 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-10-18 — Phase 3: Android native crypto build
+1. **Android ships for 64-bit ABIs only** (`arm64-v8a`, plus `x86_64` for emulators). Phones that run a 32-bit-only Android (some low-end and Android Go devices) cannot install the app for now.
+   - *Reason:* the chosen binding, ubrn's `jsi2` JSI player (ADR 0005), ships prebuilt only for 64-bit ABIs.
+   - *Mitigation:* build the player for `armeabi-v7a` from ubrn's sources, or switch to ubrn's classic `jsi` flavour. Revisit in Phase 27 with real device data (REQ §14.1 asks for low-end device tests).
+   - *Affects:* 03, 20, 27.
+2. **Android Auto Backup is disabled** (`allowBackup: false`). REQ does not ask for it; ADR 0003 forbids restoring Olm state from backups. Account recovery stays with Phase 19.
+   - *Affects:* 03, 19.
+
 ### 2026-10-18 — Initial planning deviations
 1. **iOS deferred.** Android + web first; iOS moves to Phases 28–30. REQ §3 says all three platforms at launch, so iOS launch readiness is still required before a "full" launch.
    - *Reason:* the user has Android phones and no Mac or iPhone.

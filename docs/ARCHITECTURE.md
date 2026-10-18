@@ -127,10 +127,11 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Megolm does not reject replays, so the engine rejects seen (sessionId, messageIndex) pairs. Repeated pre-key messages are routed by `prekeyMessageSessionId()`.
   - Why not MLS: MLS requires totally ordered commits, which breaks under offline/mesh delivery. Why not libsignal: no official RN or web builds. Both are scored in the Phase 2 matrix anyway.
 - **Bindings:** a Rust wrapper crate `crates/pingdost-crypto` with a narrow uniffi API, built with **uniffi-bindgen-react-native (ubrn)**.
-  - Android/iOS get a Turbo Module (`packages/crypto-native`).
+  - Android/iOS (ADR 0005): the ubrn **`jsi2`** flavour. `packages/crypto-native` ships `libpingdost_crypto.so` (built locally, git-ignored) plus committed TypeScript bindings; the app loads it through the `@ubjs/react-native` JSI player Turbo Module, which must be a direct app dependency.
   - Web and Node get the `wasm2` target (proven in Phase 2 on a Windows host; generated bindings and `.wasm` are committed in `packages/crypto/src/generated/`).
-  - Fallback: wasm-bindgen/wasm-pack for web.
-  - Either way, consumers see only the `CryptoProvider` interface in `packages/crypto`.
+  - Both generated bindings have the same API, so one wrapper (`createBindingsProvider` in `@pingdost/crypto/core`) serves both.
+  - Fallbacks: the classic ubrn `jsi` flavour (per-library C++ Turbo Module) for native; wasm-bindgen/wasm-pack for web.
+  - Either way, consumers see only the `CryptoProvider` interface in `packages/crypto`. `@pingdost/crypto/conformance` holds the provider-independent scenarios, test vectors and interop protocol.
 - **Multi-device:** messages are encrypted per recipient device, **including the sender's own other devices** (linked browsers), so every device stays in sync.
 - **Verification:**
   - Each account has one Ed25519 **account identity key**, created on the primary phone and separate from the device Olm accounts. It signs each device's keys (a device certificate).
@@ -154,9 +155,12 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - **Expo** (latest SDK at Phase 3) with **dev builds**, run locally via `npx expo run:android` (Android SDK + JDK 17 are installed). No Expo Go and no EAS needed for Android.
   - **Load the `expo:expo-overview` skill before Expo work.**
 - **Identifiers:** Android package and iOS bundle ID `com.pingdost.app`; URL scheme `pingdost`.
+- ⚠ **ABIs:** `arm64-v8a` and `x86_64` (emulator) only, because the ubrn JSI player ships only 64-bit builds (ADR 0005). 32-bit-only phones are not supported for now.
+- **Backups:** `android:allowBackup="false"`. Android Auto Backup must not copy the encrypted DB or pickles: ADR 0003 forbids restoring Olm state, and Keystore-wrapped keys do not restore anyway. Recovery uses the Phase 19 backup instead.
 - **Navigation and UI:** Expo Router (`(auth)` and `(app)` groups); NativeWind with `@pingdost/ui-tokens`; light and dark themes.
 - **Local DB:** `expo-sqlite` with config-plugin `useSQLCipher: true` and `enableFTS: true`.
-  - Raw-SQL repositories plus a migration runner keyed on `PRAGMA user_version`.
+  - A raw 32-byte key (`PRAGMA key = "x'…'"`) from SecureStore; opening checks `PRAGMA cipher_version`, because plain SQLite would ignore the key silently.
+  - Raw-SQL repositories plus a migration runner keyed on `PRAGMA user_version` (`apps/mobile/src/db/migrate.ts`; `STRICT` tables).
   - Tables: REQ §14.1 entities plus `crypto_store` (pickles) and an FTS5 table.
 - **Files:** `expo-file-system` (new File API, chunked reads, no base64 for big files). Attachments are stored **as encrypted files**; plaintext is decrypted to a temp cache only for viewing.
 - **Libraries, by phase:**

@@ -3,10 +3,17 @@ packages:
   - packages/*
   - tools/*
 
+# A flat node_modules, as Expo documents for React Native problems with isolated installs.
+# Isolated paths (node_modules/.pnpm/<name>@<version>_<hash>/node_modules/<name>/…) push
+# Android CMake/prefab files past Windows' 260-character MAX_PATH, and ninja then re-runs
+# CMake forever ("build.ninja still dirty"). ADR 0005.
+nodeLinker: hoisted
+
 # Install scripts (pnpm blocks them unless listed). false = deliberately skipped.
 allowBuilds:
   # postinstall only verifies the native binary, which ships via optionalDependencies.
   unrs-resolver: false
+  esbuild: false
 
 # Shared exact versions; packages reference them as "catalog:".
 catalog:

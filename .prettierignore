@@ -1,7 +1,11 @@
 pnpm-lock.yaml
 # Generated bindings (uniffi-bindgen-react-native) and Rust build output.
 packages/crypto/src/generated/
+packages/crypto-native/src/generated/
 target/
+# Written by Expo CLI on `expo start` (git-ignored).
+apps/mobile/expo-env.d.ts
+apps/mobile/android/
 # Hand-maintained docs (tables and wording are formatted deliberately).
 *.md
 LICENSE

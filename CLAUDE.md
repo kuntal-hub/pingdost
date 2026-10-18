@@ -59,6 +59,10 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - Prefer targeted test runs (`pnpm --filter <pkg> test`) over full builds while iterating.
   - Avoid spawning subagents unless a task truly needs parallel search.
 - **Environment.** Windows 11; use PowerShell or Git Bash. Docker Desktop provides the local infra. Android phones are attached over adb. There is no Mac.
+  - **The repo lives at `C:\dev\pd`** (moved from OneDrive on 2026-10-19). Keep it at a short path outside OneDrive: React Native's CMake builds nest the repo path twice in object paths, so a longer base path breaks Android builds at Windows' 260-character limit (ADR 0005). OneDrive would also sync GBs of `node_modules`, Gradle and Rust output.
+  - Gradle downloads time out over IPv6 here: set `$env:JAVA_TOOL_OPTIONS='-Djava.net.preferIPv4Stack=true'` before Android builds.
+  - One-time Windows setup for Android builds (done on this PC 2026-10-19; ADR 0005): `LongPathsEnabled=1` (`HKLM\SYSTEM\CurrentControlSet\Control\FileSystem`, admin) and Ninja ≥ 1.12 in place of the SDK's `cmake\3.22.1\bin\ninja.exe` (now 1.13.2; the original is `ninja.exe.1.10.2.bak`). Without both, React Native codegen fails with `ninja: error: mkdir(...)` or "build.ninja still dirty".
+  - `CI=1 expo start` disables Metro's file watching: restart Metro (`--clear`) after edits when it runs that way.
 - **Git:** commit at the end of every phase (the user pre-authorized this). Push only if Phase 1 recorded that the user approved end-of-phase pushes; see the "Git remote" line below.
 
 ## Git remote
@@ -75,12 +79,20 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
 - `pnpm format` / `pnpm format:check`: Prettier (Markdown is excluded).
 - Add `--force` to a `pnpm turbo run …` call to bypass the Turbo cache.
 - **Rust / crypto** (toolchain pinned in `rust-toolchain.toml`; needs VS 2022 Build Tools C++ for the MSVC linker):
-  - `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo clippy --workspace --target wasm32-unknown-unknown -- -D warnings`, `cargo fmt --all`;
+  - `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo clippy --workspace --target wasm32-unknown-unknown -- -D warnings`, the same with `--target aarch64-linux-android`, `cargo fmt --all`;
   - `pnpm --filter @pingdost/crypto build:wasm` rebuilds the WASM module and regenerates `packages/crypto/src/generated/` (committed; never hand-edit). It needs `wasm-bindgen-cli` at the exact `wasm-bindgen` version in `Cargo.lock` (now 0.2.129: `cargo install wasm-bindgen-cli --version 0.2.129 --locked`);
   - `pnpm --filter @pingdost/crypto test` runs the WASM interop tests in Node.
+  - `pnpm --filter @pingdost/crypto-native build:android` cross-compiles `libpingdost_crypto.so` (arm64-v8a, x86_64; git-ignored) with `cargo-ndk` 4.1.2 (`cargo install cargo-ndk --version 4.1.2 --locked`) and regenerates `packages/crypto-native/src/generated/` (committed; never hand-edit). ubrn `jsi2` flavour, ADR 0005. Run it before the first Android build and after any Rust change.
   - If `cargo` is not found in an older shell, prepend `$env:USERPROFILE\.cargo\bin` to `PATH` (rustup added it for new shells).
+- **Android app** (`apps/mobile`, Expo SDK 58 dev build; never Expo Go):
+  - `pnpm --filter @pingdost/mobile android`: prebuild (`android/` is generated and git-ignored), Gradle build, install on the attached device/emulator, start Metro. `pnpm --filter @pingdost/mobile start` when the build is already installed.
+  - `pnpm --filter @pingdost/mobile android:release`: a release build (for APK size checks).
+  - After changing `app.json` plugins or native deps: `npx expo prebuild --platform android --clean` in `apps/mobile`.
+  - Crypto interop proof: `pnpm --filter @pingdost/crypto interop-server`, `adb reverse tcp:8787 tcp:8787`, then the app's **Crypto interop (dev)** screen. `pnpm --filter @pingdost/crypto make-vectors` regenerates the test vectors (only when vodozemac changes).
+  - Emulators: `Pixel_8_API_35` (x86_64). Install packages with `npx expo install` semantics but pin the exact version it picks.
 - Test conventions:
   - unit tests are `src/**/*.test.ts`, and each package with tests has a `vitest.config.ts` using `defineProject` (copy `packages/config/vitest.config.ts`);
   - integration tests are `*.int.test.ts`, with a `vitest.int.config.ts` and the script `"test:int": "vitest run --config vitest.int.config.ts"`;
   - env vars that `test:int` needs must be listed in `passThroughEnv` in `turbo.json` (Turbo strict env mode).
 - Tooling notes: TypeScript is pinned to 6.0.x because typescript-eslint 8.71 supports `<6.1`; TS 6 defaults `types` to `[]`, so a package that needs Node types sets `"types": ["node"]`. Git Bash failed to fork in this environment (2026-10-18), so use PowerShell.
+  - Windows PowerShell 5.1: `Set-Content -Encoding utf8` writes a BOM (breaks `package.json`), and `Get-Content -Raw` without `-Encoding utf8` mangles non-ASCII. Edit files with the Write/Edit tools instead.

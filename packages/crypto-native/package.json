@@ -1,0 +1,32 @@
+{
+  "name": "@pingdost/crypto-native",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OWNER/pingdost.git",
+    "directory": "packages/crypto-native"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "build:android": "ubrn build jsi2 android --config ubrn.config.yaml --release --and-generate"
+  },
+  "dependencies": {
+    "@pingdost/crypto": "workspace:*",
+    "@ubjs/core": "0.31.0-6"
+  },
+  "peerDependencies": {
+    "@ubjs/react-native": "0.31.0-6"
+  },
+  "devDependencies": {
+    "@ubjs/react-native": "0.31.0-6",
+    "typescript": "catalog:",
+    "uniffi-bindgen-react-native": "0.31.0-6"
+  }
+}

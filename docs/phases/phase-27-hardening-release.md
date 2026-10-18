@@ -17,7 +17,9 @@ Make the product release-worthy: security and privacy audits, full acceptance tr
   - **log and crash redaction:** grep plus a runtime capture test across server, mobile and web; no secrets, plaintext or ciphertext;
   - **dependencies:** `pnpm audit`, `cargo audit`, a license report (e.g. `license-checker` + `cargo-deny`) checked against the project license;
   - **web:** CSP and security headers;
-  - **secrets:** scanning (gitleaks) added to CI.
+  - **secrets:** scanning (gitleaks) added to CI;
+  - **crypto bindings (from Phases 2–3):** a CI drift check that regenerates both ubrn bindings (`wasm2`, `jsi2`) and diffs them; zeroize pickle-key copies where the platform allows.
+- [ ] **32-bit Android (from Phase 3, ADR 0005):** decide from device data whether to support `armeabi-v7a` (build the ubrn JSI player for it, or switch to the classic `jsi` flavour). Until then the Play listing is 64-bit only.
 - [ ] **Retention and deletion audit:** scripts that verify no `pending_envelopes`, attachments, OTPs, pairing requests or security events are older than their limits (staging data), and that a backup policy excludes them or the wording reflects that they may be included.
 - [ ] **Abuse tests:** mass large uploads (quota), never-delivered queue growth (per-sender limits on pending envelopes; add a cap if missing), WS flood, OTP/login brute force, pairing spam, mesh spam (simulation).
 - [ ] **Load and cost:** a k6 (OSS) script on staging covering WS connections, message throughput, mailbox migration under backlog. Project usage against the free-tier limits from A9, and set the alert thresholds.

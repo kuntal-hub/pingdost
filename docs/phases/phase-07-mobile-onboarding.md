@@ -39,7 +39,7 @@ A real phone can register, verify by email, log in (password or Google), create 
 - [ ] **Tests:** unit tests for the auth store/refresh logic and form schemas (Vitest or jest-expo, whichever Expo recommends now).
 
 ## Key files
-`apps/mobile/app/(auth)/*`, `apps/mobile/app/(app)/*`, `apps/mobile/src/{auth/*,api/*,device/*,settings/*}`
+`apps/mobile/src/app/(auth)/*`, `apps/mobile/src/app/(app)/*`, `apps/mobile/src/{auth/*,api/*,device/*,settings/*}`
 
 ## Out of scope
 Chat UI (10); pairing the web (16).
@@ -54,3 +54,10 @@ Chat UI (10); pairing the web (16).
   6. Log out, log back in: the device is recognized and there is no duplicate primary.
 - Google sign-in works once the user has created client IDs. Otherwise mark it pending in PROGRESS with the exact steps.
 - `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 3:**
+- Routes live in `apps/mobile/src/app/` (Expo Router `src/` layout); screen bodies in `src/screens/`. Replace the Phase 3 home screen (`src/screens/home.tsx`); keep `(dev)/crypto` dev-only.
+- Crypto: `getCryptoContext()` (`src/crypto/bootstrap.ts`) opens the SQLCipher DB and loads or creates the Olm account. Call `store.saveAccount()` after every account change (one-time keys generated or published, inbound sessions created).
+- Theme: `ThemeRoot` + NativeWind classes such as `bg-surface text-foreground` (tokens in `@pingdost/ui-tokens`). Vitest already runs `src/**/*.test.ts` for platform-independent modules.
+- Debug builds allow cleartext HTTP (Expo's debug manifest), release builds do not.

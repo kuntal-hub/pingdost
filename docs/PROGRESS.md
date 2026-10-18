@@ -17,6 +17,41 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-19 — Phase 03: Crypto spike B (mobile shell + native crypto) — ✅ done
+**Crypto gate closed.** The REQ §7.1 proof now covers Android (real phone) and web/Node. On a vivo V2437 (Android 16, arm64) and the x86_64 emulator, all of these pass: the 14 Phase 2 scenarios, the 3 WASM-made vectors, and all 6 phone ↔ Node interop steps (Olm and Megolm, both directions).
+
+**Done:**
+- **Repo moved to `C:\dev\pd`** (out of OneDrive, user-approved). Open Claude Code there from now on.
+- `apps/mobile` (Expo SDK 58.0.14, RN 0.88, Expo Router `src/app`, NativeWind 4.2.7 + `@pingdost/ui-tokens` light/dark):
+  - SQLCipher DB (`src/db/open.ts` with step-named errors, `migrate.ts` + tests);
+  - SecureStore secrets; the Olm account store; bootstrap timings;
+  - a Phase 3 home screen and the dev-only `(dev)/crypto` screen.
+- `packages/crypto-native` (ubrn `jsi2` + the `@ubjs/react-native` player). `createBindingsProvider` (`@pingdost/crypto/core`) is shared by WASM and native.
+- `@pingdost/crypto/conformance`: scenarios, vectors and the interop protocol. Also `scripts/interop-server.ts` and `scripts/make-vectors.ts`, with vectors in `packages/test-fixtures/crypto/`.
+- Docs: ADR 0005 (with measurements), ARCHITECTURE A5/A6, CHANGES, CLAUDE.md (commands, Windows setup), phases 07/10/27. CI: clippy for `aarch64-linux-android`.
+
+**Deviations / decisions (ADR 0005, CHANGES 2026-10-18):**
+- ubrn `jsi2` rather than classic `jsi`, so 64-bit ABIs only. `allowBackup: false`.
+- pnpm `nodeLinker: hoisted`. Windows `LongPathsEnabled=1` plus Ninja 1.13.2 swapped into the SDK's CMake 3.22.1 (user-approved).
+- `react-native-gesture-handler` 3.3.0 and `react-native-css-interop` 0.2.7 are direct deps. `crypto-native` has no `codegenConfig`.
+- Migrations use `BEGIN IMMEDIATE` on the keyed connection: expo-sqlite's exclusive transactions open an unkeyed connection.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test --force`: 32/32 (config 66, crypto 20, mobile 7, ui-tokens 3). `pnpm format:check` passes.
+- `cargo fmt --check` passes; clippy is clean on host, wasm32 and aarch64-linux-android; `cargo test` 5/5.
+- Device (dev build): restart gives the same identity key ("restored from pickle"). The DB and WAL pulled via `run-as` fail with "file is not a database" and contain no plaintext schema (phone and emulator). SQLCipher 4.17.0.
+- Release, on the phone: crypto ready in a median of 64 ms on restore (48–144 ms) and 88–125 ms on first run; activity launch median 678 ms.
+- Size: per arm64 slice, the crypto module adds 1.70 MB and SQLCipher 5.06 MB. The two-ABI release APK is 71.4 MB (60.9 MB without SQLCipher).
+- **Not run:** GitHub CI (still no remote).
+
+**Known issues / tech debt:**
+- The phone now has the **release** build installed (used for timing). Run `pnpm --filter @pingdost/mobile android` to get the dev build back.
+- The old OneDrive copy `C:\Users\Km799\OneDrive\Desktop\pingdost` is stale; delete it after checking this commit.
+- vivo hides `ReactNativeJS` logcat output; read on-screen text instead (`uiautomator dump`).
+- Earlier items still open: binding drift check, pickle-key zeroization (Phase 27), placeholder `OWNER` in `repository.url`.
+
+**Next:** Phase 04 (protocol & contracts) or 05. Phase 21 (nearby spike) is now unblocked as well.
+
 ## 2026-10-18 — Phase 02: Crypto spike A (gate) — ✅ done
 **Done:**
 - **Crypto gate (web/Node half) passed; the user approved ADR 0003 and ADR 0004.**

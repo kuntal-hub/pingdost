@@ -1,0 +1,43 @@
+{
+  "implementation": "pingdost-crypto/vodozemac-0.11.1 (wasm)",
+  "pickleKey": "zH1jXPx1ig+ti+0lEYDsU43Z2SnqL5RuFEZGDDHW3HU=",
+  "signing": {
+    "accountPickle": "8Q45W5IB3ctLKe5sZDAeZhNEYP3+0+1qsYEd8SucQ/lUR7+MWY3qTqDZZ7zn6JsVFkaEDZXqgyjyr8oaH/23q1l0682Khgrzc82RrjRdb83ydotxSY3yDP8uu3mF1T+bpDrDqYibLksTjBYSrxKVl4UeZ+Stol5KYh5oUwD4Pv+lhzGWmv5pzGIGsgLVuihEQb7KgacMb8ahezt9bw2RvEhAKaD/8KaTog8uRmej9uoQJQ02qrDQ14zMP9OS2ldZQ3n1AAlONH5Zz48l9W/uDHlH2fFevJI7XhKjGfzr47N3XPusyqdFTmsbuYRQwCEMCA3ZJ3xzftrA/KiWd14LomhSWEfOQJBeUOjExEsmOaOcY11uNqdn425yyEJwiFGbYZo03tPn0ea8wh4QWsSaDW5Gn8dlt9Mhi14oQSewZZHl5cUKjEX1TGbQ74fCksVINNDeVWo5G6wd4nDfwbwVfNRKFVH+bILQk/mdYnA+bk3Z+CS7xiMNn/N4xT/KtgLW4qdMti0ckd8MldHRfqLpC5modWnbRFvNo3Z4tyhapLFXl7lyEbYPihwWKt3sFbkBG1/f8Mffr7A",
+    "identityKeys": {
+      "curve25519": "RsYXZada+r4knkFhD4bskBYY/8XKf/psG3zVvEa/cWQ",
+      "ed25519": "7A6voXofly3/rq+VKP708GoEieOxzIJB0FNPJWGYvVE"
+    },
+    "message": "pingdost device certificate vector",
+    "signature": "hF7ws3wurmfQQaliGDrwGsaFFSFbMakm+RfUIsmIUzJSmSfJkYnWKVA7u56ta+bgQ5dFjM4OTKToZtDMZndzDg"
+  },
+  "olmPrekey": {
+    "receiverAccountPickle": "8Q45W5IB3ctLKe5sZDAeZri8vunCltLTfqf3nBFcDM7fjjjIDeyw3PopvphRY2K+NWBQsFg2qp4q2s9BtRjJXz73+H/n60yCDMntgFvPNZTuHHxFsvtOw3otlXKSMwRQcjCNQ9K0K1Bp9pX3ZXCOyE76SjHasC54mVpGcIFWnTFVOqs5SsbHbuRA/VtXb8OKQ1wbuSBTjJWIviq3vGPus5COabMYQ08lD8nVBQrKidC+188jhO529FRqcMCLFKkcu0xAbkR3+SZ5U9JkTvxIug92eKsieDapp+kVNPPXuOMgqrRh4u15RSbP3obQB6847DRRLjUkh7gy+Mq6gLI7BWeNdp2WbuA0wN0b/rva4hsllLkx1G70WlqvVk2GZN6073ZSFvkERUeZS0TPXfElPaGTyllot4sRIOb3KnW00IFysxJUrpv4pQ2W8BbvJDWAnfyfAkl2J2165J7U/l1w3ry0Y0uF9tiREFTD+1htlOPQVfkQQXVL1IofX9sLJaGB7mUb5ELizSnJI08QKMYaUmCCIlKWu3h0bqL5cSWwFrcAN9+p6si5Lxix97tBzhItyiislKP2ylzKMit4MT74ldjWxmCR+ysjEYJ2JKKCAa89WPvcFm5WYvCQ/R35NFN6PG9KoGaCEP0mb/1JLbFmWpptoukkdnhFA5L5tF5yjajGG1PaGsytEVJzdDiricB8UBPaKj1JZLbInFYf1lu21UsoeFKhxi+ukPwjoQjOMPriZ9dCfGya9Q",
+    "senderIdentityKey": "dW3dQ1JpGbmdaJcTo1Ys4KRfipYhr3sGMWPk3gSdQTI",
+    "message": {
+      "type": "prekey",
+      "body": "AwogfzEnDTx7WSkbbN9Jw9xF4LGZ7xxrFl3nxAwZBIOcfgASIOxUC7lXh9QA1G990wk+k1AASetg7hgXohNLkC8YxIEeGiB1bd1DUmkZuZ1olxOjVizgpF+KliGvewYxY+TeBJ1BMiJPAwogce1MRrCv5IIqFVRf1a4b19LQ5khYjP8SSk25dhVK9l0QACIgskwCvt448LzQKM/r42dkVZVQlRYl438gNJDKuKOVVHcL7aMeblXXBA=="
+    },
+    "plaintext": "olm pre-key vector"
+  },
+  "megolm": {
+    "sessionKey": "AgAAAAAGLwDNwyqEz7Nx/eGCjhlX/WqSgq9Vil0A74DlEbHlwBBqO11OH1sFG7rtWIiokdvFkwbb4x+1QFzAt7JF4At1Ats3fNQCjJwk5TgEnWDItmaFD8IYEcEi8pdIQl6blkC/qzL/MDyov5yIkOpWqyhpXzzjJ4M6Z22xJzYvqhAPLhM0PohNHy/sWlEmTskTZu6Gx13iwl0VaYaz8D1P5M4p8HTZXozmStMtZkre9Bz7bcVVjcNUQQgLr+Qi+l2flkkt1plGMKtStSiMUvk/+9ZzgRMq7t7m+SkZZCxXHAbIDQ",
+    "sessionId": "EzQ+iE0fL+xaUSZOyRNm7obHXeLCXRVphrPwPU/kzik",
+    "messages": [
+      {
+        "index": 0,
+        "ciphertext": "AwgAEhBJdyXkdpx3YYIu4FMKYy3O+jYk+1I7ffq6I6DTRVZIE6lk2Sd8LNC1b4k4zDh7NioiRLZG3Nf4EEYg3VR6xvWuxVju6BRQc0cbCzahMbOnaiZmxbnD1lIG",
+        "plaintext": "megolm vector 0"
+      },
+      {
+        "index": 1,
+        "ciphertext": "AwgBEhBWwL5e75MnLhbLZca01C5bbj3PoG+GPGrF1qNZXlvY960cTn9Hf+LFW+bPs7jOH5zKfmrV+QArlML5R2XC5dDHFFstV1V9wgg+15SxAvrYz/h7d4sZCwsA",
+        "plaintext": "megolm vector 1"
+      },
+      {
+        "index": 2,
+        "ciphertext": "AwgCEhBILXbvjQ34uRoeYnQBTLFq9q+OwyXpWsWJmZhSuMOhTkvInWDNbI3cgavgozfO7tIOz5tIsno00YmR8ZN7GEJRMldErVXFxA6inV82CByh7ecMWLJPRw0E",
+        "plaintext": "megolm vector 2"
+      }
+    ]
+  }
+}

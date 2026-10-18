@@ -39,3 +39,10 @@ Reactions, edit, search and other extras (11); push (12); groups (13); attachmen
 - Mongo/Redis inspection during an offline send shows only ciphertext.
 - QR verification marks the contact verified.
 - `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 3 (ADR 0005):**
+- Add chat tables as migration 002 in `apps/mobile/src/db/migrate.ts` (ordered, `PRAGMA user_version`).
+- **Never use expo-sqlite's `withExclusiveTransactionAsync`** (or `useNewConnection`): the extra connection has no SQLCipher key and fails with "file is not a database". Use `withTransactionAsync` or `BEGIN IMMEDIATE … COMMIT` on the keyed connection from `getCryptoContext()`.
+- Persist every Olm session as a pickle (pickle key from `src/crypto/secrets.ts`) and re-save the account after one-time keys change.
+- `@pingdost/crypto/conformance` and the dev route `(dev)/crypto` stay available for regression checks on new devices.

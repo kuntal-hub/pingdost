@@ -12,22 +12,24 @@ Create the Expo app shell. Run the approved crypto core natively on Android, wit
 - **Load skill `expo:expo-overview`** (it routes to `expo-project-structure`, `expo-module` and others as needed)
 
 ## Tasks
-- [ ] Check the latest Expo SDK version and the monorepo + pnpm guidance (Expo docs). Create `apps/mobile` with `create-expo-app` (TypeScript + Expo Router template). Name `PingDost`; package `com.pingdost.app`; scheme `pingdost`.
-- [ ] **Monorepo wiring:** Metro resolves `@pingdost/*` TS-source packages; apply the `.npmrc` linker setting if Expo requires it; add `@pingdost/ui-tokens` with initial tokens. Set up NativeWind with a light/dark theme.
-- [ ] **Android toolchain:**
+- [x] Check the latest Expo SDK version and the monorepo + pnpm guidance (Expo docs). Create `apps/mobile` with `create-expo-app` (TypeScript + Expo Router template). Name `PingDost`; package `com.pingdost.app`; scheme `pingdost`.
+- [x] **Monorepo wiring:** Metro resolves `@pingdost/*` TS-source packages; apply the `.npmrc` linker setting if Expo requires it; add `@pingdost/ui-tokens` with initial tokens. Set up NativeWind with a light/dark theme.
+- [x] **Android toolchain:**
   - install the NDK via `sdkmanager` (version recommended by ubrn/RN);
   - add rust targets `aarch64-linux-android`, `armv7-linux-androideabi` and `x86_64-linux-android` (emulator);
   - install `cargo-ndk` if ubrn needs it.
-- [ ] **Generate `packages/crypto-native`** (RN Turbo Module) from `crates/pingdost-crypto` with ubrn. Implement `createNativeCryptoProvider()` with the **same** `CryptoProvider` interface as the WASM build.
+  - *Done:* NDK 27.1 (already installed), cargo-ndk 4.1.2, targets `aarch64` + `x86_64` only: the ubrn `jsi2` player has no 32-bit build (ADR 0005, CHANGES).
+- [x] **Generate `packages/crypto-native`** (RN Turbo Module) from `crates/pingdost-crypto` with ubrn. Implement `createNativeCryptoProvider()` with the **same** `CryptoProvider` interface as the WASM build.
   - Bytes cross JSI as `ArrayBuffer`/`Uint8Array`, never base64 strings.
-- [ ] **Dev build:** `npx expo run:android` works on the emulator and on a real phone.
-- [ ] **Encrypted DB:**
+  - *Done* with ubrn's `jsi2` flavour plus the `@ubjs/react-native` player; one shared wrapper (`createBindingsProvider`) serves WASM and native (ADR 0005).
+- [x] **Dev build:** `npx expo run:android` works on the emulator and on a real phone (vivo V2437, Android 16). Needed a short repo path, hoisted pnpm, Windows long paths and Ninja ≥ 1.12 (ADR 0005).
+- [x] **Encrypted DB:**
   - `expo-sqlite` config plugin with `useSQLCipher: true`, `enableFTS: true`;
   - `src/db/open.ts`: get or create a 32-byte key (expo-crypto random) in `expo-secure-store`, open the DB, run `PRAGMA key`, verify with a test query;
   - `src/db/migrate.ts`: ordered SQL migrations keyed on `PRAGMA user_version`, each in a transaction;
   - migration 001: `local_settings(key PRIMARY KEY, value)` and `crypto_store(id PRIMARY KEY, kind, pickle BLOB, updated_at)`. Chat tables arrive in Phase 10.
-- [ ] **Crypto store:** create the Olm account on first run, pickle it with a pickle key held in SecureStore, and store the pickle in `crypto_store`. Reload it on restart.
-- [ ] **Interop proof:** dev-only route `app/(dev)/crypto.tsx` plus a Node script `packages/crypto/scripts/interop-server.ts`.
+- [x] **Crypto store:** create the Olm account on first run, pickle it with a pickle key held in SecureStore, and store the pickle in `crypto_store`. Reload it on restart.
+- [x] **Interop proof:** dev-only route `app/(dev)/crypto.tsx` plus a Node script `packages/crypto/scripts/interop-server.ts`.
   - The script is a tiny HTTP server on the LAN that uses the WASM provider.
   - **Flow:**
     1. The phone posts its identity key and an OTK.
@@ -37,8 +39,8 @@ Create the Expo app shell. Run the approved crypto core natively on Android, wit
     5. Then the same Megolm exchange.
   - The screen shows ✅/❌ per step.
   - Save deterministic vectors (where possible) to `packages/test-fixtures/crypto/`.
-- [ ] **Measure** the release APK size delta of SQLCipher + the crypto module (`./gradlew assembleRelease` or `expo run:android --variant release`), and cold-start crypto init time. Record both in a new ADR (native binding & mobile build).
-- [ ] Optionally, run the Phase 2 conformance scenarios on-device through the dev screen.
+- [x] **Measure** the release APK size delta of SQLCipher + the crypto module (`./gradlew assembleRelease` or `expo run:android --variant release`), and cold-start crypto init time. Record both in a new ADR (native binding & mobile build).
+- [x] Optionally, run the Phase 2 conformance scenarios on-device through the dev screen.
 
 ## Key files
 `apps/mobile/{app.json|app.config.ts,metro.config.js,app/_layout.tsx,app/(dev)/crypto.tsx,src/db/*,src/crypto/*}`, `packages/crypto-native/*`, `packages/ui-tokens/*`, `packages/crypto/scripts/interop-server.ts`

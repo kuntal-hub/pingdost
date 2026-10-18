@@ -1,5 +1,5 @@
 // @pingdost/crypto: the narrow CryptoProvider interface (ADR 0003) and its WASM
-// implementation for web and Node. Android uses a native provider (Phase 3).
+// implementation for web and Node. Android uses `@pingdost/crypto-native` (ADR 0005).
 export { CryptoOperationError } from './errors';
 export type { CryptoErrorCode } from './errors';
 export type * from './types';
