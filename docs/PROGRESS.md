@@ -21,7 +21,7 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Crypto gate closed.** The REQ §7.1 proof now covers Android (real phone) and web/Node. On a vivo V2437 (Android 16, arm64) and the x86_64 emulator, all of these pass: the 14 Phase 2 scenarios, the 3 WASM-made vectors, and all 6 phone ↔ Node interop steps (Olm and Megolm, both directions).
 
 **Done:**
-- **Repo moved to `C:\dev\pd`** (out of OneDrive, user-approved). Open Claude Code there from now on.
+- **Repo location:** the phase was finished in a copy at `C:\dev\pd`. The user then chose to keep working in `C:\Users\Km799\OneDrive\Desktop\pingdost`, which was fast-forwarded to the phase commit. A dev build from there works on the phone (long paths + Ninja 1.13.2). `C:\dev\pd` is now stale.
 - `apps/mobile` (Expo SDK 58.0.14, RN 0.88, Expo Router `src/app`, NativeWind 4.2.7 + `@pingdost/ui-tokens` light/dark):
   - SQLCipher DB (`src/db/open.ts` with step-named errors, `migrate.ts` + tests);
   - SecureStore secrets; the Olm account store; bootstrap timings;
@@ -45,8 +45,8 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 - **Not run:** GitHub CI (still no remote).
 
 **Known issues / tech debt:**
-- The phone now has the **release** build installed (used for timing). Run `pnpm --filter @pingdost/mobile android` to get the dev build back.
-- The old OneDrive copy `C:\Users\Km799\OneDrive\Desktop\pingdost` is stale; delete it after checking this commit.
+- `C:\dev\pd` is a stale copy; delete it when convenient. `git stash list` in this folder holds the pre-move working copy (superseded; drop it with `git stash drop`).
+- OneDrive syncs `node_modules`, Gradle and Rust output (several GB); watch the OneDrive quota.
 - vivo hides `ReactNativeJS` logcat output; read on-screen text instead (`uiautomator dump`).
 - Earlier items still open: binding drift check, pickle-key zeroization (Phase 27), placeholder `OWNER` in `repository.url`.
 

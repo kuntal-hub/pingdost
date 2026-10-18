@@ -59,7 +59,7 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - Prefer targeted test runs (`pnpm --filter <pkg> test`) over full builds while iterating.
   - Avoid spawning subagents unless a task truly needs parallel search.
 - **Environment.** Windows 11; use PowerShell or Git Bash. Docker Desktop provides the local infra. Android phones are attached over adb. There is no Mac.
-  - **The repo lives at `C:\dev\pd`** (moved from OneDrive on 2026-10-19). Keep it at a short path outside OneDrive: React Native's CMake builds nest the repo path twice in object paths, so a longer base path breaks Android builds at Windows' 260-character limit (ADR 0005). OneDrive would also sync GBs of `node_modules`, Gradle and Rust output.
+  - **The repo lives in `C:\Users\Km799\OneDrive\Desktop\pingdost`** (the user's choice; work only here). React Native's CMake builds nest the repo path twice in object paths, so Android builds at this path need the one-time long-path setup below (ADR 0005). OneDrive also syncs `node_modules`, Gradle and Rust output (several GB). `C:\dev\pd` is a stale Phase 3 copy.
   - Gradle downloads time out over IPv6 here: set `$env:JAVA_TOOL_OPTIONS='-Djava.net.preferIPv4Stack=true'` before Android builds.
   - One-time Windows setup for Android builds (done on this PC 2026-10-19; ADR 0005): `LongPathsEnabled=1` (`HKLM\SYSTEM\CurrentControlSet\Control\FileSystem`, admin) and Ninja ≥ 1.12 in place of the SDK's `cmake\3.22.1\bin\ninja.exe` (now 1.13.2; the original is `ninja.exe.1.10.2.bak`). Without both, React Native codegen fails with `ninja: error: mkdir(...)` or "build.ninja still dirty".
   - `CI=1 expo start` disables Metro's file watching: restart Metro (`--clear`) after edits when it runs that way.
