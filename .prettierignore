@@ -1,4 +1,7 @@
 pnpm-lock.yaml
+# Generated bindings (uniffi-bindgen-react-native) and Rust build output.
+packages/crypto/src/generated/
+target/
 # Hand-maintained docs (tables and wording are formatted deliberately).
 *.md
 LICENSE

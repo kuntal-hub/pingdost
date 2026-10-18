@@ -7,7 +7,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | # | Phase | Depends on | Status |
 |---|---|---|---|
 | 01 | [Repo bootstrap](phases/phase-01-repo-bootstrap.md) | — | ✅ |
-| 02 | [Crypto spike A: Rust core, WASM, license matrix (GATE)](phases/phase-02-crypto-spike-core.md) | 01 | ⬜ |
+| 02 | [Crypto spike A: Rust core, WASM, license matrix (GATE)](phases/phase-02-crypto-spike-core.md) | 01 | ✅ |
 | 03 | [Crypto spike B: mobile shell + native crypto on Android (GATE)](phases/phase-03-mobile-shell-native-crypto.md) | 02 | ⬜ |
 | 04 | [Protocol & shared contracts](phases/phase-04-protocol-contracts.md) | 02 | ⬜ |
 | 05 | [Server foundation + password auth](phases/phase-05-server-auth.md) | 01, 04 | ⬜ |

@@ -19,6 +19,12 @@ Add Google sign-in (ID-token verification), the device registry (one primary mob
 - [ ] **Devices** collection (REQ §16.2): `deviceId`, `userId`, `type` (android/ios/web), `role` (primary/linked), `name`, identity keys (curve25519, ed25519), `keyVersion`, `status` (active/revoked), `createdAt`, `revokedAt`, `lastSeenAt` (coarse, day granularity).
   - `POST /v1/devices/challenge` → a one-time nonce.
   - `POST /v1/devices` registers a device: the client signs `nonce || deviceId || identity keys` with its ed25519 key (proof of possession).
+  - **Account identity key (ADR 0003):**
+    - the primary phone creates one Ed25519 account identity key, kept separate from the device Olm account. Add a signing-key object to `crates/pingdost-crypto` and `CryptoProvider`, then regenerate bindings;
+    - the users collection stores its public part;
+    - each device record carries a **device certificate**: the account identity key's signature over `deviceId || curve25519 || ed25519`;
+    - clients verify certificates before trusting a device; the server only stores them.
+  - Uploaded one-time and fallback keys are signed by the device ed25519 key, so clients verify claimed keys too.
   - **Only one active primary:** if a primary already exists, return `PRIMARY_EXISTS`. The replacement flow comes in Phase 19.
   - Web devices are registered **only** via pairing (Phase 16); reject `type=web` here.
   - On registration, the session is bound to the device (`did` claim; a new token pair is issued).

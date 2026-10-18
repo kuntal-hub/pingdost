@@ -25,7 +25,8 @@ Build a platform-neutral, transport-neutral engine: local outbox, REQ §8.3 stat
   - **State machine:** the legal transitions from `shared-types`; aggregate per-message state from per-device states. "Delivered" happens only on an E2EE delivery receipt from a recipient device. The device's own other devices don't count.
   - **Session manager:**
     - fetch and cache the device directory (`GET /v1/keys/users/:id`); detect added and removed devices;
-    - claim OTKs; create outbound sessions; handle inbound prekey messages;
+    - claim OTKs; create outbound sessions; handle inbound prekey messages. Route a repeated pre-key message to the existing session via `prekeyMessageSessionId()`, and create a new inbound session only when none matches (ADR 0003);
+    - verify device certificates (account identity key, Phase 6) and one-time key signatures before encrypting to a device;
     - on a decrypt failure, send `SessionReset` and re-establish;
     - cache contacts' fallback keys (needed for mesh later).
   - **Content codec:** encode `Content` → pad → encrypt; reverse on receive.

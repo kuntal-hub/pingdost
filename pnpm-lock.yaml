@@ -95,10 +95,26 @@ importers:
         version: 5.0.5(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
 
   packages/crypto:
+    dependencies:
+      '@ubjs/core':
+        specifier: 0.31.0-6
+        version: 0.31.0-6
+      '@ubjs/wasm':
+        specifier: 0.31.0-6
+        version: 0.31.0-6(@ubjs/core@0.31.0-6)
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      uniffi-bindgen-react-native:
+        specifier: 0.31.0-6
+        version: 0.31.0-6
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
 
   packages/mesh-protocol:
     devDependencies:
@@ -449,6 +465,14 @@ packages:
   '@typescript-eslint/visitor-keys@8.71.2':
     resolution: {integrity: sha512-zozlN0UA32bSG2zkKAgQyRYSbEISVoyU6vvkKYo2aSny74D8Jh4e+POkJ6Lk0dlezZi5x7TtD+88Xb06IB8nhg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@ubjs/core@0.31.0-6':
+    resolution: {integrity: sha512-pscv6Zj8mVmd5+ikb1Zr6XZ0yqYwKGeIV8HU8rf9sTvs7GW34OARAp03xFJ7rE9XE4R6LgwQhzYW9knAuz5yxA==}
+
+  '@ubjs/wasm@0.31.0-6':
+    resolution: {integrity: sha512-ja7pEcA4bCfEyFR8/zxivypUhhudr9n45lwcMR2r9U5hyTGkPnNnp1Ef5NbpTQieJd8wDkumV8Z0Yn0T0JEPAg==}
+    peerDependencies:
+      '@ubjs/core': ^0.31.0-6
 
   '@unrs/resolver-binding-android-arm-eabi@1.12.2':
     resolution: {integrity: sha512-g5T90pqg1bo/7mytQx6F4iBNC0Wsh9cu+z9veDbFjc7HjpesJFWD7QMS0NGStXM075+7dJPPVvBbpZlnrdpi/w==}
@@ -1032,6 +1056,10 @@ packages:
   undici-types@7.24.6:
     resolution: {integrity: sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg==}
 
+  uniffi-bindgen-react-native@0.31.0-6:
+    resolution: {integrity: sha512-4SfjPl8b9oQQcLJRH7INa+DdWV2FKu9HAVOjHL0+rT8EniTG4qoxOdmDBw8Novq7vSqEFmiXbHaoArLFqWWEhg==}
+    hasBin: true
+
   unrs-resolver@1.12.2:
     resolution: {integrity: sha512-dmlRxBJJayXjqTwC+JtF1HhJmgf3ftQ3YejFcZrf4+KKtJv0qDsK1pjqaaVjG7wJ5NJ6UVP1OqRMQ71Z4C3rxQ==}
 
@@ -1426,6 +1454,12 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.71.2
       eslint-visitor-keys: 5.0.1
+
+  '@ubjs/core@0.31.0-6': {}
+
+  '@ubjs/wasm@0.31.0-6(@ubjs/core@0.31.0-6)':
+    dependencies:
+      '@ubjs/core': 0.31.0-6
 
   '@unrs/resolver-binding-android-arm-eabi@1.12.2':
     optional: true
@@ -1924,6 +1958,8 @@ snapshots:
   typescript@6.0.3: {}
 
   undici-types@7.24.6: {}
+
+  uniffi-bindgen-react-native@0.31.0-6: {}
 
   unrs-resolver@1.12.2:
     dependencies:

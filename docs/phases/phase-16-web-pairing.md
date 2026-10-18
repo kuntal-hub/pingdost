@@ -21,7 +21,9 @@ The Vite web app exists with encrypted local storage and WASM crypto. A browser 
 - [ ] **Pairing protocol** (write an ADR). It uses only signatures + Olm, no new crypto. Flow:
   1. **Web** creates an Olm account → `POST /v1/pairing/requests` (unauthenticated, IP rate-limited) with its identity keys → gets `{pairingId, challenge, pollSecret, expiresAt}` (TTL `WEB_PAIRING_TTL_SECONDS`).
   2. The QR encodes `{v, pairingId, challenge, webCurve, webEd, origin}`, with no secrets that grant access alone. The web auto-refreshes the QR before expiry.
-  3. **Phone** scans it (expo-camera) and shows browser details (user agent summary, time) for approval. It then calls `POST /v1/pairing/approve {pairingId, challenge, webKeys, signature by phone ed25519}`.
+  3. **Phone** scans it (expo-camera) and shows browser details (user agent summary, time) for approval.
+     - It calls `POST /v1/pairing/approve {pairingId, challenge, webKeys, signature by phone ed25519, deviceCertificate}`.
+     - The `deviceCertificate` is the **account identity key** signature over the web device's keys (ADR 0003), so contacts trust the browser without a safety-number change.
   4. **Server** atomically checks unexpired + unused + challenge match + approving device is the active primary. It registers the web device (`type=web`, `role=linked`, keys from the request) and marks the request consumed.
   5. **Web** polls `GET /v1/pairing/requests/:id` with `pollSecret`. Once approved, it signs a server nonce with its ed25519 key to receive device-bound tokens. It then uploads OTKs and the fallback key.
   6. The phone establishes an Olm session with the web device for later sync.

@@ -18,7 +18,9 @@ Real users can find each other by username and chat 1:1 with E2EE on Android. De
   - **Chats list:** last-message preview (decrypted locally), unread counts, status icons, empty state.
   - **New chat:** exact username lookup → profile card → start the conversation.
   - **Chat:** FlashList, paginated from SQLite; composer; day separators; per-message status with **honest labels** (REQ §8.3 / §11.6 copy); retry on failure; long-press **Message info** shows per-device states.
-  - **Contact info:** safety number display + QR (from the ADR format); scan the contact's QR to mark them **Verified**.
+  - **Contact info:** safety number display + QR; scan the contact's QR to mark them **Verified**.
+    - Finalize the format proposed in ADR 0003: Signal-style numeric fingerprint over the two **account identity keys** (not device keys), 60 digits, with a version in the QR.
+    - Record the final format in a short ADR.
   - **Key changes** show a system message "Safety number changed", and the verified state resets.
 - [ ] **Typing and presence:** transient WS frames, in-memory on the server, expiring in seconds, and respecting the privacy toggles (if typing is disabled, neither send nor show it). Nothing is persisted.
 - [ ] **Message expiry UI:** "Expired before delivery" for `expired_undelivered`.

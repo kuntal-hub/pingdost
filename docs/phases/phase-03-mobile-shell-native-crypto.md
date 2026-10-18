@@ -55,3 +55,16 @@ Auth screens (07), chat schema (10), protobuf (04).
 
 ## Handoff notes
 Document the exact build commands in `CLAUDE.md` "Commands": rebuilding the native crypto module and running the Android dev build.
+
+**From Phase 2 (ADR 0003):**
+- **Toolchain already installed:**
+  - Rust 1.99.1 (MSVC host, pinned in `rust-toolchain.toml`) with VS 2022 Build Tools 17.14;
+  - Android NDK 26.1, 27.1 and 28.0 under `%ANDROID_HOME%\ndk`.
+- **Pins.** ubrn, `@ubjs/*` and `uniffi-runtime-wasm` are 0.31.0-6. uniffi stays on 0.31.x (ubrn pins `=0.31`).
+- **Native targets.** Add the Android targets to `rust-toolchain.toml`'s `targets` list so CI and other machines get them.
+- **Same crate as WASM.** The Android build uses the same crate. The WASM-only deps (`uniffi-runtime-wasm`, `wasm-unstable-single-threaded`) sit behind `cfg(target_arch = "wasm32")`.
+- **Wrapper target.** `createNativeCryptoProvider()` must implement the same `CryptoProvider` and map errors to `CryptoOperationError`. Mirror `packages/crypto/src/wasm.ts`.
+- **Interop test.** Run the same 9 scenarios from `packages/crypto/test/interop.test.ts` between the phone and the Node/WASM side.
+- **ubrn quirks:**
+  - ubrn needs `repository.url` in the package's `package.json`. Phase 2 used a placeholder (`OWNER`); replace it once the GitHub remote exists.
+  - The ubrn CLI compiles itself on first run (about 2 minutes).

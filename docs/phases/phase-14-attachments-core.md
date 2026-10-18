@@ -14,13 +14,17 @@ Encrypted attachment pipeline and temporary server staging:
 ## Read first
 - REQ §7.4, §10 (all), §16.4, §19.3, §22 (storage line)
 - ARCHITECTURE A2 (Attachment staging), A5 (Attachments), A8 (Sizes)
-- The attachment AEAD ADR
+- The attachment AEAD ADR: `docs/decisions/0004-attachment-encryption.md`
 
 ## Tasks
 - [ ] **`packages/attachments`** (platform-neutral):
-  - `encryptStream` / `decryptStream`: per-file random key, secretstream header, 64 KiB plaintext chunks (per the ADR). It works on async iterables of `Uint8Array`, so mobile and web can feed file chunks;
-  - SHA-256 of the whole ciphertext, plus per-transfer-chunk hashes (1 MiB chunks) for resume and mesh;
-  - an `AttachmentManifest` builder/validator (key, header, size, mime, sha256, chunk hashes, optional encrypted thumbnail, staging ref);
+  - `encryptStream` / `decryptStream` per **ADR 0004**:
+    - XChaCha20-Poly1305 STREAM (`StreamBE32`), implemented in `crates/pingdost-crypto` (add `chacha20poly1305` 0.11 + `aead-stream` 0.6; regenerate bindings) and exposed through `CryptoProvider`;
+    - per-file random key and 19-byte nonce prefix, 64 KiB plaintext chunks, last-chunk flag, decrypt-by-index;
+    - it works on async iterables of `Uint8Array`, so mobile and web can feed file chunks;
+  - `ciphertextSha256` over the whole ciphertext, plus the per-64-KiB-chunk SHA-256 hash list (`chunkHashListSha256` in the manifest; the list travels with the ciphertext). Upload resume may group chunks (e.g. 1 MiB) at the transport level;
+  - an `AttachmentManifest` builder/validator (`scheme`, key, nonce prefix, sizes, chunk count, mime, hashes, optional encrypted thumbnail, staging ref);
+  - test vectors in `@pingdost/test-fixtures`, checked by both the WASM and native providers;
   - **MIME sniffing** by magic bytes (images, video, audio, pdf, zip-based docs, etc.); extensions are never trusted;
   - **size rules** per REQ §10.1: `canSend(file, {compressible, compressedEstimate})` returns ok / needs-compression / reject-with-reason; only images and videos are compressible;
   - unit tests with large synthetic streams.

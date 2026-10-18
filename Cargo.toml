@@ -1,0 +1,16 @@
+[workspace]
+resolver = "3"
+members = ["crates/pingdost-crypto"]
+
+[workspace.package]
+edition = "2024"
+license = "AGPL-3.0-or-later"
+rust-version = "1.89"
+publish = false
+
+[profile.release]
+# Smaller WASM / native libraries; panics never cross the FFI (errors are returned instead).
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = "debuginfo"

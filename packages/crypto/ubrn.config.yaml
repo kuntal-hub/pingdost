@@ -1,0 +1,8 @@
+# uniffi-bindgen-react-native config. `pnpm --filter @pingdost/crypto build:wasm` builds the
+# Rust crate for wasm32 and regenerates the TypeScript bindings (committed, like protobuf output).
+rust:
+  directory: ../..
+  manifestPath: crates/pingdost-crypto/Cargo.toml
+
+wasm2:
+  ts: src/generated

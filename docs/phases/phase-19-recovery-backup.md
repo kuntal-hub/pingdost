@@ -12,9 +12,10 @@ Opt-in, user-controlled encrypted backup and restore with a recovery phrase. Rep
 
 ## Tasks
 - [ ] **Backup format ADR**:
-  - file `pingdost-backup-<date>.pdbk` = versioned header (magic, version, KDF id + params, salt) + AEAD-encrypted body (secretstream);
-  - key from **Argon2id(recovery phrase)**, run on-device via the crypto crate or libsodium (no new primitives);
-  - **body:** DB export (versioned JSON lines or SQLite copy), Olm account pickle, Megolm inbound sessions, settings; attachments optional, with a size warning;
+  - file `pingdost-backup-<date>.pdbk` = versioned header (magic, version, KDF id + params, salt) + AEAD-encrypted body (XChaCha20-Poly1305 STREAM from the crypto crate, as in ADR 0004);
+  - key from **Argon2id(recovery phrase)**, run on-device via the crypto crate (e.g. RustCrypto `argon2`; check its license and audit status) so every platform shares one implementation (no new primitives);
+  - **body:** DB export (versioned JSON lines or SQLite copy), the **account identity key** (ADR 0003), Megolm inbound sessions (`exportAtFirstKnownIndex`), settings; attachments optional, with a size warning.
+    - **Never include** the device Olm account, Olm sessions or outbound Megolm sessions: restoring old ratchet state can reuse message keys (ADR 0003, backup rules);
   - integrity check and a manifest hash;
   - per the ADR's portability findings, **1:1 Olm sessions are not restored as live**: they are marked stale and re-established via `SessionReset` after restore.
 - [ ] **Recovery phrase:** 24-word BIP39 (`@scure/bip39`, MIT; check), generated on the device, shown once, confirmed with a quiz. **It is never sent to the server, logged or copied to analytics.** Warn about clipboard exposure: no auto-copy; if copied, clear the clipboard after 60 s where supported.
@@ -24,7 +25,7 @@ Opt-in, user-controlled encrypted backup and restore with a recovery phrase. Rep
 - [ ] **Server primary-replacement flow** (`primary_transfer_requests`, TTL):
   - a new phone logs in → `PRIMARY_EXISTS` → options:
     - **(a) Approve from an existing device:** the active primary, or a linked web device if the policy allows (write the policy in the ADR). The approver gets a WS prompt plus a push wake, approves, and the old primary is revoked.
-    - **(b) Restore from backup + fresh email OTP:** the old primary is revoked, and the identity from the backup becomes the new primary (re-registers the same identity keys with a new deviceId and a bumped `keyVersion`).
+    - **(b) Restore from backup + fresh email OTP:** the old primary is revoked. The new phone restores the **account identity key** from the backup and creates a **fresh** Olm device account, certified by that key, as the new primary (new deviceId, bumped `keyVersion`). The safety number is unchanged (ADR 0003).
     - **(c) Start fresh:** a new identity, no history, and contacts see "safety number changed".
   - Every path is audited and rate-limited, and requires recent authentication.
 - [ ] **Key-change notices:** directory `keyVersion` changes produce a system message in affected chats and reset the verified flag. Web and other devices update their caches.

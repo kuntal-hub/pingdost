@@ -74,6 +74,11 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
 - `pnpm --filter @pingdost/<pkg> test`: one package's unit tests (preferred while iterating). `pnpm test:watch`: all unit projects in watch mode.
 - `pnpm format` / `pnpm format:check`: Prettier (Markdown is excluded).
 - Add `--force` to a `pnpm turbo run …` call to bypass the Turbo cache.
+- **Rust / crypto** (toolchain pinned in `rust-toolchain.toml`; needs VS 2022 Build Tools C++ for the MSVC linker):
+  - `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo clippy --workspace --target wasm32-unknown-unknown -- -D warnings`, `cargo fmt --all`;
+  - `pnpm --filter @pingdost/crypto build:wasm` rebuilds the WASM module and regenerates `packages/crypto/src/generated/` (committed; never hand-edit). It needs `wasm-bindgen-cli` at the exact `wasm-bindgen` version in `Cargo.lock` (now 0.2.129: `cargo install wasm-bindgen-cli --version 0.2.129 --locked`);
+  - `pnpm --filter @pingdost/crypto test` runs the WASM interop tests in Node.
+  - If `cargo` is not found in an older shell, prepend `$env:USERPROFILE\.cargo\bin` to `PATH` (rustup added it for new shells).
 - Test conventions:
   - unit tests are `src/**/*.test.ts`, and each package with tests has a `vitest.config.ts` using `defineProject` (copy `packages/config/vitest.config.ts`);
   - integration tests are `*.int.test.ts`, with a `vitest.int.config.ts` and the script `"test:int": "vitest run --config vitest.int.config.ts"`;

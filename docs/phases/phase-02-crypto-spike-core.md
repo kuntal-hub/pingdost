@@ -10,29 +10,29 @@ Prove a maintained, established, free/OSS E2EE protocol works from TypeScript in
 - ARCHITECTURE A5, A10
 
 ## Tasks
-- [ ] **Toolchain** (Windows). Check, and install with the user's OK:
+- [x] **Toolchain** (Windows). Check, and install with the user's OK:
   - `rustup` (`winget install Rustlang.Rustup`);
   - **MSVC C++ Build Tools** (`winget install Microsoft.VisualStudio.2022.BuildTools` with the C++ workload). This is large; tell the user first, and they may need to run it themselves;
   - target `wasm32-unknown-unknown`;
   - `uniffi-bindgen-react-native` (ubrn): check its current version and docs for the `wasm2` target, and record the version.
-- [ ] **Research (web search, record dates checked):**
+- [x] **Research (web search, record dates checked):**
   - vodozemac: latest version, audit status, maintenance;
   - ubrn wasm and Android support status;
   - libsignal: license, RN/web options, "unsupported outside Signal" stance;
   - OpenMLS and ts-mls: license, audit, maturity;
   - GPL TypeScript Signal ports;
   - libsodium availability: `libsodium-wrappers-sumo` (web/Node) and `react-native-libsodium`. **Check whether `crypto_secretstream_*` is supported.**
-- [ ] **License/dependency matrix** `docs/decisions/crypto-license-matrix.md`. Rows are the candidates.
+- [x] **License/dependency matrix** `docs/decisions/crypto-license-matrix.md`. Rows are the candidates.
   - Columns: license, maintained, audited, Android RN, iOS RN, web, Node, async prekeys, group membership changes and rekey, multi-device, mesh/out-of-order tolerance, backup/export story, build complexity, APK size estimate.
-- [ ] **Cargo workspace** (`Cargo.toml` at root) + `crates/pingdost-crypto` wrapping vodozemac with a **narrow** uniffi API. Plumbing only, no business logic:
+- [x] **Cargo workspace** (`Cargo.toml` at root) + `crates/pingdost-crypto` wrapping vodozemac with a **narrow** uniffi API. Plumbing only, no business logic:
   - **Account:** `new`, `identity_keys()` (curve25519, ed25519), `sign(msg)`, `generate_one_time_keys(n)`, `one_time_keys()`, `mark_keys_as_published()`, `generate_fallback_key()`, `fallback_key()`, `create_outbound_session(their_identity_curve, their_otk)`, `create_inbound_session(their_identity_curve, prekey_msg)` → (session, plaintext), `pickle(key)` / `from_pickle(key)`.
   - **Session:** `encrypt(plaintext)` → (type, ciphertext); `decrypt(type, ciphertext)`; `session_id()`; `pickle` / `from_pickle`.
   - **Megolm:** `GroupSession` (outbound: `new`, `session_id`, `session_key`, `message_index`, `encrypt`, pickle) and `InboundGroupSession` (`new(session_key)`, `decrypt` → (plaintext, index), `export_at(index)`, `import`, pickle).
   - **Utility:** `ed25519_verify(pubkey, msg, sig)`.
   - **Errors:** typed error enum; no panics across the FFI.
-- [ ] **Bindings:** generate the WASM build with ubrn `wasm2` into `packages/crypto/` (e.g. `packages/crypto/wasm/` + a TS wrapper). If ubrn wasm fails, fall back to wasm-bindgen + wasm-pack and **record why**.
+- [x] **Bindings:** generate the WASM build with ubrn `wasm2` into `packages/crypto/` (e.g. `packages/crypto/wasm/` + a TS wrapper). If ubrn wasm fails, fall back to wasm-bindgen + wasm-pack and **record why**.
   - Expose `createWasmCryptoProvider()` implementing a draft `CryptoProvider` interface in `packages/crypto/src/types.ts`; Phase 4 finalizes it.
-- [ ] **Node interop tests** (Vitest, `packages/crypto`):
+- [x] **Node interop tests** (Vitest, `packages/crypto`):
   1. Alice ↔ Bob prekey flow via a claimed one-time key, then a normal ratchet exchange.
   2. The same flow via the fallback key when OTKs are exhausted.
   3. Out-of-order delivery within a chain decrypts.
@@ -42,16 +42,16 @@ Prove a maintained, established, free/OSS E2EE protocol works from TypeScript in
   7. **New member:** a member added with `export_at(current index)` cannot decrypt earlier messages.
   8. **Pickles:** round-trip of every object; a wrong pickle key fails.
   9. Multi-device fan-out: Alice has a phone and a web device; Bob encrypts to both.
-- [ ] `cargo test` for the Rust wrapper (basic) and `cargo clippy`.
-- [ ] **ADR (E2EE protocol & library)**, status Proposed:
+- [x] `cargo test` for the Rust wrapper (basic) and `cargo clippy`.
+- [x] **ADR (E2EE protocol & library)**, status Proposed:
   - the recommendation and why;
   - how each REQ §7.3 property is met, or what its limits are. For example, Megolm's weaker post-compromise security, which is mitigated by rotation;
   - multi-device model;
   - backup implications (which pickles can be exported; 1:1 sessions are re-established after restore);
   - safety-number format proposal (encoding of both Ed25519 keys; display only);
   - mesh first-contact via cached fallback keys.
-- [ ] **ADR (attachment AEAD):** the secretstream choice and where it runs on each platform (web/Node lib vs RN lib vs Rust crate), chunk size, and manifest fields.
-- [ ] **Ask the user to approve** both ADRs (AskUserQuestion with a short summary: Approve / Request changes). Set Accepted when approved, and update the ADR index.
+- [x] **ADR (attachment AEAD):** the secretstream choice and where it runs on each platform (web/Node lib vs RN lib vs Rust crate), chunk size, and manifest fields.
+- [x] **Ask the user to approve** both ADRs (AskUserQuestion with a short summary: Approve / Request changes). Set Accepted when approved, and update the ADR index.
 
 ## Key files
 `Cargo.toml`, `crates/pingdost-crypto/{Cargo.toml,src/lib.rs,uniffi.toml}`, `packages/crypto/{src/types.ts,src/wasm.ts,test/*.test.ts}`, `docs/decisions/*`

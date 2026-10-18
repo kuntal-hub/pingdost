@@ -25,6 +25,8 @@ Secure group chats: server-side membership and roles kept only as routing metada
   - **rotate on any membership change** (mandatory on removal), and periodically (every 100 messages or 7 days, configurable);
   - new members receive a key exported at the current index only, so they have no old history;
   - inbound sessions stored per sender device;
+  - **Megolm replay check (ADR 0003):** Megolm itself accepts the same message twice, so reject any (sessionId, messageIndex) pair already accepted. Persist the seen indices with the inbound session;
+  - accept room keys only over an Olm session with a certified member device. There is no key forwarding from other devices (the lesson from the 2023 Matrix analysis);
   - handle messages that arrive before their keys (hold, then request the key from the sender device).
 - [ ] **E2EE group state:** `GroupControl` content (name, description, avatar as a small inline encrypted image) sent by admins. Clients apply it only if the sender is an admin per the server-confirmed membership version. Late joiners get a current-state snapshot from the adder.
 - [ ] **UI:**
