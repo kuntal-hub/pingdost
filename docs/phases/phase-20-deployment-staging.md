@@ -53,3 +53,10 @@ coturn (25); production launch (27).
 - Behind Caddy/nginx set `TRUST_PROXY=true`, or every client shares the proxy's IP for rate limits.
 - Rate limits and login lockouts are in memory per instance: run one API instance, or move them to a shared store.
 - With ZeptoMail, set `ZEPTOMAIL_API_URL` to the host shown in the account's mail agent setup (regional).
+**From Phase 8 (ADR 0010):**
+- The Redis provider: the recommendation is self-hosted Valkey on the API's VM with `appendonly yes` / `appendfsync everysec`. Upstash free fits about 50 active users; above that, pay-as-you-go (needs the user's approval).
+- The connection registry is in memory, so run a single API instance.
+- The reverse proxy must pass WebSocket upgrades on `/v1/ws`. Set `TRUST_PROXY`.
+- Set `METRICS_TOKEN` and scrape `/metrics`.
+- Alert on `pingdost_mailbox_due_overdue > 0`, the migration failure rate and Redis commands per month.
+- A separate worker process has no metrics endpoint yet: run the jobs in process (`RUN_WORKER_IN_PROCESS=true`), or add one.

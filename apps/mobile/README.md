@@ -7,7 +7,7 @@ Create `apps/mobile/.env` (git-ignored; Metro inlines the values at bundle time,
 
 ```
 EXPO_PUBLIC_API_URL=http://192.168.x.x:3000      # the PC's LAN IP; the server binds 0.0.0.0
-EXPO_PUBLIC_WS_URL=ws://192.168.x.x:3000/ws
+EXPO_PUBLIC_WS_URL=ws://192.168.x.x:3000/v1/ws
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=…apps.googleusercontent.com   # optional; hides Google sign-in when unset
 ```
 

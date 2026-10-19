@@ -13,7 +13,8 @@ import type { Clock } from '../src/infra/clock';
 import { createLogger } from '../src/infra/logger';
 import { createMongo, type Mongo } from '../src/infra/mongo';
 import { DEFAULT_ROUTE_LIMITS, type RouteLimits } from '../src/infra/rate-limits';
-import { createRedisHandle } from '../src/infra/redis';
+import { createRedisHandle, type RedisHandle } from '../src/infra/redis';
+import { mailboxSettings, type MailboxSettings } from '../src/modules/delivery/settings';
 import { createEmailProvider } from '../src/modules/email';
 
 export const MAILPIT_URL = process.env.MAILPIT_URL ?? 'http://localhost:8025';
@@ -38,6 +39,9 @@ export interface TestServer {
   config: ServerConfig;
   mongo: Mongo;
   clock: TestClock;
+  redis: RedisHandle;
+  /** The mailbox settings in force, including this server's own Redis key prefix. */
+  mailbox: MailboxSettings;
   /** Every log line written so far (JSON). */
   logs: string[];
   close(): Promise<void>;
@@ -49,6 +53,8 @@ export interface TestServerOptions {
   throttles?: AppDeps['throttles'];
   googleKeys?: AppDeps['googleKeys'];
   onDeviceRevoked?: AppDeps['onDeviceRevoked'];
+  delivery?: AppDeps['delivery'];
+  gateway?: AppDeps['gateway'];
   mongo?: Mongo;
 }
 
@@ -73,6 +79,12 @@ export async function startTestServer(options: TestServerOptions = {}): Promise<
   const redis = createRedisHandle(config.REDIS_URL);
   const email = createEmailProvider(config, logger);
   const clock = new TestClock();
+  // Test files share one Valkey: each server gets its own key space.
+  const mailbox: MailboxSettings = {
+    ...mailboxSettings(config),
+    redisKeyPrefix: `test:${randomUUID().slice(0, 8)}:`,
+    ...options.delivery?.settings,
+  };
   const app = await buildApp(config, {
     logger,
     mongo,
@@ -83,6 +95,8 @@ export async function startTestServer(options: TestServerOptions = {}): Promise<
     ...(options.throttles ? { throttles: options.throttles } : {}),
     ...(options.googleKeys ? { googleKeys: options.googleKeys } : {}),
     ...(options.onDeviceRevoked ? { onDeviceRevoked: options.onDeviceRevoked } : {}),
+    delivery: { ...options.delivery, settings: mailbox },
+    ...(options.gateway ? { gateway: options.gateway } : {}),
   });
   await app.ready();
 
@@ -91,6 +105,8 @@ export async function startTestServer(options: TestServerOptions = {}): Promise<
     config,
     mongo,
     clock,
+    redis,
+    mailbox,
     logs,
     async close() {
       await app.close();

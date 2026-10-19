@@ -54,3 +54,6 @@ Web group UI (17); group calls (never).
 - The integration tests pass, including REQ §19.1 bullet 4.
 - A group of 3 accounts works on devices (2 phones + a sim-client as the third member is acceptable).
 - `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 8 (ADR 0010):** the mailbox routes one envelope per recipient device (`dst` = device ID). A group message is N sends with N envelope IDs (`envelopeIdFor(messageId, deviceId)`). Each one costs 5 Redis commands on the offline path, so watch the budget for large groups.

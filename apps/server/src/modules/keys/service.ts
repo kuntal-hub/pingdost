@@ -32,6 +32,8 @@ export interface KeyServiceDeps {
   oneTimeKeys: Collection<OneTimeKeyDoc>;
   clock: Clock;
   claimBudget: Budget;
+  /** Called with the devices whose keys were just claimed (the gateway's low-key notice). */
+  onClaimed?: (deviceIds: string[]) => void;
 }
 
 function isSigned(kind: 'one_time' | 'fallback', device: DeviceDoc, key: SignedKey): boolean {
@@ -177,6 +179,8 @@ export class KeyService {
           : undefined;
       }),
     );
-    return { keys: keys.filter((key) => key !== undefined) };
+    const claimed = keys.filter((key) => key !== undefined);
+    this.d.onClaimed?.(claimed.map((key) => key.deviceId));
+    return { keys: claimed };
   }
 }

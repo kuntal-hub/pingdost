@@ -17,6 +17,47 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-19 — Phase 08: Realtime gateway & delivery mailbox — ✅ done
+**Done (ADR 0010):**
+- **Gateway** `GET /v1/ws` (`@fastify/websocket` 11.3.4):
+  - an `Auth` frame within 5 s (JWT + active session + active device);
+  - one socket per device (`CONNECTION_REPLACED`, 4002); `Revoked` on revocation (4003); session re-check every 60 s;
+  - per-socket frame, typing and in-flight limits; ping/pong; backpressure;
+  - in-memory typing and ephemeral relays;
+  - `OtkLow` on connect and after claims (event-driven, no job).
+- **Mailbox** (`modules/delivery`):
+  - online path (transport ACK within 5 s) or offline path: dedupe, Redis MULTI with NX writes, a push-wake hook, a Mongo fallback, `MAILBOX_UNAVAILABLE` when both stores are down;
+  - server `createdAt`; `expiresAt` = min(packet expiry, + retention);
+  - fetch on connect: Redis + Mongo merged, batched, flow-controlled;
+  - ACKs coalesced per connection (50 ms);
+  - `pending_envelopes` with TTL and indexes.
+- **Jobs:** the migration (lock, `$setOnInsert` with majority write, read-back, then MULTI delete; ACK-race cleanup; expired envelopes deleted; 3 retries) and the Mongo reaper.
+- **Metrics:** `/metrics` (`prom-client` 15.1.3) with the A3 metrics, refreshed per migration run.
+- `tools/sim-client`: two headless devices with fake ciphertext.
+- Valkey runs with AOF in docker-compose. WS URLs now end in `/v1/ws`.
+- Docs: ADR 0010, ARCHITECTURE A2/A3, CLAUDE.md, handoff notes in phases 09–13 and 20.
+
+**Deviations / decisions (ADR 0010; no REQ changes):**
+- The OTK notice is event-driven, not a job.
+- Overdue = due for over half the grace period, so the alert fires before data loss.
+- ACKs always delete from Mongo, which closes the fetch → migrate → ACK race.
+- A successful ephemeral relay gets no reply.
+- Mailbox gauges cost Redis commands, so they refresh per migration run instead of per scrape.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 40/40 tasks, 248 unit tests (server 20). `pnpm format:check` passes.
+- `pnpm --filter @pingdost/server test:int`: 95/95. All 9 REQ §19.2 scenarios are covered (`test/mailbox.int.test.ts`), along with the gateway tests and the Redis budget ceilings.
+- Sim-client against the dev server: 20 stored → delivered once each → acknowledged → gone; 20 delivered online. 115 Redis commands for 20 offline messages (229 before ACK coalescing).
+- **Redis budget:** store 5, fetch 2 per batch, ACK 6 per batch, migrate 7, online 0, idle 44K per month. That is ≈ 7,400 per active user per month, so Upstash free fits about 50–60 users. The recommendation is self-hosted Valkey with AOF (Phase 20 decides).
+- **Not run:** GitHub CI (no remote). The worker run as a separate process exposes no metrics yet.
+
+**Known issues / tech debt:**
+- On Windows, a refused localhost Redis connection takes about 2 s, so the Redis-down fallback is slow locally (instant on Linux).
+- Typing is not yet scoped to conversations (Phase 11).
+- Earlier items still open: binding drift check, pickle-key zeroization (Phase 27), placeholder `OWNER` in `repository.url`, stale `C:\dev\pd`, the native MongoDB Windows service.
+
+**Next:** Phase 09 (message engine & session management): see its Phase 8 handoff notes.
+
 ## 2026-10-19 — Phase 07: Mobile onboarding & account UI — ✅ done
 **Done:**
 - Server (ADR 0009): re-registering the same device ID with the same keys **resumes** the device on the new session (proof of possession checked; no second primary; `keyVersion` unchanged; `device_resume` event). Another account's ID or other keys give `CONFLICT`; a revoked device gives `DEVICE_REVOKED`.

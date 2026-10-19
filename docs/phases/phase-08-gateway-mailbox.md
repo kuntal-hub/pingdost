@@ -10,13 +10,13 @@ Build an authenticated WebSocket gateway and a reliable ciphertext delivery mail
 - ARCHITECTURE A2, A3, A4
 
 ## Tasks
-- [ ] **WS endpoint `/v1/ws`** (`@fastify/websocket`):
+- [x] **WS endpoint `/v1/ws`** (`@fastify/websocket`):
   - The first frame must be `Auth{accessToken}` within 5 s (no tokens in the URL); verify the JWT, the session and that the device is active.
   - One live socket per device: a newer one replaces the old, which receives `ServerError{code:CONNECTION_REPLACED}`.
   - Ping/pong heartbeat, max frame size, per-socket rate limits (in-memory), and backpressure handling.
   - The in-memory connection registry `deviceId → socket`.
   - Hook up `Revoked` from Phase 6 to close revoked devices' sockets.
-- [ ] **Send path** `Send{packet}`: one ENVELOPE packet per frame (clients pipeline several), answered by one `Accepted` or `ServerError` with the same `request_id`. For each envelope:
+- [x] **Send path** `Send{packet}`: one ENVELOPE packet per frame (clients pipeline several), answered by one `Accepted` or `ServerError` with the same `request_id`. For each envelope:
   1. Decode with `decodeClientFrame` + `decodeEnvelope` (size, version, expiry). Check `packet.dst` equals the envelope's recipient, the sender device equals the socket device, the recipient device exists and is active, and the sender is not blocked by the recipient (block list arrives in Phase 11; leave a hook).
   2. **Server sets `createdAt` = receive time and `expiresAt` = createdAt + `MESSAGE_MAX_RETENTION_SECONDS`.**
   3. **Dedupe** by envelopeId: if it is already stored, re-acknowledge with the same status.
@@ -24,16 +24,16 @@ Build an authenticated WebSocket gateway and a reliable ciphertext delivery mail
   5. **Offline path:** a Redis MULTI per A3 (`env:`, `mbx:`, `due`), then `Accepted{STORED}`, then `PushNotifier.wake(recipientDeviceId)` (a no-op interface until Phase 12).
   6. Redis down → write directly to Mongo `pending_envelopes` → `Accepted{STORED}`.
   7. Both down → `ServerError{code:MAILBOX_UNAVAILABLE, retryable:true}`. The client keeps it in its outbox.
-- [ ] **Fetch on (re)connect:** after `AuthOk`, stream pending envelopes from Redis + Mongo, merged, deduped and ordered by createdAt, in batches with flow control.
+- [x] **Fetch on (re)connect:** after `AuthOk`, stream pending envelopes from Redis + Mongo, merged, deduped and ordered by createdAt, in batches with flow control.
   - Clients `Ack{envelopeIds[]}`. The ACK deletes from Redis (MULTI DEL/ZREM/ZREM) and Mongo (deleteMany by `_id`). It is idempotent.
-- [ ] **Mongo `pending_envelopes`** (REQ §16.3): unique `_id` = envelopeId; indexes `{recipientDeviceId, createdAt}` and TTL `{expiresAt}` with expireAfterSeconds 0. It holds no plaintext fields.
-- [ ] **Worker jobs** (scheduler from Phase 5):
+- [x] **Mongo `pending_envelopes`** (REQ §16.3): unique `_id` = envelopeId; indexes `{recipientDeviceId, createdAt}` and TTL `{expiresAt}` with expireAfterSeconds 0. It holds no plaintext fields.
+- [x] **Worker jobs** (scheduler from Phase 5):
   - **migration** (A3 algorithm, with lease, `$setOnInsert`, majority write, read-back verify, then delete from Redis; bounded batch; retries with backoff);
   - **reaper** (Mongo `deleteMany({expiresAt<now})`; ZSET orphan cleanup; alert metric if any `due` item is older than STAGE + GRACE);
   - **OTK low-water** notice (`OtkLow` to online devices below threshold).
-- [ ] **Metrics** `/metrics` (Prometheus text, `METRICS_TOKEN` bearer). Counters and gauges listed in A3, built on `prom-client`.
-- [ ] **`tools/sim-client`**: a headless Node client (api-client + WS + protocol codecs). It registers a user and device (test OTP via Mailpit, or a test-only server hook gated to `NODE_ENV=test`) and sends **opaque fake ciphertext**. Real crypto arrives in Phase 9.
-- [ ] **Integration tests** (small env values, e.g. STAGE=2 s, GRACE=9 s, POLL=1 s), covering every REQ §19.2 bullet:
+- [x] **Metrics** `/metrics` (Prometheus text, `METRICS_TOKEN` bearer). Counters and gauges listed in A3, built on `prom-client`.
+- [x] **`tools/sim-client`**: a headless Node client (api-client + WS + protocol codecs). It registers a user and device (test OTP via Mailpit, or a test-only server hook gated to `NODE_ENV=test`) and sends **opaque fake ciphertext**. Real crypto arrives in Phase 9.
+- [x] **Integration tests** (small env values, e.g. STAGE=2 s, GRACE=9 s, POLL=1 s), covering every REQ §19.2 bullet:
   1. offline message lands in Redis;
   2. migrated at the stage boundary; Redis copy deleted only after the verified Mongo write;
   3. **Mongo unavailable during migration** (inject a failing repo) → the Redis copy remains; a retry succeeds; no loss;
@@ -43,7 +43,13 @@ Build an authenticated WebSocket gateway and a reliable ciphertext delivery mail
   7. server/worker restart mid-migration resumes safely;
   8. Redis down on send → Mongo fallback;
   9. duplicate send → a single stored copy.
-- [ ] **Redis budget spike:** use the command counter to measure commands per offline message (store + fetch + ack + migrate) and per idle hour (worker polling). Project monthly usage for 10, 100 and 1,000 users. Write an ADR (Redis budget & provider) recommending Upstash vs Valkey; the decision itself lands in Phase 20.
+- [x] **Redis budget spike:** use the command counter to measure commands per offline message (store + fetch + ack + migrate) and per idle hour (worker polling). Project monthly usage for 10, 100 and 1,000 users. Write an ADR (Redis budget & provider) recommending Upstash vs Valkey; the decision itself lands in Phase 20.
+
+**Status (2026-10-19): done (ADR 0010).** Implementation notes:
+- The OTK low-water notice is event-driven in the gateway (on connect and after claims), not a scheduler job.
+- The overdue alert counts envelopes due for over half the grace period (STAGE + GRACE would fire only after the safety TTL deleted them).
+- ACKs are coalesced per connection (50 ms).
+- Files: `modules/delivery/{settings,record,redis-store,mongo-store,service,jobs}.ts` and `modules/gateway/{connection,registry,routes}.ts`. The jobs live in `modules/delivery/jobs.ts` rather than `src/jobs/`.
 
 ## Key files
 `apps/server/src/modules/{gateway/*,delivery/*}`, `apps/server/src/jobs/{migrate.ts,reap.ts,otkLow.ts}`, `apps/server/src/infra/metrics.ts`, `tools/sim-client/*`

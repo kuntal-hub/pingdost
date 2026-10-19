@@ -14,6 +14,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0007](0007-auth-sessions-otp-throttling.md) | Auth sessions, OTPs and abuse throttles | 05 | Accepted |
 | [0008](0008-devices-identity-keys-directory.md) | Devices, account identity key, key directory and Google linking | 06 | Accepted |
 | [0009](0009-mobile-session-and-device-setup.md) | Mobile session, device setup and device resume | 07 | Accepted |
+| [0010](0010-gateway-mailbox-redis-budget.md) | Realtime gateway, delivery mailbox and the Redis budget | 08 | Accepted (provider: Phase 20) |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ ยง7.2 license/dependency matrix).
 
@@ -24,7 +25,7 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ ย
 | Attachment encryption (streaming AEAD choice) | 02 | Yes (done: 0004) |
 | Native crypto binding & mobile build (ubrn, APK size, SQLCipher) | 03 | No (done: 0005) |
 | Safety-number / fingerprint format | 10 (proposal in 0003) | No |
-| Redis command budget & mailbox provider (Upstash vs Valkey) | 08 | No (input to 20) |
+| Redis command budget & mailbox provider (Upstash vs Valkey) | 08 | No (input to 20) (done: 0010) |
 | Attachment staging store (fs vs s3/R2), 100 MB proof | 14 | No |
 | Web pairing protocol | 16 | No |
 | History sync protocol | 18 | No |

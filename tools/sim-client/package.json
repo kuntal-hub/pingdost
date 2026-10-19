@@ -1,0 +1,23 @@
+{
+  "name": "@pingdost/sim-client",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pingdost/api-client": "workspace:*",
+    "@pingdost/crypto": "workspace:*",
+    "@pingdost/protocol": "workspace:*",
+    "@pingdost/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "4.23.15",
+    "typescript": "catalog:"
+  }
+}

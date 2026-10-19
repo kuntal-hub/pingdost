@@ -45,3 +45,4 @@ Group-specific semantics (13); media (15).
 
 ## Handoff notes
 **From Phase 7 (ADR 0009):** privacy prefs (`readReceipts`, `typingIndicators`, `lastSeen`) are edited in Settings → Privacy, stored on the server and cached in `local_settings` (`privacy`). Read them with `useAccount` or `cachedPrivacy()` from `apps/mobile/src/settings/account.ts` to decide what to send.
+**From Phase 8 (ADR 0010):** `Typing` is relayed to any listed online device, limited only by rate (30 per 10 s per socket); scope it to the sender's conversations here. `Presence` frames are accepted and ignored until this phase. The block-list hook is `DeliveryDeps.isBlocked` (`modules/delivery/service.ts`); decide how a blocked send is answered.

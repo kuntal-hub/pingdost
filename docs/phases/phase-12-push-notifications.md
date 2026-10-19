@@ -39,3 +39,6 @@ Call push (26), web subscription UI (17), APNs (29).
 - On a phone, a message to an app that is backgrounded, swiped away or screen-locked shows a notification within seconds. Report the exact behavior per state in PROGRESS.
 - An inspected FCM request body contains only `{t:"wake"}`.
 - `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 8 (ADR 0010):** implement `PushNotifier` (`apps/server/src/modules/push/notifier.ts`) and pass it as `AppDeps.push`. The gateway calls `wake(recipientDeviceId, urgent)` after `Accepted{STORED}` (not for duplicates); `urgent` comes from the packet's `PACKET_FLAG_URGENT`.

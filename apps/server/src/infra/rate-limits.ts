@@ -35,6 +35,9 @@ export const DEFAULT_ROUTE_LIMITS = {
   keysCount: { max: 120, timeWindow: 15 * MINUTE },
   keysDirectory: { max: 300, timeWindow: 15 * MINUTE },
   keysClaim: { max: 120, timeWindow: 15 * MINUTE },
+  /** WebSocket upgrades; frames on an open socket have their own per-socket limits. */
+  wsConnect: { max: 60, timeWindow: 15 * MINUTE },
+  metrics: { max: 120, timeWindow: 15 * MINUTE },
 } satisfies Record<string, RouteLimit>;
 
 export type RouteLimitName = keyof typeof DEFAULT_ROUTE_LIMITS;

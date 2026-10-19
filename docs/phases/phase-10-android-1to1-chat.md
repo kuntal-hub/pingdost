@@ -55,3 +55,13 @@ Reactions, edit, search and other extras (11); push (12); groups (13); attachmen
 - The app imports only `@pingdost/protocol/signing` and `/ids`, and installs just `crypto.getRandomValues` (`src/polyfills.ts`). Add the `TextDecoder` polyfill there before importing the package root.
 - Replace the placeholder `src/screens/chats.tsx` in the `(app)/(chats)` stack. The API client and session live in `src/api`. Use `useAccount` (`src/settings/account.ts`) for the display name and the privacy prefs.
 - `local_settings` helpers are in `src/db/settings.ts`. The device record `{ deviceId, userId }` is under key `device`.
+**From Phase 8 (ADR 0010):**
+- Open the socket only in the `ready` stage. `EXPO_PUBLIC_WS_URL` now ends in `/v1/ws`.
+- Send a `Ping` every `AuthOk.heartbeat_interval_ms` while idle.
+- Close codes:
+  - 4001: refresh the token, then reconnect;
+  - 4002: replaced by a newer socket of this device; do not fight it;
+  - 4003: revoked; sign out;
+  - 4008: back off;
+  - 1002: protocol bug.
+- Frames need the `TextDecoder` polyfill (see the Phase 7 note).

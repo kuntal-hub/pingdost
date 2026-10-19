@@ -190,7 +190,7 @@ const DEV_ONLY_SECRETS = {
 /** Applied only when NODE_ENV is not "production". Points at the docker-compose services. */
 const DEV_DEFAULTS = {
   PUBLIC_API_URL: 'http://localhost:3000',
-  PUBLIC_WS_URL: 'ws://localhost:3000/ws',
+  PUBLIC_WS_URL: 'ws://localhost:3000/v1/ws',
   WEB_ORIGIN: 'http://localhost:5173',
   MONGODB_URI: 'mongodb://localhost:27017/pingdost?replicaSet=rs0',
   REDIS_URL: 'redis://localhost:6379',

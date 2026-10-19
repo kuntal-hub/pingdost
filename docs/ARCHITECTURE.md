@@ -59,7 +59,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Free Upstash allows 500K commands/month, so these stay **in-memory** (single instance): presence, typing, rate limits, connection registry, call state and the ephemeral relays.
   - Redis is used only for the offline hot mailbox (A3).
   - A command-counting wrapper exposes Redis usage as a metric.
-- **Jobs:** ⚠ no BullMQ or QStash. Use a small scheduler (`setInterval` + Mongo `job_locks` leases with an owner and expiry), with jobs that are idempotent and retryable. Jobs: migration, reaper, attachment janitor, OTP/pairing cleanup, OTK low-water notices.
+- **Jobs:** ⚠ no BullMQ or QStash. Use a small scheduler (`setInterval` + Mongo `job_locks` leases with an owner and expiry), with jobs that are idempotent and retryable. Jobs: migration, reaper, attachment janitor, OTP/pairing cleanup. The OTK low-water notice is event-driven in the gateway (on connect and after claims; ADR 0010).
 - **Auth:**
   - **Passwords:** `@node-rs/argon2` (Argon2id; params from env, defaults m=19456 KiB, t=2, p=1).
   - **Access tokens:** HS256 JWTs (`jose`) carrying `sub` (userId), `did` (deviceId) and `sid` (session); default TTL 15 min.
@@ -86,25 +86,26 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - (c) a successful Mongo write (the fallback when Redis is down).
   - If neither store is available, the server returns a retryable error and the sender retries. The server never holds the only copy in memory.
 - **Online path.** The server forwards `Deliver` to the recipient's live socket and waits `MESSAGE_ONLINE_ACK_TIMEOUT_MS` (default 5000). On ACK it replies `Accepted{delivered_transport}`. On timeout it falls back to the offline path.
-- **Offline path (Redis keys).** Written in one MULTI, then `Accepted{stored}`, then a push wake:
-  - `env:{envelopeId}`: serialized envelope, with a safety TTL of `MESSAGE_REDIS_STAGE_SECONDS + MESSAGE_MIGRATION_GRACE_SECONDS`;
+- **Offline path (Redis keys).** Written in one MULTI (every write NX, so a duplicate changes nothing), then `Accepted{stored}`, then a push wake. Keys sit under a configurable prefix (ADR 0010):
+  - `env:{envelopeId}`: serialized envelope, with a safety TTL of (due − now) + `MESSAGE_MIGRATION_GRACE_SECONDS`;
   - `mbx:{recipientDeviceId}`: a ZSET of envelope IDs scored by createdAt;
-  - `due`: a ZSET of envelope IDs scored by `createdAt + STAGE`.
+  - `due`: a ZSET of envelope IDs scored by min(`createdAt + STAGE`, `expiresAt`).
+  - Redis must persist what it accepted: self-hosted Valkey runs with `appendonly yes` / `appendfsync everysec`.
 - **Migration job.** Runs every `MESSAGE_MIGRATION_POLL_SECONDS` (default 300; startup validation requires ≤ GRACE/3).
   1. `ZRANGEBYSCORE due -inf now`.
   2. For each ID, take a `SET lock:{id} NX PX` lease and `GET env:{id}`.
   3. If the envelope is missing (it was already acknowledged), `ZREM` it from `due`.
   4. Otherwise upsert it into Mongo `pending_envelopes` with `$setOnInsert`, writeConcern majority and the **original** createdAt and expiresAt.
   5. Read it back to verify.
-  6. Only then `MULTI DEL env + ZREM mbx + ZREM due`.
+  6. Only then `MULTI DEL env + ZREM mbx + ZREM due`. If the DEL found nothing, an ACK raced the migration, so the fresh Mongo copy is deleted too. Envelopes past `expiresAt` are deleted instead of migrated, and `due` entries whose record is gone are dropped (Redis orphan cleanup).
 - **Fetch on connect.** The server merges `mbx:{device}` (MGET) with Mongo `find({recipientDeviceId, expiresAt > now})`, dedupes by envelopeId, and streams batches in createdAt order.
-- **ACK.** Idempotently deletes the envelope from both stores. Unknown IDs are a no-op.
-- **Expiry.** `expiresAt = serverReceivedAt + MESSAGE_MAX_RETENTION_SECONDS`, set once and never reset. Enforced by a Mongo TTL index (backstop) plus an explicit reaper, which also removes orphaned Redis ZSET members.
+- **ACK.** Idempotently deletes the envelope from Mongo, and from Redis unless it was fetched from Mongo. Unknown IDs are a no-op. ACKs within 50 ms are deleted as one batch (ADR 0010).
+- **Expiry.** `expiresAt = min(packet expiry, serverReceivedAt + MESSAGE_MAX_RETENTION_SECONDS)`, set once and never reset or extended. Enforced by a Mongo TTL index (backstop) plus an explicit Mongo reaper; Redis orphans are removed by the migration and, for `mbx`, while fetching.
   - Senders compute `expired_undelivered` locally (no delivered receipt by createdAt + max retention), so the server never needs to store expiry notices.
 - **Delivery receipts are E2EE content messages** from the recipient device, governed by the user's receipt setting. The server `Accepted` only means `sent_to_server`.
 - **Idempotency.** `envelopeId` is deterministic per (messageId, recipientDeviceId), so retransmits reuse it. The server dedupes on envelopeId and clients dedupe on messageId, which gives exactly one logical delivery.
-- **Metrics** (`/metrics`, token-protected):
-  - mailbox: Redis stage count, due backlog, oldest item age, Mongo pending count;
+- **Metrics** (`/metrics`, `METRICS_TOKEN` bearer; the Redis-side gauges refresh on each migration run to save commands):
+  - mailbox: Redis stage count, due backlog, overdue (due for over half the grace period), oldest item age, Mongo pending count and oldest age;
   - jobs: migrations, retries/failures, expired deletes;
   - traffic and cost: Redis commands, WS connections, duplicate rate, attachment bytes/age, deletion failures.
 

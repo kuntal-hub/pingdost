@@ -75,3 +75,12 @@ UI, groups (13), attachments (14), nearby (22).
   - verify claimed one-time and fallback key signatures against the device ed25519 key with `signedKeyMessage`;
   - use `CryptoProvider.verifyEd25519` (strict).
 - The directory returns each device's signed `fallbackKey` (cache it for mesh first contact) and `keyVersion` (refetch when it changes).
+**From Phase 8 (ADR 0010):**
+- Gateway `ws(s)://<host>/v1/ws`. The first frame is `Auth{accessToken, protocolVersion}` within 5 s.
+- `Send` → one `Accepted` or `ServerError` with the same `request_id`.
+  - `STORED` and `DELIVERED_TRANSPORT` both mean only `sent_to_server`; delivery receipts are E2EE content.
+  - Retry only errors with `retryable: true` (`MAILBOX_UNAVAILABLE`, `RATE_LIMITED`). Keep the envelope in the outbox until `Accepted`.
+- `Deliver` must be acknowledged with `Ack{envelope_ids}` only after the message is stored locally. Fetches arrive in batches of 50, and the next batch waits for the ACKs (30 s). Dedupe on `message_id`: the same envelope can arrive twice (online, then from the mailbox).
+- The server sets `expiresAt` = min(packet expiry, receive time + 14 days).
+- `OtkLow` → `replenishKeys()` (mobile).
+- `tools/sim-client/src/socket.ts` is a working reference client.
