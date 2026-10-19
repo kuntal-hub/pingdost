@@ -17,6 +17,42 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-19 — Phase 05: Server foundation + password auth — ✅ done
+**Done:**
+- `apps/server` (Fastify 5.12.7 + fastify-type-provider-zod 7, tsx dev, tsup 8.5.1 build): `buildApp(config, deps)`, `main.ts` (API, plus jobs when `RUN_WORKER_IN_PROCESS`) and `worker.ts`.
+- Infra:
+  - Mongo (driver 7.7, small pool, index registry) and a lazy ioredis 6 handle with a command counter;
+  - pino 10 with a deep field scrub (no headers, query strings, IPs or emails in logs) and problem+json errors for AppError, Zod, Fastify 4xx and 404;
+  - `@fastify/rate-limit` per-route budgets, in-memory `WindowCounter`s, and a `Scheduler` with `job_locks` leases;
+  - graceful shutdown, plus config redaction for logs.
+- `/healthz`, `/readyz` (Mongo ping with a 2 s cap; Redis once used).
+- Email: `console` / `smtp` (nodemailer 10) / `zeptomail` (HTTP; regional `ZEPTOMAIL_API_URL`), with OTP templates.
+- Auth (ADR 0007):
+  - register (reserved names; unverified accounts expire after 24 h) → email OTP verify → session;
+  - login with a dummy-hash path and a lockout after 5 failures per 15 min;
+  - access JWT plus session check on every request; refresh rotation with reuse detection that revokes the family;
+  - logout, password forgot/reset (revokes all sessions) and change (revokes the others);
+  - security events with hashed IPs, and `GET /v1/me`.
+- `@pingdost/api-client` `authApi()`; new codes `OTP_ATTEMPTS_EXCEEDED` and `ACCOUNT_DISABLED`; config adds `LOG_LEVEL`, `TRUST_PROXY`, `ZEPTOMAIL_API_URL` and `UNVERIFIED_ACCOUNT_TTL_SECONDS`.
+- CI integration job starts Mailpit too; `MAILPIT_URL` added to turbo `passThroughEnv`. Docs: ADR 0007, A11, CLAUDE.md, handoff notes in phases 06, 08, 16, 20.
+
+**Deviations / decisions (ADR 0007; no REQ changes):** `EMAIL_TAKEN` is returned for verified accounts (an unverified registration is replaced instead). No CORS yet (Phase 16). Phase 5 has no scheduled jobs: TTL indexes expire OTPs, unverified accounts, sessions and security events.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test --force`: 38/38 tasks, 219 unit tests (server 17, config 67). `pnpm format:check` passes.
+- `pnpm test:int`: 35/35 against Mongo 8.0 + Valkey + Mailpit. They cover:
+  - OTP expiry, reuse, over-attempts and resend cooldown; refresh reuse; lockout; route and per-email 429s;
+  - log redaction; readyz with Mongo unreachable (503 in under 3 s); the api-client end to end.
+- Manual: `pnpm --filter @pingdost/server dev` starts and `/readyz` returns 200. With the Mongo container stopped it returns 503 after 2 s while `/healthz` stays 200. The tsup bundle starts and `/readyz` returns 200.
+- **Mongo restart on this PC:** the server's client did **not** recover after the Docker Mongo came back. Cause: a native Windows "MongoDB Server" service also listens on `127.0.0.1:27017`. Pinned to Docker's Mongo, the client recovered 9 s after the outage. The user should stop and disable that service (CLAUDE.md).
+- **Not run:** GitHub CI (no remote yet).
+
+**Known issues / tech debt:**
+- Rate limits and lockouts are in memory per instance (one API instance until Phase 20 decides).
+- Earlier items still open: binding drift check, pickle-key zeroization (Phase 27), placeholder `OWNER` in `repository.url`, stale `C:\dev\pd`.
+
+**Next:** Phase 06 (Google sign-in, devices, key directory, profiles). It needs Google OAuth client IDs for Phase 7: see its handoff notes.
+
 ## 2026-10-19 — Phase 04: Protocol & shared contracts — ✅ done
 **Done:**
 - `packages/protocol`:

@@ -74,13 +74,14 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      # GitHub service containers cannot pass --replSet to mongod, so start Mongo (replica set)
-      # and Valkey from docker-compose.yml and wait until their healthchecks pass.
-      - run: docker compose up -d --wait mongo valkey
+      # GitHub service containers cannot pass --replSet to mongod, so start Mongo (replica set),
+      # Valkey and Mailpit (OTP emails) from docker-compose.yml and wait for their healthchecks.
+      - run: docker compose up -d --wait mongo valkey mailpit
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run test:int
         env:
           MONGODB_URI: mongodb://localhost:27017/pingdost?replicaSet=rs0
           REDIS_URL: redis://localhost:6379
+          MAILPIT_URL: http://localhost:8025
       - if: failure()
         run: docker compose logs --tail=200

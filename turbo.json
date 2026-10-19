@@ -20,7 +20,7 @@
     },
     "test:int": {
       "cache": false,
-      "passThroughEnv": ["MONGODB_URI", "REDIS_URL"]
+      "passThroughEnv": ["MONGODB_URI", "REDIS_URL", "MAILPIT_URL"]
     },
     "dev": {
       "cache": false,

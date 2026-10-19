@@ -47,3 +47,9 @@ coturn (25); production launch (27).
 - The web at the staging URL pairs and chats.
 - Uptime and metrics alerts fire in a test (e.g. stop the worker → heartbeat alert).
 - The hosting ADR is accepted by the user.
+
+## Handoff notes
+**From Phase 5 (ADR 0007):**
+- Behind Caddy/nginx set `TRUST_PROXY=true`, or every client shares the proxy's IP for rate limits.
+- Rate limits and login lockouts are in memory per instance: run one API instance, or move them to a shared store.
+- With ZeptoMail, set `ZEPTOMAIL_API_URL` to the host shown in the account's mail agent setup (regional).

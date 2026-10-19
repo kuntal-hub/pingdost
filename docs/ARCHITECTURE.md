@@ -251,6 +251,10 @@ ATTACHMENT_ORPHAN_SECONDS=21600
 GROUP_MAX_MEMBERS=64
 SECURITY_EVENT_RETENTION_SECONDS=7776000
 METRICS_TOKEN=
+LOG_LEVEL=info                              # Phase 5
+TRUST_PROXY=false                           # Phase 5: true behind a reverse proxy
+ZEPTOMAIL_API_URL=https://api.zeptomail.com/v1.1/email   # Phase 5: region-specific host
+UNVERIFIED_ACCOUNT_TTL_SECONDS=86400        # Phase 5: unverified registrations expire
 WEB_ORIGIN=http://localhost:5173
 SYNC_RECENT_DAYS=30
 ```

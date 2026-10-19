@@ -66,3 +66,9 @@ Phase 7 needs Google OAuth client IDs. Write the console steps in PROGRESS: Goog
 **From Phase 4 (ADR 0006):**
 - Device IDs are client-generated UUIDv7. DTO stubs are in `@pingdost/shared-types` (`devices.ts`, `keys.ts`, `profile.ts`); keys and signatures are unpadded base64 (`UnpaddedBase64Schema`).
 - `CryptoProvider` is final: add the account signing-key object by adding members only, and add its scenarios to the conformance suite (`runCryptoConformance`).
+
+**From Phase 5 (ADR 0007):**
+- `sessions` documents already have `deviceId: null`. On device registration, bind the session (or issue a new one) and add the `did` claim in `apps/server/src/modules/auth/tokens.ts`; the guard exposes `request.auth.deviceId`.
+- `users` already stores `displayName`, `avatarUrl`, `privacy` (defaults all true) and `accountIdentityKey` (null); `GET /v1/me` returns them. Add `PATCH /v1/me` in `modules/account/routes.ts`.
+- Google users: `username` is nullable (partial unique index) and `passwordHash` is null; login already treats a missing password hash like a wrong password.
+- Register new route limits in `src/infra/rate-limits.ts` and new indexes in `INDEXES` (`src/app.ts`).

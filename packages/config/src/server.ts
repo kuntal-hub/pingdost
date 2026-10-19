@@ -51,6 +51,9 @@ const secretKey = z
 const serverEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: int(1, 65_535).default(3_000),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  // Behind a reverse proxy (Caddy, nginx): trust X-Forwarded-For for client IPs and rate limits.
+  TRUST_PROXY: bool().default(false),
   PUBLIC_API_URL: httpUrl,
   PUBLIC_WS_URL: wsUrl,
   WEB_ORIGIN: httpUrl,
@@ -87,10 +90,16 @@ const serverEnvSchema = z.object({
   EMAIL_PROVIDER: z.enum(['smtp', 'zeptomail', 'console']),
   EMAIL_FROM: z.string().regex(/@/, 'must contain an email address'),
   EMAIL_API_KEY: z.string().optional(),
+  // The send-mail URL for your account's region (shown in the ZeptoMail mail agent setup).
+  ZEPTOMAIL_API_URL: z
+    .url({ protocol: /^https$/, error: 'must be an https URL' })
+    .default('https://api.zeptomail.com/v1.1/email'),
   EMAIL_OTP_TTL_SECONDS: int(MINUTE, HOUR).default(600),
   EMAIL_OTP_RESEND_COOLDOWN_SECONDS: int(5, HOUR).default(30),
   EMAIL_OTP_MAX_ATTEMPTS: int(1, 20).default(5),
   EMAIL_CONSOLE_SHOW_CONTENT: bool().default(false),
+  // Registrations still unverified after this are deleted, freeing the username and email.
+  UNVERIFIED_ACCOUNT_TTL_SECONDS: int(HOUR, 7 * DAY).default(DAY),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: int(1, 65_535).optional(),
   SMTP_USER: z.string().optional(),
@@ -363,6 +372,7 @@ function toServerConfig(env: ServerEnv) {
     SMTP_PASS,
     SMTP_SECURE,
     EMAIL_API_KEY,
+    ZEPTOMAIL_API_URL,
     GOOGLE_CLIENT_IDS,
     FACEBOOK_APP_ID,
     FACEBOOK_APP_SECRET,
@@ -393,7 +403,8 @@ function toServerConfig(env: ServerEnv) {
       secure: SMTP_SECURE,
       auth: group({ user: SMTP_USER, pass: SMTP_PASS }),
     },
-    zeptomail: group({ apiKey: EMAIL_API_KEY }),
+    zeptomail:
+      EMAIL_API_KEY === undefined ? undefined : { apiKey: EMAIL_API_KEY, url: ZEPTOMAIL_API_URL },
     google: group({ clientIds: GOOGLE_CLIENT_IDS }),
     facebook: group({ appId: FACEBOOK_APP_ID, appSecret: FACEBOOK_APP_SECRET }),
     cloudinary: group({

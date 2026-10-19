@@ -10,7 +10,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 02 | [Crypto spike A: Rust core, WASM, license matrix (GATE)](phases/phase-02-crypto-spike-core.md) | 01 | ✅ |
 | 03 | [Crypto spike B: mobile shell + native crypto on Android (GATE)](phases/phase-03-mobile-shell-native-crypto.md) | 02 | ✅ |
 | 04 | [Protocol & shared contracts](phases/phase-04-protocol-contracts.md) | 02 | ✅ |
-| 05 | [Server foundation + password auth](phases/phase-05-server-auth.md) | 01, 04 | ⬜ |
+| 05 | [Server foundation + password auth](phases/phase-05-server-auth.md) | 01, 04 | ✅ |
 | 06 | [Google sign-in, devices, key directory, profiles](phases/phase-06-google-devices-keys.md) | 05 | ⬜ |
 | 07 | [Mobile onboarding & account UI](phases/phase-07-mobile-onboarding.md) | 03, 06 | ⬜ |
 | 08 | [Realtime gateway & delivery mailbox](phases/phase-08-gateway-mailbox.md) | 06 | ⬜ |

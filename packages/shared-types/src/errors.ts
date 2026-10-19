@@ -26,6 +26,9 @@ export const ErrorCodeSchema = z.enum([
   'OTP_INVALID',
   'OTP_EXPIRED',
   'OTP_RESEND_COOLDOWN',
+  /** The code was guessed wrong too often and is gone: request a new one. */
+  'OTP_ATTEMPTS_EXCEEDED',
+  'ACCOUNT_DISABLED',
   'TOKEN_EXPIRED',
   'TOKEN_INVALID',
   'TOKEN_REUSED',
@@ -85,6 +88,8 @@ export const ERROR_STATUS: Readonly<Record<ErrorCode, number>> = {
   OTP_INVALID: 400,
   OTP_EXPIRED: 400,
   OTP_RESEND_COOLDOWN: 429,
+  OTP_ATTEMPTS_EXCEEDED: 400,
+  ACCOUNT_DISABLED: 403,
   TOKEN_EXPIRED: 401,
   TOKEN_INVALID: 401,
   TOKEN_REUSED: 401,

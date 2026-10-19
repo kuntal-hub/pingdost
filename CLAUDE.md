@@ -63,6 +63,7 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - Gradle downloads time out over IPv6 here: set `$env:JAVA_TOOL_OPTIONS='-Djava.net.preferIPv4Stack=true'` before Android builds.
   - One-time Windows setup for Android builds (done on this PC 2026-10-19; ADR 0005): `LongPathsEnabled=1` (`HKLM\SYSTEM\CurrentControlSet\Control\FileSystem`, admin) and Ninja ≥ 1.12 in place of the SDK's `cmake\3.22.1\bin\ninja.exe` (now 1.13.2; the original is `ninja.exe.1.10.2.bak`). Without both, React Native codegen fails with `ninja: error: mkdir(...)` or "build.ninja still dirty".
   - `CI=1 expo start` disables Metro's file watching: restart Metro (`--clear`) after edits when it runs that way.
+  - A native Windows **MongoDB Server** service (found 2026-10-19) listens on `127.0.0.1:27017` beside Docker's Mongo (`0.0.0.0`/`::1`). Clients then reach two different mongods: after a Docker Mongo restart the server's client can land on the standalone one and never recover. Stop and disable that service (admin) before trusting Mongo-restart behaviour.
 - **Git:** commit at the end of every phase (the user pre-authorized this). Push only if Phase 1 recorded that the user approved end-of-phase pushes; see the "Git remote" line below.
 
 ## Git remote
@@ -79,6 +80,10 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
 - `pnpm --filter @pingdost/<pkg> test`: one package's unit tests (preferred while iterating). `pnpm test:watch`: all unit projects in watch mode.
 - `pnpm format` / `pnpm format:check`: Prettier (Markdown is excluded).
 - Add `--force` to a `pnpm turbo run …` call to bypass the Turbo cache.
+- **Server** (`apps/server`, Fastify; ADR 0007):
+  - `pnpm --filter @pingdost/server dev`: API on :3000 (tsx watch; reads the root `.env` if present, else the dev defaults; binds 0.0.0.0 so phones on the LAN can reach it). `dev:worker` runs the jobs process alone; `build` + `start` run the tsup bundle.
+  - `pnpm --filter @pingdost/server test:int` needs `pnpm infra:up`. OTP emails land in Mailpit (http://localhost:8025).
+  - Probe it with `127.0.0.1`, not `localhost`: Windows tries `::1` first and the server listens on IPv4.
 - **Protocol** (`packages/protocol`, ADR 0006):
   - `pnpm --filter @pingdost/protocol gen` regenerates `src/gen/` from `proto/` (committed; never hand-edit). CI fails if the committed code differs.
   - The package's `lint` also runs `buf lint`.

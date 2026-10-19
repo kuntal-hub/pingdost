@@ -62,3 +62,7 @@ Real E2EE payloads (09), push (12), groups routing (13), attachments (14).
 - Frames are in `packages/protocol/proto/pingdost/v1/ws.proto`. Use the codecs (`decodeClientFrame`, `encodeServerFrame`, `decodeEnvelope`) with `envelopeMaxBytes` from config; they enforce the size, version and expiry rules.
 - Errors go out as `ServerError{code, retryable, message}` with `ErrorCode` strings from `@pingdost/shared-types`. `Accepted` echoes `request_id` and carries `packet_id` + `envelope_id`.
 - `Typing` lists recipient device IDs; the server sets `sender_device_id` from the socket.
+
+**From Phase 5:**
+- `src/infra/redis.ts` already wraps ioredis 6 lazily and counts commands (`commandCount()`); `/readyz` checks Redis once something has used it.
+- Register the mailbox jobs in `createJobs()` (`src/jobs.ts`); `Scheduler` takes a Mongo lease per run.

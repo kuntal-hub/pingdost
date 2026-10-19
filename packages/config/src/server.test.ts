@@ -210,10 +210,17 @@ describe('optional feature groups', () => {
   it('requires the provider credentials for the chosen email provider', () => {
     expect(issuesFor({ EMAIL_PROVIDER: 'zeptomail' }, 'EMAIL_PROVIDER')).toHaveLength(1);
     expect(loadServerConfig({ EMAIL_PROVIDER: 'zeptomail', EMAIL_API_KEY: 'k' }).zeptomail).toEqual(
-      {
-        apiKey: 'k',
-      },
+      { apiKey: 'k', url: 'https://api.zeptomail.com/v1.1/email' },
     );
+    const eu = loadServerConfig({
+      EMAIL_PROVIDER: 'zeptomail',
+      EMAIL_API_KEY: 'k',
+      ZEPTOMAIL_API_URL: 'https://api.zeptomail.eu/v1.1/email',
+    });
+    expect(eu.zeptomail?.url).toBe('https://api.zeptomail.eu/v1.1/email');
+    expect(
+      issuesFor({ ZEPTOMAIL_API_URL: 'http://api.zeptomail.com' }, 'ZEPTOMAIL_API_URL'),
+    ).toEqual(['ZEPTOMAIL_API_URL: must be an https URL']);
   });
 
   it('treats SMTP auth as its own all-or-none pair', () => {
@@ -230,7 +237,12 @@ describe('production fail-fast', () => {
     const config = loadServerConfig(productionEnv);
     expect(config.NODE_ENV).toBe('production');
     expect(config.smtp).toBeUndefined();
-    expect(config.zeptomail).toEqual({ apiKey: 'zepto-api-key' });
+    expect(config.zeptomail).toEqual({
+      apiKey: 'zepto-api-key',
+      url: 'https://api.zeptomail.com/v1.1/email',
+    });
+    expect(config.TRUST_PROXY).toBe(false);
+    expect(config.LOG_LEVEL).toBe('info');
   });
 
   it('reports each missing required variable exactly once', () => {

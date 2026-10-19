@@ -43,3 +43,6 @@ Web chat (17); history sync (18).
 - The phone pairs a desktop Chrome and a second browser; both appear as linked; revoking one wipes it.
 - Replayed or expired QR payloads are rejected (tests + a manual check).
 - `pnpm lint typecheck test` and `pnpm --filter @pingdost/web build` pass.
+
+## Handoff notes
+**From Phase 5:** the API has no CORS yet. Register `@fastify/cors` (check the current version) restricted to `WEB_ORIGIN` before the web client calls it.
