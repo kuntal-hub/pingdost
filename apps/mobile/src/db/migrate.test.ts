@@ -37,6 +37,8 @@ const extra = (version: number, sql = `CREATE TABLE t${version} (id INTEGER)`): 
   sql,
 });
 
+const latest = migrations.length;
+
 describe('migrate', () => {
   it('applies every migration on a fresh database', async () => {
     const { db, state } = fakeDatabase();
@@ -47,25 +49,29 @@ describe('migrate', () => {
   });
 
   it('applies only pending migrations', async () => {
-    const { db, state } = fakeDatabase(1);
-    expect(await migrate(db, [...migrations, extra(2)])).toBe(2);
-    expect(state.executed).toEqual(['CREATE TABLE t2 (id INTEGER)']);
+    const { db, state } = fakeDatabase(latest);
+    expect(await migrate(db, [...migrations, extra(latest + 1)])).toBe(latest + 1);
+    expect(state.executed).toEqual([`CREATE TABLE t${latest + 1} (id INTEGER)`]);
   });
 
   it('is a no-op when up to date', async () => {
-    const { db, state } = fakeDatabase(1);
-    expect(await migrate(db)).toBe(1);
+    const { db, state } = fakeDatabase(latest);
+    expect(await migrate(db)).toBe(latest);
     expect(state.executed).toEqual([]);
   });
 
   it('keeps the previous version when a migration fails', async () => {
-    const { db, state } = fakeDatabase(1);
-    await expect(migrate(db, [...migrations, extra(2, 'FAIL')])).rejects.toThrow('sql error');
-    expect(state.version).toBe(1);
+    const { db, state } = fakeDatabase(latest);
+    await expect(migrate(db, [...migrations, extra(latest + 1, 'FAIL')])).rejects.toThrow(
+      'sql error',
+    );
+    expect(state.version).toBe(latest);
   });
 
   it('rejects gaps and a database newer than the app', async () => {
-    await expect(migrate(fakeDatabase().db, [...migrations, extra(3)])).rejects.toThrow('in order');
-    await expect(migrate(fakeDatabase(5).db)).rejects.toThrow('newer than this app');
+    await expect(migrate(fakeDatabase().db, [...migrations, extra(latest + 2)])).rejects.toThrow(
+      'in order',
+    );
+    await expect(migrate(fakeDatabase(latest + 3).db)).rejects.toThrow('newer than this app');
   });
 });

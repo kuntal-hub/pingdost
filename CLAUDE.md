@@ -108,6 +108,8 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - After changing `app.json` plugins or native deps: `npx expo prebuild --platform android --clean` in `apps/mobile`.
   - Crypto interop proof: `pnpm --filter @pingdost/crypto interop-server`, `adb reverse tcp:8787 tcp:8787`, then the app's **Crypto interop (dev)** screen. `pnpm --filter @pingdost/crypto make-vectors` regenerates the test vectors (only when vodozemac changes).
   - Emulators: `Pixel_8_API_35` (x86_64). Install packages with `npx expo install` semantics but pin the exact version it picks.
+  - **Device checks without a second phone:** `pnpm --filter @pingdost/sim-client peer` starts a headless E2EE contact (prints its username; shows online, types, then echoes every message). This PC cannot run two emulators next to Docker, Metro and the server: it runs out of RAM and the second emulator's display freezes. Use a phone plus one emulator.
+  - UI automation over adb works (`uiautomator dump` plus `input tap/text`). Pull screenshots with `adb shell screencap -p /sdcard/x.png; adb pull …`: PowerShell's `>` mangles binary output.
 - Test conventions:
   - unit tests are `src/**/*.test.ts`, and each package with tests has a `vitest.config.ts` using `defineProject` (copy `packages/config/vitest.config.ts`);
   - integration tests are `*.int.test.ts`, with a `vitest.int.config.ts` and the script `"test:int": "vitest run --config vitest.int.config.ts"`;

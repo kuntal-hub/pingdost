@@ -34,6 +34,7 @@ import type { DirectoryApi } from '../directory';
 import { MessageEngine } from '../engine';
 import { publishKeys } from '../keys';
 import { MemoryEngineStore } from '../memoryStore';
+import type { EngineStore } from '../store';
 
 /** What `ApiError` looks like to the engine: a shared error code. */
 export class FakeApiError extends Error {
@@ -298,13 +299,13 @@ export class FakeTransport implements Transport {
   }
 }
 
-export interface TestClient {
+export interface TestClient<S extends EngineStore = MemoryEngineStore> {
   userId: string;
   deviceId: string;
   identity: SigningKey;
   account: OlmAccount;
   pickleKey: Uint8Array;
-  store: MemoryEngineStore;
+  store: S;
   transport: FakeTransport;
   engine: MessageEngine;
   /** A new engine on the same store and account, as after an app restart. */
@@ -324,16 +325,26 @@ export interface TestClientOptions {
 }
 
 /** A registered device with published keys and an engine (not started, transport offline). */
+export async function createTestClient<S extends EngineStore>(
+  server: FakeServer,
+  crypto: CryptoProvider,
+  options: TestClientOptions & { store: S },
+): Promise<TestClient<S>>;
 export async function createTestClient(
   server: FakeServer,
   crypto: CryptoProvider,
-  options: TestClientOptions = {},
-): Promise<TestClient> {
+  options?: TestClientOptions,
+): Promise<TestClient>;
+export async function createTestClient<S extends EngineStore>(
+  server: FakeServer,
+  crypto: CryptoProvider,
+  options: TestClientOptions & { store?: S } = {},
+): Promise<TestClient<S>> {
   const identity = options.sameUserAs?.identity ?? crypto.createSigningKey();
   const userId = options.sameUserAs?.userId ?? server.addUser(identity);
   const account = crypto.createAccount();
   const deviceId = server.addDevice(userId, identity, account);
-  const store = new MemoryEngineStore();
+  const store = options.store ?? (new MemoryEngineStore() as unknown as S);
   const pickleKey = new Uint8Array(32).fill(7);
   const api = server.api(deviceId);
   const keyCount = options.oneTimeKeys ?? 5;
@@ -369,7 +380,7 @@ export async function createTestClient(
       ...(options.now ? { now: options.now } : {}),
       ...(options.log ? { log: options.log } : {}),
     });
-  const client: TestClient = {
+  const client: TestClient<S> = {
     userId,
     deviceId,
     identity,

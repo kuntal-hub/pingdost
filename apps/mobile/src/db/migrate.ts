@@ -1,10 +1,12 @@
 // Ordered SQL migrations keyed on `PRAGMA user_version` (ARCHITECTURE A6). Each runs in its
 // own transaction together with the version bump, so a failure leaves the database at the
-// previous version. Chat tables arrive in Phase 10.
+// previous version. Migration 002 adds the chat tables (Phase 10).
 //
 // The transaction is `BEGIN IMMEDIATE` on the same connection, never expo-sqlite's
 // `withExclusiveTransactionAsync`: that opens a second connection which has no SQLCipher
 // key, so every statement on it fails with "file is not a database" (ADR 0005).
+
+import { CHAT_SCHEMA } from './migrations/002-chat';
 
 export interface Migration {
   version: number;
@@ -29,6 +31,7 @@ export const migrations: readonly Migration[] = [
       ) STRICT;
     `,
   },
+  { version: 2, name: '002_chat', sql: CHAT_SCHEMA },
 ];
 
 /** The subset of `SQLiteDatabase` the runner needs (keeps it testable without native code). */

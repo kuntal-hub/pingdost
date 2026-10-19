@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "tsx src/index.ts",
+    "peer": "tsx src/peer.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },

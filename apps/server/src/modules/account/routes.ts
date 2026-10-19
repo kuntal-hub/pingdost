@@ -11,6 +11,7 @@ import {
   MeResponseSchema,
   UpdateMeRequestSchema,
   UserLookupResponseSchema,
+  IdSchema,
   UsernameSchema,
   type MeResponse,
   type UpdateMeRequest,
@@ -33,6 +34,8 @@ export interface AccountRoutesOptions {
   lookupBudget: Budget;
   /** Undefined when the Cloudinary variables are not set: avatars are then disabled. */
   cloudinary: CloudinarySettings | undefined;
+  /** After a user changed their privacy preferences (the presence cache). */
+  onPrivacyChanged?: (userId: string) => void;
 }
 
 export function toMe(user: UserDoc): MeResponse {
@@ -114,6 +117,7 @@ export const accountRoutes: FastifyPluginCallback<AccountRoutesOptions> = (
         { returnDocument: 'after' },
       );
       if (!user) throw new AppError('UNAUTHENTICATED');
+      if (request.body.privacy) options.onPrivacyChanged?.(userId);
       return toMe(user);
     },
   );
@@ -136,6 +140,33 @@ export const accountRoutes: FastifyPluginCallback<AccountRoutesOptions> = (
       // Exact match only (ARCHITECTURE A2): no prefix or fuzzy search.
       const user = await collections.users.findOne({
         username: request.params.username,
+        status: 'active',
+      });
+      if (!user?.username) throw new AppError('NOT_FOUND');
+      return {
+        userId: user._id,
+        username: user.username,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      };
+    },
+  );
+
+  // The profile behind a user ID, e.g. of someone who started a chat (ADR 0012). IDs are
+  // random UUIDv7s learned only from messages, so this cannot enumerate accounts.
+  app.get(
+    '/v1/users/:userId',
+    {
+      config: { rateLimit: limits.userProfile },
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ userId: IdSchema }),
+        response: { 200: UserLookupResponseSchema },
+      },
+    },
+    async (request) => {
+      const user = await collections.users.findOne({
+        _id: request.params.userId,
         status: 'active',
       });
       if (!user?.username) throw new AppError('NOT_FOUND');

@@ -11,10 +11,10 @@ Real users can find each other by username and chat 1:1 with E2EE on Android. De
 - **Load skill `expo:expo-overview`**
 
 ## Tasks
-- [ ] **SQLite migration 002:** REQ §14.1 tables (conversations, messages, group_memberships, attachments, outbox, delivery_state, seen_mesh_packets, device_sync_state, local_settings), crypto sessions, the device-directory cache, and an FTS5 table for message text (populated in Phase 11). Add indexes for the access patterns.
-- [ ] **`SqliteEngineStore`** implementing `EngineStore`. Run the engine's store contract tests against it; write a shared contract-test suite in message-engine if one is missing.
-- [ ] **Engine lifecycle:** a singleton started after auth. AppState: connect on foreground; disconnect after a background grace period. Handle network changes (NetInfo) and the token refresh hook.
-- [ ] **Screens:**
+- [x] **SQLite migration 002:** REQ §14.1 tables (conversations, messages, group_memberships, attachments, outbox, delivery_state, seen_mesh_packets, device_sync_state, local_settings), crypto sessions, the device-directory cache, and an FTS5 table for message text (populated in Phase 11). Add indexes for the access patterns.
+- [x] **`SqliteEngineStore`** implementing `EngineStore`. Run the engine's store contract tests against it; write a shared contract-test suite in message-engine if one is missing.
+- [x] **Engine lifecycle:** a singleton started after auth. AppState: connect on foreground; disconnect after a background grace period. Handle network changes (NetInfo) and the token refresh hook.
+- [x] **Screens:**
   - **Chats list:** last-message preview (decrypted locally), unread counts, status icons, empty state.
   - **New chat:** exact username lookup → profile card → start the conversation.
   - **Chat:** FlashList, paginated from SQLite; composer; day separators; per-message status with **honest labels** (REQ §8.3 / §11.6 copy); retry on failure; long-press **Message info** shows per-device states.
@@ -22,9 +22,9 @@ Real users can find each other by username and chat 1:1 with E2EE on Android. De
     - Finalize the format proposed in ADR 0003: Signal-style numeric fingerprint over the two **account identity keys** (not device keys), 60 digits, with a version in the QR.
     - Record the final format in a short ADR.
   - **Key changes** show a system message "Safety number changed", and the verified state resets.
-- [ ] **Typing and presence:** transient WS frames, in-memory on the server, expiring in seconds, and respecting the privacy toggles (if typing is disabled, neither send nor show it). Nothing is persisted.
-- [ ] **Message expiry UI:** "Expired before delivery" for `expired_undelivered`.
-- [ ] Profile avatars displayed with caching (expo-image).
+- [x] **Typing and presence:** transient WS frames, in-memory on the server, expiring in seconds, and respecting the privacy toggles (if typing is disabled, neither send nor show it). Nothing is persisted.
+- [x] **Message expiry UI:** "Expired before delivery" for `expired_undelivered`.
+- [x] Profile avatars displayed with caching (expo-image).
 
 ## Key files
 `apps/mobile/src/db/migrations/002_chat.sql`, `apps/mobile/src/engine/*`, `apps/mobile/app/(app)/chats/*`, `apps/mobile/app/(app)/contact/*`

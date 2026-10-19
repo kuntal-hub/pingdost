@@ -311,6 +311,34 @@ describe('WsTransport', () => {
   });
 });
 
+describe('WsTransport presence', () => {
+  it('sends the foreground state and watch list, again after a reconnect', async () => {
+    const ws = transport();
+    const events: WsEvent[] = [];
+    ws.onEvent((event) => events.push(event));
+    ws.setPresence(true); // offline: remembered
+    ws.watchPresence([USER_ID, USER_ID]);
+    const socket = await online(ws);
+    const sent = socket.frames.filter((frame) => frame.body.case === 'presence');
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.body.value).toMatchObject({
+      online: true,
+      watchUserIds: [uuidToBytes(USER_ID)],
+    });
+    socket.reply({
+      body: { case: 'presence', value: { userId: uuidToBytes(USER_ID), online: true } },
+    });
+    expect(events.at(-1)).toEqual({ type: 'presence', userId: USER_ID, online: true });
+
+    socket.serverClose(1006);
+    await until(() => sockets.length === 2);
+    sockets[1]!.open();
+    sockets[1]!.authOk();
+    await until(() => ws.status === 'online');
+    expect(sockets[1]!.frames.some((frame) => frame.body.case === 'presence')).toBe(true);
+  });
+});
+
 describe('backoffDelay', () => {
   it('doubles from the base up to the cap, with jitter in [0.5, 1)', () => {
     const low = () => 0;

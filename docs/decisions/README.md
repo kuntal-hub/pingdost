@@ -16,6 +16,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0009](0009-mobile-session-and-device-setup.md) | Mobile session, device setup and device resume | 07 | Accepted |
 | [0010](0010-gateway-mailbox-redis-budget.md) | Realtime gateway, delivery mailbox and the Redis budget | 08 | Accepted (provider: Phase 20) |
 | [0011](0011-message-engine.md) | Message engine: store contract, outbox, sessions, repair and receipts | 09 | Accepted |
+| [0012](0012-android-chat-safety-numbers-presence.md) | Android 1:1 chat: safety numbers, presence, profiles and the local store | 10 | Accepted |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 
@@ -25,7 +26,7 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ �
 | E2EE protocol & library (+ license/dependency matrix, REQ §7.2) | 02 | **Yes (gate)** (done: 0003) |
 | Attachment encryption (streaming AEAD choice) | 02 | Yes (done: 0004) |
 | Native crypto binding & mobile build (ubrn, APK size, SQLCipher) | 03 | No (done: 0005) |
-| Safety-number / fingerprint format | 10 (proposal in 0003) | No |
+| Safety-number / fingerprint format | 10 (proposal in 0003) | No (done: 0012) |
 | Redis command budget & mailbox provider (Upstash vs Valkey) | 08 | No (input to 20) (done: 0010) |
 | Attachment staging store (fs vs s3/R2), 100 MB proof | 14 | No |
 | Web pairing protocol | 16 | No |

@@ -53,3 +53,9 @@ Group-specific semantics (13); media (15).
   - the reading side needs `markRead` to queue `ReceiptItem`s with `receipt: 'read'`, gated by `receipts('read')`;
   - messages have no per-message read flag yet.
 - `engine.setTyping` / the `typing` conversation event already respect the `typingIndicators` option.
+**From Phase 10 (ADR 0012):**
+- The app's engine runtime is `apps/mobile/src/engine/runtime.ts`; its hooks are in `engine/hooks.ts`.
+- Read receipts plug in at `receipts: (type) => type === 'delivered'`. Wire `readReceipts` and a delivery toggle, and mark messages read in `ChatScreen` (it already calls `engine.markRead` while focused).
+- `messages_fts` (FTS5: `message_id UNINDEXED, body`) exists but is empty: fill it from the store, inside `SqliteEngineStore.apply`.
+- Typing: the engine already sends only to the peer's devices. Server-side scoping to conversations is still open.
+- Message bubbles: long-press opens Message info. Reactions, reply and edit need a menu there.

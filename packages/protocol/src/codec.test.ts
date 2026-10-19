@@ -372,3 +372,24 @@ describe('WebSocket frames', () => {
     expectProtocolError(() => decodeServerFrame(unknown, options), 'UNKNOWN_BODY', 'body');
   });
 });
+
+describe('Presence', () => {
+  it('limits the watch list and checks its IDs', () => {
+    const frame = (watchUserIds: Uint8Array[]) =>
+      create(ClientFrameSchema, {
+        body: { case: 'presence', value: { online: true, watchUserIds } },
+      });
+    const ids = (count: number) => Array.from({ length: count }, () => uuidv7Bytes());
+    expect(decodeClientFrame(encodeClientFrame(frame(ids(32)))).body.case).toBe('presence');
+    expectProtocolError(
+      () => encodeClientFrame(frame(ids(33))),
+      'INVALID_FIELD',
+      'presence.watch_user_ids',
+    );
+    expectProtocolError(
+      () => encodeClientFrame(frame([new Uint8Array(4)])),
+      'INVALID_FIELD',
+      'presence.watch_user_ids',
+    );
+  });
+});

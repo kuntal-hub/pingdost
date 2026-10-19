@@ -32,6 +32,7 @@ import {
 } from '@pingdost/protocol';
 import { RETRYABLE_ERROR_CODES, type ErrorCode } from '@pingdost/shared-types';
 
+import type { PresenceHub, PresencePeer } from './presence';
 import type { ConnectionRegistry } from './registry';
 import type { Clock } from '../../infra/clock';
 import { AppError } from '../../infra/errors';
@@ -113,6 +114,7 @@ export interface GatewayDeps {
   delivery: DeliveryService;
   push: PushNotifier;
   registry: ConnectionRegistry<Connection>;
+  presence: PresenceHub<Connection>;
 }
 
 type ServerFrameInit = MessageInitShape<typeof ServerFrameSchema>;
@@ -134,7 +136,7 @@ class FrameBudget {
   }
 }
 
-export class Connection {
+export class Connection implements PresencePeer {
   #state: 'auth' | 'open' | 'closed' = 'auth';
   #userId = '';
   #deviceId = '';
@@ -180,6 +182,18 @@ export class Connection {
 
   get deviceId(): string {
     return this.#deviceId;
+  }
+
+  get userId(): string {
+    return this.#userId;
+  }
+
+  /** A watched user's presence (best effort: dropped when the reader is behind). */
+  notifyPresence(userId: string, online: boolean): void {
+    this.#sendIfRoom({
+      requestId: 0,
+      body: { case: 'presence', value: { userId: uuidToBytes(userId), online } },
+    });
   }
 
   get open(): boolean {
@@ -296,7 +310,11 @@ export class Connection {
           if (body.value.packet) await this.#onEphemeral(requestId, body.value.packet);
           break;
         case 'presence':
-          // Presence arrives with the contacts features (Phase 11).
+          await this.d.presence.update(
+            this,
+            body.value.online,
+            body.value.watchUserIds.map((id) => bytesToUuid(id)),
+          );
           break;
         default:
           break;
@@ -651,6 +669,9 @@ export class Connection {
       this.#log.warn({ err: error }, 'ack flush failed'),
     );
     if (wasOpen) {
+      void this.d.presence
+        .remove(this)
+        .catch((error: unknown) => this.#log.warn({ err: error }, 'presence update failed'));
       this.d.registry.remove(this);
       this.d.metrics.wsConnections.dec();
     }

@@ -44,3 +44,7 @@ History sync from the phone and attachments on web (18); calls (25).
 - The Dexie store must pass `runEngineStoreContract` from `@pingdost/message-engine/testing`, and `apply(batch)` must be one IndexedDB transaction.
 - `WsTransport` runs in browsers unchanged.
 - Decide whether receipts should go to all of the sender's devices, so a phone and a browser both show "delivered".
+**From Phase 10 (ADR 0012):**
+- Safety numbers come from `@pingdost/protocol/safety-number`. On the web, use `safetyFingerprintAsync` with `crypto.subtle.digest('SHA-512')`.
+- Presence: `WsTransport.setPresence` / `watchPresence` plus the `presence` event; reciprocal, following `privacy.lastSeen`.
+- Profiles: `GET /v1/users/:id`.

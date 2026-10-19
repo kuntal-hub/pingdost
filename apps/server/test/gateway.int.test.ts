@@ -219,6 +219,47 @@ describe('send', () => {
     ).toBe(0);
     aliceSocket.close();
   });
+
+  it('relays presence to watchers only, reciprocally and in memory', async () => {
+    const [alice, bob] = await pair();
+    const aliceSocket = await TestSocket.connect(server, alice);
+    const bobSocket = await TestSocket.connect(server, bob);
+    const presence = (socket: TestSocket, online: boolean, watch: string[] = []) =>
+      socket.send({
+        requestId: 0,
+        body: {
+          case: 'presence',
+          value: { online, watchUserIds: watch.map((id) => uuidToBytes(id)) },
+        },
+      });
+
+    presence(aliceSocket, true, [bob.userId]);
+    expect(await aliceSocket.next('presence')).toMatchObject({
+      userId: uuidToBytes(bob.userId),
+      online: false,
+    });
+    presence(bobSocket, true);
+    expect(await aliceSocket.next('presence')).toMatchObject({ online: true });
+    presence(bobSocket, false);
+    expect(await aliceSocket.next('presence')).toMatchObject({ online: false });
+    presence(bobSocket, true);
+    expect(await aliceSocket.next('presence')).toMatchObject({ online: true });
+    bobSocket.close();
+    expect(await aliceSocket.next('presence')).toMatchObject({ online: false });
+
+    // Hiding one's own presence also hides everyone else's.
+    await server.app.inject({
+      method: 'PATCH',
+      url: '/v1/me',
+      headers: { authorization: `Bearer ${alice.accessToken}` },
+      payload: { privacy: { lastSeen: false } },
+    });
+    const again = await TestSocket.connect(server, bob);
+    presence(again, true);
+    await expect(aliceSocket.next('presence', { timeoutMs: 300 })).rejects.toThrow();
+    aliceSocket.close();
+    again.close();
+  });
 });
 
 describe('one-time key notices', () => {

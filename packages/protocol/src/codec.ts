@@ -35,6 +35,9 @@ import { encodePaddedContent } from './padding';
 /** Longest `ContentHeader.conversation_id` (a 16-byte ID, or a 32-byte hash). */
 const MAX_CONVERSATION_ID_BYTES = 32;
 
+/** Most users one socket may watch the presence of (`Presence.watch_user_ids`). */
+export const MAX_PRESENCE_WATCH = 32;
+
 function missing(field: string): ProtocolError {
   return new ProtocolError('MISSING_FIELD', `${field} is required`, field);
 }
@@ -303,6 +306,11 @@ function checkClientFrame(frame: ClientFrame, options: CodecOptions): void {
       checkOptionalId(body.value.groupId, 'typing.group_id');
       break;
     case 'presence':
+      for (const id of body.value.watchUserIds) checkId(id, 'presence.watch_user_ids');
+      if (body.value.watchUserIds.length > MAX_PRESENCE_WATCH) {
+        throw invalid('presence.watch_user_ids', `must list at most ${MAX_PRESENCE_WATCH} users`);
+      }
+      break;
     case 'ping':
       break;
   }

@@ -30,6 +30,8 @@ export interface AccountApi {
   me(): Promise<MeResponse>;
   updateMe(body: UpdateMeRequest): Promise<MeResponse>;
   lookupUsername(username: string): Promise<UserLookupResponse>;
+  /** The profile behind a user ID (e.g. of someone who started a chat). */
+  profile(userId: string): Promise<UserLookupResponse>;
   signAvatarUpload(): Promise<AvatarUploadSignature>;
 }
 
@@ -42,6 +44,12 @@ export function accountApi(client: ApiClient): AccountApi {
       client.request({
         method: 'GET',
         path: `/v1/users/by-username/${encodeURIComponent(username)}`,
+        response: UserLookupResponseSchema,
+      }),
+    profile: (userId) =>
+      client.request({
+        method: 'GET',
+        path: `/v1/users/${encodeURIComponent(userId)}`,
         response: UserLookupResponseSchema,
       }),
     signAvatarUpload: () =>

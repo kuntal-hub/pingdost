@@ -312,8 +312,15 @@ export class MessageEngine {
     });
   }
 
-  /** Tops up this device's one-time keys (on `OtkLow` and at start); weekly fallback rotation. */
-  async replenishKeys(): Promise<PublishKeysResult | undefined> {
+  /**
+   * Tops up this device's one-time keys (on `OtkLow` and at start) and rotates the fallback
+   * key weekly. With `ensureFallback` (at start) it first asks the directory whether this
+   * device's fallback key is published, so an interrupted first upload heals. Run every
+   * account change through the engine while it runs: it serializes them with decryption.
+   */
+  async replenishKeys(
+    options: { ensureFallback?: boolean } = {},
+  ): Promise<PublishKeysResult | undefined> {
     const core = this.#core;
     const keys = core.options.api.keys;
     if (!keys) return undefined;
@@ -321,12 +328,18 @@ export class MessageEngine {
       const now = core.now();
       const rotatedAt = await core.store.getSetting(FALLBACK_ROTATED_AT);
       const rotate = typeof rotatedAt === 'number' && now - rotatedAt > FALLBACK_KEY_MAX_AGE_MS;
+      const needsFallbackKey = options.ensureFallback
+        ? !(await core.options.api.directory(core.self.userId)).devices.find(
+            (d) => d.deviceId === core.self.deviceId,
+          )?.fallbackKey
+        : false;
       const result = await publishKeys({
         account: core.options.account,
         deviceId: core.self.deviceId,
         keys,
         saveAccount: () => core.store.apply({ account: core.accountPickle() }),
         rotateFallbackKey: rotate,
+        needsFallbackKey,
       });
       if (rotate || typeof rotatedAt !== 'number') {
         await core.store.apply({ settings: { [FALLBACK_ROTATED_AT]: now } });

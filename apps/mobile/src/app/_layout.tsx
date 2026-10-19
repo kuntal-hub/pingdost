@@ -10,7 +10,7 @@ import { LogBox, Text, View } from 'react-native';
 import { authStore } from '@/api';
 import { useAppStage } from '@/auth/use-auth';
 import { configError } from '@/config';
-import { replenishKeys } from '@/device';
+import { startChat, stopChat } from '@/engine/runtime';
 import { ThemeRoot } from '@/theme/theme-root';
 
 // react-native-css-interop (NativeWind 4) wraps ImageBackground at import time; the app
@@ -46,8 +46,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (configError || stage !== 'loading') void SplashScreen.hideAsync();
-    // Tops up one-time keys on every start; a failure just waits for the next one.
-    if (stage === 'ready') void replenishKeys().catch(() => undefined);
+    // The chat engine runs while a registered device is signed in (it also tops up keys).
+    if (stage === 'ready')
+      void startChat().catch((error: unknown) => console.warn('chat start failed', error));
+    else void stopChat();
   }, [stage]);
 
   if (configError) {

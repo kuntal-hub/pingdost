@@ -57,10 +57,19 @@
         "expo-image-picker",
         {
           "photosPermission": "PingDost opens your photos only when you pick a profile picture.",
-          "cameraPermission": false,
+          "cameraPermission": "PingDost uses the camera only to scan a contact's safety code.",
           "microphonePermission": false
         }
-      ]
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "PingDost uses the camera only to scan a contact's safety code.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,

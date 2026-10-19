@@ -39,3 +39,9 @@ Make the product release-worthy: security and privacy audits, full acceptance tr
 - The audits are clean or have documented accepted risks.
 - The internal-track build is installable by testers.
 - The production web is live.
+
+## Handoff notes
+**From Phase 10 (ADR 0012):**
+- Hermes V1 (RN 0.88) has a strict native `TextDecoder`, so `Utf8TextDecoder` is a fallback only. Keep the self-test in `src/polyfills.ts`.
+- Safety numbers use expo-crypto's native SHA-512: about 1.4 s in a debug build on the emulator. Measure on a low-end phone in a release build.
+- Release builds must not log: the `[engine]`, `[safety]` and `[polyfills]` logs run only under `__DEV__`.

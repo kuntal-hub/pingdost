@@ -17,6 +17,65 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-19 — Phase 10: 1:1 encrypted chat on Android — 🔄 partial (device checks open)
+**Done (ADR 0012):**
+- **Store:**
+  - SQLite migration 002: the REQ §14.1 tables plus `crypto_sessions`, `device_directory`, `directory_devices`, `seen_ids`, `contacts` and `messages_fts`.
+  - `SqliteEngineStore`: one queued `BEGIN IMMEDIATE` per batch; the account pickle goes into `CryptoStore`'s row. It passes `runEngineStoreContract` on `node:sqlite`, and the engine runs end to end on it.
+- **Runtime** (`src/engine/runtime.ts`):
+  - an engine singleton for the `ready` stage;
+  - AppState with a 30 s background grace period, network reconnects, 4001 token refresh;
+  - on `revoked`, the chat data is wiped and the user signed out (setup's account reset wipes it too);
+  - every Olm account change goes through `engine.replenishKeys`; the app-level version was removed.
+- **Screens** (`(app)` Stack over `(tabs)`):
+  - chat list: previews, unread counts, status glyphs, empty state, "New chat" button;
+  - new chat: exact username lookup, then a profile card;
+  - chat: FlashList from the bottom, older pages, day separators, honest labels, tap to retry, long-press for Message info, composer, typing, presence;
+  - Message info (modal, per device);
+  - contact info: safety number and QR code;
+  - QR scanner: expo-camera; a match marks the contact verified.
+  - expo-image avatars; profiles via the new `GET /v1/users/:id` and a `contacts` cache.
+- **Safety numbers** (`@pingdost/protocol/safety-number`): Signal-style 60 digits over the account identity keys, and a versioned QR code with both fingerprints. Native SHA-512 on the phone.
+- **Presence:** `Presence.watch_user_ids`; the gateway's `PresenceHub` (in memory, reciprocal, follows `privacy.lastSeen`); `WsTransport.setPresence` / `watchPresence`.
+- **TextDecoder:** self-test plus a WHATWG UTF-8 fallback. Hermes V1 turned out to be strict natively, so the fallback is unused.
+- `pnpm --filter @pingdost/sim-client peer`: an echo contact for device checks.
+
+**Remaining (user device checks):**
+- [ ] Two Android devices (phone + emulator) chat E2EE both ways. Done here only as emulator ↔ headless peer: native vodozemac on Android with WASM on the peer, through the real gateway and mailbox.
+- [ ] QR verification between two phones: both scan each other's code, both show "Verified". The comparison logic is unit-tested; an emulator camera cannot scan another screen.
+- Steps:
+  1. `pnpm infra:up` and `pnpm --filter @pingdost/server dev`.
+  2. `pnpm --filter @pingdost/mobile android` with the phone attached (and the emulator running).
+  3. Register one account on each device.
+  4. New chat with the other's username; send both ways.
+  5. Contact info → "Scan …'s code" on each phone, pointed at the other's QR code.
+
+**Deviations / decisions:** ADR 0012, no REQ changes.
+- expo-camera moved up from Phase 16. The image picker now passes a camera usage string, because blocking `CAMERA` removed it from the manifest.
+- Presence is opt-in per open chat and reciprocal.
+- Two add-only protocol/API changes: `Presence.watch_user_ids` and `GET /v1/users/:id`.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 42/42 tasks, 336 unit tests (mobile 50, protocol 91, server 24). `pnpm format:check` passes.
+- `pnpm --filter @pingdost/server test:int`: 106/106 (presence relay, profile by ID).
+- On the emulator (Pixel_8_API_35, debug build, dev server), against the echo peer:
+  - register, then automatic device setup;
+  - username lookup, chat, E2EE both ways;
+  - "Delivered" only after the peer's receipt; "Sent" while the peer was offline;
+  - airplane mode → "Queued" → back online → "Delivered";
+  - force-stop and relaunch keeps the history;
+  - presence "online" and the typing indicator show;
+  - Message info shows each device.
+  - The safety number on the emulator equals the Node computation for the same pair (`55877 … 47058`). It takes about 1.4 s with native SHA-512 (about 10 s with JS SHA-512 in a debug build).
+- Ciphertext-only on the dev stack during an offline send: the marker was in 0 of 357 Mongo documents and 0 of 21 Redis values (3 queued envelopes).
+- **Not run:** two Android devices at once (RAM), the QR camera scan, release build and APK size.
+
+**Known issues / tech debt:**
+- The dev-client "Tools" bubble overlaps the header's right side in debug builds (dev only).
+- Read receipts and FTS indexing come in Phase 11.
+- Earlier items are still open: binding drift check, pickle-key zeroization (Phase 27), `OWNER` in `repository.url`, stale `C:\dev\pd`, the native MongoDB Windows service.
+
+**Next:** the two Phase 10 device checks above, then Phase 11 (or Phase 12 / 14).
 ## 2026-10-19 — Phase 09: Message engine & session management — ✅ done
 **Done (ADR 0011):**
 - **`@pingdost/transport`:**

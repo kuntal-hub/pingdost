@@ -1,5 +1,5 @@
-// Wires device setup and key top-ups to the phone: the crypto context (SQLCipher + Olm
-// account), SecureStore, and the API. Both mutate the Olm account, so they run one at a time.
+// Wires device setup to the phone: the crypto context (SQLCipher + Olm account),
+// SecureStore, and the API. Setup tasks mutate the Olm account, so they run one at a time.
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { z } from 'zod';
@@ -8,6 +8,7 @@ import { api, authStore } from '@/api';
 import { getCryptoContext, type CryptoContext } from '@/crypto/bootstrap';
 import { SECRET_ITEMS, SECURE_STORE_OPTIONS } from '@/crypto/secrets';
 import { readSetting, SETTING_KEYS, writeSetting } from '@/db/settings';
+import { wipeChatData } from '@/engine/sqlite-store';
 import { DeviceNameSchema, IdSchema } from '@pingdost/shared-types';
 
 import { syncKeys, type PublishKeysResult } from './keys';
@@ -71,7 +72,11 @@ export function setUpThisDevice(): Promise<DeviceSetupResult> {
       crypto: {
         account: () => context.store.account,
         saveAccount: () => context.store.saveAccount(),
-        resetAccount: () => context.store.resetAccount(),
+        // A revoked identity's sessions and chats go with it (ADR 0012).
+        resetAccount: async () => {
+          await wipeChatData(db);
+          await context.store.resetAccount();
+        },
       },
       localDevice: {
         load: () => loadLocalDevice(context),
@@ -94,14 +99,5 @@ export function setUpThisDevice(): Promise<DeviceSetupResult> {
   });
 }
 
-/**
- * Tops up one-time keys when the server holds fewer than the minimum. Runs on every app
- * start; Phase 8 also runs it on the gateway's low-keys notice.
- */
-export function replenishKeys(): Promise<PublishKeysResult | undefined> {
-  return serialized(async () => {
-    const session = authStore.getState().session;
-    if (!session?.deviceId) return undefined;
-    return syncOwnKeys(await getCryptoContext(), session.user.userId, session.deviceId);
-  });
-}
+// Once the device is set up, the chat engine tops up keys (`engine.replenishKeys`, at start
+// and on the gateway's OtkLow): it serializes account changes with decryption (ADR 0012).

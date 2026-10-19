@@ -91,6 +91,10 @@ message Presence {
   // Server → client only.
   bytes user_id = 1;
   bool online = 2;
+  // Client → server: the users this socket wants presence updates for (16 bytes each, at
+  // most 32), replacing the previous list. Answers come only for users who share their
+  // presence, and only to a user who shares their own (ADR 0012).
+  repeated bytes watch_user_ids = 3;
 }
 
 // A typing indicator, relayed in memory to online devices only.

@@ -77,7 +77,9 @@ export type WsEvent =
   /** A newer socket of this device took over. The transport has stopped; do not fight it. */
   | { type: 'replaced' }
   /** `Auth` was rejected with this code (the transport retries or refreshes). */
-  | { type: 'auth_failed'; code: string };
+  | { type: 'auth_failed'; code: string }
+  /** A watched user's presence changed (see watchPresence). */
+  | { type: 'presence'; userId: string; online: boolean };
 
 export interface WsTransportOptions {
   /** `ws(s)://<host>/v1/ws`. */
@@ -141,6 +143,8 @@ export class WsTransport implements Transport {
   #authTimer: ReturnType<typeof setTimeout> | undefined;
   #heartbeat: ReturnType<typeof setInterval> | undefined;
   #heartbeatMs = 25_000;
+  /** What setPresence / watchPresence asked for; sent again after every reconnect. */
+  #presence: { online: boolean; watch: string[] } = { online: false, watch: [] };
   #lastSentAt = 0;
   #lastReceivedAt = 0;
 
@@ -209,6 +213,30 @@ export class WsTransport implements Transport {
         this.#pending.delete(requestId);
         resolve(sent);
       }
+    });
+  }
+
+  /** Whether this app is in the foreground (the server shows this user online, if shared). */
+  setPresence(online: boolean): void {
+    this.#presence = { ...this.#presence, online };
+    this.#sendPresence();
+  }
+
+  /** The users whose presence to receive as presence events (e.g. the open chat's peer). */
+  watchPresence(userIds: string[]): void {
+    this.#presence = { ...this.#presence, watch: [...new Set(userIds)].slice(0, 32) };
+    this.#sendPresence();
+  }
+
+  #sendPresence(): void {
+    if (this.status !== 'online') return;
+    const { online, watch } = this.#presence;
+    this.#sendFrame({
+      requestId: 0,
+      body: {
+        case: 'presence',
+        value: { online, watchUserIds: watch.map((id) => uuidToBytes(id)) },
+      },
     });
   }
 
@@ -337,8 +365,15 @@ export class WsTransport implements Transport {
       case 'revoked':
         this.#stopFor('revoked');
         break;
+      case 'presence':
+        this.#events.emit({
+          type: 'presence',
+          userId: bytesToUuid(body.value.userId),
+          online: body.value.online,
+        });
+        break;
       default:
-        // Pong only refreshes the liveness clock; Presence and Ephemeral arrive in later phases.
+        // Pong only refreshes the liveness clock; Ephemeral arrives in later phases.
         break;
     }
   }
@@ -355,6 +390,7 @@ export class WsTransport implements Transport {
     this.#lastReceivedAt = this.#now();
     this.#startHeartbeat();
     this.status$.set('online');
+    if (this.#presence.online || this.#presence.watch.length > 0) this.#sendPresence();
     this.#events.emit({
       type: 'connected',
       userId: bytesToUuid(ok.userId),

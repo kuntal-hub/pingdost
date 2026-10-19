@@ -48,6 +48,7 @@ import {
   type Connection,
   type GatewaySettings,
 } from './modules/gateway/connection';
+import { PresenceHub } from './modules/gateway/presence';
 import { ConnectionRegistry } from './modules/gateway/registry';
 import { gatewayRoutes } from './modules/gateway/routes';
 import { metricsRoutes } from './modules/health/metrics-routes';
@@ -215,6 +216,12 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     deviceActive: async (deviceId) =>
       (await devices.devices.countDocuments({ _id: deviceId, status: 'active' }, { limit: 1 })) > 0,
   });
+  const presence = new PresenceHub<Connection>({
+    sharesPresence: async (userId) =>
+      (await collections.users.findOne({ _id: userId }, { projection: { privacy: 1 } }))?.privacy
+        .lastSeen ?? false,
+    now: () => clock.now(),
+  });
   const authenticate = createAuthGuard(tokens, collections, clock, (deviceId) =>
     deviceService.touch(deviceId),
   );
@@ -228,6 +235,7 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     clock,
     lookupBudget: throttles.usernameLookups,
     cloudinary: config.cloudinary,
+    onPrivacyChanged: (userId) => presence.invalidate(userId),
   });
   await app.register(deviceRoutes, { service: deviceService, authenticate, limits });
   await app.register(keyRoutes, { service: keyService, authenticate, limits });
@@ -246,6 +254,7 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
       delivery,
       push: deps.push ?? noopPushNotifier,
       registry,
+      presence,
     },
   });
   await app.register(metricsRoutes, { metrics, token: config.METRICS_TOKEN, limits });

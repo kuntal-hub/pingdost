@@ -53,3 +53,4 @@ Web chat (17); history sync (18).
 - **From Phase 9 (ADR 0011):**
   - `apps/server/test/engine.int.test.ts` adds a linked device out of band (`bindLinkedDevice`: device record, session bind, refresh). Replace it with real pairing.
   - A linked device stores copies of its own user's messages as outgoing `sent_to_server`. Receipts go only to the sending device.
+- **From Phase 10 (ADR 0012):** expo-camera 58.0.11 is installed (QR scanning; `CAMERA` permission, no microphone). Widen its usage text (`app.json`) to cover pairing. The scanner pattern is in `src/screens/contact/scan.tsx`.

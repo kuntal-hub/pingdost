@@ -118,6 +118,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - `Content` (**inside** the E2EE ciphertext): header (`message_id`, `conversation_id`, `sender_user_id`, `sent_at_ms`, optional `reply_to`, optional `recipient_user_id` for direct messages (ADR 0011), protocol version), a oneof body {Text, Reaction, Edit, Delete, Receipt, AttachmentManifest, GroupControl, RoomKey, SyncChunk, CallSignal, SessionReset, KeyChange}, and `padding`.
   - WS frames: `ClientFrame` / `ServerFrame` oneofs (Auth, AuthOk, Send, Accepted, Deliver, Ack, Presence, Typing, Ephemeral, OtkLow, Revoked, ServerError, Ping/Pong).
 - **Message engine (ADR 0011):** `@pingdost/message-engine` (outbox, states, sessions, repair, receipts) over an `EngineStore` (one atomic `apply(batch)`) and `@pingdost/transport` (`WsTransport`, `TransportRouter`). A receiver resolves an unknown sending device with `GET /v1/keys/devices/:id`, then verifies that user's directory.
+- **Presence (ADR 0012):** in memory on the gateway only. Clients name the users they watch (`Presence.watch_user_ids`, at most 32); it is reciprocal and follows `privacy.lastSeen`. The server keeps no contact list.
 - **Ephemeral relay.** Call signaling, history-sync chunks and typing are **ephemeral**: the server relays them in memory to online devices only and never writes them to Redis or Mongo. Ephemeral envelopes travel as `PACKET_KIND_EPHEMERAL`.
 - **Limits:** `ENVELOPE_MAX_BYTES` (default 64 KiB). Decoders reject oversized, expired or unknown-major-version packets.
 - **Details (ADR 0006):**
@@ -144,7 +145,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Each account has one Ed25519 **account identity key**, created on the primary phone and separate from the device Olm accounts. It signs each device's keys (a device certificate).
   - Signed statements (certificate, registration proof, one-time/fallback keys) use the context-prefixed byte formats in `@pingdost/protocol` `signing.ts` (ADR 0008).
   - Device sessions: the phone registers once as primary; after a logout the same device ID and keys **resume** with a fresh proof of possession instead of registering again (ADR 0009).
-  - Safety numbers/QR codes are derived from both parties' account identity keys (display encoding only; proposed in ADR 0003, finalized in Phase 10).
+  - Safety numbers/QR codes are derived from both parties' account identity keys (display encoding only; proposed in ADR 0003, finalized in ADR 0012: Signal-style 60 digits, a versioned QR code with both fingerprints).
   - Key changes produce a visible "safety number changed" notice.
 - **Attachments (ADR 0004, accepted):**
   - XChaCha20-Poly1305 under the STREAM construction (RustCrypto `chacha20poly1305` + `aead-stream`) inside `crates/pingdost-crypto`, so one implementation runs on every platform.
@@ -176,10 +177,10 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - **Libraries, by phase:**
   - Phase 3: crypto Turbo Module (ubrn).
   - Phase 7 (ADR 0009): Zustand (app state), `@react-native-google-signin/google-signin` (free Original API; no Android config plugin without Firebase), expo-image-picker (avatars; camera and microphone permissions blocked), expo-network (offline banner), expo-symbols (Material icons for the native tabs on Android).
-  - Phase 10: FlashList.
+  - Phase 10 (ADR 0012): FlashList, expo-image (avatars), expo-camera (QR safety codes; moved up from Phase 16), qrcode-generator. `@pingdost/protocol` adds @noble/hashes (safety numbers).
   - Phase 12: expo-notifications (FCM token + background task).
   - Phase 15: expo-document-picker, expo-audio, expo-video, react-native-compressor (re-validate).
-  - Phase 16: expo-camera (QR).
+  - Phase 16: QR pairing reuses expo-camera (installed in Phase 10).
   - Phase 21: nearby Expo module in Kotlin.
   - Phase 26: react-native-webrtc.
 - **Background:** FCM high-priority data messages wake the app for fetch. The mesh relay runs in an Android foreground service (`connectedDevice`) while relaying is enabled.

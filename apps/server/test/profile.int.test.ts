@@ -120,6 +120,31 @@ describe('avatar upload signing', () => {
   });
 });
 
+describe('profile by user ID', () => {
+  it('returns the public profile of an active user, NOT_FOUND otherwise', async () => {
+    const owner = await registeredUser(server);
+    await patchMe(owner.accessToken, { displayName: 'Mira' });
+    const reader = await registeredUser(server);
+    const response = await server.app.inject({
+      method: 'GET',
+      url: `/v1/users/${owner.userId}`,
+      headers: bearer(reader.accessToken),
+    });
+    expect(json(response)).toEqual({
+      userId: owner.userId,
+      username: owner.user.username,
+      displayName: 'Mira',
+      avatarUrl: null,
+    });
+    const missing = await server.app.inject({
+      method: 'GET',
+      url: '/v1/users/0192f1a0-0000-7000-8000-000000000001',
+      headers: bearer(reader.accessToken),
+    });
+    expect(json(missing)).toMatchObject({ code: 'NOT_FOUND' });
+  });
+});
+
 describe('username lookup', () => {
   it('finds active users by exact username only', async () => {
     const reader = await registeredUser(server);
