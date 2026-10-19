@@ -13,10 +13,15 @@ export class CryptoStore {
   private constructor(
     private readonly db: SQLiteDatabase,
     private readonly pickleKey: Uint8Array,
-    readonly account: OlmAccount,
+    private current: OlmAccount,
     /** True when this run created the account; false when it was restored from the pickle. */
     readonly accountCreated: boolean,
+    private readonly provider: CryptoProvider,
   ) {}
+
+  get account(): OlmAccount {
+    return this.current;
+  }
 
   static async open(db: SQLiteDatabase, provider: CryptoProvider): Promise<CryptoStore> {
     const pickleKey = await getOrCreateSecret(SECRET_ITEMS.pickleKey);
@@ -26,9 +31,9 @@ export class CryptoStore {
     );
     if (row) {
       const account = provider.restoreAccount(decodeUtf8(row.pickle), pickleKey);
-      return new CryptoStore(db, pickleKey, account, false);
+      return new CryptoStore(db, pickleKey, account, false, provider);
     }
-    const store = new CryptoStore(db, pickleKey, provider.createAccount(), true);
+    const store = new CryptoStore(db, pickleKey, provider.createAccount(), true, provider);
     await store.saveAccount();
     return store;
   }
@@ -38,7 +43,18 @@ export class CryptoStore {
     await this.db.runAsync(
       `INSERT INTO crypto_store (id, kind, pickle, updated_at) VALUES (?, 'olm.account', ?, ?)
        ON CONFLICT (id) DO UPDATE SET pickle = excluded.pickle, updated_at = excluded.updated_at`,
-      [ACCOUNT_ID, encodeUtf8(this.account.pickle(this.pickleKey)), Date.now()],
+      [ACCOUNT_ID, encodeUtf8(this.current.pickle(this.pickleKey)), Date.now()],
     );
+  }
+
+  /**
+   * Replaces the account with a new one, for a device the server revoked: its identity keys
+   * are burned. Sessions made with the old account stop working.
+   */
+  async resetAccount(): Promise<void> {
+    const previous = this.current;
+    this.current = this.provider.createAccount();
+    await this.saveAccount();
+    previous.dispose();
   }
 }

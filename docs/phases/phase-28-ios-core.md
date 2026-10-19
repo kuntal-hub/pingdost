@@ -26,3 +26,6 @@ The iOS app reaches parity with Android for accounts, 1:1 and group chat, attach
 
 ## Done when
 An iPhone chats E2EE with Android and web, sends attachments, pairs a browser and restores from a backup.
+
+## Handoff notes
+**From Phase 7 (ADR 0009):** add the `@react-native-google-signin/google-signin` config plugin with `iosUrlScheme` (the reversed iOS client ID) to `app.json`. Android needs no plugin, and adding it without options would apply Firebase `google-services`. SecureStore items already use `WHEN_UNLOCKED_THIS_DEVICE_ONLY`.

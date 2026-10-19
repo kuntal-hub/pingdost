@@ -13,6 +13,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0006](0006-wire-protocol-encoding.md) | Wire protocol encoding: versions, IDs, limits, padding, flags, error codes | 04 | Accepted |
 | [0007](0007-auth-sessions-otp-throttling.md) | Auth sessions, OTPs and abuse throttles | 05 | Accepted |
 | [0008](0008-devices-identity-keys-directory.md) | Devices, account identity key, key directory and Google linking | 06 | Accepted |
+| [0009](0009-mobile-session-and-device-setup.md) | Mobile session, device setup and device resume | 07 | Accepted |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 

@@ -46,3 +46,6 @@ Web attachments (18); mesh transfer (24).
   - the server object is gone after the ACK (check the fs dir or MinIO);
   - "Clear cache" leaves history intact.
 - `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 7 (ADR 0009):** expo-image-picker 58.0.10 is already installed (avatars). Its `app.json` plugin blocks `CAMERA` and `RECORD_AUDIO`: to capture photos or video for attachments, give `cameraPermission`/`microphonePermission` a usage string instead of `false`.

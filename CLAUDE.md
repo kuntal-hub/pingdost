@@ -98,6 +98,8 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
 - **Android app** (`apps/mobile`, Expo SDK 58 dev build; never Expo Go):
   - `pnpm --filter @pingdost/mobile android`: prebuild (`android/` is generated and git-ignored), Gradle build, install on the attached device/emulator, start Metro. `pnpm --filter @pingdost/mobile start` when the build is already installed.
   - `pnpm --filter @pingdost/mobile android:release`: a release build (for APK size checks).
+  - `apps/mobile/.env` (git-ignored) sets `EXPO_PUBLIC_API_URL` / `EXPO_PUBLIC_WS_URL` to the PC's LAN IP (`http://192.168.1.2:3000` on 2026-10-19) and the optional `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`. Metro inlines them: restart it with `--clear` after a change.
+  - Typed routes (`.expo/types/router.d.ts`, git-ignored) are regenerated only by `expo start`. `tsc` errors about unknown `href`s mean they are stale.
   - After changing `app.json` plugins or native deps: `npx expo prebuild --platform android --clean` in `apps/mobile`.
   - Crypto interop proof: `pnpm --filter @pingdost/crypto interop-server`, `adb reverse tcp:8787 tcp:8787`, then the app's **Crypto interop (dev)** screen. `pnpm --filter @pingdost/crypto make-vectors` regenerates the test vectors (only when vodozemac changes).
   - Emulators: `Pixel_8_API_35` (x86_64). Install packages with `npx expo install` semantics but pin the exact version it picks.

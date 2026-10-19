@@ -67,3 +67,4 @@ Real E2EE payloads (09), push (12), groups routing (13), attachments (14).
 - `src/infra/redis.ts` already wraps ioredis 6 lazily and counts commands (`commandCount()`); `/readyz` checks Redis once something has used it.
 - Register the mailbox jobs in `createJobs()` (`src/jobs.ts`); `Scheduler` takes a Mongo lease per run.
 - `AppDeps.onDeviceRevoked` hooks run after a revocation; register the WS `Revoked` push there.
+**From Phase 7 (ADR 0009):** on the low one-time-key notice, the app calls `replenishKeys()` from `apps/mobile/src/device` (it already runs on every app start and shares a queue with device setup). `EXPO_PUBLIC_WS_URL` is already parsed into `publicConfig.wsUrl`. Tokens come from `authStore` in `apps/mobile/src/api`; open the socket only in the `ready` stage, when the session is device-bound.

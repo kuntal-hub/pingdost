@@ -11,32 +11,42 @@ A real phone can register, verify by email, log in (password or Google), create 
 - **Load skill `expo:expo-overview`** (then `expo-router`, `expo-native-ui` / `expo-design-system` as it suggests)
 
 ## Tasks
-- [ ] **Route structure:**
+- [x] **Route structure:**
   - `(auth)`: welcome, register, verify-otp, login, forgot-password, reset-password, google-username;
   - `(app)`: tabs Chats (placeholder) · Settings.
   - Root layout gate on auth state.
-- [ ] **API wiring:** `@pingdost/api-client` with base URL from `EXPO_PUBLIC_API_URL`. Dev cleartext to the LAN IP is allowed in dev builds only (expo-build-properties or a config plugin; never in release).
-- [ ] **Auth store:**
+- [x] **API wiring:** `@pingdost/api-client` with base URL from `EXPO_PUBLIC_API_URL`. Dev cleartext to the LAN IP is allowed in dev builds only (expo-build-properties or a config plugin; never in release).
+- [x] **Auth store:**
   - Zustand store; tokens in `expo-secure-store`;
   - single-flight refresh on 401;
   - logout clears the tokens. Local history is kept unless the user chooses "remove data".
-- [ ] **Forms** validated with the shared Zod schemas. Clear server error mapping, OTP resend countdown, and loading, offline and error states.
-- [ ] **Google Sign-In:** `@react-native-google-signin/google-signin` (check the free/original package and its Expo config plugin). Obtain the ID token and call `/v1/auth/google`; handle the `pending_username` step. Write the user's console setup steps (from the Phase 6 notes) and use env for the client IDs.
-- [ ] **Device setup after first auth:**
+- [x] **Forms** validated with the shared Zod schemas. Clear server error mapping, OTP resend countdown, and loading, offline and error states.
+- [x] **Google Sign-In:** `@react-native-google-signin/google-signin` (check the free/original package and its Expo config plugin). Obtain the ID token and call `/v1/auth/google`; handle the `pending_username` step. Write the user's console setup steps (from the Phase 6 notes) and use env for the client IDs.
+- [x] **Device setup after first auth:**
   1. Load or create the Olm account (Phase 3 store).
   2. Get the device challenge and sign it.
   3. `POST /v1/devices` as primary.
   4. Upload 50 OTKs + the fallback key, then mark them published.
   5. A replenish routine tops up when the count falls below 20 (checked on app start; the WS notice arrives in Phase 8).
   - Handle `PRIMARY_EXISTS` with a clear screen ("This account is active on another phone"; replacement comes in Phase 19).
-- [ ] **Settings:**
+- [x] **Settings:**
   - Profile: display name; avatar via expo-image-picker → Cloudinary signed upload → PATCH. Hide it if Cloudinary is disabled.
   - Privacy: receipts, typing and last-seen toggles, stored server-side and locally.
   - Devices list with revoke for linked devices (none yet).
   - "About privacy" screen with the honest REQ §1 / §5.4 wording.
   - Logout.
-- [ ] **Theme:** light/dark via `ui-tokens`; basic accessibility (labels, font scaling).
-- [ ] **Tests:** unit tests for the auth store/refresh logic and form schemas (Vitest or jest-expo, whichever Expo recommends now).
+- [x] **Theme:** light/dark via `ui-tokens`; basic accessibility (labels, font scaling).
+- [x] **Tests:** unit tests for the auth store/refresh logic and form schemas (Vitest or jest-expo, whichever Expo recommends now).
+
+**Status (2026-10-19):** code done (ADR 0009). Not yet verified on a device:
+- the rebuilt tabs (with `expo-symbols`) and Settings;
+- kill and relaunch;
+- logout and login (device resume);
+- the real phone;
+- Google sign-in (no client IDs yet);
+- avatars (no Cloudinary).
+
+"Remove data" moved to Phase 19 (see its handoff notes).
 
 ## Key files
 `apps/mobile/src/app/(auth)/*`, `apps/mobile/src/app/(app)/*`, `apps/mobile/src/{auth/*,api/*,device/*,settings/*}`

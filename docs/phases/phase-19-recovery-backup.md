@@ -45,3 +45,10 @@ Server-side backups (forbidden); iOS (28).
 
 ## Handoff notes
 **From Phase 6 (ADR 0008):** `users.accountIdentityKey` is set once; registering with another key gives `IDENTITY_KEY_MISMATCH`. A replacement phone restores the identity key from the backup and registers as a new primary once the old one is revoked (`DELETE /v1/devices/:id` by the old primary, or the Phase 19 flow when it is lost). `PRIMARY_EXISTS` guards against two active primaries.
+**From Phase 7 (ADR 0009):**
+- The app shows "This account is active on another phone" (`src/screens/device-setup.tsx`, problem `primary_exists`) when the account has an identity key but this phone has none. Replace that dead end with the recovery and replacement options.
+- **Add "Remove data from this phone"** to Settings → Log out. It must:
+  1. revoke this device (it may revoke itself);
+  2. delete the SQLCipher DB and the SecureStore items (`pingdost.db-key.v1`, `pingdost.pickle-key.v1`, `pingdost.account-identity-key.v1`, `pingdost.session.v1`);
+  3. warn plainly that, without a backup, history is gone and the account needs the identity key from a backup to register another phone.
+  - It also lets another account use the phone: setup stops with `other_account` while the old device record exists.

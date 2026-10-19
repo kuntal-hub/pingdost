@@ -42,3 +42,6 @@ Group-specific semantics (13); media (15).
 - Every feature works between two Android devices.
 - `buf breaking` reports no breaking proto changes.
 - `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 7 (ADR 0009):** privacy prefs (`readReceipts`, `typingIndicators`, `lastSeen`) are edited in Settings → Privacy, stored on the server and cached in `local_settings` (`privacy`). Read them with `useAccount` or `cachedPrivacy()` from `apps/mobile/src/settings/account.ts` to decide what to send.

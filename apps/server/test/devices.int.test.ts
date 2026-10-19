@@ -199,6 +199,59 @@ describe('device registration', () => {
     ).toMatchObject({ code: 'IDENTITY_KEY_MISMATCH' });
   });
 
+  it('resumes the same device on a new session, with no second primary', async () => {
+    const session = await registeredUser(server);
+    const identity = crypto.createSigningKey();
+    const device = newDevice(crypto);
+    const first = await registerDevice(server, session.accessToken, device, identity);
+    const users = server.mongo.db.collection<{ keyVersion: number }>('users');
+    const keyVersion = (await users.findOne({ _id: session.userId as never }))?.keyVersion;
+
+    const relogin = await login(session.user.username, session.user.password);
+    const resumed = await registerDevice(server, relogin, device, identity);
+    expect(resumed.device).toEqual(first.device);
+    expect(decodeJwt(resumed.tokens.accessToken)).toMatchObject({ did: device.deviceId });
+    expect(
+      await server.mongo.db.collection('devices').countDocuments({ userId: session.userId }),
+    ).toBe(1);
+    expect((await users.findOne({ _id: session.userId as never }))?.keyVersion).toBe(keyVersion);
+    expect(
+      await server.mongo.db
+        .collection('security_events')
+        .countDocuments({ userId: session.userId, type: 'device_resume' }),
+    ).toBe(1);
+
+    // Another account, or other keys under the same device ID, cannot take the device over.
+    const stranger = await registeredUser(server);
+    const strangerNonce = await challenge(server, stranger.accessToken);
+    expect(
+      json(
+        await register(
+          stranger.accessToken,
+          registrationBody(device, crypto.createSigningKey(), strangerNonce),
+        ),
+      ),
+    ).toMatchObject({ code: 'CONFLICT' });
+    const impostor = { ...newDevice(crypto), deviceId: device.deviceId };
+    const otherKeys = await login(session.user.username, session.user.password);
+    const otherNonce = await challenge(server, otherKeys);
+    expect(
+      json(await register(otherKeys, registrationBody(impostor, identity, otherNonce))),
+    ).toMatchObject({ code: 'CONFLICT' });
+
+    // A revoked device stays revoked.
+    await server.app.inject({
+      method: 'DELETE',
+      url: `/v1/devices/${device.deviceId}`,
+      headers: bearer(resumed.tokens.accessToken),
+    });
+    const afterRevoke = await login(session.user.username, session.user.password);
+    const revokedNonce = await challenge(server, afterRevoke);
+    expect(
+      json(await register(afterRevoke, registrationBody(device, identity, revokedNonce))),
+    ).toMatchObject({ code: 'DEVICE_REVOKED' });
+  });
+
   it('refuses web devices, bound sessions and accounts without a username', async () => {
     const session = await registeredUser(server);
     const identity = crypto.createSigningKey();

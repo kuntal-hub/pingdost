@@ -51,3 +51,7 @@ Reactions, edit, search and other extras (11); push (12); groups (13); attachmen
 - Before the app first uses `@pingdost/protocol`, install on `globalThis`:
   - a `TextDecoder` that supports `fatal: true` (protobuf-es needs it; Hermes may lack it). Check the polyfill's license and version first.
   - `crypto.getRandomValues` (for `uuid`), e.g. from `expo-crypto`.
+**From Phase 7 (ADR 0009):**
+- The app imports only `@pingdost/protocol/signing` and `/ids`, and installs just `crypto.getRandomValues` (`src/polyfills.ts`). Add the `TextDecoder` polyfill there before importing the package root.
+- Replace the placeholder `src/screens/chats.tsx` in the `(app)/(chats)` stack. The API client and session live in `src/api`. Use `useAccount` (`src/settings/account.ts`) for the display name and the privacy prefs.
+- `local_settings` helpers are in `src/db/settings.ts`. The device record `{ deviceId, userId }` is under key `device`.

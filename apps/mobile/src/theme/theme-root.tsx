@@ -28,9 +28,18 @@ function navigationTheme(scheme: ColorScheme) {
   };
 }
 
+function useScheme(): ColorScheme {
+  return useColorScheme() === 'dark' ? 'dark' : 'light';
+}
+
+/** The current palette, for props that take a color value (placeholders, spinners, switches). */
+export function usePalette() {
+  return palettes[useScheme()];
+}
+
 /** Follows the system light/dark setting for NativeWind classes and navigation chrome. */
 export function ThemeRoot({ children }: { children: ReactNode }) {
-  const scheme: ColorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const scheme = useScheme();
   return (
     <ThemeProvider value={navigationTheme(scheme)}>
       <View style={themeVariables[scheme]} className="flex-1 bg-background">

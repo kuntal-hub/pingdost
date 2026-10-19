@@ -13,3 +13,5 @@ Golden vectors: `pnpm --filter @pingdost/protocol make-vectors` rewrites `@pingd
 `pnpm --filter @pingdost/protocol lint` also runs `buf lint`.
 
 **React Native:** install `TextDecoder` (with `fatal: true`) and `crypto.getRandomValues` on `globalThis` before using this package.
+
+`@pingdost/protocol/signing` exports only the signed-statement formats (`src/signing.ts`); `uuidv7()` and the other ID helpers come from `@pingdost/protocol/ids`. Neither loads the generated protobuf code, so they need only `crypto.getRandomValues` (the mobile app uses them for device setup before Phase 10 adds `TextDecoder`).

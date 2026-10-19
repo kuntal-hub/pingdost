@@ -135,6 +135,10 @@ export class DeviceService {
     ) {
       throw new AppError('INVALID_SIGNATURE', { detail: 'The device certificate is invalid.' });
     }
+
+    const existing = await this.d.devices.devices.findOne({ _id: input.deviceId });
+    if (existing) return this.resume(auth, existing, input, context);
+
     if (!user.accountIdentityKey) {
       // Set once; a concurrent first registration with another key loses.
       const set = await users.updateOne(
@@ -171,6 +175,30 @@ export class DeviceService {
 
     const tokens = await this.d.authService.bindDevice(auth.sessionId, device._id);
     await this.d.events.record('device_register', context, user._id);
+    return { device: toSummary(device), tokens };
+  }
+
+  /**
+   * The same phone signs in again (ADR 0009): an active device of this account with the same
+   * identity keys, proven by the fresh nonce, binds the new session. Nothing else changes, so
+   * `keyVersion` stays and the published keys stay valid.
+   */
+  private async resume(
+    auth: AuthContext,
+    device: DeviceDoc,
+    input: RegisterDeviceRequest,
+    context: RequestContext,
+  ): Promise<RegisterDeviceResponse> {
+    const sameKeys =
+      device.identityKeys.curve25519 === input.identityKeys.curve25519 &&
+      device.identityKeys.ed25519 === input.identityKeys.ed25519;
+    if (device.userId !== auth.userId || !sameKeys) {
+      throw new AppError('CONFLICT', { detail: 'Device ID already in use.' });
+    }
+    if (device.status !== 'active') throw new AppError('DEVICE_REVOKED');
+
+    const tokens = await this.d.authService.bindDevice(auth.sessionId, device._id);
+    await this.d.events.record('device_resume', context, auth.userId);
     return { device: toSummary(device), tokens };
   }
 

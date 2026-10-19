@@ -35,11 +35,21 @@ export type PublicEnvPrefix = 'EXPO_PUBLIC_' | 'VITE_';
 export interface PublicConfig {
   apiUrl: string;
   wsUrl: string;
+  /**
+   * The OAuth "Web application" client ID the mobile app asks Google for ID tokens with
+   * (one of the server's GOOGLE_CLIENT_IDS). Public, not a secret; absent hides Google
+   * sign-in.
+   */
+  googleWebClientId?: string;
 }
 
 const publicEnvSchema = z.object({
   API_URL: z.url({ protocol: /^https?$/, error: 'must be an http(s) URL' }),
   WS_URL: z.url({ protocol: /^wss?$/, error: 'must be a ws(s) URL' }),
+  GOOGLE_WEB_CLIENT_ID: z
+    .string()
+    .regex(/\.apps\.googleusercontent\.com$/, 'must end with .apps.googleusercontent.com')
+    .optional(),
 });
 
 /**
@@ -63,5 +73,10 @@ export function loadPublicConfig(
   if (!parsed.success) {
     throw new ConfigError('public', formatZodIssues(parsed.error, input, prefix));
   }
-  return { apiUrl: parsed.data.API_URL, wsUrl: parsed.data.WS_URL };
+  const { API_URL, WS_URL, GOOGLE_WEB_CLIENT_ID } = parsed.data;
+  return {
+    apiUrl: API_URL,
+    wsUrl: WS_URL,
+    ...(GOOGLE_WEB_CLIENT_ID === undefined ? {} : { googleWebClientId: GOOGLE_WEB_CLIENT_ID }),
+  };
 }

@@ -23,6 +23,7 @@ export type SecurityEventType =
   | 'logout'
   | 'google_link'
   | 'device_register'
+  | 'device_resume'
   | 'device_revoke';
 
 export interface SecurityEventDoc {

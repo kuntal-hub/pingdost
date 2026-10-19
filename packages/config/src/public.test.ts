@@ -21,6 +21,30 @@ describe('loadPublicConfig', () => {
     ).toEqual(urls);
   });
 
+  it('reads the optional Google web client ID', () => {
+    const googleWebClientId = '1234-abc.apps.googleusercontent.com';
+    expect(
+      loadPublicConfig(
+        {
+          EXPO_PUBLIC_API_URL: 'http://192.168.1.10:3000',
+          EXPO_PUBLIC_WS_URL: 'ws://192.168.1.10:3000/ws',
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: googleWebClientId,
+        },
+        'EXPO_PUBLIC_',
+      ),
+    ).toMatchObject({ googleWebClientId });
+    expect(() =>
+      loadPublicConfig(
+        {
+          EXPO_PUBLIC_API_URL: 'http://192.168.1.10:3000',
+          EXPO_PUBLIC_WS_URL: 'ws://192.168.1.10:3000/ws',
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: 'not-a-client-id',
+        },
+        'EXPO_PUBLIC_',
+      ),
+    ).toThrow(/EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: must end with/);
+  });
+
   it('reports missing and invalid variables by their prefixed names', () => {
     let error: unknown;
     try {

@@ -6,7 +6,7 @@ The Fastify modular monolith (ARCHITECTURE A2). Entrypoints: `src/main.ts` (API;
 - `src/modules/`:
   - `auth`: register, OTP, login, refresh, logout, password reset/change (ADR 0007), Google sign-in (ADR 0008);
   - `account`: `/v1/me`, username lookup, Cloudinary avatar signing;
-  - `device`: registration with proof of possession and device certificate, list, revoke;
+  - `device`: registration with proof of possession and device certificate (the same device ID and keys resume after a re-login, ADR 0009), list, revoke;
   - `keys`: signed one-time/fallback keys, directory, atomic claims (ADR 0008);
   - `email` (console / smtp / zeptomail), `security` (audit events), `health`.
 

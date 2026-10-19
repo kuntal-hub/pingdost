@@ -52,6 +52,14 @@
             "buildArchs": ["arm64-v8a", "x86_64"]
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PingDost opens your photos only when you pick a profile picture.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {

@@ -141,6 +141,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - **Verification:**
   - Each account has one Ed25519 **account identity key**, created on the primary phone and separate from the device Olm accounts. It signs each device's keys (a device certificate).
   - Signed statements (certificate, registration proof, one-time/fallback keys) use the context-prefixed byte formats in `@pingdost/protocol` `signing.ts` (ADR 0008).
+  - Device sessions: the phone registers once as primary; after a logout the same device ID and keys **resume** with a fresh proof of possession instead of registering again (ADR 0009).
   - Safety numbers/QR codes are derived from both parties' account identity keys (display encoding only; proposed in ADR 0003, finalized in Phase 10).
   - Key changes produce a visible "safety number changed" notice.
 - **Attachments (ADR 0004, accepted):**
@@ -153,7 +154,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Never restore a device Olm account, Olm sessions or outbound Megolm sessions. A restored device is a new device certified by the identity key.
 - **Mesh first contact:** clients cache contacts' device identity and fallback keys while online, so Olm prekey messages can be created offline. A direct nearby handshake is the other option.
 - **Local at rest:**
-  - **Mobile:** SQLCipher DB key and Olm pickle key in `expo-secure-store` (Android Keystore).
+  - **Mobile:** SQLCipher DB key, Olm pickle key, the account identity key secret and the session tokens in `expo-secure-store` (Android Keystore; ADR 0009).
   - **Web:** a non-extractable AES-GCM `CryptoKey` stored in IndexedDB encrypts sensitive records and pickles. The docs must state that browser protection is weaker than native.
 - **Never** invent protocols. A new primitive use needs an ADR. Keys, OTPs, recovery phrases and plaintext never reach logs, analytics or push.
 
@@ -164,6 +165,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - ⚠ **ABIs:** `arm64-v8a` and `x86_64` (emulator) only, because the ubrn JSI player ships only 64-bit builds (ADR 0005). 32-bit-only phones are not supported for now.
 - **Backups:** `android:allowBackup="false"`. Android Auto Backup must not copy the encrypted DB or pickles: ADR 0003 forbids restoring Olm state, and Keystore-wrapped keys do not restore anyway. Recovery uses the Phase 19 backup instead.
 - **Navigation and UI:** Expo Router (`(auth)` and `(app)` groups); NativeWind with `@pingdost/ui-tokens`; light and dark themes.
+  - The root layout gates route groups with `Stack.Protected` on one stage derived from the session: `(auth)`, `setup` (device registration) or `(app)` with native tabs (ADR 0009).
 - **Local DB:** `expo-sqlite` with config-plugin `useSQLCipher: true` and `enableFTS: true`.
   - A raw 32-byte key (`PRAGMA key = "x'…'"`) from SecureStore; opening checks `PRAGMA cipher_version`, because plain SQLite would ignore the key silently.
   - Raw-SQL repositories plus a migration runner keyed on `PRAGMA user_version` (`apps/mobile/src/db/migrate.ts`; `STRICT` tables).
@@ -171,9 +173,10 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - **Files:** `expo-file-system` (new File API, chunked reads, no base64 for big files). Attachments are stored **as encrypted files**; plaintext is decrypted to a temp cache only for viewing.
 - **Libraries, by phase:**
   - Phase 3: crypto Turbo Module (ubrn).
+  - Phase 7 (ADR 0009): Zustand (app state), `@react-native-google-signin/google-signin` (free Original API; no Android config plugin without Firebase), expo-image-picker (avatars; camera and microphone permissions blocked), expo-network (offline banner), expo-symbols (Material icons for the native tabs on Android).
   - Phase 10: FlashList.
   - Phase 12: expo-notifications (FCM token + background task).
-  - Phase 15: expo-image-picker, expo-document-picker, expo-audio, expo-video, react-native-compressor (re-validate).
+  - Phase 15: expo-document-picker, expo-audio, expo-video, react-native-compressor (re-validate).
   - Phase 16: expo-camera (QR).
   - Phase 21: nearby Expo module in Kotlin.
   - Phase 26: react-native-webrtc.

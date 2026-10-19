@@ -17,6 +17,50 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-19 — Phase 07: Mobile onboarding & account UI — 🔄 partial (code done; device checks open)
+**Done:**
+- Server (ADR 0009): re-registering the same device ID with the same keys **resumes** the device on the new session (proof of possession checked; no second primary; `keyVersion` unchanged; `device_resume` event). Another account's ID or other keys give `CONFLICT`; a revoked device gives `DEVICE_REVOKED`.
+- `@pingdost/protocol/signing` and `/ids` subpath exports, so the app signs without loading protobuf descriptors. `@pingdost/config/public` gains the optional `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`.
+- `apps/mobile`:
+  - routes `(auth)` (welcome, register, verify-otp, login, forgot/reset password, google-username), `setup` (device registration), and `(app)` with native tabs Chats (placeholder) and Settings (profile + avatar, privacy, devices, about privacy, logout). The root `index` redirects by stage, and `Stack.Protected` gates each group;
+  - the Zustand auth store with tokens in SecureStore and single-flight refresh. Logout keeps local data;
+  - Zod forms from the shared schemas, server error mapping, OTP resend countdown, offline banner;
+  - Google Sign-In (free Original API; hidden until a client ID is set);
+  - device setup: identity key, challenge, register or resume, then publish 50 one-time keys + the fallback key, with a top-up below 20 on every start;
+  - `CryptoStore.resetAccount`, `local_settings` helpers, light/dark tokens and accessibility labels.
+- New deps (licenses checked, MIT): zustand 5.0.15, `@react-native-google-signin/google-signin` 16.1.5, expo-image-picker 58.0.10 (camera and microphone permissions blocked), expo-network 58.0.3, expo-symbols 58.0.4.
+- Docs: ADR 0009, ARCHITECTURE A5/A6, CLAUDE.md (mobile `.env`, typed routes), READMEs, `.env.example`, and handoff notes in phases 08, 10, 11, 15, 16, 19, 28.
+
+**Remaining (in order):**
+- [ ] Rebuild the dev build: `expo-symbols` was added after the last build (the tab icons crash without it). Run `npx expo prebuild --platform android --clean` in `apps/mobile`, then `pnpm --filter @pingdost/mobile android`.
+- [ ] On a real phone (or the emulator): the tabs and Settings screens render, plus Done-when steps 5 (kill/relaunch keeps the session and identity) and 6 (log out, log in: the same device resumes and Mongo still holds one primary).
+- [ ] Google sign-in once the client IDs exist (steps in the Phase 06 entry below; put the web client ID in `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` and both IDs in `GOOGLE_CLIENT_IDS`).
+- [ ] Avatars only if Cloudinary is configured. That also checks the unverified SHA-256 signature.
+
+**Deviations / decisions (ADR 0009; no REQ changes):**
+- The device-resume path; one account per phone for now.
+- "Remove data from this phone" moved to Phase 19: without a backup, wiping the identity key would lock the account out.
+- `/` is an unprotected redirect route, because a protected `/` showed "Unmatched Route" while the session loaded.
+- `md` tab icons need `expo-symbols` on Android.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test --force`: 38/38 tasks, 245 unit tests (mobile 27, including device setup against an in-memory server with WASM vodozemac). `pnpm format:check` passes.
+- `pnpm --filter @pingdost/server test:int`: 72/72. A first run alongside the Gradle build and emulator failed from load (8 files); the re-run passed.
+- **Emulator** (Pixel_8_API_35, dev build, local server on the LAN IP):
+  1. registered `alice7`;
+  2. verified with the OTP read from Mailpit;
+  3. device setup ran;
+  4. Mongo shows the active account with the identity public key, one active primary with its certificate and fallback key, 50 one-time keys, one device-bound session, and no secret/private/pickle material.
+  - Then the tabs layout hit the `expo-symbols` render error (fixed in code, not rebuilt).
+- **Stopped:** Claude Code stopped the API dev server, the emulator and Metro because the PC ran low on memory, so Done-when steps 5–6 were not run. **Not run:** real phone, Google, avatars, GitHub CI (no remote).
+
+**Known issues / tech debt:**
+- Debug builds take ~20 min after `prebuild --clean` on this PC, and the emulator, Gradle and Docker together exhaust memory: close other apps first.
+- The native MongoDB Windows service is still running (Phase 5 note).
+- Earlier items still open: binding drift check, pickle-key zeroization (Phase 27), placeholder `OWNER` in `repository.url`, stale `C:\dev\pd`.
+
+**Next:** finish the Phase 07 device checks above ("continue phase 7"), then Phase 08.
+
 ## 2026-10-19 — Phase 06: Google sign-in, devices, key directory, profiles — ✅ done
 **Done:**
 - Crypto:
