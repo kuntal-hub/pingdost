@@ -14,7 +14,7 @@ const productionEnv: Env = {
   PUBLIC_WS_URL: 'wss://api.pingdost.com/ws',
   WEB_ORIGIN: 'https://pingdost.com',
   MONGODB_URI: 'mongodb+srv://user:pass@cluster.example.net/pingdost',
-  REDIS_URL: 'rediss://default:token@redis.example.net:6379',
+  REDIS_URL: 'redis://:valkey-password@valkey:6379',
   EMAIL_PROVIDER: 'zeptomail',
   EMAIL_API_KEY: 'zepto-api-key',
   EMAIL_FROM: 'PingDost <no-reply@pingdost.com>',
@@ -284,6 +284,17 @@ describe('production fail-fast', () => {
   it('forbids logging email content in production', () => {
     const env = { ...productionEnv, EMAIL_CONSOLE_SHOW_CONTENT: 'true' };
     expect(issuesFor(env, 'EMAIL_CONSOLE_SHOW_CONTENT')).toHaveLength(1);
+  });
+
+  it('requires a Valkey password in production', () => {
+    for (const url of ['redis://valkey:6379', 'redis://default@valkey:6379']) {
+      expect(issuesFor({ ...productionEnv, REDIS_URL: url }, 'REDIS_URL')).toHaveLength(1);
+    }
+    const withUser = { ...productionEnv, REDIS_URL: 'redis://default:pw@valkey:6379' };
+    expect(loadServerConfig(withUser).REDIS_URL).toBe(withUser.REDIS_URL);
+    expect(loadServerConfig({ REDIS_URL: 'redis://localhost:6379' }).REDIS_URL).toBe(
+      'redis://localhost:6379',
+    );
   });
 });
 

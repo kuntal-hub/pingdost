@@ -4,7 +4,7 @@
  * - `mbx:{recipientDeviceId}`: a ZSET of envelope IDs scored by createdAt;
  * - `due`: a ZSET of envelope IDs scored by the time they must move to Mongo;
  * - `lock:{envelopeId}`: the migration lease.
- * Upstash bills every command, so each operation uses as few as it can (ADR 0010).
+ * Each operation uses as few commands as it can, within the ceilings of ADR 0010.
  */
 import { decodeRecord, encodeRecord, type EnvelopeRecord } from './record';
 import type { RedisHandle } from '../../infra/redis';

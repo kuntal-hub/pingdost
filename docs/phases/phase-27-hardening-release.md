@@ -22,13 +22,13 @@ Make the product release-worthy: security and privacy audits, full acceptance tr
 - [ ] **32-bit Android (from Phase 3, ADR 0005):** decide from device data whether to support `armeabi-v7a` (build the ubrn JSI player for it, or switch to the classic `jsi` flavour). Until then the Play listing is 64-bit only.
 - [ ] **Retention and deletion audit:** scripts that verify no `pending_envelopes`, attachments, OTPs, pairing requests or security events are older than their limits (staging data), and that a backup policy excludes them or the wording reflects that they may be included.
 - [ ] **Abuse tests:** mass large uploads (quota), never-delivered queue growth (per-sender limits on pending envelopes; add a cap if missing), WS flood, OTP/login brute force, pairing spam, mesh spam (simulation).
-- [ ] **Load and cost:** a k6 (OSS) script on staging covering WS connections, message throughput, mailbox migration under backlog. Project usage against the free-tier limits from A9, and set the alert thresholds.
+- [ ] **Load and cost:** a k6 (OSS) script on staging covering WS connections, message throughput, mailbox migration under backlog. Project usage against the VPS's limits (RAM, CPU, disk, monthly transfer; ADR 0013) and Atlas M0's 512 MB, decide whether KVM 1 needs the KVM 2 upgrade (tell the user first: it costs money), and set the alert thresholds.
 - [ ] **Legal and wording:**
   - privacy policy and terms (plain language) using the REQ §1 / §5.4 honest wording: what metadata the server sees, temporary ciphertext, no permanent history, irrecoverable without backup, relay metadata, browser storage weakness;
   - in-app privacy explainer screens;
   - Play Store Data Safety answers drafted.
 - [ ] **Runbooks** `docs/ops/`: incidents (Redis or Mongo full/down, disk full, provider limit hit, key or secret compromise, TURN abuse), secret rotation, restoring the metadata DB.
-- [ ] **Release:** Play Console account (**$25 one-time; confirm with the user first**); release AAB build (local Gradle, or EAS free); an internal testing track; versioning scheme; crash reporting decision (none, or a self-hosted, privacy-scrubbed option); the web production deploy.
+- [ ] **Release:** Play Console account (**$25 one-time; confirm with the user first**); release AAB build (local Gradle, or EAS free); an internal testing track; versioning scheme; crash reporting decision (none, or a self-hosted, privacy-scrubbed option); the web production deploy. Production runs on the same VPS: promote the staging stack and its DNS (ADR 0013). There is no second stack.
 - [ ] Update README with the status and an honest feature list. Note that iOS is pending (Phases 28–30).
 
 ## Key files

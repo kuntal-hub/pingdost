@@ -15,7 +15,8 @@ One-to-one audio and video calls in the browser over WebRTC. Signaling is E2EE, 
   - `use-auth-secret` + `static-auth-secret` (= `TURN_SHARED_SECRET`), realm;
   - relay port range; `denied-peer-ip` for private and metadata ranges (block SSRF into the VPS network);
   - TLS on 5349 via Caddy certs if feasible; no logging of peers beyond the minimum.
-  - Open the firewall ports on the staging host.
+  - coturn runs in the same Compose stack on the Hostinger VPS (ADR 0013). Open its ports (3478 UDP/TCP, 5349, the relay range) in Hostinger's panel firewall, because Docker-published ports bypass `ufw`. Add a DNS-only `turn.` record: Cloudflare's proxy does not carry UDP.
+  - Relayed calls count against the VPS's monthly transfer (4 TB on KVM 1). Record the bandwidth of a relayed call in the spike.
 - [ ] **Server:**
   - `GET /v1/calls/turn-credentials` follows the TURN REST API convention: username = `expiry:userId`, credential = base64 HMAC-SHA1(secret, username), TTL `TURN_CREDENTIAL_TTL_SECONDS`. It returns `iceServers` from `STUN_URLS` / `TURN_URLS`. Rate-limited.
   - **No call records stored**, only transient in-memory call state with short expiry.

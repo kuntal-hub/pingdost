@@ -1,7 +1,7 @@
 /**
- * Redis (ARCHITECTURE A2): one `REDIS_URL` for Upstash or Valkey, used only by the delivery
- * mailbox from Phase 8. The client is created on first use, and every command is counted so
- * the free-tier budget (500K commands/month on Upstash) can be watched.
+ * Redis (ARCHITECTURE A2): one `REDIS_URL` for the self-hosted Valkey (ADR 0013), used only by
+ * the delivery mailbox from Phase 8. The client is created on first use, and every command is
+ * counted so the per-operation budget (ADR 0010) can be watched.
  */
 import { Redis } from 'ioredis';
 

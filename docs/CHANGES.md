@@ -4,6 +4,19 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-10-19 — Hosting: one Hostinger VPS, Valkey only (ADR 0013)
+1. **Upstash is dropped; the hot mailbox is self-hosted Valkey on the VPS.** REQ §2, §4, §17 and §22 name Upstash Redis.
+   - *Reason:* Upstash free (500K commands/month) fits only about 50–60 active users (ADR 0010). Valkey costs nothing extra and was already the dev and test path.
+   - *Trade-off:* we run Valkey ourselves (AOF, `noeviction`, a password, never exposed). Losing the VPS loses envelopes still in the Redis stage.
+   - *Affects:* 20, 27. Phase 08 is done; ADR 0010 now points to ADR 0013.
+2. **Host: one Hostinger KVM VPS (KVM 1 or 2, `x86_64`), bought by the user. Nothing else is paid.** This replaces "Hosting provider decided in Phase 20" (2026-10-18, item 10) and the Oracle Always Free candidate.
+   - On the VPS, one Docker Compose stack: API, worker, Valkey, Caddy, attachment staging (`fs`) and coturn.
+   - On free tiers: Atlas M0, Cloudflare DNS and Pages, GitHub Actions/GHCR, email and FCM.
+   - *Reason:* the user's choice.
+   - *Affects:* 14 (`fs` is the production store), 20, 25, 27.
+3. **A production `REDIS_URL` must carry a password.** `@pingdost/config` enforces it.
+   - *Affects:* 20.
+
 ### 2026-10-18 — Phase 3: Android native crypto build
 1. **Android ships for 64-bit ABIs only** (`arm64-v8a`, plus `x86_64` for emulators). Phones that run a 32-bit-only Android (some low-end and Android Go devices) cannot install the app for now.
    - *Reason:* the chosen binding, ubrn's `jsi2` JSI player (ADR 0005), ships prebuilt only for 64-bit ABIs.

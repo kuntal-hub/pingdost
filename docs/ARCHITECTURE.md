@@ -54,9 +54,9 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Each repo calls `ensureIndexes()` at startup.
   - `maxPoolSize` stays small (Atlas M0).
   - Collections: users, sessions, email_otps, devices, one_time_keys, groups, blocks, abuse_reports, security_events (TTL), pending_envelopes, attachments, pairing_requests, push_tokens, job_locks, primary_transfer_requests.
-- **Redis:** `ioredis`, configured by a single ⚠ `REDIS_URL` (native protocol, `rediss://` for Upstash). This replaces REQ's `UPSTASH_REDIS_URL` and `UPSTASH_REDIS_TOKEN`.
-  - Prod runs on either Upstash or self-hosted Valkey; ADR from Phase 8 data, decided in Phase 20.
-  - Free Upstash allows 500K commands/month, so these stay **in-memory** (single instance): presence, typing, rate limits, connection registry, call state and the ephemeral relays.
+- **Redis:** `ioredis`, configured by a single ⚠ `REDIS_URL` (native protocol). This replaces REQ's `UPSTASH_REDIS_URL` and `UPSTASH_REDIS_TOKEN`.
+  - ⚠ Prod runs **self-hosted Valkey on the VPS; Upstash is not used** (ADR 0013). A production `REDIS_URL` must include the password.
+  - The API runs as a single instance, so these stay **in-memory**: presence, typing, rate limits, connection registry, call state and the ephemeral relays.
   - Redis is used only for the offline hot mailbox (A3).
   - A command-counting wrapper exposes Redis usage as a metric.
 - **Jobs:** ⚠ no BullMQ or QStash. Use a small scheduler (`setInterval` + Mongo `job_locks` leases with an owner and expiry), with jobs that are idempotent and retryable. Jobs: migration, reaper, attachment janitor, OTP/pairing cleanup. The OTK low-water notice is event-driven in the gateway (on connect and after claims; ADR 0010).
@@ -210,9 +210,9 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 | Need | Choice | Cost |
 |---|---|---|
 | Code, CI, container registry | GitHub public repo, Actions, GHCR | Free |
-| Metadata DB | MongoDB Atlas M0 (512 MB) | Free |
-| Hot mailbox | Upstash free (500K cmds/mo, 256 MB) **or** Valkey on the VPS | Free |
-| API / worker / TURN / temp files | Decided in Phase 20. Main candidate: Oracle Always Free ARM (reported 2 OCPU / 12 GB since Jun 2026, 200 GB disk); fallback: a small paid VPS (~€4–5/mo) | Free / low |
+| Metadata DB | MongoDB Atlas M0 (512 MB), in the VPS's region | Free |
+| Hot mailbox | ⚠ Valkey, self-hosted on the VPS (ADR 0013); no Upstash | Free (VPS RAM) |
+| API / worker / Valkey / TURN / temp files | ⚠ **One Hostinger KVM VPS** (`x86_64`), one Docker Compose stack (ADR 0013). KVM 1 (1 vCPU / 4 GB / 50 GB) while Mongo is on Atlas; KVM 2 (2 vCPU / 8 GB / 100 GB) if Mongo moves onto it | Paid by the user: the only paid service |
 | Web hosting, DNS, dev tunnel | Cloudflare Pages, DNS, Tunnel; Caddy + Let's Encrypt on the VPS | Free |
 | Email | Mailpit (dev); ZeptoMail (10K free) or Brevo SMTP (300/day) | Free to start |
 | Push | FCM, Web Push (VAPID) | Free |
@@ -232,7 +232,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 ## A11. Environment variables (additions to REQ §17)
 REQ §17 is the base list. Phase 1 implements all of it in `packages/config` (conventions: ADR 0002), plus:
 ```env
-REDIS_URL=redis://localhost:6379            # ⚠ replaces UPSTASH_REDIS_URL / UPSTASH_REDIS_TOKEN
+REDIS_URL=redis://localhost:6379            # ⚠ replaces UPSTASH_REDIS_URL / UPSTASH_REDIS_TOKEN; prod: redis://:<password>@valkey:6379
 RUN_WORKER_IN_PROCESS=true
 MESSAGE_MIGRATION_POLL_SECONDS=300          # must be <= MESSAGE_MIGRATION_GRACE_SECONDS / 3
 MESSAGE_ONLINE_ACK_TIMEOUT_MS=5000

@@ -348,8 +348,17 @@ function crossFieldIssues(c: ServerEnv): string[] {
       c.NODE_ENV !== 'production' || !c.EMAIL_CONSOLE_SHOW_CONTENT,
       'EMAIL_CONSOLE_SHOW_CONTENT: must be false in production (OTPs must never be logged)',
     ],
+    [
+      c.NODE_ENV !== 'production' || hasPassword(c.REDIS_URL),
+      'REDIS_URL: must include the Valkey password in production (redis://:<password>@host:6379)',
+    ],
   ];
   return rules.filter(([ok]) => !ok).map(([, issue]) => issue);
+}
+
+/** Self-hosted Valkey (ADR 0013) must require auth even on the private Docker network. */
+function hasPassword(url: string): boolean {
+  return URL.canParse(url) && new URL(url).password !== '';
 }
 
 /** Returns the values when all are set, otherwise undefined (groups are all-or-none). */

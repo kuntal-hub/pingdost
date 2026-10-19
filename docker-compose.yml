@@ -30,8 +30,17 @@ services:
   valkey:
     image: valkey/valkey:8.1.10-alpine
     # The mailbox answers Accepted once Redis holds an envelope, so Redis must persist it:
-    # append-only file, fsync every second (ADR 0010).
-    command: ['valkey-server', '--appendonly', 'yes', '--appendfsync', 'everysec']
+    # append-only file, fsync every second, and never evict a staged envelope (ADR 0010, 0013).
+    command:
+      [
+        'valkey-server',
+        '--appendonly',
+        'yes',
+        '--appendfsync',
+        'everysec',
+        '--maxmemory-policy',
+        'noeviction',
+      ]
     ports:
       - '6379:6379'
     volumes:

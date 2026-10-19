@@ -1,6 +1,6 @@
 # 0010 — Realtime gateway, delivery mailbox and the Redis budget
 
-- **Status:** Accepted (the provider recommendation is input to Phase 20, which decides)
+- **Status:** Accepted. The provider was decided on 2026-10-19 by ADR 0013: self-hosted Valkey, no Upstash.
 - **Date:** 2026-10-19
 - **Phase:** 08
 - **Approved by user:** n.a.

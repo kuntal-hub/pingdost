@@ -44,6 +44,7 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
 
 ## Standing rules
 - **Budget is very low.** Prefer free tiers and OSS. **Stop and tell the user before anything that costs money or needs a credit card.**
+- **Hosting (ADR 0013):** one Hostinger KVM VPS is the only paid service. It runs the whole server side in one Docker Compose stack (API + worker, self-hosted Valkey, Caddy, attachments, coturn). There is no Upstash. Mongo stays on Atlas M0, the web app on Cloudflare Pages.
 - **Manual steps.** For anything the user must do by hand (account signups, Google/Firebase consoles, phone settings), give short numbered steps.
 - **Privacy and security (ARCHITECTURE A10):**
   - no plaintext, keys, OTPs, tokens, recovery phrases or ciphertext in logs;
