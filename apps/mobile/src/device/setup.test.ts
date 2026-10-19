@@ -269,6 +269,8 @@ describe('device setup', () => {
       new DeviceSetupError('primary_exists'),
     );
     expect(newPhone.identitySecret()).toBeNull();
+    // The phone is not claimed: another account can still set it up.
+    expect(newPhone.local()).toBeNull();
 
     const shared = phone(fakeServer(), USER_ID);
     shared.setLocal({ deviceId: '01920000-0000-7000-8000-0000000000c3', userId: OTHER_USER_ID });

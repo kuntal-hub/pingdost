@@ -16,7 +16,7 @@ function Section({ title, children }: { title: string; children: string }) {
 /** The privacy promise in plain words (REQ §1, §5.4; ARCHITECTURE A10). */
 export function AboutPrivacyScreen() {
   return (
-    <Screen title="About privacy">
+    <Screen>
       <Section title="Your chats live on your devices">
         PingDost keeps no permanent server-side chat history. Your conversation history is stored on
         your own devices, in an encrypted database.

@@ -57,6 +57,7 @@ export function PrivacyScreen() {
             key={option.key}
             title={option.title}
             subtitle={option.subtitle}
+            {...(privacy ? { onPress: () => void toggle(option.key, !privacy[option.key]) } : {})}
             accessory={
               <Switch
                 accessibilityLabel={option.title}

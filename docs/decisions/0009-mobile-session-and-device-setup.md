@@ -45,9 +45,10 @@ REQ §6.1 (sign-in), §6.2 (one primary phone with its own device identity; publ
    - `deviceSetup` (tokens not yet device-bound) → `setup`;
    - `ready` → `(app)`.
 4. **Device setup** (`src/device/setup.ts`):
-   1. The device record `{ deviceId, userId }` lives in `local_settings` and is saved before registering, so retries reuse the ID. A record for another account stops with "this phone is set up for another account" (one account per phone for now).
+   1. The device record `{ deviceId, userId }` lives in `local_settings`. A record for another account stops with "this phone is set up for another account" (one account per phone for now).
    2. Load the account identity key secret from SecureStore (`pingdost.account-identity-key.v1`). If there is none and `/v1/me` already has an `accountIdentityKey`, stop with the `PRIMARY_EXISTS` screen; replacing the primary is Phase 19. Otherwise create the key and store the secret before registering.
-   3. Challenge → sign → register or resume → store the device-bound tokens.
+   3. Only then is a new device record saved (before registering, so retries reuse the ID). An account that lives on another phone therefore never claims this one.
+   4. Challenge → sign → register or resume → store the device-bound tokens.
       - `CHALLENGE_EXPIRED` retries.
       - `DEVICE_REVOKED` replaces the Olm account (`CryptoStore.resetAccount`), picks a new device ID and registers again.
       - `PRIMARY_EXISTS` or `IDENTITY_KEY_MISMATCH` shows the "active on another phone" screen.
@@ -75,4 +76,11 @@ REQ §6.1 (sign-in), §6.2 (one primary phone with its own device identity; publ
   - first setup, resume, `primary_exists`, `other_account` and the revoked-device restart;
   - top-ups, and re-sending after a failed upload;
   - the auth store: single-flight refresh, sign-out rules, logout racing a refresh, a hung logout, and the API client retrying after one shared refresh.
-- Package docs checked 2026-10-19: react-native-google-signin.github.io (Expo setup, Original API); npm versions and licenses of zustand 5.0.15 (MIT), google-signin 16.1.5 (MIT), expo-image-picker 58.0.10, expo-network 58.0.3 and expo-symbols 58.0.4 (MIT; ``NativeTabs`` ``md`` icons on Android need it).
+- Package docs checked 2026-10-19: react-native-google-signin.github.io (Expo setup, Original API); npm versions and licenses of zustand 5.0.15 (MIT), google-signin 16.1.5 (MIT), expo-image-picker 58.0.10, expo-network 58.0.3 and expo-symbols 58.0.4 (MIT; `NativeTabs` `md` icons on Android need it).
+- Emulator (Pixel_8_API_35, dev build, local server), 2026-10-19:
+  - register → OTP from Mailpit → device setup → tabs;
+  - the profile name and privacy toggles saved in Mongo;
+  - kill and relaunch kept the session and identity key;
+  - logout → login resumed the same device: one primary, unchanged `keyVersion`, 50 one-time keys, a `device_resume` event;
+  - an account whose primary is elsewhere showed the `PRIMARY_EXISTS` screen;
+  - light and dark themes both render.

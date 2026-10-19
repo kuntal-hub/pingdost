@@ -12,7 +12,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 04 | [Protocol & shared contracts](phases/phase-04-protocol-contracts.md) | 02 | ✅ |
 | 05 | [Server foundation + password auth](phases/phase-05-server-auth.md) | 01, 04 | ✅ |
 | 06 | [Google sign-in, devices, key directory, profiles](phases/phase-06-google-devices-keys.md) | 05 | ✅ |
-| 07 | [Mobile onboarding & account UI](phases/phase-07-mobile-onboarding.md) | 03, 06 | 🔄 |
+| 07 | [Mobile onboarding & account UI](phases/phase-07-mobile-onboarding.md) | 03, 06 | ✅ |
 | 08 | [Realtime gateway & delivery mailbox](phases/phase-08-gateway-mailbox.md) | 06 | ⬜ |
 | 09 | [Message engine & session management](phases/phase-09-message-engine.md) | 04, 08 | ⬜ |
 | 10 | [1:1 chat on Android](phases/phase-10-android-1to1-chat.md) | 07, 09 | ⬜ |

@@ -134,14 +134,16 @@ async function register(
 export async function setUpDevice(deps: DeviceSetupDeps): Promise<DeviceSetupResult> {
   let device = await deps.localDevice.load();
   if (device && device.userId !== deps.userId) throw new DeviceSetupError('other_account');
-  if (!device) {
-    // Saved first, so a retry after a failure reuses the same device ID.
-    device = { deviceId: uuidv7(), userId: deps.userId };
-    await deps.localDevice.save(device);
-  }
 
+  // Before the phone is claimed: an account that lives on another phone must not leave a
+  // device record that would turn every other account away.
   const identity = await loadIdentityKey(deps);
   try {
+    if (!device) {
+      // Saved before registering, so a retry after a failure reuses the same device ID.
+      device = { deviceId: uuidv7(), userId: deps.userId };
+      await deps.localDevice.save(device);
+    }
     device = await register(deps, device, identity);
   } finally {
     identity.dispose();

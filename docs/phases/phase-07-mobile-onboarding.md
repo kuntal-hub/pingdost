@@ -38,13 +38,10 @@ A real phone can register, verify by email, log in (password or Google), create 
 - [x] **Theme:** light/dark via `ui-tokens`; basic accessibility (labels, font scaling).
 - [x] **Tests:** unit tests for the auth store/refresh logic and form schemas (Vitest or jest-expo, whichever Expo recommends now).
 
-**Status (2026-10-19):** code done (ADR 0009). Not yet verified on a device:
-- the rebuilt tabs (with `expo-symbols`) and Settings;
-- kill and relaunch;
-- logout and login (device resume);
-- the real phone;
-- Google sign-in (no client IDs yet);
-- avatars (no Cloudinary).
+**Status (2026-10-19): done (ADR 0009).** Done-when steps 1–6 pass on the x86_64 emulator against the local server. Still pending, by user action:
+- a run on the real phone;
+- Google sign-in (needs client IDs);
+- avatars (needs Cloudinary).
 
 "Remove data" moved to Phase 19 (see its handoff notes).
 
