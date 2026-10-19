@@ -25,6 +25,8 @@ export function createAuthGuard(
   tokens: AccessTokens,
   collections: AuthCollections,
   clock: Clock,
+  /** Called for device-bound requests (coarse last-seen). */
+  onDeviceRequest?: (deviceId: string) => void,
 ): preHandlerAsyncHookHandler {
   return async (request) => {
     const header = request.headers.authorization;
@@ -42,7 +44,12 @@ export function createAuthGuard(
       { projection: { deviceId: 1 } },
     );
     if (!session) throw new AppError('UNAUTHENTICATED');
-    request.auth = { ...claims, deviceId: session.deviceId };
+    request.auth = {
+      userId: claims.userId,
+      sessionId: claims.sessionId,
+      deviceId: session.deviceId,
+    };
+    if (session.deviceId) onDeviceRequest?.(session.deviceId);
   };
 }
 

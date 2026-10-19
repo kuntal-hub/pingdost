@@ -38,12 +38,15 @@ export const AuthTokensSchema = z.object({
 });
 export type AuthTokens = z.infer<typeof AuthTokensSchema>;
 
+export const AuthUserSchema = z.object({
+  userId: IdSchema,
+  username: UsernameSchema.nullable(),
+  status: UserStatusSchema,
+});
+export type AuthUser = z.infer<typeof AuthUserSchema>;
+
 export const AuthSessionSchema = z.object({
-  user: z.object({
-    userId: IdSchema,
-    username: UsernameSchema.nullable(),
-    status: UserStatusSchema,
-  }),
+  user: AuthUserSchema,
   tokens: AuthTokensSchema,
 });
 export type AuthSession = z.infer<typeof AuthSessionSchema>;
@@ -100,6 +103,7 @@ export type PasswordChangeRequest = z.infer<typeof PasswordChangeRequestSchema>;
 export const GoogleSignInRequestSchema = z.object({ idToken: z.string().min(1).max(8192) });
 export type GoogleSignInRequest = z.infer<typeof GoogleSignInRequestSchema>;
 
-// POST /v1/auth/google/complete → AuthSession
+// POST /v1/auth/google/complete (authenticated, `pending_username`) → AuthUser; the session's
+// tokens stay valid.
 export const GoogleCompleteRequestSchema = z.object({ username: UsernameSchema });
 export type GoogleCompleteRequest = z.infer<typeof GoogleCompleteRequestSchema>;

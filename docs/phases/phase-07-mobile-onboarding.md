@@ -61,3 +61,13 @@ Chat UI (10); pairing the web (16).
 - Crypto: `getCryptoContext()` (`src/crypto/bootstrap.ts`) opens the SQLCipher DB and loads or creates the Olm account. Call `store.saveAccount()` after every account change (one-time keys generated or published, inbound sessions created).
 - Theme: `ThemeRoot` + NativeWind classes such as `bg-surface text-foreground` (tokens in `@pingdost/ui-tokens`). Vitest already runs `src/**/*.test.ts` for platform-independent modules.
 - Debug builds allow cleartext HTTP (Expo's debug manifest), release builds do not.
+
+**From Phase 6 (ADR 0008):**
+- First primary registration:
+  1. `createSigningKey()` → keep `exportSecret()` in SecureStore (never upload it);
+  2. `devicesApi.challenge()`;
+  3. sign `deviceRegistrationMessage(nonce, deviceId, keys)` with the Olm account and `deviceCertificateMessage(deviceId, keys)` with the identity key (`@pingdost/protocol`);
+  4. `devicesApi.register({..., accountIdentityKey})` → **store the returned token pair** (the old refresh token is now rotated out).
+- Then publish keys: one-time keys and the fallback key signed with `signedKeyMessage('one_time' | 'fallback', ...)` via `keysApi.upload`, followed by `markKeysAsPublished()`.
+- Google sign-in can return `pending_username`: show the username step and call `authApi.completeGoogle`. Device registration answers `USERNAME_REQUIRED` until then.
+- Avatars: `accountApi.signAvatarUpload()` → POST the file plus `fields` to `uploadUrl` (multipart) → `accountApi.updateMe({ avatarUrl: secure_url })`. The SHA-256 signature is untested against a real Cloudinary account: verify it here if avatars are enabled.

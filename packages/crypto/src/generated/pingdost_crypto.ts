@@ -1817,6 +1817,212 @@ const FfiConverterTypeInboundGroupSession = new FfiConverterObject(
   uniffiTypeInboundGroupSessionObjectFactory,
 );
 
+/**
+ * An Ed25519 signing key. Plumbing over vodozemac's `Ed25519SecretKey`.
+ */
+export interface SigningKeyLike {
+  /**
+   * The secret key, base64. Secret: keep it only in device secure storage or the
+   * encrypted backup (ADR 0003); never log or upload it.
+   */
+  exportSecret(): string;
+  /**
+   * The public key, base64.
+   */
+  publicKey(): string;
+  /**
+   * Ed25519 signature over `message`, base64.
+   */
+  sign(message: ArrayBuffer): string;
+}
+/**
+ * @deprecated Use `SigningKeyLike` instead.
+ */
+export type SigningKeyInterface = SigningKeyLike;
+
+/**
+ * An Ed25519 signing key. Plumbing over vodozemac's `Ed25519SecretKey`.
+ */
+export class SigningKey extends UniffiAbstractObject implements SigningKeyLike {
+  readonly [uniffiTypeNameSymbol] = 'SigningKey';
+  readonly [destructorGuardSymbol]: UniffiGcObject;
+  readonly [pointerLiteralSymbol]: UniffiHandle;
+  /**
+   * Creates a new key from the system CSPRNG.
+   */
+  constructor() {
+    super();
+    const pointer = uniffiCaller.rustCall(
+      /*caller:*/ (callStatus) => {
+        return nativeModule().uniffi_pingdost_crypto_fn_constructor_signingkey_new(callStatus);
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    );
+    this[pointerLiteralSymbol] = pointer;
+    this[destructorGuardSymbol] = uniffiTypeSigningKeyObjectFactory.bless(pointer);
+  }
+
+  /**
+   * Restores a key from [`SigningKey::export_secret`] output.
+   */
+  static fromSecret(secret: string): SigningKeyLike /*throws*/ {
+    return FfiConverterTypeSigningKey.lift(
+      uniffiCaller.rustCallWithError(
+        /*liftError:*/ FfiConverterTypeCryptoError.lift.bind(FfiConverterTypeCryptoError),
+        /*caller:*/ (callStatus) => {
+          return nativeModule().uniffi_pingdost_crypto_fn_constructor_signingkey_from_secret(
+            FfiConverterString.lower(secret, nativeModule().rustbuffer_alloc),
+            callStatus,
+          );
+        },
+        /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+      ),
+    );
+  }
+
+  /**
+   * The secret key, base64. Secret: keep it only in device secure storage or the
+   * encrypted backup (ADR 0003); never log or upload it.
+   */
+  exportSecret(): string {
+    const __rb: Uint8Array = uniffiCaller.rustCall(
+      /*caller:*/ (callStatus) => {
+        return nativeModule().uniffi_pingdost_crypto_fn_method_signingkey_export_secret(
+          uniffiTypeSigningKeyObjectFactory.clonePointer(this),
+          callStatus,
+        );
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    );
+    try {
+      return FfiConverterString.lift(__rb);
+    } finally {
+      nativeModule().rustbuffer_free(__rb);
+    }
+  }
+
+  /**
+   * The public key, base64.
+   */
+  publicKey(): string {
+    const __rb: Uint8Array = uniffiCaller.rustCall(
+      /*caller:*/ (callStatus) => {
+        return nativeModule().uniffi_pingdost_crypto_fn_method_signingkey_public_key(
+          uniffiTypeSigningKeyObjectFactory.clonePointer(this),
+          callStatus,
+        );
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    );
+    try {
+      return FfiConverterString.lift(__rb);
+    } finally {
+      nativeModule().rustbuffer_free(__rb);
+    }
+  }
+
+  /**
+   * Ed25519 signature over `message`, base64.
+   */
+  sign(message: ArrayBuffer): string {
+    const __rb: Uint8Array = uniffiCaller.rustCall(
+      /*caller:*/ (callStatus) => {
+        return nativeModule().uniffi_pingdost_crypto_fn_method_signingkey_sign(
+          uniffiTypeSigningKeyObjectFactory.clonePointer(this),
+          FfiConverterArrayBuffer.lower(message, nativeModule().rustbuffer_alloc),
+          callStatus,
+        );
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    );
+    try {
+      return FfiConverterString.lift(__rb);
+    } finally {
+      nativeModule().rustbuffer_free(__rb);
+    }
+  }
+
+  uniffiDestroy(): void {
+    const ptr = (this as any)[destructorGuardSymbol];
+    if (ptr !== undefined) {
+      const pointer = uniffiTypeSigningKeyObjectFactory.pointer(this);
+      uniffiTypeSigningKeyObjectFactory.freePointer(pointer);
+      uniffiTypeSigningKeyObjectFactory.unbless(ptr);
+      delete (this as any)[destructorGuardSymbol];
+    }
+  }
+
+  static instanceOf(obj_: any): obj_ is SigningKey {
+    return uniffiTypeSigningKeyObjectFactory.isConcreteType(obj_);
+  }
+}
+
+const uniffiTypeSigningKeyObjectFactory: UniffiObjectFactory<SigningKeyLike> = (() => {
+  /// <reference lib="es2021" />
+  const registry =
+    typeof FinalizationRegistry !== 'undefined'
+      ? new FinalizationRegistry<UniffiHandle>((heldValue: UniffiHandle) => {
+          uniffiTypeSigningKeyObjectFactory.freePointer(heldValue);
+        })
+      : null;
+
+  return {
+    create(pointer: UniffiHandle): SigningKeyLike {
+      const instance = Object.create(SigningKey.prototype);
+      instance[pointerLiteralSymbol] = pointer;
+      instance[destructorGuardSymbol] = this.bless(pointer);
+      instance[uniffiTypeNameSymbol] = 'SigningKey';
+      return instance;
+    },
+
+    bless(p: UniffiHandle): UniffiGcObject {
+      const ptr = {
+        p, // make sure this object doesn't get optimized away.
+        markDestroyed: () => undefined,
+      };
+      if (registry) {
+        registry.register(ptr, p, ptr);
+      }
+      return ptr;
+    },
+
+    unbless(ptr_: UniffiGcObject) {
+      if (registry) {
+        registry.unregister(ptr_);
+      }
+    },
+
+    pointer(obj_: SigningKeyLike): UniffiHandle {
+      if ((obj_ as any)[destructorGuardSymbol] === undefined) {
+        throw new UniffiInternalError.UnexpectedNullPointer();
+      }
+      return (obj_ as any)[pointerLiteralSymbol];
+    },
+
+    clonePointer(obj_: SigningKeyLike): UniffiHandle {
+      const pointer = this.pointer(obj_);
+      return uniffiCaller.rustCall(
+        /*caller:*/ (callStatus) =>
+          nativeModule().uniffi_pingdost_crypto_fn_clone_signingkey(pointer, callStatus),
+        /*liftString:*/ FfiConverterString.lift,
+      );
+    },
+
+    freePointer(pointer: UniffiHandle): void {
+      uniffiCaller.rustCall(
+        /*caller:*/ (callStatus) =>
+          nativeModule().uniffi_pingdost_crypto_fn_free_signingkey(pointer, callStatus),
+        /*liftString:*/ FfiConverterString.lift,
+      );
+    },
+
+    isConcreteType(obj_: any): obj_ is SigningKeyLike {
+      return obj_[destructorGuardSymbol] && obj_[uniffiTypeNameSymbol] === 'SigningKey';
+    },
+  };
+})();
+const FfiConverterTypeSigningKey = new FfiConverterObject(uniffiTypeSigningKeyObjectFactory);
+
 // FfiConverter for OneTimeKey | undefined
 const FfiConverterOptionalTypeOneTimeKey = new FfiConverterOptional(FfiConverterTypeOneTimeKey);
 
@@ -2072,6 +2278,33 @@ function uniffiEnsureInitialized() {
       'uniffi_pingdost_crypto_checksum_method_session_session_id',
     );
   }
+  if (
+    nativeModule().uniffi_pingdost_crypto_checksum_constructor_signingkey_from_secret() !== 7651
+  ) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_constructor_signingkey_from_secret',
+    );
+  }
+  if (nativeModule().uniffi_pingdost_crypto_checksum_constructor_signingkey_new() !== 58870) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_constructor_signingkey_new',
+    );
+  }
+  if (nativeModule().uniffi_pingdost_crypto_checksum_method_signingkey_export_secret() !== 28928) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_method_signingkey_export_secret',
+    );
+  }
+  if (nativeModule().uniffi_pingdost_crypto_checksum_method_signingkey_public_key() !== 31920) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_method_signingkey_public_key',
+    );
+  }
+  if (nativeModule().uniffi_pingdost_crypto_checksum_method_signingkey_sign() !== 24054) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_method_signingkey_sign',
+    );
+  }
 }
 
 export default Object.freeze({
@@ -2088,5 +2321,6 @@ export default Object.freeze({
     FfiConverterTypeOlmMessageType,
     FfiConverterTypeOneTimeKey,
     FfiConverterTypeSession,
+    FfiConverterTypeSigningKey,
   },
 });

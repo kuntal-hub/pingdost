@@ -5,7 +5,10 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   AuthSessionSchema,
   AuthTokensSchema,
+  AuthUserSchema,
   EmailRequestSchema,
+  GoogleCompleteRequestSchema,
+  GoogleSignInRequestSchema,
   LoginRequestSchema,
   PasswordChangeRequestSchema,
   PasswordResetRequestSchema,
@@ -106,6 +109,25 @@ export const authRoutes: FastifyPluginCallback<AuthRoutesOptions> = (fastify, op
       await service.resetPassword(request.body, contextOf(request));
       return reply.code(204).send();
     },
+  );
+
+  app.post(
+    '/v1/auth/google',
+    {
+      config: { rateLimit: limits.google },
+      schema: { body: GoogleSignInRequestSchema, response: { 200: AuthSessionSchema } },
+    },
+    async (request) => service.googleSignIn(request.body.idToken, contextOf(request)),
+  );
+
+  app.post(
+    '/v1/auth/google/complete',
+    {
+      config: { rateLimit: limits.googleComplete },
+      preHandler: authenticate,
+      schema: { body: GoogleCompleteRequestSchema, response: { 200: AuthUserSchema } },
+    },
+    async (request) => service.completeGoogle(authOf(request).userId, request.body.username),
   );
 
   app.post(

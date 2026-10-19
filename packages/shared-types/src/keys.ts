@@ -33,13 +33,16 @@ export const DirectoryDeviceSchema = z.object({
   identityKeys: IdentityKeysSchema,
   /** Verify with the account identity key before trusting the device. */
   deviceCertificate: UnpaddedBase64Schema,
+  /** Signed by the device; clients cache it for offline first contact (ADR 0003). */
+  fallbackKey: SignedKeySchema.nullable(),
 });
 export type DirectoryDevice = z.infer<typeof DirectoryDeviceSchema>;
 
 // GET /v1/keys/users/:userId (active devices only)
 export const UserKeysResponseSchema = z.object({
   userId: IdSchema,
-  accountIdentityKey: UnpaddedBase64Schema,
+  /** Null until the account's first primary device registers. */
+  accountIdentityKey: UnpaddedBase64Schema.nullable(),
   /** Bumped whenever the device list changes. */
   keyVersion: z.int().nonnegative(),
   devices: z.array(DirectoryDeviceSchema),

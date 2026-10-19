@@ -42,3 +42,6 @@ Server-side backups (forbidden); iOS (28).
 - On a phone: create a backup → wipe app data → log in → restore with the phrase → history and identity are back → chatting with the contact resumes (after an automatic session reset).
 - Path (a) works with two devices.
 - The tests pass, and `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 6 (ADR 0008):** `users.accountIdentityKey` is set once; registering with another key gives `IDENTITY_KEY_MISMATCH`. A replacement phone restores the identity key from the backup and registers as a new primary once the old one is revoked (`DELETE /v1/devices/:id` by the old primary, or the Phase 19 flow when it is lost). `PRIMARY_EXISTS` guards against two active primaries.

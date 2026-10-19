@@ -33,8 +33,14 @@ export const ErrorCodeSchema = z.enum([
   'TOKEN_INVALID',
   'TOKEN_REUSED',
   'GOOGLE_TOKEN_INVALID',
+  /** Google says the address is unverified; every account needs a verified email. */
+  'GOOGLE_EMAIL_UNVERIFIED',
   // Devices and keys (Phase 6)
   'PRIMARY_EXISTS',
+  /** The request needs a session bound to a registered device. */
+  'DEVICE_REQUIRED',
+  /** The account identity key in the request is not the account's. */
+  'IDENTITY_KEY_MISMATCH',
   'DEVICE_NOT_FOUND',
   'DEVICE_REVOKED',
   'CHALLENGE_EXPIRED',
@@ -94,7 +100,10 @@ export const ERROR_STATUS: Readonly<Record<ErrorCode, number>> = {
   TOKEN_INVALID: 401,
   TOKEN_REUSED: 401,
   GOOGLE_TOKEN_INVALID: 401,
+  GOOGLE_EMAIL_UNVERIFIED: 403,
   PRIMARY_EXISTS: 409,
+  DEVICE_REQUIRED: 403,
+  IDENTITY_KEY_MISMATCH: 409,
   DEVICE_NOT_FOUND: 404,
   DEVICE_REVOKED: 401,
   CHALLENGE_EXPIRED: 400,

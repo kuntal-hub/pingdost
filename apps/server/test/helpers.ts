@@ -46,7 +46,9 @@ export interface TestServer {
 export interface TestServerOptions {
   env?: Record<string, string>;
   routeLimits?: Partial<RouteLimits>;
-  authThrottles?: AppDeps['authThrottles'];
+  throttles?: AppDeps['throttles'];
+  googleKeys?: AppDeps['googleKeys'];
+  onDeviceRevoked?: AppDeps['onDeviceRevoked'];
   mongo?: Mongo;
 }
 
@@ -78,7 +80,9 @@ export async function startTestServer(options: TestServerOptions = {}): Promise<
     email,
     clock,
     routeLimits: { ...RELAXED_LIMITS, ...options.routeLimits },
-    ...(options.authThrottles ? { authThrottles: options.authThrottles } : {}),
+    ...(options.throttles ? { throttles: options.throttles } : {}),
+    ...(options.googleKeys ? { googleKeys: options.googleKeys } : {}),
+    ...(options.onDeviceRevoked ? { onDeviceRevoked: options.onDeviceRevoked } : {}),
   });
   await app.ready();
 

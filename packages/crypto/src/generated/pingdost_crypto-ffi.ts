@@ -305,6 +305,16 @@ const DEFINITIONS = {
       ret: FfiType.Void,
       hasRustCallStatus: true,
     },
+    uniffi_pingdost_crypto_fn_clone_signingkey: {
+      args: [FfiType.Handle],
+      ret: FfiType.Handle,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_free_signingkey: {
+      args: [FfiType.Handle],
+      ret: FfiType.Void,
+      hasRustCallStatus: true,
+    },
     uniffi_pingdost_crypto_fn_func_ed25519_verify: {
       args: [FfiType.RustBuffer, FfiType.RustBuffer, FfiType.RustBuffer],
       ret: FfiType.Void,
@@ -487,6 +497,31 @@ const DEFINITIONS = {
     },
     uniffi_pingdost_crypto_fn_method_session_session_id: {
       args: [FfiType.Handle],
+      ret: FfiType.RustBuffer,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_constructor_signingkey_from_secret: {
+      args: [FfiType.RustBuffer],
+      ret: FfiType.Handle,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_constructor_signingkey_new: {
+      args: [],
+      ret: FfiType.Handle,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_method_signingkey_export_secret: {
+      args: [FfiType.Handle],
+      ret: FfiType.RustBuffer,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_method_signingkey_public_key: {
+      args: [FfiType.Handle],
+      ret: FfiType.RustBuffer,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_method_signingkey_sign: {
+      args: [FfiType.Handle, FfiType.RustBuffer],
       ret: FfiType.RustBuffer,
       hasRustCallStatus: true,
     },
@@ -680,6 +715,31 @@ const DEFINITIONS = {
       ret: FfiType.UInt16,
       hasRustCallStatus: false,
     },
+    uniffi_pingdost_crypto_checksum_constructor_signingkey_from_secret: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
+    uniffi_pingdost_crypto_checksum_constructor_signingkey_new: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
+    uniffi_pingdost_crypto_checksum_method_signingkey_export_secret: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
+    uniffi_pingdost_crypto_checksum_method_signingkey_public_key: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
+    uniffi_pingdost_crypto_checksum_method_signingkey_sign: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
   },
   callbacks: {
     RustFutureContinuationCallback: {
@@ -860,6 +920,14 @@ interface NativeModuleInterface {
     uniffi_out_err: UniffiRustCallStatus,
   ): bigint;
   uniffi_pingdost_crypto_fn_free_session(ptr: bigint, uniffi_out_err: UniffiRustCallStatus): void;
+  uniffi_pingdost_crypto_fn_clone_signingkey(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): bigint;
+  uniffi_pingdost_crypto_fn_free_signingkey(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): void;
   uniffi_pingdost_crypto_fn_func_ed25519_verify(
     publicKey: Uint8Array,
     message: Uint8Array,
@@ -1025,6 +1093,26 @@ interface NativeModuleInterface {
     uniffiSelf: bigint,
     uniffi_out_err: UniffiRustCallStatus,
   ): Uint8Array;
+  uniffi_pingdost_crypto_fn_constructor_signingkey_from_secret(
+    secret: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): bigint;
+  uniffi_pingdost_crypto_fn_constructor_signingkey_new(
+    uniffi_out_err: UniffiRustCallStatus,
+  ): bigint;
+  uniffi_pingdost_crypto_fn_method_signingkey_export_secret(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): Uint8Array;
+  uniffi_pingdost_crypto_fn_method_signingkey_public_key(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): Uint8Array;
+  uniffi_pingdost_crypto_fn_method_signingkey_sign(
+    uniffiSelf: bigint,
+    message: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): Uint8Array;
   ffi_pingdost_crypto_uniffi_contract_version(): number;
   uniffi_pingdost_crypto_checksum_func_ed25519_verify(): number;
   uniffi_pingdost_crypto_checksum_func_prekey_message_session_id(): number;
@@ -1063,6 +1151,11 @@ interface NativeModuleInterface {
   uniffi_pingdost_crypto_checksum_method_session_has_received_message(): number;
   uniffi_pingdost_crypto_checksum_method_session_pickle(): number;
   uniffi_pingdost_crypto_checksum_method_session_session_id(): number;
+  uniffi_pingdost_crypto_checksum_constructor_signingkey_from_secret(): number;
+  uniffi_pingdost_crypto_checksum_constructor_signingkey_new(): number;
+  uniffi_pingdost_crypto_checksum_method_signingkey_export_secret(): number;
+  uniffi_pingdost_crypto_checksum_method_signingkey_public_key(): number;
+  uniffi_pingdost_crypto_checksum_method_signingkey_sign(): number;
   // Codegen call sites use these via `nativeModule().rustbuffer_alloc(...)`
   // and `nativeModule().rustbuffer_free(...)`. The runtime's registered
   // module exposes them as method properties.

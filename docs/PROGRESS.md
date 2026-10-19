@@ -17,6 +17,50 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-19 — Phase 06: Google sign-in, devices, key directory, profiles — ✅ done
+**Done:**
+- Crypto:
+  - `SigningKey` in `crates/pingdost-crypto` (account identity key) and `CryptoProvider.createSigningKey`/`restoreSigningKey`, with conformance scenario `idk`;
+  - WASM and Android bindings regenerated (`.so` is git-ignored: rebuild before the next device build).
+- `@pingdost/protocol` `signing.ts`: the context-prefixed byte formats for device certificates, registration proofs and signed one-time/fallback keys.
+- Server (ADR 0008):
+  - Google ID-token sign-in (jose remote JWKS; injectable for tests) with the linking policy, plus `/google/complete`;
+  - devices: challenge, register (proof of possession + certificate, one active primary, session bound with a `did` claim), list, revoke (sessions, keys, keyVersion, audit, hook);
+  - key directory: signed uploads (max 200), directory with fallback keys, atomic claims with a per-account budget;
+  - `PATCH /v1/me`, exact username lookup (per-IP and per-account limits), Cloudinary avatar signing.
+- `@pingdost/api-client`: `accountApi`, `devicesApi`, `keysApi`, and Google in `authApi` (`me()` moved to `accountApi`). New codes `GOOGLE_EMAIL_UNVERIFIED`, `DEVICE_REQUIRED`, `IDENTITY_KEY_MISMATCH`.
+- Docs: ADR 0008, ARCHITECTURE A5, CLAUDE.md (NDK 27.1 note), server README; handoff notes in phases 07, 08, 09, 16, 19.
+
+**Deviations / decisions (ADR 0008; no REQ changes):**
+- Signed statements carry a context string (the phase text said raw `nonce ‖ deviceId ‖ keys`).
+- The server verifies Ed25519 with `node:crypto`; clients verify strictly with vodozemac.
+- Unverified Google emails are rejected.
+- Only the primary or the device itself may revoke a device; a lost primary is replaced through Phase 19.
+
+**Verification results:**
+- `cargo fmt --check` passes; `cargo test` 6/6; clippy is clean on host, wasm32 and aarch64-linux-android.
+- `pnpm turbo run lint typecheck test --force`: 38/38 tasks, 224 unit tests (protocol 81, crypto 23). `pnpm format:check` passes.
+- `pnpm test:int`: 71/71. They cover:
+  - Google tokens against a mocked JWKS (good, wrong aud/iss, expired, foreign key, unverified email not linking);
+  - registration signatures and nonce reuse/expiry, `PRIMARY_EXISTS`, revocation effects;
+  - the claim race (50 parallel claims: 20 unique one-time keys, then 30 fallbacks), lookup limits;
+  - Mongo docs holding public keys but not the identity-key secret.
+- **Not run (device):** the phone's `(dev)/crypto` screen with the new `idk` scenario. It needs a rebuild: `$env:ANDROID_NDK_HOME` → 27.1, then `pnpm --filter @pingdost/crypto-native build:android` (done here), then `pnpm --filter @pingdost/mobile android`. **Not run:** GitHub CI (no remote).
+
+**Google OAuth client IDs for Phase 7** (free; the user does this):
+1. https://console.cloud.google.com → create a project "PingDost".
+2. Google Auth Platform (OAuth consent screen) → app name, support email, audience **External**; while in Testing, add your Google accounts as test users.
+3. Clients → Create client → **Web application** → copy the client ID.
+4. Clients → Create client → **Android** → package `com.pingdost.app`. SHA-1 of the debug keystore: `keytool -list -v -keystore apps/mobile/android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android` (after a prebuild).
+5. Put both IDs in `GOOGLE_CLIENT_IDS` in the root `.env`, comma-separated. Phase 7 gives the web client ID to the app.
+
+**Known issues / tech debt:**
+- The Cloudinary SHA-256 signature is unverified against a real account (Phase 7, if avatars are used).
+- The native MongoDB Windows service is still running (see Phase 5).
+- Earlier items still open: binding drift check, pickle-key zeroization (Phase 27; it now covers `SigningKey.exportSecret` strings too), placeholder `OWNER` in `repository.url`, stale `C:\dev\pd`.
+
+**Next:** Phase 07 (mobile onboarding & account UI). It needs the Google client IDs above; load `expo:expo-overview` first.
+
 ## 2026-10-19 — Phase 05: Server foundation + password auth — ✅ done
 **Done:**
 - `apps/server` (Fastify 5.12.7 + fastify-type-provider-zod 7, tsx dev, tsup 8.5.1 build): `buildApp(config, deps)`, `main.ts` (API, plus jobs when `RUN_WORKER_IN_PROCESS`) and `worker.ts`.

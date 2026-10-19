@@ -32,6 +32,7 @@
   },
   "devDependencies": {
     "@pingdost/api-client": "workspace:*",
+    "@pingdost/crypto": "workspace:*",
     "@types/node": "catalog:",
     "@types/nodemailer": "8.0.2",
     "pino-pretty": "13.2.0",

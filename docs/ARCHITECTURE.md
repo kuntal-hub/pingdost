@@ -140,6 +140,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - **Multi-device:** messages are encrypted per recipient device, **including the sender's own other devices** (linked browsers), so every device stays in sync.
 - **Verification:**
   - Each account has one Ed25519 **account identity key**, created on the primary phone and separate from the device Olm accounts. It signs each device's keys (a device certificate).
+  - Signed statements (certificate, registration proof, one-time/fallback keys) use the context-prefixed byte formats in `@pingdost/protocol` `signing.ts` (ADR 0008).
   - Safety numbers/QR codes are derived from both parties' account identity keys (display encoding only; proposed in ADR 0003, finalized in Phase 10).
   - Key changes produce a visible "safety number changed" notice.
 - **Attachments (ADR 0004, accepted):**

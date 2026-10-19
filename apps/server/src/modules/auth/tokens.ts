@@ -13,6 +13,8 @@ const AUDIENCE = 'pingdost-api';
 export interface AccessClaims {
   userId: string;
   sessionId: string;
+  /** The `did` claim, once the session is bound to a device. */
+  deviceId?: string | null;
 }
 
 export class AccessTokens {
@@ -29,7 +31,10 @@ export class AccessTokens {
   async sign(claims: AccessClaims): Promise<{ token: string; expiresAt: number }> {
     const issuedAt = Math.floor(this.clock.now() / 1000);
     const expiresAtSeconds = issuedAt + this.ttlSeconds;
-    const token = await new SignJWT({ sid: claims.sessionId })
+    const token = await new SignJWT({
+      sid: claims.sessionId,
+      ...(claims.deviceId ? { did: claims.deviceId } : {}),
+    })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
       .setSubject(claims.userId)
       .setIssuer(ISSUER)
@@ -53,7 +58,11 @@ export class AccessTokens {
       if (typeof payload.sub !== 'string' || typeof payload.sid !== 'string') {
         throw new AppError('UNAUTHENTICATED');
       }
-      return { userId: payload.sub, sessionId: payload.sid };
+      return {
+        userId: payload.sub,
+        sessionId: payload.sid,
+        deviceId: typeof payload.did === 'string' ? payload.did : null,
+      };
     } catch (error) {
       if (error instanceof errors.JWTExpired) throw new AppError('TOKEN_EXPIRED');
       if (error instanceof AppError) throw error;

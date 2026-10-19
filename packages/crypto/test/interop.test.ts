@@ -25,7 +25,7 @@ describe('conformance scenarios (WASM)', () => {
   it('reports a failure when the provider misbehaves', () => {
     const lying: CryptoProvider = { ...provider, verifyEd25519: () => true };
     const failed = runScenarios(lying).filter((step) => !step.ok);
-    expect(failed.map((step) => step.id)).toEqual(['sig']);
+    expect(failed.map((step) => step.id)).toEqual(['sig', 'idk']);
     expect(failed[0]?.detail).toContain('check failed');
   });
 });

@@ -205,6 +205,9 @@ importers:
       '@pingdost/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@pingdost/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.2

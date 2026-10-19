@@ -93,6 +93,22 @@ export interface MegolmInboundSession extends Disposable {
   pickle(pickleKey: Uint8Array): string;
 }
 
+/**
+ * The account identity key (ADR 0003): one Ed25519 key per account, made on the primary
+ * phone and separate from every device's Olm account. It signs device certificates.
+ */
+export interface SigningKey extends Disposable {
+  /** Ed25519 public key (base64). */
+  publicKey(): string;
+  /** Ed25519 signature over `message` (base64). */
+  sign(message: Uint8Array): string;
+  /**
+   * The secret key (base64). Secret: keep it only in device secure storage or the
+   * encrypted backup; never log or upload it.
+   */
+  exportSecret(): string;
+}
+
 export interface CryptoProvider {
   /** Implementation name and version, e.g. for diagnostics. */
   readonly implementation: string;
@@ -110,6 +126,11 @@ export interface CryptoProvider {
   /** From an exported key (`exportAt`), e.g. for a member who joins later. */
   importInboundGroupSession(exportedKey: string): MegolmInboundSession;
   restoreInboundGroupSession(pickle: string, pickleKey: Uint8Array): MegolmInboundSession;
+
+  /** A new account identity key (Phase 6). */
+  createSigningKey(): SigningKey;
+  /** From `SigningKey.exportSecret()` output. */
+  restoreSigningKey(secret: string): SigningKey;
 
   /** Strict Ed25519 verification; returns false for a bad signature or malformed input. */
   verifyEd25519(publicKey: string, message: Uint8Array, signature: string): boolean;

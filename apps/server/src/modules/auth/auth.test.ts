@@ -18,7 +18,13 @@ describe('AccessTokens', () => {
     const tokens = new AccessTokens(KEY, 900, clock);
     const { token, expiresAt } = await tokens.sign({ userId: 'u1', sessionId: 's1' });
     expect(expiresAt).toBe(clock.now() + 900_000);
-    await expect(tokens.verify(token)).resolves.toEqual({ userId: 'u1', sessionId: 's1' });
+    await expect(tokens.verify(token)).resolves.toEqual({
+      userId: 'u1',
+      sessionId: 's1',
+      deviceId: null,
+    });
+    const bound = await tokens.sign({ userId: 'u1', sessionId: 's1', deviceId: 'd1' });
+    await expect(tokens.verify(bound.token)).resolves.toMatchObject({ deviceId: 'd1' });
   });
 
   it('reports expiry separately from other failures', async () => {

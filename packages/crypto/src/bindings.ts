@@ -17,6 +17,7 @@ export type UniffiBindings = Pick<
   | 'Session'
   | 'GroupSession'
   | 'InboundGroupSession'
+  | 'SigningKey'
   | 'CryptoError'
   | 'OlmMessageType'
   | 'prekeyMessageSessionId'
@@ -171,6 +172,23 @@ export function createBindingsProvider(
     }
   }
 
+  class SigningKey implements types.SigningKey {
+    constructor(private readonly inner: generated.SigningKeyLike) {}
+
+    publicKey(): string {
+      return call(() => this.inner.publicKey());
+    }
+    sign(message: Uint8Array): string {
+      return call(() => this.inner.sign(toBuffer(message)));
+    }
+    exportSecret(): string {
+      return call(() => this.inner.exportSecret());
+    }
+    dispose(): void {
+      if (bindings.SigningKey.instanceOf(this.inner)) this.inner.uniffiDestroy();
+    }
+  }
+
   return {
     implementation,
 
@@ -198,6 +216,10 @@ export function createBindingsProvider(
       new MegolmInboundSession(
         call(() => bindings.InboundGroupSession.fromPickle(pickle, toBuffer(pickleKey))),
       ),
+
+    createSigningKey: () => new SigningKey(call(() => new bindings.SigningKey())),
+    restoreSigningKey: (secret) =>
+      new SigningKey(call(() => bindings.SigningKey.fromSecret(secret))),
 
     verifyEd25519: (publicKey, message, signature) => {
       try {

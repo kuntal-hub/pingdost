@@ -20,7 +20,10 @@ export type SecurityEventType =
   | 'refresh_reuse'
   | 'password_reset'
   | 'password_change'
-  | 'logout';
+  | 'logout'
+  | 'google_link'
+  | 'device_register'
+  | 'device_revoke';
 
 export interface SecurityEventDoc {
   _id: string;

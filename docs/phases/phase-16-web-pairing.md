@@ -46,3 +46,4 @@ Web chat (17); history sync (18).
 
 ## Handoff notes
 **From Phase 5:** the API has no CORS yet. Register `@fastify/cors` (check the current version) restricted to `WEB_ORIGIN` before the web client calls it.
+- **From Phase 6 (ADR 0008):** linked devices go into `devices` with `role: 'linked'` and `platform: 'web'`. The phone supplies the `deviceCertificate`: the account identity key's signature over `deviceCertificateMessage(webDeviceId, webKeys)`. Bind the web session with `AuthService.bindDevice` so its tokens carry `did`. The primary can already revoke linked devices.

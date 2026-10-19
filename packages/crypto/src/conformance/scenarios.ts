@@ -385,4 +385,30 @@ export const scenarios: Scenario[] = [
       );
     },
   },
+  {
+    id: 'idk',
+    title: 'Account identity key certifies a device; export and restore keep it (Phase 6)',
+    run(provider) {
+      const identity = provider.createSigningKey();
+      const device = provider.createAccount();
+      const certificate = bytes(`certificate:${device.identityKeys().ed25519}`);
+      const signature = identity.sign(certificate);
+      check(
+        provider.verifyEd25519(identity.publicKey(), certificate, signature),
+        'certificate verifies with the identity key',
+      );
+      check(
+        !provider.verifyEd25519(device.identityKeys().ed25519, certificate, signature),
+        'the device key does not verify it',
+      );
+
+      const restored = provider.restoreSigningKey(identity.exportSecret());
+      checkEqual(restored.publicKey(), identity.publicKey(), 'restored public key');
+      checkEqual(restored.sign(certificate), signature, 'Ed25519 signatures are deterministic');
+      checkThrows(() => provider.restoreSigningKey('AAAA'), 'a malformed secret');
+      const other = provider.createSigningKey();
+      check(other.publicKey() !== identity.publicKey(), 'fresh keys differ');
+      for (const disposable of [identity, restored, other, device]) disposable.dispose();
+    },
+  },
 ];

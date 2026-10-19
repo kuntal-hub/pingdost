@@ -66,3 +66,4 @@ Real E2EE payloads (09), push (12), groups routing (13), attachments (14).
 **From Phase 5:**
 - `src/infra/redis.ts` already wraps ioredis 6 lazily and counts commands (`commandCount()`); `/readyz` checks Redis once something has used it.
 - Register the mailbox jobs in `createJobs()` (`src/jobs.ts`); `Scheduler` takes a Mongo lease per run.
+- `AppDeps.onDeviceRevoked` hooks run after a revocation; register the WS `Revoked` push there.

@@ -3,7 +3,12 @@
 The Fastify modular monolith (ARCHITECTURE A2). Entrypoints: `src/main.ts` (API; it also runs the jobs when `RUN_WORKER_IN_PROCESS=true`) and `src/worker.ts` (jobs only).
 
 - `src/infra/`: config startup, Mongo (indexes), lazy Redis, the pino logger with redaction, problem+json errors, rate-limit budgets, in-memory counters and the Mongo-leased job scheduler.
-- `src/modules/`: `auth` (register, OTP, login, refresh, logout, password reset/change; ADR 0007), `account` (`GET /v1/me`), `email` (console / smtp / zeptomail), `security` (audit events), `health`.
+- `src/modules/`:
+  - `auth`: register, OTP, login, refresh, logout, password reset/change (ADR 0007), Google sign-in (ADR 0008);
+  - `account`: `/v1/me`, username lookup, Cloudinary avatar signing;
+  - `device`: registration with proof of possession and device certificate, list, revoke;
+  - `keys`: signed one-time/fallback keys, directory, atomic claims (ADR 0008);
+  - `email` (console / smtp / zeptomail), `security` (audit events), `health`.
 
 ```sh
 pnpm infra:up                               # Mongo, Valkey, Mailpit

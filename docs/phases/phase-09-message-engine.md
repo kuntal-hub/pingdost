@@ -68,3 +68,10 @@ UI, groups (13), attachments (14), nearby (22).
 - Check that `ContentHeader.sender_user_id` owns the sending device. Show `UNKNOWN_BODY` decode errors as "update needed" rather than dropping the message.
 - int64 fields are `bigint` in protobuf-es.
 - The `MessageState` transition table in `shared-types` is a first version: change it if the engine needs another edge, and keep its tests.
+
+**From Phase 6 (ADR 0008):**
+- Before encrypting to a device:
+  - verify `deviceCertificate` against the account identity key with `deviceCertificateMessage` (`@pingdost/protocol`);
+  - verify claimed one-time and fallback key signatures against the device ed25519 key with `signedKeyMessage`;
+  - use `CryptoProvider.verifyEd25519` (strict).
+- The directory returns each device's signed `fallbackKey` (cache it for mesh first contact) and `keyVersion` (refetch when it changes).

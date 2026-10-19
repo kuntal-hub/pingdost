@@ -23,7 +23,12 @@ export interface UserDoc {
   displayName: string | null;
   avatarUrl: string | null;
   privacy: PrivacyPrefs;
+  /** Public Ed25519 account identity key (ADR 0003), set by the first primary device. */
   accountIdentityKey: string | null;
+  /** Bumped whenever the account's device list or device keys change. */
+  keyVersion: number;
+  /** Google's stable `sub` once the account signs in with Google. */
+  googleSub: string | null;
   createdAt: Date;
   updatedAt: Date;
   /** Set while `pending_verification`; the TTL index deletes the account after it. */
@@ -93,6 +98,10 @@ export const authIndexes: IndexSetup = async (db) => {
     { unique: true, partialFilterExpression: { username: { $type: 'string' } } },
   );
   await users.createIndex({ email: 1 }, { unique: true });
+  await users.createIndex(
+    { googleSub: 1 },
+    { unique: true, partialFilterExpression: { googleSub: { $type: 'string' } } },
+  );
   await users.createIndex({ pendingExpiresAt: 1 }, { expireAfterSeconds: 0 });
 
   await sessions.createIndex({ refreshHash: 1 }, { unique: true });

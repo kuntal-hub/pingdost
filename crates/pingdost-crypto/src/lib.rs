@@ -11,6 +11,7 @@ extern crate uniffi_runtime_wasm as _;
 mod error;
 mod megolm;
 mod olm;
+mod signing;
 
 pub use error::CryptoError;
 pub use megolm::{GroupDecryptResult, GroupSession, InboundGroupSession};
@@ -18,6 +19,7 @@ pub use olm::{
     Account, IdentityKeys, InboundSessionResult, OlmCiphertext, OlmMessageType, OneTimeKey,
     Session, prekey_message_session_id,
 };
+pub use signing::SigningKey;
 
 uniffi::setup_scaffolding!();
 
@@ -138,6 +140,33 @@ mod tests {
             account.pickle(vec![1; 16]).is_err(),
             "pickle key must be 32 bytes"
         );
+    }
+
+    #[test]
+    fn signing_key_signs_exports_and_restores() {
+        let key = SigningKey::new();
+        let public_key = key.public_key();
+        let signature = key.sign(b"device certificate".to_vec());
+        assert!(
+            ed25519_verify(
+                public_key.clone(),
+                b"device certificate".to_vec(),
+                signature.clone()
+            )
+            .is_ok()
+        );
+
+        let restored = SigningKey::from_secret(key.export_secret()).unwrap();
+        assert_eq!(restored.public_key(), public_key);
+        // Ed25519 signatures are deterministic.
+        assert_eq!(restored.sign(b"device certificate".to_vec()), signature);
+
+        assert!(SigningKey::from_secret("not base64!".into()).is_err());
+        assert!(
+            SigningKey::from_secret("AAAA".into()).is_err(),
+            "wrong length"
+        );
+        assert_ne!(SigningKey::new().public_key(), public_key);
     }
 
     #[test]

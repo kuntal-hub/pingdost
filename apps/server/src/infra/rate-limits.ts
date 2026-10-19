@@ -21,7 +21,20 @@ export const DEFAULT_ROUTE_LIMITS = {
   forgotPassword: { max: 10, timeWindow: HOUR },
   resetPassword: { max: 30, timeWindow: 15 * MINUTE },
   changePassword: { max: 10, timeWindow: 15 * MINUTE },
+  google: { max: 30, timeWindow: 15 * MINUTE },
+  googleComplete: { max: 10, timeWindow: 15 * MINUTE },
   me: { max: 300, timeWindow: 15 * MINUTE },
+  meUpdate: { max: 60, timeWindow: 15 * MINUTE },
+  userLookup: { max: 60, timeWindow: 15 * MINUTE },
+  avatarSign: { max: 20, timeWindow: 15 * MINUTE },
+  deviceChallenge: { max: 30, timeWindow: 15 * MINUTE },
+  deviceRegister: { max: 10, timeWindow: 15 * MINUTE },
+  devicesList: { max: 120, timeWindow: 15 * MINUTE },
+  deviceRevoke: { max: 30, timeWindow: 15 * MINUTE },
+  keysUpload: { max: 60, timeWindow: 15 * MINUTE },
+  keysCount: { max: 120, timeWindow: 15 * MINUTE },
+  keysDirectory: { max: 300, timeWindow: 15 * MINUTE },
+  keysClaim: { max: 120, timeWindow: 15 * MINUTE },
 } satisfies Record<string, RouteLimit>;
 
 export type RouteLimitName = keyof typeof DEFAULT_ROUTE_LIMITS;

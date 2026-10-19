@@ -1,8 +1,9 @@
 /** Health, problem+json, rate limits, log redaction, security events and the API client. */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { authApi, createApiClient } from '@pingdost/api-client';
+import { accountApi, authApi, createApiClient, devicesApi, keysApi } from '@pingdost/api-client';
 
+import { cryptoProvider, newDevice, registrationBody, signedOneTimeKeys } from './devices';
 import { json, newUser, otpFor, registeredUser, startTestServer, type TestServer } from './helpers';
 import { createMongo } from '../src/infra/mongo';
 
@@ -89,11 +90,7 @@ describe('rate limits', () => {
 
   it('limits OTP emails per address, whatever the client IP', async () => {
     const limited = await startTestServer({
-      authThrottles: {
-        loginFailures: { limit: 5, windowMs: 60_000 },
-        otpSends: { limit: 1, windowMs: 3_600_000 },
-        otpChecks: { limit: 15, windowMs: 3_600_000 },
-      },
+      throttles: { otpSends: { limit: 1, windowMs: 3_600_000 } },
     });
     try {
       const user = newUser();
@@ -193,6 +190,9 @@ describe('@pingdost/api-client against the server', () => {
       },
     });
     const auth = authApi(client);
+    const account = accountApi(client);
+    const devices = devicesApi(client);
+    const keys = keysApi(client);
 
     await expect(client.health()).resolves.toEqual({ status: 'ok' });
     const user = newUser();
@@ -202,14 +202,28 @@ describe('@pingdost/api-client against the server', () => {
     accessToken = session.tokens.accessToken;
     refreshToken = session.tokens.refreshToken;
 
-    expect((await auth.me()).username).toBe(user.username);
+    expect((await account.me()).username).toBe(user.username);
+
+    // Register the primary device and publish keys, as the phone will (Phase 7).
+    const crypto = await cryptoProvider();
+    const device = newDevice(crypto);
+    const { nonce } = await devices.challenge();
+    const bound = await devices.register(
+      registrationBody(device, crypto.createSigningKey(), nonce),
+    );
+    accessToken = bound.tokens.accessToken;
+    refreshToken = bound.tokens.refreshToken;
+    expect(await keys.upload({ oneTimeKeys: signedOneTimeKeys(device, 5) })).toBe(5);
+    expect((await keys.directory(registered.userId)).devices).toHaveLength(1);
 
     // An expired access token is refreshed transparently.
+    const beforeRefresh = refreshToken;
     server.clock.advance(server.config.ACCESS_TOKEN_TTL_SECONDS * 1000 + 1);
-    expect((await auth.me()).userId).toBe(registered.userId);
-    expect(refreshToken).not.toBe(session.tokens.refreshToken);
+    expect((await account.me()).userId).toBe(registered.userId);
+    expect(refreshToken).not.toBe(beforeRefresh);
+    expect(await keys.count()).toBe(5);
 
     await auth.logout();
-    await expect(auth.me()).rejects.toMatchObject({ code: 'UNAUTHENTICATED', status: 401 });
+    await expect(account.me()).rejects.toMatchObject({ code: 'UNAUTHENTICATED', status: 401 });
   });
 });

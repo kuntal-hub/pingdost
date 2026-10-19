@@ -1,5 +1,7 @@
 // @pingdost/api-client: typed REST client (fetch) used by the web and mobile apps.
 // Endpoint functions are written by hand from @pingdost/shared-types.
+export { accountApi, devicesApi, keysApi } from './account';
+export type { AccountApi, DevicesApi, KeysApi } from './account';
 export { authApi } from './auth';
 export type { AuthApi } from './auth';
 export { createApiClient } from './client';

@@ -93,6 +93,7 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - `pnpm --filter @pingdost/crypto build:wasm` rebuilds the WASM module and regenerates `packages/crypto/src/generated/` (committed; never hand-edit). It needs `wasm-bindgen-cli` at the exact `wasm-bindgen` version in `Cargo.lock` (now 0.2.129: `cargo install wasm-bindgen-cli --version 0.2.129 --locked`);
   - `pnpm --filter @pingdost/crypto test` runs the WASM interop tests in Node.
   - `pnpm --filter @pingdost/crypto-native build:android` cross-compiles `libpingdost_crypto.so` (arm64-v8a, x86_64; git-ignored) with `cargo-ndk` 4.1.2 (`cargo install cargo-ndk --version 4.1.2 --locked`) and regenerates `packages/crypto-native/src/generated/` (committed; never hand-edit). ubrn `jsi2` flavour, ADR 0005. Run it before the first Android build and after any Rust change.
+    - First set `$env:ANDROID_NDK_HOME = "$env:ANDROID_HOME\ndk\27.1.12297006"`: the 26.1 and 28.0 NDK folders on this PC are incomplete installs, and cargo-ndk otherwise picks the newest ("Error detecting NDK version").
   - If `cargo` is not found in an older shell, prepend `$env:USERPROFILE\.cargo\bin` to `PATH` (rustup added it for new shells).
 - **Android app** (`apps/mobile`, Expo SDK 58 dev build; never Expo Go):
   - `pnpm --filter @pingdost/mobile android`: prebuild (`android/` is generated and git-ignored), Gradle build, install on the attached device/emulator, start Metro. `pnpm --filter @pingdost/mobile start` when the build is already installed.

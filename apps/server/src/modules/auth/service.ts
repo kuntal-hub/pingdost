@@ -11,6 +11,7 @@ import { uuidv7 } from '@pingdost/protocol';
 import type {
   AuthSession,
   AuthTokens,
+  AuthUser,
   LoginRequest,
   PasswordChangeRequest,
   PasswordResetRequest,
@@ -19,6 +20,7 @@ import type {
   VerifyEmailRequest,
 } from '@pingdost/shared-types';
 
+import type { GoogleVerifier } from './google';
 import type { PasswordHasher } from './passwords';
 import {
   DEFAULT_PRIVACY,
@@ -34,27 +36,9 @@ import { WindowCounter } from '../../infra/counters';
 import { AppError } from '../../infra/errors';
 import { duplicateKeyField } from '../../infra/mongo';
 import { randomToken, safeEqual, sixDigitCode, type Hasher } from '../../infra/secrets';
+import type { Budget, ThrottleSettings } from '../../infra/throttles';
 import { otpEmail, type EmailProvider, type OtpPurpose } from '../email';
 import type { RequestContext, SecurityEvents } from '../security/events';
-
-const MINUTE_MS = 60_000;
-const HOUR_MS = 3_600_000;
-
-/** Per-account and per-email budgets, on top of the per-IP route limits. */
-export interface AuthThrottleSettings {
-  /** Failed logins per identifier before it is locked for the rest of the window. */
-  loginFailures: { limit: number; windowMs: number };
-  /** OTP emails per address. */
-  otpSends: { limit: number; windowMs: number };
-  /** OTP checks per address and purpose, across codes. */
-  otpChecks: { limit: number; windowMs: number };
-}
-
-export const DEFAULT_AUTH_THROTTLES: AuthThrottleSettings = {
-  loginFailures: { limit: 5, windowMs: 15 * MINUTE_MS },
-  otpSends: { limit: 5, windowMs: HOUR_MS },
-  otpChecks: { limit: 15, windowMs: HOUR_MS },
-};
 
 export interface AuthServiceDeps {
   config: ServerConfig;
@@ -66,7 +50,9 @@ export interface AuthServiceDeps {
   events: SecurityEvents;
   clock: Clock;
   log: Logger;
-  throttles?: AuthThrottleSettings;
+  throttles: ThrottleSettings;
+  /** Undefined when `GOOGLE_CLIENT_IDS` is not configured. */
+  google: GoogleVerifier | undefined;
 }
 
 export class AuthService {
@@ -77,12 +63,10 @@ export class AuthService {
 
   constructor(deps: AuthServiceDeps) {
     this.#d = deps;
-    const throttles = deps.throttles ?? DEFAULT_AUTH_THROTTLES;
-    const counter = ({ limit, windowMs }: { limit: number; windowMs: number }) =>
-      new WindowCounter(limit, windowMs, deps.clock);
-    this.#loginFailures = counter(throttles.loginFailures);
-    this.#otpSends = counter(throttles.otpSends);
-    this.#otpChecks = counter(throttles.otpChecks);
+    const counter = ({ limit, windowMs }: Budget) => new WindowCounter(limit, windowMs, deps.clock);
+    this.#loginFailures = counter(deps.throttles.loginFailures);
+    this.#otpSends = counter(deps.throttles.otpSends);
+    this.#otpChecks = counter(deps.throttles.otpChecks);
   }
 
   // Registration and email verification
@@ -110,6 +94,8 @@ export class AuthService {
       avatarUrl: null,
       privacy: DEFAULT_PRIVACY,
       accountIdentityKey: null,
+      keyVersion: 0,
+      googleSub: null,
       createdAt: now,
       updatedAt: now,
       pendingExpiresAt: new Date(
@@ -220,6 +206,121 @@ export class AuthService {
     await this.#d.events.record('logout', context, userId);
   }
 
+  /**
+   * Binds a session to the device just registered on it and rotates its tokens, so the new
+   * access token carries `did`.
+   */
+  async bindDevice(sessionId: string, deviceId: string): Promise<AuthTokens> {
+    const { sessions } = this.#d.collections;
+    const current = await sessions.findOne({ _id: sessionId, deviceId: null, revokedAt: null });
+    if (!current) throw new AppError('CONFLICT', { detail: 'This session already has a device.' });
+    const next = randomToken();
+    const session = await sessions.findOneAndUpdate(
+      { _id: sessionId, deviceId: null, refreshHash: current.refreshHash },
+      {
+        $set: {
+          deviceId,
+          refreshHash: this.#d.hasher.hash('refresh', next),
+          lastUsedAt: this.#now(),
+        },
+        $push: {
+          usedRefreshHashes: { $each: [current.refreshHash], $slice: -USED_REFRESH_HASHES_KEPT },
+        },
+      },
+      { returnDocument: 'after' },
+    );
+    if (!session) throw new AppError('CONFLICT', { detail: 'This session already has a device.' });
+    return this.#tokens(session, next);
+  }
+
+  // Google sign-in (ADR 0008)
+
+  /**
+   * Signs in with a Google ID token. A known Google account signs in; otherwise a verified
+   * Google email links to the existing verified account with that email, or starts a new
+   * account in `pending_username`.
+   */
+  async googleSignIn(idToken: string, context: RequestContext): Promise<AuthSession> {
+    if (!this.#d.google) {
+      throw new AppError('UNAVAILABLE', { detail: 'Google sign-in is not configured.' });
+    }
+    const identity = await this.#d.google.verify(idToken);
+    const { users } = this.#d.collections;
+
+    let user = await users.findOne({ googleSub: identity.sub });
+    if (!user) {
+      if (!identity.emailVerified) throw new AppError('GOOGLE_EMAIL_UNVERIFIED');
+      const existing = await users.findOne({ email: identity.email });
+      user =
+        existing && existing.status !== 'pending_verification'
+          ? await this.#linkGoogle(existing, identity.sub, context)
+          : await this.#createGoogleUser(identity.email, identity.sub, existing);
+    }
+    if (user.status === 'disabled') throw new AppError('ACCOUNT_DISABLED');
+    await this.#d.events.record('login_ok', context, user._id);
+    return this.#sessionFor(user, context);
+  }
+
+  /** Gives a new Google account its username. */
+  async completeGoogle(userId: string, username: string): Promise<AuthUser> {
+    if (isReservedUsername(username)) throw new AppError('USERNAME_RESERVED');
+    try {
+      const user = await this.#d.collections.users.findOneAndUpdate(
+        { _id: userId, status: 'pending_username' },
+        { $set: { username, status: 'active', updatedAt: this.#now() } },
+        { returnDocument: 'after' },
+      );
+      if (!user) throw new AppError('CONFLICT', { detail: 'The account already has a username.' });
+      return { userId: user._id, username: user.username, status: user.status };
+    } catch (error) {
+      if (duplicateKeyField(error) === 'username') throw new AppError('USERNAME_TAKEN');
+      throw error;
+    }
+  }
+
+  async #linkGoogle(user: UserDoc, sub: string, context: RequestContext): Promise<UserDoc> {
+    // Another Google account already owns this account's sign-in.
+    if (user.googleSub && user.googleSub !== sub) throw new AppError('EMAIL_TAKEN');
+    const linked = await this.#d.collections.users.findOneAndUpdate(
+      { _id: user._id, googleSub: { $in: [null, sub] } },
+      { $set: { googleSub: sub, updatedAt: this.#now() }, $addToSet: { authProviders: 'google' } },
+      { returnDocument: 'after' },
+    );
+    if (!linked) throw new AppError('EMAIL_TAKEN');
+    await this.#d.events.record('google_link', context, user._id);
+    return linked;
+  }
+
+  async #createGoogleUser(email: string, sub: string, pending: UserDoc | null): Promise<UserDoc> {
+    const { users } = this.#d.collections;
+    // An unverified password registration never proved the address; Google just did.
+    if (pending) await users.deleteOne({ _id: pending._id, status: 'pending_verification' });
+    const now = this.#now();
+    const user: UserDoc = {
+      _id: uuidv7(),
+      username: null,
+      email,
+      passwordHash: null,
+      authProviders: ['google'],
+      status: 'pending_username',
+      displayName: null,
+      avatarUrl: null,
+      privacy: DEFAULT_PRIVACY,
+      accountIdentityKey: null,
+      keyVersion: 0,
+      googleSub: sub,
+      createdAt: now,
+      updatedAt: now,
+    };
+    try {
+      await users.insertOne(user);
+    } catch (error) {
+      if (duplicateKeyField(error) !== undefined) throw new AppError('CONFLICT');
+      throw error;
+    }
+    return user;
+  }
+
   // Passwords
 
   /** Always succeeds, so it reveals nothing about which addresses have accounts. */
@@ -307,7 +408,11 @@ export class AuthService {
   }
 
   async #tokens(session: SessionDoc, refreshToken: string): Promise<AuthTokens> {
-    const access = await this.#d.tokens.sign({ userId: session.userId, sessionId: session._id });
+    const access = await this.#d.tokens.sign({
+      userId: session.userId,
+      sessionId: session._id,
+      deviceId: session.deviceId,
+    });
     return {
       accessToken: access.token,
       accessTokenExpiresAt: access.expiresAt,

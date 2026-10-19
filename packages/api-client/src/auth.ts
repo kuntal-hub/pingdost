@@ -1,12 +1,12 @@
 import {
   AuthSessionSchema,
   AuthTokensSchema,
-  MeResponseSchema,
+  AuthUserSchema,
   RegisterResponseSchema,
   type AuthSession,
   type AuthTokens,
+  type AuthUser,
   type LoginRequest,
-  type MeResponse,
   type PasswordChangeRequest,
   type PasswordResetRequest,
   type RegisterRequest,
@@ -16,7 +16,7 @@ import {
 
 import type { ApiClient } from './client';
 
-/** `/v1/auth/*` and `/v1/me` (Phase 5). */
+/** `/v1/auth/*` (Phases 5–6). `/v1/me` lives in `accountApi`. */
 export interface AuthApi {
   register(body: RegisterRequest): Promise<RegisterResponse>;
   verifyEmail(body: VerifyEmailRequest): Promise<AuthSession>;
@@ -28,7 +28,10 @@ export interface AuthApi {
   forgotPassword(email: string): Promise<void>;
   resetPassword(body: PasswordResetRequest): Promise<void>;
   changePassword(body: PasswordChangeRequest): Promise<void>;
-  me(): Promise<MeResponse>;
+  /** Google sign-in with an ID token (Phase 6). */
+  google(idToken: string): Promise<AuthSession>;
+  /** Picks the username of a new Google account. */
+  completeGoogle(username: string): Promise<AuthUser>;
 }
 
 export function authApi(client: ApiClient): AuthApi {
@@ -84,6 +87,20 @@ export function authApi(client: ApiClient): AuthApi {
       client.request({ method: 'POST', path: '/v1/auth/password/reset', body, auth: false }),
     changePassword: (body) =>
       client.request({ method: 'POST', path: '/v1/auth/password/change', body }),
-    me: () => client.request({ method: 'GET', path: '/v1/me', response: MeResponseSchema }),
+    google: (idToken) =>
+      client.request({
+        method: 'POST',
+        path: '/v1/auth/google',
+        body: { idToken },
+        auth: false,
+        response: AuthSessionSchema,
+      }),
+    completeGoogle: (username) =>
+      client.request({
+        method: 'POST',
+        path: '/v1/auth/google/complete',
+        body: { username },
+        response: AuthUserSchema,
+      }),
   };
 }
