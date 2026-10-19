@@ -17,7 +17,7 @@ export const REDACTED = '[redacted]';
 
 /** Field names whose values never reach a log line. */
 const SENSITIVE_KEY =
-  /(password|token|secret|key)$|^(otp|code|ciphertext|payload|sdp|authorization|cookie|email|to)$/i;
+  /(password|token|secret|key)$|^(otp|code|ciphertext|payload|sdp|authorization|cookie|email|to|text|details)$/i;
 
 const MAX_DEPTH = 8;
 

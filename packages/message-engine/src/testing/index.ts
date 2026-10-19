@@ -11,6 +11,7 @@ export type { TestClient, TestClientOptions } from './fake-server';
 export {
   conversationRecord,
   messageRecord,
+  pendingOpRecord,
   runEngineStoreContract,
   testId,
 } from './store-contract';

@@ -49,3 +49,7 @@ Web attachments (18); mesh transfer (24).
 
 ## Handoff notes
 **From Phase 7 (ADR 0009):** expo-image-picker 58.0.10 is already installed (avatars). Its `app.json` plugin blocks `CAMERA` and `RECORD_AUDIO`: to capture photos or video for attachments, give `cameraPermission`/`microphonePermission` a usage string instead of `false`.
+**From Phase 11 (ADR 0014):**
+- `engine.deleteConversation` and `deleteForMe` remove rows only. They must also delete local attachment files and `attachments` rows.
+- A delete-for-everyone tombstone must drop the attachment file too.
+- Messages are upserted (`ON CONFLICT DO UPDATE`), never `INSERT OR REPLACE`, because the FTS triggers rely on a stable rowid.

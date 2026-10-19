@@ -4,7 +4,14 @@ import { createAuthStore } from '@/auth/auth-store';
 import { signOutOfGoogle } from '@/auth/google';
 import { secureSessionStorage } from '@/auth/session-storage';
 import { publicConfig } from '@/config';
-import { accountApi, authApi, createApiClient, devicesApi, keysApi } from '@pingdost/api-client';
+import {
+  accountApi,
+  authApi,
+  createApiClient,
+  devicesApi,
+  keysApi,
+  securityApi,
+} from '@pingdost/api-client';
 
 const client = createApiClient({
   // Without a config the root layout shows the config error before any request is made.
@@ -18,6 +25,7 @@ export const api = {
   account: accountApi(client),
   devices: devicesApi(client),
   keys: keysApi(client),
+  security: securityApi(client),
 };
 
 export const authStore = createAuthStore({

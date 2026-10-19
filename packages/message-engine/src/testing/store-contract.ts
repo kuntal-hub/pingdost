@@ -12,6 +12,7 @@ import type {
   EngineStore,
   FanoutItem,
   MessageRecord,
+  PendingOpRecord,
   ReceiptItem,
   SessionRecord,
 } from '../store';
@@ -34,6 +35,9 @@ export function conversationRecord(
     updatedAt: 1_000,
     lastMessageId: null,
     unreadCount: 0,
+    pinnedAt: null,
+    archived: false,
+    mutedUntil: null,
     ...overrides,
   };
 }
@@ -53,6 +57,26 @@ export function messageRecord(overrides: Partial<MessageRecord> = {}): MessageRe
     createdAt: 1_000,
     state: 'local_queued',
     expiresAt: 10_000,
+    editedAt: null,
+    editId: null,
+    deletedAt: null,
+    readAt: null,
+    reactions: [],
+    ...overrides,
+  };
+}
+
+export function pendingOpRecord(overrides: Partial<PendingOpRecord> = {}): PendingOpRecord {
+  return {
+    opId: testId(),
+    type: 'edit',
+    targetMessageId: testId(),
+    conversationId: testId(),
+    senderUserId: testId(),
+    sentAt: 1_000,
+    body: 'edited',
+    remove: false,
+    receivedAt: 1_000,
     ...overrides,
   };
 }
@@ -267,6 +291,151 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
       expect(await store.getSetting('b')).toEqual({ nested: true });
       await store.apply({ settings: { a: null } });
       expect(await store.getSetting('a')).toBeUndefined();
+    });
+
+    it('keeps local conversation flags and message edits, reactions and read state', async () => {
+      const store = await makeStore();
+      const conversation = conversationRecord({
+        pinnedAt: 7,
+        archived: true,
+        mutedUntil: Number.MAX_SAFE_INTEGER,
+      });
+      const message = messageRecord({
+        conversationId: conversation.conversationId,
+        direction: 'in',
+        state: null,
+        expiresAt: null,
+        editedAt: 5,
+        editId: testId(),
+        readAt: 6,
+        reactions: [
+          { userId: testId(), emoji: '👍🏽', at: 3, id: testId() },
+          { userId: testId(), emoji: null, at: 4, id: testId() },
+        ],
+      });
+      const tombstone = messageRecord({ kind: 'deleted', body: '', deletedAt: 9 });
+      await store.apply({ conversations: [conversation], messages: [message, tombstone] });
+      expect(await store.getConversation(conversation.conversationId)).toEqual(conversation);
+      expect(await store.getMessage(message.messageId)).toEqual(message);
+      expect(await store.getMessage(tombstone.messageId)).toEqual(tombstone);
+    });
+
+    it('lists unread incoming messages, oldest first', async () => {
+      const store = await makeStore();
+      const conversationId = testId();
+      const incoming = (sortAt: number, readAt: number | null) =>
+        messageRecord({ conversationId, sortAt, direction: 'in', state: null, readAt });
+      const later = incoming(5, null);
+      const earlier = incoming(2, null);
+      await store.apply({
+        messages: [later, earlier, incoming(1, 1), messageRecord({ conversationId, sortAt: 3 })],
+      });
+      expect(await store.listUnread(conversationId)).toEqual([earlier, later]);
+      await store.apply({ messages: [{ ...later, readAt: 9 }] });
+      expect(await store.listUnread(conversationId)).toEqual([earlier]);
+    });
+
+    it('deletes messages with their deliveries, and whole conversations', async () => {
+      const store = await makeStore();
+      const conversation = conversationRecord();
+      const { conversationId } = conversation;
+      const [a, b] = [messageRecord({ conversationId }), messageRecord({ conversationId })] as [
+        MessageRecord,
+        MessageRecord,
+      ];
+      const other = messageRecord();
+      const delivery = (messageId: string): DeliveryRecord => ({
+        messageId,
+        deviceId: testId(),
+        userId: testId(),
+        own: false,
+        state: 'sent_to_server',
+        updatedAt: 1,
+      });
+      const op = pendingOpRecord({ conversationId });
+      const otherOp = pendingOpRecord();
+      await store.apply({
+        conversations: [conversation],
+        messages: [a, b, other],
+        deliveries: [delivery(a.messageId), delivery(b.messageId), delivery(other.messageId)],
+        ops: [op, otherOp],
+      });
+      await store.apply({ deleteMessages: [a.messageId] });
+      expect(await store.getMessage(a.messageId)).toBeUndefined();
+      expect(await store.listDeliveries(a.messageId)).toEqual([]);
+      expect(await store.listDeliveries(b.messageId)).toHaveLength(1);
+
+      await store.apply({ deleteConversations: [conversationId] });
+      expect(await store.getConversation(conversationId)).toBeUndefined();
+      expect(await store.listMessages(conversationId, { limit: 10 })).toEqual([]);
+      expect(await store.listDeliveries(b.messageId)).toEqual([]);
+      expect(await store.listOps(op.targetMessageId)).toEqual([]);
+      expect(await store.getMessage(other.messageId)).toEqual(other);
+      expect(await store.listDeliveries(other.messageId)).toHaveLength(1);
+      expect(await store.listOps(otherOp.targetMessageId)).toEqual([otherOp]);
+    });
+
+    it('keeps pending ops per target until deleted or pruned', async () => {
+      const store = await makeStore();
+      const targetMessageId = testId();
+      const first = pendingOpRecord({ targetMessageId, receivedAt: 1 });
+      const second = pendingOpRecord({
+        targetMessageId,
+        type: 'reaction',
+        body: '',
+        remove: true,
+        receivedAt: 5,
+      });
+      await store.apply({ ops: [second, first] });
+      expect(await store.listOps(targetMessageId)).toEqual([first, second]);
+      await store.apply({ deleteOps: [second.opId] });
+      expect(await store.listOps(targetMessageId)).toEqual([first]);
+      await store.apply({ pruneOpsBefore: 2 });
+      expect(await store.listOps(targetMessageId)).toEqual([]);
+    });
+
+    it('searches text by word prefixes, case- and accent-blind, newest first', async () => {
+      const store = await makeStore();
+      const conversationId = testId();
+      const text = (body: string, sortAt: number, overrides: Partial<MessageRecord> = {}) =>
+        messageRecord({ conversationId, body, sortAt, ...overrides });
+      const hello = text('Hello there, Café friends!', 1);
+      const help = text('I need help with the café', 2);
+      const hindi = text('नमस्ते दोस्त, कैसे हो?', 3);
+      const deleted = text('', 4, { kind: 'deleted' });
+      const elsewhere = messageRecord({ body: 'hello from another chat', sortAt: 5 });
+      const notice = text('safety_number_changed', 6, { kind: 'system' });
+      await store.apply({ messages: [hello, help, hindi, deleted, elsewhere, notice] });
+
+      const ids = async (query: string, conversation?: string) =>
+        (
+          await store.searchMessages(query, {
+            limit: 10,
+            ...(conversation ? { conversationId: conversation } : {}),
+          })
+        ).map((m) => m.messageId);
+
+      expect(await ids('hel')).toEqual([elsewhere.messageId, help.messageId, hello.messageId]);
+      expect(await ids('hel', conversationId)).toEqual([help.messageId, hello.messageId]);
+      expect(await ids('CAFE hel', conversationId)).toEqual([help.messageId, hello.messageId]);
+      expect(await ids('hello cafe friend')).toEqual([hello.messageId]);
+      expect(await ids('दोस्त')).toEqual([hindi.messageId]);
+      expect(await ids('नमस्')).toEqual([hindi.messageId]);
+      expect(await ids('there,')).toEqual([hello.messageId]);
+      expect(await ids('ere')).toEqual([]);
+      expect(await ids('safety')).toEqual([]);
+      expect(await ids('"*) OR (')).toEqual([]);
+      expect(await ids('   ')).toEqual([]);
+
+      // Edits re-index; deleted and removed messages leave the index.
+      await store.apply({ messages: [{ ...help, body: 'thanks a lot' }] });
+      expect(await ids('help')).toEqual([]);
+      expect(await ids('thanks')).toEqual([help.messageId]);
+      await store.apply({ messages: [{ ...hello, kind: 'deleted', body: '' }] });
+      await store.apply({ deleteMessages: [hindi.messageId] });
+      expect(await ids('hello', conversationId)).toEqual([]);
+      expect(await ids('दोस्त')).toEqual([]);
+      expect(await ids('thanks', conversationId)).toEqual([help.messageId]);
     });
 
     it('applies the account pickle with the rest of a batch', async () => {

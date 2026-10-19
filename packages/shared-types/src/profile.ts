@@ -6,9 +6,12 @@ import { EpochMsSchema, IdSchema } from './common';
 
 export const DisplayNameSchema = z.string().trim().min(1).max(64);
 
-/** Clients honour these; the server only stores them. */
+/** Clients honour these; the server only stores them (it enforces only `lastSeen`). */
 export const PrivacyPrefsSchema = z.object({
+  /** Off: no read receipts are sent, and other people's are not shown (reciprocal). */
   readReceipts: z.boolean(),
+  /** Off: this account's devices send no delivery receipts (Phase 11). */
+  deliveryReceipts: z.boolean(),
   typingIndicators: z.boolean(),
   lastSeen: z.boolean(),
 });

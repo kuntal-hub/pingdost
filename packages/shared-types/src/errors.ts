@@ -67,6 +67,9 @@ export const ErrorCodeSchema = z.enum([
   'PAIRING_NOT_FOUND',
   'PAIRING_EXPIRED',
   'PAIRING_ALREADY_USED',
+  // Blocks and reports (Phase 11)
+  /** The account already blocks `MAX_BLOCKS` users. */
+  'BLOCK_LIMIT_REACHED',
 ]);
 
 export type ErrorCode = z.infer<typeof ErrorCodeSchema>;
@@ -125,6 +128,7 @@ export const ERROR_STATUS: Readonly<Record<ErrorCode, number>> = {
   PAIRING_NOT_FOUND: 404,
   PAIRING_EXPIRED: 410,
   PAIRING_ALREADY_USED: 409,
+  BLOCK_LIMIT_REACHED: 409,
 };
 
 /** Codes for which the same request may succeed later (after any `retryAfterSeconds`). */

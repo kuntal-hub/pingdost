@@ -48,3 +48,7 @@ History sync from the phone and attachments on web (18); calls (25).
 - Safety numbers come from `@pingdost/protocol/safety-number`. On the web, use `safetyFingerprintAsync` with `crypto.subtle.digest('SHA-512')`.
 - Presence: `WsTransport.setPresence` / `watchPresence` plus the `presence` event; reciprocal, following `privacy.lastSeen`.
 - Profiles: `GET /v1/users/:id`.
+**From Phase 11 (ADR 0014):**
+- The Dexie store must pass the extended `runEngineStoreContract`: `listUnread`, `searchMessages` (semantics in `message-engine/src/search.ts`; `matchesQuery` / `highlightRanges` are shared), `listOps`, and `deleteMessages` / `deleteConversations`.
+- Blocks: `/v1/blocks` plus the engine's `blocked` option.
+- Receipts follow `privacy.readReceipts` / `deliveryReceipts`.

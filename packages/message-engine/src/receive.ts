@@ -10,6 +10,8 @@
  *    the seen IDs and the receipt to send in one batch;
  * 5. transport ACK, only after the batch is stored;
  * 6. events (via the commit), then the receipt goes out with the next outbox pass.
+ * Edits, deletes and reactions change their target (`features/ops.ts`), or wait for it.
+ * Content from a blocked user is decrypted (keeping the session in step) and dropped.
  */
 import {
   bytesToUuid,
@@ -27,9 +29,17 @@ import {
 
 import { checkHeader, type CheckedHeader } from './content';
 import { EngineCore } from './core';
+import { applyOp, applyPending, type Op } from './features/ops';
+import { compareMessages } from './memoryStore';
 import type { Outbox } from './outbox';
 import type { RemoteDevice } from './sessions';
-import type { DeliveryRecord, MessageRecord, ReceiptItem, WriteBatch } from './store';
+import type {
+  ConversationRecord,
+  DeliveryRecord,
+  MessageRecord,
+  ReceiptItem,
+  WriteBatch,
+} from './store';
 
 type Effect = () => void | Promise<void>;
 
@@ -163,6 +173,7 @@ export class Receiver {
     }
     if (await core.store.hasSeen(checked.messageId)) return [];
     batch.seen!.push({ id: checked.messageId, seenAt: now });
+    if (core.isBlocked(checked.senderUserId)) return [];
 
     const body = content?.body;
     switch (body?.case) {
@@ -172,24 +183,94 @@ export class Receiver {
       case 'text':
         await this.#storeMessage(batch, checked, sender, 'text', body.value.body, now);
         return [];
-      case 'receipt':
-        if (checked.senderUserId !== core.self.userId) {
-          await this.#applyReceipt(
-            batch,
-            sender,
-            body.value.type === Receipt_Type.READ ? 'read' : 'delivered_to_recipient_device',
-            body.value.messageIds,
-            now,
-          );
-        }
+      case 'reaction':
+        await this.#applyOp(batch, checked, 'reaction', body.value.targetMessageId, now, {
+          body: body.value.emoji,
+          remove: body.value.remove,
+        });
         return [];
+      case 'edit':
+        await this.#applyOp(batch, checked, 'edit', body.value.targetMessageId, now, {
+          body: body.value.body,
+        });
+        return [];
+      case 'delete':
+        await this.#applyOp(batch, checked, 'delete', body.value.targetMessageId, now);
+        return [];
+      case 'receipt': {
+        if (checked.senderUserId === core.self.userId) return [];
+        // Reciprocal: with read receipts off, a read receipt still proves delivery.
+        const read =
+          body.value.type === Receipt_Type.READ && (core.options.receipts?.('read') ?? false);
+        await this.#applyReceipt(
+          batch,
+          sender,
+          read ? 'read' : 'delivered_to_recipient_device',
+          body.value.messageIds,
+          now,
+        );
+        return [];
+      }
       case 'sessionReset':
         return [() => this.outbox.resendTo(sender.userId, sender.deviceId)];
       case 'keyChange':
         return [() => void core.refreshDirectory(sender.userId)];
       default:
-        // Reactions, edits and the rest arrive with their phases (11, 13, 14, 18, 25).
+        // Attachments, groups, sync and calls arrive with their phases (13, 14, 18, 25).
         return [];
+    }
+  }
+
+  /** Applies an edit, delete or reaction to its target, or keeps it until the target arrives. */
+  async #applyOp(
+    batch: WriteBatch,
+    header: CheckedHeader,
+    type: Op['type'],
+    targetBytes: Uint8Array,
+    now: number,
+    fields: { body?: string; remove?: boolean } = {},
+  ): Promise<void> {
+    const { core } = this;
+    let targetMessageId: string;
+    try {
+      targetMessageId = bytesToUuid(targetBytes);
+    } catch {
+      return; // no target: nothing to change
+    }
+    const op: Op = {
+      opId: header.messageId,
+      type,
+      targetMessageId,
+      conversationId: header.conversationId,
+      senderUserId: header.senderUserId,
+      sentAt: header.sentAt,
+      body: fields.body ?? '',
+      remove: fields.remove ?? false,
+    };
+    const target = await core.store.getMessage(targetMessageId);
+    if (!target) {
+      (batch.ops ??= []).push({ ...op, receivedAt: now });
+      return;
+    }
+    const changed = applyOp(target, op, core.opRules);
+    if (!changed) return;
+    await this.#keep(batch, target, changed, now);
+  }
+
+  /** Adds a changed message to the batch; a deleted unread message stops counting as unread. */
+  async #keep(
+    batch: WriteBatch,
+    before: MessageRecord,
+    after: MessageRecord,
+    now: number,
+  ): Promise<void> {
+    const deletedUnread =
+      after.kind === 'deleted' && before.direction === 'in' && before.readAt === null;
+    batch.messages = [...(batch.messages ?? []), deletedUnread ? { ...after, readAt: now } : after];
+    if (!deletedUnread) return;
+    const conversation = await this.core.store.getConversation(after.conversationId);
+    if (conversation && conversation.unreadCount > 0) {
+      batch.conversations = [{ ...conversation, unreadCount: conversation.unreadCount - 1 }];
     }
   }
 
@@ -205,10 +286,10 @@ export class Receiver {
     // From this user's other device: a copy of something this user sent.
     const own = header.senderUserId === core.self.userId;
     const peerUserId = own ? header.recipientUserId! : header.senderUserId;
-    const conversation =
+    const conversation: ConversationRecord =
       (await core.store.getConversation(header.conversationId)) ??
       core.newConversation(peerUserId, now);
-    const message: MessageRecord = {
+    const arrived: MessageRecord = {
       messageId: header.messageId,
       conversationId: header.conversationId,
       senderUserId: header.senderUserId,
@@ -224,15 +305,35 @@ export class Receiver {
       // The sending device tracks delivery; this copy only knows the server had it.
       state: own ? 'sent_to_server' : null,
       expiresAt: null,
+      editedAt: null,
+      editId: null,
+      deletedAt: null,
+      // This user's own messages are read; incoming ones wait for the chat to be opened.
+      readAt: own ? now : null,
+      reactions: [],
     };
-    const latest = message.sortAt >= conversation.updatedAt;
+    // Edits, deletes or reactions that overtook the message.
+    const pending = await core.store.listOps(arrived.messageId);
+    let message = arrived;
+    if (pending.length > 0) {
+      message = applyPending(arrived, pending, core.opRules);
+      batch.deleteOps = [...(batch.deleteOps ?? []), ...pending.map((op) => op.opId)];
+    }
+    // Deleted before it arrived: it never counts as unread.
+    const unread = !own && message.kind !== 'deleted';
+    if (!unread && message.readAt === null) message = { ...message, readAt: now };
+    // The chat list previews the newest message by display order (not by arrival).
+    const last = conversation.lastMessageId
+      ? await core.store.getMessage(conversation.lastMessageId)
+      : undefined;
+    const latest = !last || compareMessages(message, last) <= 0;
     batch.messages = [...(batch.messages ?? []), message];
     batch.conversations = [
       {
         ...conversation,
         updatedAt: Math.max(conversation.updatedAt, message.sortAt),
         lastMessageId: latest ? message.messageId : conversation.lastMessageId,
-        unreadCount: conversation.unreadCount + (own ? 0 : 1),
+        unreadCount: conversation.unreadCount + (unread ? 1 : 0),
       },
     ];
     if (!own && (core.options.receipts?.('delivered') ?? true)) {

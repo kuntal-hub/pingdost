@@ -4,7 +4,7 @@ import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 
 import { describe, expect, it } from 'vitest';
 
-import { migrate, type MigratableDatabase } from '@/db/migrate';
+import { migrate, migrations, type MigratableDatabase } from '@/db/migrate';
 import { createWasmCryptoProvider } from '@pingdost/crypto';
 import {
   createTestClient,
@@ -34,12 +34,12 @@ function nodeDatabase(): SqlDatabase & MigratableDatabase {
 
 async function migrated() {
   const db = nodeDatabase();
-  expect(await migrate(db)).toBe(2);
+  expect(await migrate(db)).toBe(migrations.length);
   return db;
 }
 
 runEngineStoreContract(
-  'SQLite (migration 002)',
+  'SQLite (migrations 002–003)',
   async () => new SqliteEngineStore(await migrated()),
 );
 
@@ -84,6 +84,25 @@ describe('SqliteEngineStore', () => {
     expect(await store.getSetting('engine.fallbackKeyRotatedAt')).toBeUndefined();
     expect(await store.getSetting('other')).toBe(true);
     expect(await db.getFirstAsync('SELECT 1 AS ok FROM crypto_store', [])).toEqual({ ok: 1 });
+    expect(
+      await db.getFirstAsync<{ n: number }>('SELECT count(*) AS n FROM messages_fts', []),
+    ).toEqual({ n: 0 });
+  });
+
+  it('upgrades a Phase 10 database: old messages are searchable and count as read', async () => {
+    const db = nodeDatabase();
+    expect(await migrate(db, migrations.slice(0, 2))).toBe(2);
+    await db.runAsync(
+      `INSERT INTO messages (message_id, conversation_id, sender_user_id, sender_device_id,
+         direction, kind, body, reply_to, sent_at, sort_at, created_at, state, expires_at)
+       VALUES ('m1', 'c1', 'u1', 'd1', 'in', 'text', 'Old greetings, friend', NULL, 1, 1, 2, NULL, NULL)`,
+      [],
+    );
+    expect(await migrate(db)).toBe(migrations.length);
+    const store = new SqliteEngineStore(db);
+    const [found] = await store.searchMessages('greet', { limit: 5 });
+    expect(found).toMatchObject({ messageId: 'm1', readAt: 2, reactions: [], editedAt: null });
+    expect(await store.listUnread('c1')).toEqual([]);
   });
 });
 

@@ -28,6 +28,11 @@ export class Metrics {
     labelNames: ['path'] as const,
     registers: [this.registry],
   });
+  readonly envelopesBlocked = new Counter({
+    name: 'pingdost_envelopes_blocked_total',
+    help: 'Sends dropped because the recipient blocked the sender (answered Accepted).',
+    registers: [this.registry],
+  });
   readonly envelopeDuplicates = new Counter({
     name: 'pingdost_envelope_duplicates_total',
     help: 'Sends of an envelope ID the mailbox already held.',

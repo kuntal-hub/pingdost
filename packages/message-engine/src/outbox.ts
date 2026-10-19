@@ -9,7 +9,9 @@
  *    its packet stored with the advanced session, so retransmits resend the same bytes.
  * 3. `Accepted` deletes the item: the device is `sent_to_server`. Retryable failures back off
  *    with jitter; `RECIPIENT_UNKNOWN` (a revoked device) drops it and refreshes the directory.
- * Queued receipts are coalesced: one Content acknowledges a burst of messages.
+ * Queued receipts are coalesced: one Content acknowledges a burst of messages. Control
+ * Contents (edits, deletes, reactions) fan out the same way but carry no delivery state, so
+ * they are not resent after a session repair once the server has accepted them.
  */
 import type { OlmCiphertext } from '@pingdost/crypto/core';
 import {
@@ -243,11 +245,14 @@ export class Outbox {
       const stored = await core.store.getOutboxItem(item.id);
       if (stored?.type !== 'fanout') return;
       const now = core.now();
+      // Control Contents (edits, deletes, reactions) have no delivery rows or state.
+      const purpose = stored.purpose ?? 'message';
       const batch: WriteBatch = {};
       if (peerGone) {
         // The account no longer exists: nothing can deliver this.
         batch.deleteOutbox = [item.id];
-        const message = await core.store.getMessage(item.messageId);
+        const message =
+          purpose === 'message' ? await core.store.getMessage(item.messageId) : undefined;
         if (message?.state) {
           batch.messages = [{ ...message, state: advance(message.state, 'failed') }];
         }
@@ -261,7 +266,7 @@ export class Outbox {
         for (const { userId, device, own } of recipients) {
           batch.outbox.push({
             type: 'device',
-            purpose: 'message',
+            purpose,
             id: bytesToUuid(envelopeIdFor(item.messageId, device.deviceId)),
             messageId: item.messageId,
             recipientUserId: userId,
@@ -274,6 +279,7 @@ export class Outbox {
             attempts: 0,
             nextAttemptAt: now,
           });
+          if (purpose !== 'message') continue;
           batch.deliveries.push({
             messageId: item.messageId,
             deviceId: device.deviceId,

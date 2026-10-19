@@ -8,6 +8,8 @@ export const SETTING_KEYS = {
   device: 'device',
   /** `PrivacyPrefs`, cached for offline use. */
   privacy: 'privacy',
+  /** The users this account blocked (`{ userId, ids }`), cached for offline use. */
+  blocks: 'blocks',
 } as const;
 
 export async function readSetting<T>(

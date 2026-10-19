@@ -78,6 +78,10 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - ⚠ This resolves the REQ §10.3 vs §22 conflict.
 - **Avatars:** Cloudinary (free) for **user profile avatars only**, using signed client uploads. ⚠ Group name, avatar and description travel **E2EE inside group control messages**; the server stores none of them.
 - **User discovery:** **exact-match username lookup only**, rate-limited. No contact upload and no fuzzy search.
+- **Blocks and reports (ADR 0014):** `blocks` (`blocker:blocked`, at most 1,000 per user) and `abuse_reports` (TTL `ABUSE_REPORT_RETENTION_SECONDS`).
+  - A send to a user who blocked the sender is answered `Accepted{STORED}` and dropped, so the sender learns nothing.
+  - Presence and typing stop both ways; lookups still work.
+  - A report holds only what the reporter attached (≤ 20 messages they chose to disclose).
 
 ## A3. Delivery mailbox (REQ §9)
 - **Durability chain.** The sender's local **outbox is the durable copy** until the server replies `Accepted`, which it sends only after one of:
@@ -118,6 +122,12 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - `Content` (**inside** the E2EE ciphertext): header (`message_id`, `conversation_id`, `sender_user_id`, `sent_at_ms`, optional `reply_to`, optional `recipient_user_id` for direct messages (ADR 0011), protocol version), a oneof body {Text, Reaction, Edit, Delete, Receipt, AttachmentManifest, GroupControl, RoomKey, SyncChunk, CallSignal, SessionReset, KeyChange}, and `padding`.
   - WS frames: `ClientFrame` / `ServerFrame` oneofs (Auth, AuthOk, Send, Accepted, Deliver, Ack, Presence, Typing, Ephemeral, OtkLow, Revoked, ServerError, Ping/Pong).
 - **Message engine (ADR 0011):** `@pingdost/message-engine` (outbox, states, sessions, repair, receipts) over an `EngineStore` (one atomic `apply(batch)`) and `@pingdost/transport` (`WsTransport`, `TransportRouter`). A receiver resolves an unknown sending device with `GET /v1/keys/devices/:id`, then verifies that user's directory.
+- **Edits, deletes, reactions (ADR 0014):** E2EE ops applied with the same rules on every device:
+  - last-write-wins on (header time, op ID);
+  - edit and delete for everyone only by the sender, inside the 24 h windows in `DEFAULT_LIMITS`;
+  - ops that arrive before their target wait in `message_ops`.
+  They fan out as `control` outbox items, with no delivery state. Read receipts are reciprocal; `privacy.deliveryReceipts` gates delivery receipts.
+- **Typing (ADR 0014):** relayed only to sockets that watch the sender (`Presence.watch_user_ids`, i.e. the open chat), never across a block.
 - **Presence (ADR 0012):** in memory on the gateway only. Clients name the users they watch (`Presence.watch_user_ids`, at most 32); it is reciprocal and follows `privacy.lastSeen`. The server keeps no contact list.
 - **Ephemeral relay.** Call signaling, history-sync chunks and typing are **ephemeral**: the server relays them in memory to online devices only and never writes them to Redis or Mongo. Ephemeral envelopes travel as `PACKET_KIND_EPHEMERAL`.
 - **Limits:** `ENVELOPE_MAX_BYTES` (default 64 KiB). Decoders reject oversized, expired or unknown-major-version packets.
@@ -173,6 +183,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - A raw 32-byte key (`PRAGMA key = "x'…'"`) from SecureStore; opening checks `PRAGMA cipher_version`, because plain SQLite would ignore the key silently.
   - Raw-SQL repositories plus a migration runner keyed on `PRAGMA user_version` (`apps/mobile/src/db/migrate.ts`; `STRICT` tables).
   - Tables: REQ §14.1 entities plus `crypto_store` (pickles) and an FTS5 table.
+  - Local search (ADR 0014): `messages_fts` keyed by the `messages` rowid and kept in step by triggers, so messages are upserted (`ON CONFLICT DO UPDATE`), never `INSERT OR REPLACE`. Tokenizer: `unicode61 remove_diacritics 2 categories 'L* N* Co M*'`. Queries are built only from quoted prefix phrases.
 - **Files:** `expo-file-system` (new File API, chunked reads, no base64 for big files). Attachments are stored **as encrypted files**; plaintext is decrypted to a temp cache only for viewing.
 - **Libraries, by phase:**
   - Phase 3: crypto Turbo Module (ubrn).
@@ -257,6 +268,7 @@ ATTACHMENT_USER_QUOTA_BYTES=1073741824
 ATTACHMENT_ORPHAN_SECONDS=21600
 GROUP_MAX_MEMBERS=64
 SECURITY_EVENT_RETENTION_SECONDS=7776000
+ABUSE_REPORT_RETENTION_SECONDS=7776000      # Phase 11: abuse reports (and attached messages) TTL
 METRICS_TOKEN=
 LOG_LEVEL=info                              # Phase 5
 TRUST_PROXY=false                           # Phase 5: true behind a reverse proxy

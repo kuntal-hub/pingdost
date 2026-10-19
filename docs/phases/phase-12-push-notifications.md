@@ -43,3 +43,6 @@ Call push (26), web subscription UI (17), APNs (29).
 ## Handoff notes
 **From Phase 8 (ADR 0010):** implement `PushNotifier` (`apps/server/src/modules/push/notifier.ts`) and pass it as `AppDeps.push`. The gateway calls `wake(recipientDeviceId, urgent)` after `Accepted{STORED}` (not for duplicates); `urgent` comes from the packet's `PACKET_FLAG_URGENT`.
 **From Phase 10 (ADR 0012):** after 30 s in the background the app closes its socket (`BACKGROUND_GRACE_MS` in `apps/mobile/src/engine/runtime.ts`). From then on, only the push wake can bring messages in. On a wake, call `startChat()` and `transport.start()`, then let the mailbox fetch run before the OS suspends the app again.
+**From Phase 11 (ADR 0014):**
+- Muted chats must not notify: `ConversationRecord.mutedUntil` (`MUTED_FOREVER` = always) is local, so the app decides after the wake. Archived chats still notify unless muted.
+- Read receipts are sent when a chat is open (`engine.markRead`). Reading from a notification must not send one unless the user opened the chat.

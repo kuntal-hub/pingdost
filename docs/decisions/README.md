@@ -18,6 +18,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0011](0011-message-engine.md) | Message engine: store contract, outbox, sessions, repair and receipts | 09 | Accepted |
 | [0012](0012-android-chat-safety-numbers-presence.md) | Android 1:1 chat: safety numbers, presence, profiles and the local store | 10 | Accepted |
 | [0013](0013-hosting-single-vps-valkey.md) | Hosting: one Hostinger KVM VPS, self-hosted Valkey, no Upstash | change (before 20) | Accepted (user-approved) |
+| [0014](0014-chat-features-sync-blocks-reports.md) | Chat features: edit/delete/reaction sync, receipts, search, blocks and reports | 11 | Accepted |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 

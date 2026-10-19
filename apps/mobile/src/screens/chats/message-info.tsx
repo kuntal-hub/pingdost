@@ -4,8 +4,8 @@ import { Text, View } from 'react-native';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
-import { useChatRuntime, useConnectionStatus } from '@/engine/hooks';
-import { stateLabel } from '@/engine/labels';
+import { useChatRuntime, useConnectionStatus, useReadReceipts } from '@/engine/hooks';
+import { previewText, shownState, stateLabel } from '@/engine/labels';
 import { dayLabel, timeLabel } from '@/engine/timeline';
 import type { DeliveryRecord, MessageRecord } from '@pingdost/message-engine';
 
@@ -17,6 +17,9 @@ function at(ms: number): string {
 export function MessageInfoScreen({ messageId }: { messageId: string }) {
   const runtime = useChatRuntime();
   const online = useConnectionStatus() === 'online';
+  const readReceipts = useReadReceipts();
+  const label = (state: DeliveryRecord['state']) =>
+    stateLabel(shownState(state, readReceipts), online);
   const [info, setInfo] = useState<{
     message: MessageRecord;
     deliveries: DeliveryRecord[];
@@ -50,20 +53,25 @@ export function MessageInfoScreen({ messageId }: { messageId: string }) {
     );
 
   const { message, deliveries } = info;
-  const label = message.state ? stateLabel(message.state, online) : undefined;
+  const overall = message.state ? label(message.state) : undefined;
   const recipients = deliveries.filter((d) => !d.own);
   const own = deliveries.filter((d) => d.own);
   return (
     <Screen>
       <View className="rounded-lg border border-border bg-surface p-4">
-        <Text className="text-base text-foreground">{message.body}</Text>
+        <Text className="text-base text-foreground">
+          {message.kind === 'text' ? message.body : previewText(message)}
+        </Text>
       </View>
       <ListSection title="Details">
         <ListRow
           title={message.direction === 'out' ? 'Sent' : 'Received'}
           subtitle={at(message.sortAt)}
         />
-        {label && <ListRow title={label.short} subtitle={label.long} />}
+        {overall && <ListRow title={overall.short} subtitle={overall.long} />}
+        {message.editedAt !== null && (
+          <ListRow title="Edited" subtitle={`. Only the latest text is kept, on every device.`} />
+        )}
         {message.direction === 'in' && (
           <ListRow title="Encrypted end to end" subtitle="Decrypted only on this device." />
         )}
@@ -73,8 +81,8 @@ export function MessageInfoScreen({ messageId }: { messageId: string }) {
           {recipients.map((d, index) => (
             <ListRow
               key={d.deviceId}
-              title={`Device ${index + 1}: ${stateLabel(d.state, online).short}`}
-              subtitle={`${stateLabel(d.state, online).long} Updated ${at(d.updatedAt)}.`}
+              title={`Device ${index + 1}: ${label(d.state).short}`}
+              subtitle={`${label(d.state).long} Updated ${at(d.updatedAt)}.`}
             />
           ))}
         </ListSection>
@@ -84,7 +92,7 @@ export function MessageInfoScreen({ messageId }: { messageId: string }) {
           {own.map((d) => (
             <ListRow
               key={d.deviceId}
-              title={stateLabel(d.state, online).short}
+              title={label(d.state).short}
               subtitle="A copy for your linked device. It never counts as delivery."
             />
           ))}

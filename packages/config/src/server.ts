@@ -157,6 +157,8 @@ const serverEnvSchema = z.object({
 
   // Operations.
   SECURITY_EVENT_RETENTION_SECONDS: int(DAY, 365 * DAY).default(7_776_000),
+  /** Abuse reports (with any messages the reporter attached) are deleted after this. */
+  ABUSE_REPORT_RETENTION_SECONDS: int(DAY, 365 * DAY).default(7_776_000),
   METRICS_TOKEN: z.string().min(32, 'must be at least 32 characters').optional(),
 });
 

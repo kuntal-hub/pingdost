@@ -49,6 +49,7 @@ describe('PATCH /v1/me', () => {
     expect(updated.displayName).toBe('Asha');
     expect(updated.privacy).toEqual({
       readReceipts: false,
+      deliveryReceipts: true,
       typingIndicators: true,
       lastSeen: true,
     });

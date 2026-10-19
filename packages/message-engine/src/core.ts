@@ -52,6 +52,10 @@ export interface EngineSettings {
   sessionResetIntervalMs: number;
   /** An incoming typing indicator lapses after this without a refresh. */
   typingTimeoutMs: number;
+  /** How long after sending a message may be edited (sender and receivers enforce it). */
+  editWindowMs: number;
+  /** How long after sending a message may be deleted for everyone. */
+  deleteWindowMs: number;
 }
 
 export const DEFAULT_ENGINE_SETTINGS: EngineSettings = {
@@ -64,6 +68,8 @@ export const DEFAULT_ENGINE_SETTINGS: EngineSettings = {
   expirySweepMs: 60_000,
   sessionResetIntervalMs: 5 * 60_000,
   typingTimeoutMs: 6_000,
+  editWindowMs: DEFAULT_LIMITS.messageEditWindowSeconds * 1000,
+  deleteWindowMs: DEFAULT_LIMITS.messageDeleteWindowSeconds * 1000,
 };
 
 /** Never pass plaintext, keys or ciphertext (ARCHITECTURE A10): IDs and counts only. */
@@ -90,16 +96,27 @@ export interface EngineOptions {
   api: DirectoryApi & { keys?: PublishKeysDeps['keys'] };
   now?: () => number;
   settings?: Partial<EngineSettings>;
-  /** Whether to send E2EE receipts of this type; default: delivered yes, read no. */
+  /**
+   * Whether to send E2EE receipts of this type; default: delivered yes, read no. Read is
+   * reciprocal: when false, incoming read receipts count only as delivery receipts.
+   */
   receipts?: (type: 'delivered' | 'read') => boolean;
   /** The privacy toggle: when false, typing is neither sent nor shown. Default true. */
   typingIndicators?: () => boolean;
+  /**
+   * Users this user blocked: whatever they still send (queued before the block; the server
+   * drops the rest) is dropped unread, without a receipt. Typing from them is ignored.
+   */
+  blocked?: (userId: string) => boolean;
   log?: EngineLogger;
 }
 
 export type ConversationEvent =
   /** A message was added or changed. */
-  { type: 'message'; message: MessageRecord } | { type: 'typing'; userId: string; active: boolean };
+  | { type: 'message'; message: MessageRecord }
+  /** Messages were deleted from this device ("delete for me"). */
+  | { type: 'removed'; messageIds: string[] }
+  | { type: 'typing'; userId: string; active: boolean };
 
 export type EngineEvent =
   /** The user's account identity key changed: a new safety number, verification reset. */
@@ -175,7 +192,26 @@ export class EngineCore {
     for (const message of batch.messages ?? []) {
       this.#conversationListeners.get(message.conversationId)?.emit({ type: 'message', message });
     }
-    if (batch.messages?.length || batch.conversations?.length) this.#listChanged();
+    if (
+      batch.messages?.length ||
+      batch.conversations?.length ||
+      batch.deleteMessages?.length ||
+      batch.deleteConversations?.length
+    ) {
+      this.#listChanged();
+    }
+  }
+
+  /** The rules every device applies to edits and deletes. */
+  get opRules(): { editWindowMs: number; deleteWindowMs: number } {
+    return {
+      editWindowMs: this.settings.editWindowMs,
+      deleteWindowMs: this.settings.deleteWindowMs,
+    };
+  }
+
+  isBlocked(userId: string): boolean {
+    return userId !== this.self.userId && (this.options.blocked?.(userId) ?? false);
   }
 
   subscribe(conversationId: string, listener: (event: ConversationEvent) => void): () => void {
@@ -331,6 +367,11 @@ export class EngineCore {
       createdAt: now,
       state: null,
       expiresAt: null,
+      editedAt: null,
+      editId: null,
+      deletedAt: null,
+      readAt: now,
+      reactions: [],
     };
     (batch.messages ??= []).push(notice);
     (batch.conversations ??= []).push({
@@ -401,6 +442,9 @@ export class EngineCore {
       updatedAt: now,
       lastMessageId: null,
       unreadCount: 0,
+      pinnedAt: null,
+      archived: false,
+      mutedUntil: null,
     };
   }
 }

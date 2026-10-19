@@ -57,7 +57,10 @@ import { keyIndexes, oneTimeKeys } from './modules/keys/repo';
 import { keyRoutes } from './modules/keys/routes';
 import { KeyService } from './modules/keys/service';
 import { noopPushNotifier, type PushNotifier } from './modules/push/notifier';
+import { blockIndexes, BlockService } from './modules/security/blocks';
 import { securityEventIndexes, SecurityEvents } from './modules/security/events';
+import { reportIndexes, ReportService } from './modules/security/reports';
+import { securityRoutes } from './modules/security/routes';
 
 export interface AppDeps {
   logger: Logger;
@@ -88,6 +91,8 @@ export const INDEXES: readonly IndexSetup[] = [
   keyIndexes,
   pendingEnvelopeIndexes,
   securityEventIndexes,
+  blockIndexes,
+  reportIndexes,
   schedulerIndexes,
 ];
 
@@ -206,6 +211,13 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
       }
     },
   });
+  const blocks = new BlockService(db, clock);
+  const reports = new ReportService(
+    db,
+    collections.users,
+    config.ABUSE_REPORT_RETENTION_SECONDS,
+    clock,
+  );
   const delivery = new DeliveryService({
     settings: mailbox,
     clock,
@@ -213,13 +225,20 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     log: deps.logger,
     redis: new RedisMailbox(deps.redis, mailbox.redisKeyPrefix),
     mongo: deps.delivery?.mongoStore ?? new MongoMailbox(db),
-    deviceActive: async (deviceId) =>
-      (await devices.devices.countDocuments({ _id: deviceId, status: 'active' }, { limit: 1 })) > 0,
+    activeDeviceOwner: async (deviceId) =>
+      (
+        await devices.devices.findOne(
+          { _id: deviceId, status: 'active' },
+          { projection: { userId: 1 } },
+        )
+      )?.userId,
+    isBlocked: (blockerUserId, userId) => blocks.isBlocked(blockerUserId, userId),
   });
   const presence = new PresenceHub<Connection>({
     sharesPresence: async (userId) =>
       (await collections.users.findOne({ _id: userId }, { projection: { privacy: 1 } }))?.privacy
         .lastSeen ?? false,
+    blocked: (a, b) => blocks.eitherBlocked(a, b),
     now: () => clock.now(),
   });
   const authenticate = createAuthGuard(tokens, collections, clock, (deviceId) =>
@@ -239,6 +258,14 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
   });
   await app.register(deviceRoutes, { service: deviceService, authenticate, limits });
   await app.register(keyRoutes, { service: keyService, authenticate, limits });
+  await app.register(securityRoutes, {
+    blocks,
+    reports,
+    users: collections.users,
+    authenticate,
+    limits,
+    onBlocksChanged: (a, b) => void presence.blocksChanged(a, b).catch(() => undefined),
+  });
   await app.register(gatewayRoutes, {
     limits,
     deps: {
@@ -255,6 +282,7 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
       push: deps.push ?? noopPushNotifier,
       registry,
       presence,
+      blocks,
     },
   });
   await app.register(metricsRoutes, { metrics, token: config.METRICS_TOKEN, limits });

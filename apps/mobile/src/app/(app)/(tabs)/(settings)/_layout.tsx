@@ -8,6 +8,7 @@ export default function SettingsStack() {
       <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       <Stack.Screen name="profile" options={{ title: 'Profile' }} />
       <Stack.Screen name="privacy" options={{ title: 'Privacy' }} />
+      <Stack.Screen name="blocked" options={{ title: 'Blocked contacts' }} />
       <Stack.Screen name="devices" options={{ title: 'Devices' }} />
       <Stack.Screen name="about-privacy" options={{ title: 'About privacy' }} />
     </Stack>

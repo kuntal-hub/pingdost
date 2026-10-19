@@ -25,6 +25,10 @@ export const DEFAULT_LIMITS = {
    * delivery receipt arrived by then (ARCHITECTURE A3).
    */
   messageMaxRetentionSeconds: 1_209_600,
+  /** How long after sending the sender may edit a message; receivers enforce it too. */
+  messageEditWindowSeconds: 86_400,
+  /** How long after sending the sender may delete a message for everyone. */
+  messageDeleteWindowSeconds: 86_400,
   meshPacketMaxHops: 8,
   meshPacketTtlSeconds: 1_209_600,
   meshRelayStorageLimitBytes: 262_144_000,

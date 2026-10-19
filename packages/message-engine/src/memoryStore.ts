@@ -4,6 +4,7 @@
  */
 import type { MessageState } from '@pingdost/shared-types';
 
+import { matchesQuery } from './search';
 import type {
   ConversationRecord,
   DeliveryRecord,
@@ -12,6 +13,7 @@ import type {
   MessageCursor,
   MessageRecord,
   OutboxItem,
+  PendingOpRecord,
   SessionRecord,
   WriteBatch,
 } from './store';
@@ -41,8 +43,16 @@ export class MemoryEngineStore implements EngineStore {
   readonly #directory = new Map<string, DirectoryRecord>();
   readonly #seen = new Map<string, number>();
   readonly #settings = new Map<string, unknown>();
+  readonly #ops = new Map<string, PendingOpRecord>();
   /** Fault injection for tests: the next `apply` rejects with this error and writes nothing. */
   failNextApply: Error | undefined;
+
+  #deleteMessage(messageId: string): void {
+    this.#messages.delete(messageId);
+    for (const key of this.#deliveries.keys()) {
+      if (key.startsWith(`${messageId}/`)) this.#deliveries.delete(key);
+    }
+  }
 
   apply(batch: WriteBatch): Promise<void> {
     if (this.failNextApply) {
@@ -52,8 +62,22 @@ export class MemoryEngineStore implements EngineStore {
     }
     const b = copy(batch);
     if (b.account !== undefined) this.account = b.account;
+    for (const conversationId of b.deleteConversations ?? []) {
+      this.#conversations.delete(conversationId);
+      for (const m of [...this.#messages.values()]) {
+        if (m.conversationId === conversationId) this.#deleteMessage(m.messageId);
+      }
+      for (const [id, op] of this.#ops)
+        if (op.conversationId === conversationId) this.#ops.delete(id);
+    }
     for (const c of b.conversations ?? []) this.#conversations.set(c.conversationId, c);
+    for (const id of b.deleteMessages ?? []) this.#deleteMessage(id);
     for (const m of b.messages ?? []) this.#messages.set(m.messageId, m);
+    if (b.pruneOpsBefore !== undefined) {
+      for (const [id, op] of this.#ops) if (op.receivedAt < b.pruneOpsBefore) this.#ops.delete(id);
+    }
+    for (const id of b.deleteOps ?? []) this.#ops.delete(id);
+    for (const op of b.ops ?? []) this.#ops.set(op.opId, op);
     for (const d of b.deleteDeliveries ?? [])
       this.#deliveries.delete(`${d.messageId}/${d.deviceId}`);
     for (const d of b.deliveries ?? []) this.#deliveries.set(`${d.messageId}/${d.deviceId}`, d);
@@ -116,6 +140,48 @@ export class MemoryEngineStore implements EngineStore {
             m.state !== null &&
             !FINAL_STATES.includes(m.state),
         ),
+      ),
+    );
+  }
+
+  listUnread(conversationId: string): Promise<MessageRecord[]> {
+    return Promise.resolve(
+      copy(
+        [...this.#messages.values()]
+          .filter(
+            (m) => m.conversationId === conversationId && m.direction === 'in' && m.readAt === null,
+          )
+          .sort((a, b) => compareMessages(b, a)),
+      ),
+    );
+  }
+
+  searchMessages(
+    query: string,
+    options: { conversationId?: string; limit: number },
+  ): Promise<MessageRecord[]> {
+    return Promise.resolve(
+      copy(
+        [...this.#messages.values()]
+          .filter(
+            (m) =>
+              m.kind === 'text' &&
+              (options.conversationId === undefined ||
+                m.conversationId === options.conversationId) &&
+              matchesQuery(m.body, query),
+          )
+          .sort(compareMessages)
+          .slice(0, options.limit),
+      ),
+    );
+  }
+
+  listOps(targetMessageId: string): Promise<PendingOpRecord[]> {
+    return Promise.resolve(
+      copy(
+        [...this.#ops.values()]
+          .filter((op) => op.targetMessageId === targetMessageId)
+          .sort((a, b) => a.receivedAt - b.receivedAt || (a.opId < b.opId ? -1 : 1)),
       ),
     );
   }

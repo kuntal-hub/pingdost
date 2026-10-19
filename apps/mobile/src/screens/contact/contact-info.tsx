@@ -1,24 +1,56 @@
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
 import { QrCode } from '@/components/qr-code';
 import { Screen } from '@/components/screen';
+import { useBlocks, useIsBlocked } from '@/engine/blocks';
 import { contactName } from '@/engine/contacts';
 import { useContact } from '@/engine/hooks';
 import { useSafetyNumber } from '@/engine/safety';
 import { usePalette } from '@/theme/theme-root';
 import { encodeSafetyQr } from '@pingdost/protocol/safety-number';
 
-/** Profile, verification state, safety number and this user's safety QR code. */
+/** Profile, verification state, safety number and QR code; block and report. */
 export function ContactInfoScreen({ userId }: { userId: string }) {
   const router = useRouter();
   const palette = usePalette();
   const contact = useContact(userId);
   const safety = useSafetyNumber(userId);
   const name = contactName(contact);
+  const blocked = useIsBlocked(userId);
+  const [busy, setBusy] = useState(false);
+
+  function change(block: boolean) {
+    setBusy(true);
+    const blocks = useBlocks.getState();
+    (block ? blocks.block(userId) : blocks.unblock(userId))
+      .catch(() =>
+        Alert.alert(
+          block ? 'Could not block' : 'Could not unblock',
+          'Check your connection and try again.',
+        ),
+      )
+      .finally(() => setBusy(false));
+  }
+
+  function toggleBlock() {
+    if (blocked) {
+      change(false);
+      return;
+    }
+    Alert.alert(
+      `Block ${name}?`,
+      `${name} won't be able to message you, see when you're online or see you typing. They aren't told: their messages still look sent to them. You can unblock them any time.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Block', style: 'destructive', onPress: () => change(true) },
+      ],
+    );
+  }
 
   return (
     <Screen>
@@ -92,6 +124,20 @@ export function ContactInfoScreen({ userId }: { userId: string }) {
           />
         </View>
       )}
+
+      <View className="gap-3 border-t border-border pt-4">
+        <Button
+          label={blocked ? `Unblock ${name}` : `Block ${name}`}
+          variant={blocked ? 'secondary' : 'danger'}
+          loading={busy}
+          onPress={toggleBlock}
+        />
+        <Button
+          label={`Report ${name}`}
+          variant="ghost"
+          onPress={() => router.push({ pathname: '/report/[userId]', params: { userId } })}
+        />
+      </View>
     </Screen>
   );
 }

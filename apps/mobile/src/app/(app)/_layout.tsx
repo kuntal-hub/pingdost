@@ -10,7 +10,10 @@ export default function AppStack() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="chat/[conversationId]" options={{ title: '' }} />
       <Stack.Screen name="new-chat" options={{ title: 'New chat' }} />
+      <Stack.Screen name="search" options={{ title: 'Search' }} />
+      <Stack.Screen name="archived" options={{ title: 'Archived chats' }} />
       <Stack.Screen name="contact/[userId]" options={{ title: 'Contact info' }} />
+      <Stack.Screen name="report/[userId]" options={{ title: 'Report' }} />
       <Stack.Screen name="scan/[userId]" options={{ title: 'Scan safety code' }} />
       <Stack.Screen
         name="message-info/[messageId]"

@@ -1,6 +1,21 @@
 // What each message state is called in the UI (REQ §8.3, §11.6; ARCHITECTURE A8). Never
 // "delivered" for a server or relay hop: only a receipt from the recipient's device says so.
+import type { MessageRecord } from '@pingdost/message-engine';
 import type { MessageState } from '@pingdost/shared-types';
+
+/** One line standing for a message: previews, quotes, search results. */
+export function previewText(message: MessageRecord): string {
+  switch (message.kind) {
+    case 'deleted':
+      return 'This message was deleted';
+    case 'system':
+      return 'Safety number changed';
+    case 'unsupported':
+      return 'Update PingDost to see this message';
+    case 'text':
+      return message.body.replace(/\s+/g, ' ').trim();
+  }
+}
 
 export interface StateLabel {
   /** Under the bubble. */
@@ -10,6 +25,14 @@ export interface StateLabel {
   /** A plain glyph; the tick marks follow the common convention. */
   glyph: string;
   tone: 'muted' | 'success' | 'danger';
+}
+
+/**
+ * The state to show. Read receipts are reciprocal (ADR 0014): with them off, "read" shows as
+ * delivered.
+ */
+export function shownState(state: MessageState, readReceipts: boolean): MessageState {
+  return state === 'read' && !readReceipts ? 'delivered_to_recipient_device' : state;
 }
 
 export function stateLabel(state: MessageState, online: boolean): StateLabel {
@@ -58,7 +81,8 @@ export function stateLabel(state: MessageState, online: boolean): StateLabel {
     case 'expired_undelivered':
       return {
         short: 'Expired before delivery',
-        long: 'Expired before delivery: the recipient was offline for too long.',
+        // No receipt by the deadline: offline too long, or delivery receipts are off there.
+        long: 'Expired before delivery: no delivery receipt came back in time. The recipient was offline too long, or does not send delivery receipts.',
         glyph: '⌛',
         tone: 'danger',
       };

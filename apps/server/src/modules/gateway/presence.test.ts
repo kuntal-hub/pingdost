@@ -10,9 +10,10 @@ class Peer implements PresencePeer {
   }
 }
 
-function hub(hidden: string[] = []) {
+function hub(hidden: string[] = [], blocks = new Set<string>()) {
   return new PresenceHub<Peer>({
     sharesPresence: (userId) => Promise.resolve(!hidden.includes(userId)),
+    blocked: (a, b) => Promise.resolve(blocks.has(`${a}:${b}`) || blocks.has(`${b}:${a}`)),
     cacheMs: 0,
   });
 }
@@ -66,5 +67,30 @@ describe('PresenceHub', () => {
     await presence.update(alice, true, []);
     await presence.update(bob, true, []);
     expect(alice.seen).toEqual([['bob', false]]);
+  });
+
+  it('reports nothing between users who blocked each other, and knows who watches whom', async () => {
+    const blocks = new Set<string>();
+    const presence = hub([], blocks);
+    const alice = new Peer('alice');
+    const bob = new Peer('bob');
+    await presence.update(alice, true, ['bob']);
+    await presence.update(bob, true, ['alice']);
+    expect(alice.seen.at(-1)).toEqual(['bob', true]);
+    expect(presence.watches(alice, 'bob')).toBe(true);
+    expect(presence.watches(bob, 'carol')).toBe(false);
+
+    blocks.add('bob:alice');
+    await presence.blocksChanged('bob', 'alice');
+    expect(alice.seen.at(-1)).toEqual(['bob', false]);
+    expect(bob.seen.at(-1)).toEqual(['alice', false]);
+    await presence.update(bob, false, ['alice']);
+    await presence.update(bob, true, ['alice']);
+    expect(alice.seen.at(-1)).toEqual(['bob', false]);
+
+    blocks.clear();
+    await presence.blocksChanged('bob', 'alice');
+    expect(alice.seen.at(-1)).toEqual(['bob', true]);
+    expect(bob.seen.at(-1)).toEqual(['alice', true]);
   });
 });

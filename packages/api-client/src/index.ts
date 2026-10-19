@@ -8,3 +8,5 @@ export { createApiClient } from './client';
 export type { ApiClient, ApiClientOptions, HttpMethod, RequestOptions } from './client';
 export { ApiError } from './errors';
 export type { ApiErrorKind } from './errors';
+export { securityApi } from './security';
+export type { SecurityApi } from './security';

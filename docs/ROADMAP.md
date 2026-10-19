@@ -16,7 +16,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 08 | [Realtime gateway & delivery mailbox](phases/phase-08-gateway-mailbox.md) | 06 | ✅ |
 | 09 | [Message engine & session management](phases/phase-09-message-engine.md) | 04, 08 | ✅ |
 | 10 | [1:1 chat on Android](phases/phase-10-android-1to1-chat.md) | 07, 09 | 🔄 |
-| 11 | [Chat features](phases/phase-11-chat-features.md) | 10 | ⬜ |
+| 11 | [Chat features](phases/phase-11-chat-features.md) | 10 | 🔄 |
 | 12 | [Push notifications](phases/phase-12-push-notifications.md) | 10 | ⬜ |
 | 13 | [Groups (Megolm)](phases/phase-13-groups.md) | 10 | ⬜ |
 | 14 | [Attachments core](phases/phase-14-attachments-core.md) | 09 | ⬜ |
@@ -74,8 +74,8 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | §11 | Nearby + mesh | 21, 22, 23, 24, (30) |
 | §12 | Calls | 25, 26, (29) |
 | §13 | Web pairing + sync | 16, 17, 18 |
-| §14 | Local storage + controls | 03, 10, 15, 16, 17, 23 |
-| §15 | Backend modules | 05, 06, 08, 12, 13, 14, 16, 23, 25 |
+| §14 | Local storage + controls | 03, 10, 11, 15, 16, 17, 23 |
+| §15 | Backend modules | 05, 06, 08, 11, 12, 13, 14, 16, 23, 25 |
 | §16 | Data models | 05, 06, 08, 14 |
 | §17 | Env config | 01 (+ every phase adds vars) |
 | §18 | Reliability, metrics, cost alerts | 08, 20, 27 |

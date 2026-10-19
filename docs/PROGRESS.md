@@ -17,6 +17,77 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-20 — Phase 11: Chat features — 🔄 partial (device checks open)
+**Done (ADR 0014):**
+- **Engine** (`packages/message-engine`):
+  - `features/ops.ts`:
+    - reactions: one per user; the newest event wins, a withdrawal included;
+    - edit: sender only, 24 h, last-write-wins, no history kept;
+    - delete for everyone: sender only, 24 h, tombstone; best-effort copy in the UI;
+    - ops that arrive before their target wait in `message_ops` and are applied when it lands.
+  - Ops fan out as `control` outbox items.
+  - Also: replies (quote resolved locally), delete for me, delete/archive/pin/mute conversations.
+  - Read receipts from `markRead` (reciprocal); a `deliveryReceipts` toggle.
+  - `blocked` option: drops content still queued from blocked users.
+  - Search (`search.ts`): word-prefix terms, shared by the stores and the highlighter.
+  - Store contract extended: `listUnread`, `searchMessages`, `listOps`, batch deletions.
+- **Android:**
+  - Migration 003: new columns, `message_ops`, and FTS5 rebuilt on the rowid with triggers, inside SQLCipher (`categories 'L* N* Co M*'`, so Devanagari works).
+  - Chat: long-press menu (quick reactions, reply, edit, info, delete for me / for everyone with the REQ §5.4 copy), quotes, reaction chips, "edited", tombstones, reply and edit modes, blocked state, in-chat search with jump-to-message.
+  - Chat list: pinned first, Archived, mute/pin marks, long-press menu, delete with confirmation.
+  - Search screen with highlighting; report screen (messages attached only if ticked).
+  - Block / unblock in Contact info and Settings → Privacy → Blocked contacts.
+  - Privacy: a delivery receipts toggle; reciprocal read-receipt copy.
+- **Server:**
+  - `modules/security/{blocks,reports,routes}.ts`.
+  - A send to a blocker is answered `Accepted{STORED}` and dropped (no store, no push, `pingdost_envelopes_blocked_total`).
+  - Typing goes only to sockets watching the sender, never across a block; presence stops across blocks.
+  - Lookups still work while blocked.
+  - `POST /v1/reports` with a TTL (`ABUSE_REPORT_RETENTION_SECONDS`, 90 days); `privacy.deliveryReceipts`, defaulted for old accounts; `text`/`details` added to log redaction.
+- Echo peer: read receipts, replies, and `!react` / `!edit` / `!delete` commands for device checks.
+
+**Remaining (user device checks):**
+- [ ] Every feature between two Android devices (phone + emulator; or phone + the echo peer for the incoming side):
+  - reactions;
+  - reply quotes;
+  - edit (with the "edited" mark);
+  - delete for me / for everyone;
+  - global and in-chat search (Hindi too);
+  - archive / pin / mute / delete chat;
+  - read receipts on and off on both phones;
+  - block (the blocked phone still shows "Sent"), unblock, report.
+- Not run here at all: the app UI. The emulator I booted showed another project in Expo Go and then shut down mid-check; the window was most likely closed by hand. The APK on disk is arm64-only, so a fresh emulator build is needed (see CLAUDE.md).
+  - Instead, every changed route was bundled through Metro for Android without errors, and the app typechecks.
+- Steps:
+  1. `pnpm infra:up` and `pnpm --filter @pingdost/server dev`.
+  2. `pnpm --filter @pingdost/mobile android` with the phone attached; for the emulator, `npx expo run:android --no-bundler --device emulator-5554` in `apps/mobile`.
+  3. Optional: `pnpm --filter @pingdost/sim-client peer`.
+  4. Chat, then long-press a message for reactions, reply, edit and delete; long-press a chat for pin, archive, mute and delete.
+  5. Try "Search" in both headers, and Contact info → Block / Report.
+
+**Deviations / decisions:** ADR 0014; no REQ changes.
+- No proto change: an edit's time is its header `sent_at_ms`.
+- Delete for everyone has a 24 h window, like edit (`DEFAULT_LIMITS.messageDeleteWindowSeconds`).
+- Archived chats stay archived when new messages arrive. Pins are limited to 3.
+- Delivery receipts are not reciprocal. With them off at the recipient, the sender's messages expire as undelivered, and the expired label now says that receipts may be off.
+- Typing is scoped to watchers, which is how the server, with no conversation list, ties it to conversations.
+- Phase 10 fix: a chat started by an incoming message never got `lastMessageId`. The engine now compares against the current last message.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 42/42 tasks, 377 unit tests (engine 68, mobile 57, server 25, protocol 91, config 70, …). `pnpm format:check` passes.
+- `pnpm --filter @pingdost/server test:int`: 112/112 (new `security.int.test.ts`; the typing-scope case in `gateway.int.test.ts`).
+- `buf breaking --against '../../.git#branch=main,subdir=packages/protocol'`: clean (no proto changes).
+- The SQLite store passes the extended contract on `node:sqlite`, including a Phase 10 → 11 upgrade (old messages searchable, counted as read).
+- Not run: any on-device check (see above).
+
+**Known issues / tech debt:**
+- Ops (edit, delete, reaction) accepted by the server are not resent after a session repair (ADR 0014; Phase 27 measures).
+- The report screen's "deleted after 90 days" copy is fixed text; it must follow `ABUSE_REPORT_RETENTION_SECONDS` (Phase 27).
+- No copy-to-clipboard action yet (expo-clipboard not added).
+- The arm64 debug APK I installed on the emulator crashes there; the emulator rebuild above replaces it.
+- Earlier items are still open: the Phase 10 two-phone checks, binding drift check, pickle-key zeroization (Phase 27), `OWNER` in `repository.url`, stale `C:\dev\pd`, the native MongoDB Windows service.
+
+**Next:** the Phase 10 and 11 device checks, then Phase 12 (push) or 14 (attachments core).
 ## 2026-10-19 — Phase 10: 1:1 encrypted chat on Android — 🔄 partial (device checks open)
 **Done (ADR 0012):**
 - **Store:**

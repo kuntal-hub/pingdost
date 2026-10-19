@@ -73,6 +73,7 @@ export const USED_REFRESH_HASHES_KEPT = 50;
 
 export const DEFAULT_PRIVACY: PrivacyPrefs = {
   readReceipts: true,
+  deliveryReceipts: true,
   typingIndicators: true,
   lastSeen: true,
 };

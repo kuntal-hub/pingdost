@@ -1,17 +1,20 @@
 // The engine's `EngineStore` on the SQLCipher database (migration 002; ADR 0011, 0012).
 // `apply` is one `BEGIN IMMEDIATE … COMMIT` on the keyed connection; never expo-sqlite's
 // `withExclusiveTransactionAsync`, whose second connection has no key (ADR 0005). Applies
-// are queued, so two batches never interleave on the shared connection.
-import type {
-  ConversationRecord,
-  DeliveryRecord,
-  DirectoryRecord,
-  EngineStore,
-  MessageCursor,
-  MessageRecord,
-  OutboxItem,
-  SessionRecord,
-  WriteBatch,
+// are queued, so two batches never interleave on the shared connection. Search uses the
+// FTS5 index that migration 003's triggers keep in step with `messages` (ADR 0014).
+import {
+  ftsQuery,
+  type ConversationRecord,
+  type DeliveryRecord,
+  type DirectoryRecord,
+  type EngineStore,
+  type MessageCursor,
+  type MessageRecord,
+  type OutboxItem,
+  type PendingOpRecord,
+  type SessionRecord,
+  type WriteBatch,
 } from '@pingdost/message-engine';
 import type { MessageState } from '@pingdost/shared-types';
 
@@ -50,6 +53,7 @@ const CHAT_TABLES = [
   'seen_mesh_packets',
   'device_sync_state',
   'messages_fts',
+  'message_ops',
 ] as const;
 
 const utf8 = new TextEncoder();
@@ -62,6 +66,9 @@ interface ConversationRow {
   updated_at: number;
   last_message_id: string | null;
   unread_count: number;
+  pinned_at: number | null;
+  archived: number;
+  muted_until: number | null;
 }
 
 interface MessageRow {
@@ -78,6 +85,23 @@ interface MessageRow {
   created_at: number;
   state: string | null;
   expires_at: number | null;
+  edited_at: number | null;
+  edit_id: string | null;
+  deleted_at: number | null;
+  read_at: number | null;
+  reactions: string;
+}
+
+interface OpRow {
+  op_id: string;
+  type: string;
+  target_message_id: string;
+  conversation_id: string;
+  sender_user_id: string;
+  sent_at: number;
+  body: string;
+  remove: number;
+  received_at: number;
 }
 
 interface DeliveryRow {
@@ -129,6 +153,9 @@ const toConversation = (r: ConversationRow): ConversationRecord => ({
   updatedAt: r.updated_at,
   lastMessageId: r.last_message_id,
   unreadCount: r.unread_count,
+  pinnedAt: r.pinned_at,
+  archived: r.archived === 1,
+  mutedUntil: r.muted_until,
 });
 
 const toMessage = (r: MessageRow): MessageRecord => ({
@@ -145,7 +172,73 @@ const toMessage = (r: MessageRow): MessageRecord => ({
   createdAt: r.created_at,
   state: r.state as MessageState | null,
   expiresAt: r.expires_at,
+  editedAt: r.edited_at,
+  editId: r.edit_id,
+  deletedAt: r.deleted_at,
+  readAt: r.read_at,
+  reactions: JSON.parse(r.reactions) as MessageRecord['reactions'],
 });
+
+const toOp = (r: OpRow): PendingOpRecord => ({
+  opId: r.op_id,
+  type: r.type as PendingOpRecord['type'],
+  targetMessageId: r.target_message_id,
+  conversationId: r.conversation_id,
+  senderUserId: r.sender_user_id,
+  sentAt: r.sent_at,
+  body: r.body,
+  remove: r.remove === 1,
+  receivedAt: r.received_at,
+});
+
+/** Columns of `messages` in insert order; the upsert keeps the rowid the FTS index uses. */
+const MESSAGE_COLUMNS = [
+  'message_id',
+  'conversation_id',
+  'sender_user_id',
+  'sender_device_id',
+  'direction',
+  'kind',
+  'body',
+  'reply_to',
+  'sent_at',
+  'sort_at',
+  'created_at',
+  'state',
+  'expires_at',
+  'edited_at',
+  'edit_id',
+  'deleted_at',
+  'read_at',
+  'reactions',
+] as const;
+
+const UPSERT_MESSAGE = `INSERT INTO messages (${MESSAGE_COLUMNS.join(', ')})
+  VALUES (${MESSAGE_COLUMNS.map(() => '?').join(', ')})
+  ON CONFLICT (message_id) DO UPDATE SET ${MESSAGE_COLUMNS.slice(1)
+    .map((column) => `${column} = excluded.${column}`)
+    .join(', ')}`;
+
+const messageParams = (m: MessageRecord): SqlValue[] => [
+  m.messageId,
+  m.conversationId,
+  m.senderUserId,
+  m.senderDeviceId,
+  m.direction,
+  m.kind,
+  m.body,
+  m.replyTo,
+  m.sentAt,
+  m.sortAt,
+  m.createdAt,
+  m.state,
+  m.expiresAt,
+  m.editedAt,
+  m.editId,
+  m.deletedAt,
+  m.readAt,
+  JSON.stringify(m.reactions),
+];
 
 const toDelivery = (r: DeliveryRow): DeliveryRecord => ({
   messageId: r.message_id,
@@ -284,11 +377,21 @@ export class SqliteEngineStore implements EngineStore {
           [ACCOUNT_ID, utf8.encode(b.account), Date.now()],
         );
       }
+      for (const conversationId of b.deleteConversations ?? []) {
+        await db.runAsync(
+          `DELETE FROM delivery_state WHERE message_id IN
+             (SELECT message_id FROM messages WHERE conversation_id = ?)`,
+          [conversationId],
+        );
+        await db.runAsync('DELETE FROM messages WHERE conversation_id = ?', [conversationId]);
+        await db.runAsync('DELETE FROM message_ops WHERE conversation_id = ?', [conversationId]);
+        await db.runAsync('DELETE FROM conversations WHERE conversation_id = ?', [conversationId]);
+      }
       for (const c of b.conversations ?? []) {
         await db.runAsync(
-          `INSERT OR REPLACE INTO conversations
-             (conversation_id, kind, peer_user_id, created_at, updated_at, last_message_id, unread_count)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT OR REPLACE INTO conversations (conversation_id, kind, peer_user_id, created_at,
+             updated_at, last_message_id, unread_count, pinned_at, archived, muted_until)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             c.conversationId,
             c.kind,
@@ -297,29 +400,38 @@ export class SqliteEngineStore implements EngineStore {
             c.updatedAt,
             c.lastMessageId,
             c.unreadCount,
+            c.pinnedAt,
+            c.archived ? 1 : 0,
+            c.mutedUntil,
           ],
         );
       }
-      for (const m of b.messages ?? []) {
+      for (const id of b.deleteMessages ?? []) {
+        await db.runAsync('DELETE FROM delivery_state WHERE message_id = ?', [id]);
+        await db.runAsync('DELETE FROM messages WHERE message_id = ?', [id]);
+      }
+      for (const m of b.messages ?? []) await db.runAsync(UPSERT_MESSAGE, messageParams(m));
+      if (b.pruneOpsBefore !== undefined) {
+        await db.runAsync('DELETE FROM message_ops WHERE received_at < ?', [b.pruneOpsBefore]);
+      }
+      for (const id of b.deleteOps ?? []) {
+        await db.runAsync('DELETE FROM message_ops WHERE op_id = ?', [id]);
+      }
+      for (const op of b.ops ?? []) {
         await db.runAsync(
-          `INSERT OR REPLACE INTO messages (message_id, conversation_id, sender_user_id,
-             sender_device_id, direction, kind, body, reply_to, sent_at, sort_at, created_at, state,
-             expires_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT OR REPLACE INTO message_ops (op_id, type, target_message_id, conversation_id,
+             sender_user_id, sent_at, body, remove, received_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
-            m.messageId,
-            m.conversationId,
-            m.senderUserId,
-            m.senderDeviceId,
-            m.direction,
-            m.kind,
-            m.body,
-            m.replyTo,
-            m.sentAt,
-            m.sortAt,
-            m.createdAt,
-            m.state,
-            m.expiresAt,
+            op.opId,
+            op.type,
+            op.targetMessageId,
+            op.conversationId,
+            op.senderUserId,
+            op.sentAt,
+            op.body,
+            op.remove ? 1 : 0,
+            op.receivedAt,
           ],
         );
       }
@@ -462,6 +574,40 @@ export class SqliteEngineStore implements EngineStore {
       [now, ...SETTLED],
     );
     return rows.map(toMessage);
+  }
+
+  async listUnread(conversationId: string): Promise<MessageRecord[]> {
+    const rows = await this.db.getAllAsync<MessageRow>(
+      `SELECT * FROM messages WHERE conversation_id = ? AND direction = 'in' AND read_at IS NULL
+       ORDER BY sort_at, message_id`,
+      [conversationId],
+    );
+    return rows.map(toMessage);
+  }
+
+  /** FTS5 over the encrypted database; the query is built from quoted terms only. */
+  async searchMessages(
+    query: string,
+    options: { conversationId?: string; limit: number },
+  ): Promise<MessageRecord[]> {
+    const match = ftsQuery(query);
+    if (match === undefined) return [];
+    const scoped = options.conversationId !== undefined;
+    const rows = await this.db.getAllAsync<MessageRow>(
+      `SELECT m.* FROM messages_fts JOIN messages m ON m.rowid = messages_fts.rowid
+       WHERE messages_fts MATCH ? AND m.kind = 'text'${scoped ? ' AND m.conversation_id = ?' : ''}
+       ORDER BY m.sort_at DESC, m.message_id DESC LIMIT ?`,
+      [match, ...(scoped ? [options.conversationId!] : []), options.limit],
+    );
+    return rows.map(toMessage);
+  }
+
+  async listOps(targetMessageId: string): Promise<PendingOpRecord[]> {
+    const rows = await this.db.getAllAsync<OpRow>(
+      'SELECT * FROM message_ops WHERE target_message_id = ? ORDER BY received_at, op_id',
+      [targetMessageId],
+    );
+    return rows.map(toOp);
   }
 
   async listDeliveries(messageId: string): Promise<DeliveryRecord[]> {

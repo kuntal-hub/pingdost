@@ -5,8 +5,9 @@
  * - A socket watches the users it names (the open chat's peer), at most `MAX_PRESENCE_WATCH`.
  * - Reciprocal: only users who share their presence (`privacy.lastSeen`) are reported, and
  *   only to users who share their own.
+ * - Never between two users when either blocked the other (ADR 0014).
  * The server keeps no contact list, so watching is explicit; a single API instance holds
- * all state (ARCHITECTURE A2).
+ * all state (ARCHITECTURE A2). The watch lists also scope typing (the open chat's peer).
  */
 import { MAX_PRESENCE_WATCH } from '@pingdost/protocol';
 
@@ -19,6 +20,8 @@ export interface PresencePeer {
 export interface PresenceOptions {
   /** Whether the user shares presence (`privacy.lastSeen`); cached for `cacheMs`. */
   sharesPresence(userId: string): Promise<boolean>;
+  /** Whether either user blocked the other. */
+  blocked?(a: string, b: string): Promise<boolean>;
   cacheMs?: number;
   now?: () => number;
 }
@@ -61,8 +64,28 @@ export class PresenceHub<P extends PresencePeer = PresencePeer> {
     // Newly watched users: the current state at once.
     if (!(await this.#sharesPresence(peer.userId))) return;
     for (const userId of next) {
-      if (before.has(userId)) continue;
+      if (before.has(userId) || (await this.#blocked(peer.userId, userId))) continue;
       peer.notifyPresence(userId, await this.#online(userId));
+    }
+  }
+
+  /** Whether `peer` watches `userId` (its user has that chat open). */
+  watches(peer: P, userId: string): boolean {
+    return this.#watching.get(peer)?.has(userId) ?? false;
+  }
+
+  /** After `a` blocked or unblocked `b`: each one's sockets watching the other learn the state. */
+  async blocksChanged(a: string, b: string): Promise<void> {
+    const blocked = await this.#blocked(a, b);
+    for (const [watcherUser, watched] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      if (!(await this.#sharesPresence(watcherUser))) continue;
+      const online = !blocked && (await this.#online(watched));
+      for (const watcher of [...(this.#watchers.get(watched) ?? [])]) {
+        if (watcher.userId === watcherUser) watcher.notifyPresence(watched, online);
+      }
     }
   }
 
@@ -97,8 +120,14 @@ export class PresenceHub<P extends PresencePeer = PresencePeer> {
     if (online) this.#announced.set(userId, true);
     else this.#announced.delete(userId);
     for (const watcher of [...(this.#watchers.get(userId) ?? [])]) {
-      if (await this.#sharesPresence(watcher.userId)) watcher.notifyPresence(userId, online);
+      if (!(await this.#sharesPresence(watcher.userId))) continue;
+      if (await this.#blocked(watcher.userId, userId)) continue;
+      watcher.notifyPresence(userId, online);
     }
+  }
+
+  async #blocked(a: string, b: string): Promise<boolean> {
+    return (await this.options.blocked?.(a, b).catch(() => true)) ?? false;
   }
 
   async #online(userId: string): Promise<boolean> {

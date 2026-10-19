@@ -45,3 +45,6 @@ Make the product release-worthy: security and privacy audits, full acceptance tr
 - Hermes V1 (RN 0.88) has a strict native `TextDecoder`, so `Utf8TextDecoder` is a fallback only. Keep the self-test in `src/polyfills.ts`.
 - Safety numbers use expo-crypto's native SHA-512: about 1.4 s in a debug build on the emulator. Measure on a low-end phone in a release build.
 - Release builds must not log: the `[engine]`, `[safety]` and `[polyfills]` logs run only under `__DEV__`.
+**From Phase 11 (ADR 0014):**
+- `abuse_reports` has no review tooling yet: add a moderation path, and keep the in-app copy ("deleted after 90 days") in step with `ABUSE_REPORT_RETENTION_SECONDS`.
+- Ops (edit, delete, reaction) are not resent after a session repair once the server accepted them. Measure how often this happens before changing it.

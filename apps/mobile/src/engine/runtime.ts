@@ -5,7 +5,8 @@
 //   app from Phase 12);
 // - network back: reconnect now instead of waiting out the backoff;
 // - 4001: token refresh through the auth store; revoked: chat data wiped and signed out.
-// While the engine runs, every change to the Olm account goes through it.
+// While the engine runs, every change to the Olm account goes through it. Receipts, typing
+// and blocks follow the account's privacy settings and block list (Phase 11).
 import * as Network from 'expo-network';
 import * as SecureStore from 'expo-secure-store';
 import { AppState } from 'react-native';
@@ -15,11 +16,12 @@ import { api, authStore } from '@/api';
 import { publicConfig } from '@/config';
 import { getCryptoContext } from '@/crypto/bootstrap';
 import { getOrCreateSecret, SECRET_ITEMS, SECURE_STORE_OPTIONS } from '@/crypto/secrets';
-import { useAccount } from '@/settings/account';
+import { cachedPrivacy, useAccount } from '@/settings/account';
 import type { CryptoProvider } from '@pingdost/crypto/core';
 import { MessageEngine } from '@pingdost/message-engine';
 import { TransportRouter, WsTransport, type TransportStatus } from '@pingdost/transport';
 
+import { isBlocked, useBlocks } from './blocks';
 import { SqliteEngineStore, wipeChatData } from './sqlite-store';
 
 /** How long the socket stays open after the app leaves the foreground. */
@@ -117,9 +119,15 @@ async function boot(): Promise<ChatRuntime> {
     store: new SqliteEngineStore(db),
     transport: router,
     api: { ...api.keys, keys: api.keys },
-    // Read receipts and their toggle arrive in Phase 11.
-    receipts: (type) => type === 'delivered',
+    // The privacy toggles (Settings → Privacy); read receipts are reciprocal (ADR 0014).
+    receipts: (type) => {
+      const privacy = useAccount.getState().privacy;
+      return type === 'read'
+        ? (privacy?.readReceipts ?? false)
+        : (privacy?.deliveryReceipts ?? true);
+    },
     typingIndicators: () => useAccount.getState().privacy?.typingIndicators ?? true,
+    blocked: isBlocked,
     ...(__DEV__
       ? {
           log: (level: string, message: string, fields?: object) =>
@@ -191,6 +199,22 @@ async function boot(): Promise<ChatRuntime> {
     router.dispose();
   };
 
+  // The toggles and block list the engine consults: the cached copies before any message is
+  // handled, then the server's in the background.
+  const privacy = await cachedPrivacy().catch(() => null);
+  if (privacy && !useAccount.getState().privacy) useAccount.setState({ privacy });
+  await useBlocks
+    .getState()
+    .loadCached()
+    .catch(() => undefined);
+  void useAccount
+    .getState()
+    .load()
+    .catch(() => undefined);
+  void useBlocks
+    .getState()
+    .load()
+    .catch(() => undefined);
   await engine.start();
   if (AppState.currentState === 'active') foreground();
   // Heals an interrupted first key upload and tops up one-time keys (ADR 0011).

@@ -5,7 +5,9 @@
  * - `Send` runs the online path (Deliver → transport ACK) or the offline mailbox path, and
  *   is answered by one `Accepted` or `ServerError` with the same request ID.
  * - After `AuthOk`, pending mail streams in batches; the next batch waits for the ACKs.
- * - Typing and ephemeral packets are relayed in memory to online devices only.
+ * - Typing and ephemeral packets are relayed in memory to online devices only; typing only
+ *   to sockets watching the sender.
+ * - A send to a user who blocked the sender is answered `Accepted` and dropped (ADR 0014).
  * Frames are rate-limited per socket, and a slow reader is never buffered without bound.
  */
 import type { Collection } from 'mongodb';
@@ -50,6 +52,7 @@ import type { MailboxSettings } from '../delivery/settings';
 import type { DeviceCollections } from '../device/repo';
 import type { OneTimeKeyDoc } from '../keys/repo';
 import type { PushNotifier } from '../push/notifier';
+import type { BlockService } from '../security/blocks';
 
 export interface GatewaySettings {
   authTimeoutMs: number;
@@ -115,6 +118,7 @@ export interface GatewayDeps {
   push: PushNotifier;
   registry: ConnectionRegistry<Connection>;
   presence: PresenceHub<Connection>;
+  blocks: Pick<BlockService, 'eitherBlocked'>;
 }
 
 type ServerFrameInit = MessageInitShape<typeof ServerFrameSchema>;
@@ -186,6 +190,10 @@ export class Connection implements PresencePeer {
 
   get userId(): string {
     return this.#userId;
+  }
+
+  get #sender(): { userId: string; deviceId: string } {
+    return { userId: this.#userId, deviceId: this.#deviceId };
   }
 
   /** A watched user's presence (best effort: dropped when the reader is behind). */
@@ -304,7 +312,7 @@ export class Connection implements PresencePeer {
           this.#send({ requestId, body: { case: 'pong', value: { nonce: body.value.nonce } } });
           break;
         case 'typing':
-          this.#onTyping(body.value);
+          await this.#onTyping(body.value);
           break;
         case 'ephemeral':
           if (body.value.packet) await this.#onEphemeral(requestId, body.value.packet);
@@ -399,7 +407,14 @@ export class Connection implements PresencePeer {
     }
     this.#inflightSends++;
     try {
-      const record = await delivery.prepare(this.#deviceId, packet);
+      const { record, blocked } = await delivery.prepare(this.#sender, packet);
+      if (blocked) {
+        // Dropped, but answered like any stored envelope: the sender must not learn of the
+        // block, and sees "sent" (ADR 0014).
+        metrics.envelopesBlocked.inc();
+        this.#accepted(requestId, packet, record, Accepted_Status.STORED);
+        return;
+      }
       const recipient = registry.get(record.recipientDeviceId);
       if (recipient && (await recipient.deliverOnline(record))) {
         metrics.envelopesAccepted.inc({ path: 'online' });
@@ -458,12 +473,25 @@ export class Connection implements PresencePeer {
     }
   }
 
-  #onTyping(typing: Typing): void {
+  /**
+   * Relays typing only to sockets that watch the sender (their user has the chat open; the
+   * server keeps no conversation list), and never between users who blocked each other.
+   */
+  async #onTyping(typing: Typing): Promise<void> {
     if (!this.#typing.take(this.d.clock.now())) return;
-    // Phase 11 limits typing to the sender's conversations; until then it is rate-limited.
     for (const bytes of typing.recipientDeviceIds) {
-      const recipient = this.d.registry.get(bytesToUuid(bytes));
+      let recipient: Connection | undefined;
+      try {
+        recipient = this.d.registry.get(bytesToUuid(bytes));
+      } catch {
+        continue; // not a device ID
+      }
       if (!recipient?.open || recipient === this) continue;
+      const ownDevice = recipient.userId === this.#userId;
+      if (!ownDevice && !this.d.presence.watches(recipient, this.#userId)) continue;
+      if (!ownDevice && (await this.d.blocks.eitherBlocked(this.#userId, recipient.userId))) {
+        continue;
+      }
       recipient.#sendIfRoom({
         requestId: 0,
         body: {
@@ -482,8 +510,9 @@ export class Connection implements PresencePeer {
   /** Relayed to an online recipient only, never stored (ARCHITECTURE A4). */
   async #onEphemeral(requestId: number, packet: TransportPacket): Promise<void> {
     try {
-      const record = await this.d.delivery.prepare(this.#deviceId, packet);
-      const recipient = this.d.registry.get(record.recipientDeviceId);
+      const { record, blocked } = await this.d.delivery.prepare(this.#sender, packet);
+      // Blocked: answered as if the device were offline.
+      const recipient = blocked ? undefined : this.d.registry.get(record.recipientDeviceId);
       const sent = recipient?.open
         ? recipient.#sendIfRoom({ requestId: 0, body: { case: 'ephemeral', value: { packet } } })
         : false;

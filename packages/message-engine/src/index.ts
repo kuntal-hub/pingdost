@@ -13,8 +13,20 @@ export type {
 } from './core';
 export { diffDirectory, verifyDirectory } from './directory';
 export type { DirectoryApi } from './directory';
-export { MessageEngine } from './engine';
+export { MessageActionError, MessageEngine } from './engine';
 export type { ContactInfo } from './engine';
+export {
+  applyOp,
+  canDeleteForEveryone,
+  canEdit,
+  canReact,
+  isValidReaction,
+  MAX_REACTION_LENGTH,
+  summarizeReactions,
+} from './features/ops';
+export type { Op, OpRules, ReactionSummary } from './features/ops';
+export { foldText, ftsQuery, highlightRanges, matchesQuery, searchTerms } from './search';
+export type { TextRange } from './search';
 export {
   FALLBACK_KEY_MAX_AGE_MS,
   ONE_TIME_KEY_MINIMUM,
@@ -25,4 +37,5 @@ export {
 export type { PublishKeysDeps, PublishKeysResult, SyncKeysDeps } from './keys';
 export { compareMessages, MemoryEngineStore } from './memoryStore';
 export { advance, aggregateState, nextMessageState, SETTLED_STATES } from './states';
+export { MUTED_FOREVER } from './store';
 export type * from './store';

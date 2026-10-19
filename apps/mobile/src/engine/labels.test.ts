@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { messageRecord } from '@pingdost/message-engine/testing';
 import { MessageStateSchema } from '@pingdost/shared-types';
 
-import { stateLabel } from './labels';
+import { shownState, stateLabel } from './labels';
 import { buildTimeline, dayLabel } from './timeline';
 
 describe('stateLabel', () => {
@@ -23,6 +23,12 @@ describe('stateLabel', () => {
       'Queued on this device — waiting for a nearby route.',
     );
     expect(stateLabel('local_queued', false).long).toContain('waiting for a connection');
+  });
+
+  it('hides read receipts while this user has them off', () => {
+    expect(shownState('read', false)).toBe('delivered_to_recipient_device');
+    expect(shownState('read', true)).toBe('read');
+    expect(shownState('sent_to_server', false)).toBe('sent_to_server');
   });
 });
 

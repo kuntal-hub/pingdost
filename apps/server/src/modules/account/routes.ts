@@ -24,7 +24,7 @@ import { AppError } from '../../infra/errors';
 import type { RouteLimits } from '../../infra/rate-limits';
 import type { Budget } from '../../infra/throttles';
 import { authOf } from '../auth/guard';
-import type { AuthCollections, UserDoc } from '../auth/repo';
+import { DEFAULT_PRIVACY, type AuthCollections, type UserDoc } from '../auth/repo';
 
 export interface AccountRoutesOptions {
   collections: AuthCollections;
@@ -47,7 +47,8 @@ export function toMe(user: UserDoc): MeResponse {
     authProviders: user.authProviders,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
-    privacy: user.privacy,
+    // Accounts made before a preference existed get its default.
+    privacy: { ...DEFAULT_PRIVACY, ...user.privacy },
     accountIdentityKey: user.accountIdentityKey,
     createdAt: user.createdAt.getTime(),
   };

@@ -63,3 +63,7 @@ Web group UI (17); group calls (never).
 - `ConversationRecord.kind` is `'direct'` only.
 - The engine must reject a replayed Megolm `(sessionId, messageIndex)`: the seen set holds message and envelope IDs only.
 - Fan-out is per user (`FanoutItem.recipientUserIds`) and reuses the device-item outbox.
+**From Phase 11 (ADR 0014):**
+- Edits, deletes and reactions are `features/ops.ts` ops: last-write-wins on (header time, op ID); pending until the target arrives (`message_ops`); fanned out as `control` outbox items.
+- Define group rules there: who may delete others' messages (admins?), reactions per member, and ops from members who left.
+- Read receipts in groups are per member: decide whether to show them.

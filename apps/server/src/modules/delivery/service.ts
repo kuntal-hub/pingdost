@@ -65,20 +65,30 @@ export interface DeliveryDeps {
   log: Logger;
   redis: RedisMailbox;
   mongo: MongoMailboxStore;
-  /** Whether the device exists and is active. */
-  deviceActive(deviceId: string): Promise<boolean>;
-  /** Phase 11 (block lists): whether the recipient's user blocked the sender. */
-  isBlocked?(senderDeviceId: string, recipientDeviceId: string): Promise<boolean>;
+  /** The user owning the device, if it exists and is active. */
+  activeDeviceOwner(deviceId: string): Promise<string | undefined>;
+  /** Whether `blockerUserId` blocked `userId` (ADR 0014). */
+  isBlocked?(blockerUserId: string, userId: string): Promise<boolean>;
+}
+
+/** A checked `Send`. `blocked`: the recipient blocked the sender, so it must go nowhere. */
+export interface PreparedEnvelope {
+  record: EnvelopeRecord;
+  blocked: boolean;
 }
 
 export class DeliveryService {
   constructor(private readonly d: DeliveryDeps) {}
 
   /**
-   * Checks a `Send` from the socket of `senderDeviceId` and builds the record to deliver.
+   * Checks a `Send` from the socket of `sender` and builds the record to deliver.
    * `decodeClientFrame` has already checked the packet (kind, size, version, expiry).
    */
-  async prepare(senderDeviceId: string, packet: TransportPacket): Promise<EnvelopeRecord> {
+  async prepare(
+    sender: { userId: string; deviceId: string },
+    packet: TransportPacket,
+  ): Promise<PreparedEnvelope> {
+    const senderDeviceId = sender.deviceId;
     const { settings, clock } = this.d;
     const now = clock.now();
     let envelopeId: string;
@@ -101,23 +111,27 @@ export class DeliveryService {
       }
       throw error;
     }
-    if (!(await this.d.deviceActive(recipientDeviceId))) {
+    const recipientUserId = await this.d.activeDeviceOwner(recipientDeviceId);
+    if (recipientUserId === undefined) {
       throw new DeliveryError('RECIPIENT_UNKNOWN', 'no such active device');
     }
-    if (await this.d.isBlocked?.(senderDeviceId, recipientDeviceId)) {
-      throw new DeliveryError('FORBIDDEN', 'blocked');
-    }
+    const blocked =
+      recipientUserId !== sender.userId &&
+      ((await this.d.isBlocked?.(recipientUserId, sender.userId)) ?? false);
     return {
-      envelopeId,
-      senderDeviceId,
-      recipientDeviceId,
-      packet: encodeTransportPacket(packet, {
-        envelopeMaxBytes: settings.envelopeMaxBytes,
-        nowMs: now,
-      }),
-      createdAt: now,
-      // The server sets expiry from its own receive time and never extends the sender's.
-      expiresAt: Math.min(Number(packet.expiresAtMs), now + settings.retentionMs),
+      blocked,
+      record: {
+        envelopeId,
+        senderDeviceId,
+        recipientDeviceId,
+        packet: encodeTransportPacket(packet, {
+          envelopeMaxBytes: settings.envelopeMaxBytes,
+          nowMs: now,
+        }),
+        createdAt: now,
+        // The server sets expiry from its own receive time and never extends the sender's.
+        expiresAt: Math.min(Number(packet.expiresAtMs), now + settings.retentionMs),
+      },
     };
   }
 

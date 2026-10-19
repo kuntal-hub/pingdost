@@ -186,14 +186,27 @@ describe('send', () => {
     const [alice, bob] = await pair();
     const aliceSocket = await TestSocket.connect(server, alice);
     const bobSocket = await TestSocket.connect(server, bob);
+    const typing = () =>
+      aliceSocket.send({
+        requestId: 0,
+        body: {
+          case: 'typing',
+          value: { recipientDeviceIds: [uuidToBytes(bob.deviceId)], active: true },
+        },
+      });
 
-    aliceSocket.send({
+    // Bob does not have alice's chat open (no watch): typing goes nowhere.
+    typing();
+    await expect(bobSocket.next('typing', { timeoutMs: 300 })).rejects.toThrow();
+    bobSocket.send({
       requestId: 0,
       body: {
-        case: 'typing',
-        value: { recipientDeviceIds: [uuidToBytes(bob.deviceId)], active: true },
+        case: 'presence',
+        value: { online: true, watchUserIds: [uuidToBytes(alice.userId)] },
       },
     });
+    await bobSocket.next('presence');
+    typing();
     expect(await bobSocket.next('typing')).toMatchObject({
       senderDeviceId: uuidToBytes(alice.deviceId),
       active: true,

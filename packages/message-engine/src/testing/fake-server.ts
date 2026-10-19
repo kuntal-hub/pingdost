@@ -318,6 +318,7 @@ export interface TestClientOptions {
   settings?: EngineOptions['settings'];
   receipts?: EngineOptions['receipts'];
   typingIndicators?: EngineOptions['typingIndicators'];
+  blocked?: EngineOptions['blocked'];
   /** Publish this many one-time keys (default 5); 0 leaves only the fallback key. */
   oneTimeKeys?: number;
   now?: () => number;
@@ -377,6 +378,7 @@ export async function createTestClient<S extends EngineStore>(
       },
       ...(options.receipts ? { receipts: options.receipts } : {}),
       ...(options.typingIndicators ? { typingIndicators: options.typingIndicators } : {}),
+      ...(options.blocked ? { blocked: options.blocked } : {}),
       ...(options.now ? { now: options.now } : {}),
       ...(options.log ? { log: options.log } : {}),
     });
