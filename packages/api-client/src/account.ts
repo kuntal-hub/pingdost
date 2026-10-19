@@ -2,6 +2,7 @@ import {
   AvatarUploadSignatureSchema,
   ClaimKeysResponseSchema,
   DeviceChallengeResponseSchema,
+  DeviceOwnerResponseSchema,
   ListDevicesResponseSchema,
   MeResponseSchema,
   OneTimeKeyCountSchema,
@@ -11,6 +12,7 @@ import {
   type AvatarUploadSignature,
   type ClaimKeysResponse,
   type DeviceChallengeResponse,
+  type DeviceOwnerResponse,
   type DeviceSummary,
   type MeResponse,
   type RegisterDeviceRequest,
@@ -93,6 +95,8 @@ export interface KeysApi {
   upload(body: UploadKeysRequest): Promise<number>;
   count(): Promise<number>;
   directory(userId: string): Promise<UserKeysResponse>;
+  /** Which user owns an active device. */
+  deviceOwner(deviceId: string): Promise<DeviceOwnerResponse>;
   claim(deviceIds: string[]): Promise<ClaimKeysResponse>;
 }
 
@@ -120,6 +124,12 @@ export function keysApi(client: ApiClient): KeysApi {
         method: 'GET',
         path: `/v1/keys/users/${encodeURIComponent(userId)}`,
         response: UserKeysResponseSchema,
+      }),
+    deviceOwner: (deviceId) =>
+      client.request({
+        method: 'GET',
+        path: `/v1/keys/devices/${encodeURIComponent(deviceId)}`,
+        response: DeviceOwnerResponseSchema,
       }),
     claim: (deviceIds) =>
       client.request({

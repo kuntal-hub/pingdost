@@ -35,6 +35,8 @@
   "devDependencies": {
     "@pingdost/api-client": "workspace:*",
     "@pingdost/crypto": "workspace:*",
+    "@pingdost/sim-client": "workspace:*",
+    "@pingdost/transport": "workspace:*",
     "@types/node": "catalog:",
     "@types/nodemailer": "8.0.2",
     "@types/ws": "8.18.2",

@@ -1,21 +1,23 @@
 /**
- * PingDost simulation client (Phase 8): two headless devices exercise the gateway and the
- * mailbox of a running server with opaque fake ciphertext.
- * 1. Bob is offline: Alice sends N envelopes, each answered `Accepted{STORED}`.
- * 2. Bob connects: all N arrive once each and are acknowledged; a reconnect finds none.
- * 3. Bob stays online: N more are answered `Accepted{DELIVERED_TRANSPORT}`.
- * With `--metrics-token`, it reports the server's Redis commands per stored message.
+ * PingDost simulation client (Phase 9): two headless devices exchange real E2EE messages
+ * (vodozemac via WASM, the message engine, the gateway) through a running server.
+ * 1. Bob is offline: Alice sends N messages; each reaches `sent_to_server`.
+ * 2. Bob comes online: all N arrive once each, decrypted; Alice sees each `delivered` only
+ *    after Bob's E2EE receipt.
+ * 3. Both online: N more, delivered.
+ * Every WebSocket frame is captured and searched for a plaintext marker: it must never
+ * appear. With `--metrics-token`, it reports the server's Redis commands per message.
  *
  *   pnpm --filter @pingdost/sim-client start -- --messages 20 [--api http://127.0.0.1:3000]
  *     [--ws ws://127.0.0.1:3000/v1/ws] [--mailpit http://127.0.0.1:8025] [--metrics-token T]
  */
+import { randomUUID } from 'node:crypto';
 import { parseArgs } from 'node:util';
 
 import { createWasmCryptoProvider } from '@pingdost/crypto';
-import { Accepted_Status, type ServerFrame } from '@pingdost/protocol';
 
-import { createDevice } from './device';
-import { fakeEnvelope, SimSocket } from './socket';
+import { SimClient, type Endpoints } from './client';
+import { capturingSocket, containsMarker } from './frames';
 
 const { values } = parseArgs({
   options: {
@@ -27,14 +29,13 @@ const { values } = parseArgs({
   },
 });
 const api = values.api.replace(/\/+$/, '');
-const wsUrl = values.ws ?? `${api.replace(/^http/, 'ws')}/v1/ws`;
+const endpoints: Endpoints = {
+  api,
+  ws: values.ws ?? `${api.replace(/^http/, 'ws')}/v1/ws`,
+  mailpit: values.mailpit,
+};
 const count = Number(values.messages);
-
-function status(body: ServerFrame['body']): string {
-  if (body.case === 'accepted') return Accepted_Status[body.value.status];
-  if (body.case === 'error') return `error ${body.value.code}`;
-  return String(body.case);
-}
+const MARKER = `PLAINTEXT-MARKER-${randomUUID()}`;
 
 async function redisCommands(): Promise<number | undefined> {
   const token = values['metrics-token'];
@@ -50,61 +51,74 @@ function check(condition: boolean, message: string): void {
   console.log(`  ok  ${message}`);
 }
 
+async function until(condition: () => Promise<boolean>, what: string, timeoutMs = 20_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!(await condition())) {
+    if (Date.now() > deadline) throw new Error(`timed out: ${what}`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
 async function main(): Promise<void> {
-  console.log(`sim-client → ${api} (${wsUrl}), ${count} messages per round`);
+  console.log(`sim-client → ${api} (${endpoints.ws}), ${count} messages per round`);
   const crypto = await createWasmCryptoProvider();
-  const endpoints = { api, mailpit: values.mailpit };
-  const alice = await createDevice(endpoints, crypto);
-  const bob = await createDevice(endpoints, crypto);
+  const frames: Uint8Array[] = [];
+  const options = { endpoints, crypto, createSocket: capturingSocket(frames) };
+  const alice = await SimClient.register(options);
+  const bob = await SimClient.register(options);
   console.log(`devices: ${alice.username} → ${bob.username}`);
-  const aliceSocket = await SimSocket.connect(wsUrl, alice.accessToken);
+  await alice.start();
+  const { conversationId } = await alice.engine.openDirectConversation(bob.userId);
+
+  const states = async (ids: string[]) =>
+    Promise.all(ids.map(async (id) => (await alice.engine.getMessage(id))?.state));
+  const allIn = async (ids: string[], state: string) =>
+    (await states(ids)).every((s) => s === state);
 
   console.log('round 1: recipient offline');
   const commandsBefore = await redisCommands();
-  const sent: string[] = [];
-  const statuses = new Map<string, number>();
+  const first: string[] = [];
   for (let i = 0; i < count; i++) {
-    const { packet, envelopeId } = fakeEnvelope(alice.deviceId, bob.deviceId);
-    const result = status(await aliceSocket.sendEnvelope(packet));
-    statuses.set(result, (statuses.get(result) ?? 0) + 1);
-    sent.push(envelopeId);
+    first.push((await alice.engine.sendText(conversationId, `${MARKER} #${i}`)).messageId);
   }
-  check(
-    statuses.get('STORED') === count,
-    `${count} × Accepted{STORED} (${JSON.stringify(Object.fromEntries(statuses))})`,
-  );
+  await until(() => allIn(first, 'sent_to_server'), 'round 1 sent_to_server');
+  check(true, `${count} × sent_to_server while bob is offline`);
 
-  const bobSocket = await SimSocket.connect(wsUrl, bob.accessToken);
-  const received = await bobSocket.drain(1_500);
-  check(new Set(received).size === received.length, `no duplicate deliveries (${received.length})`);
-  check(
-    sent.every((id) => received.includes(id)),
-    `all ${count} delivered`,
+  await bob.start();
+  await until(
+    () => Promise.resolve(bob.store.allMessages().length === count),
+    'bob receives round 1',
   );
-  bobSocket.close();
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const again = await SimSocket.connect(wsUrl, bob.accessToken);
-  check((await again.drain(800)).length === 0, 'acknowledged envelopes are gone');
+  const bodies = bob.store.allMessages().map((m) => m.body);
+  check(new Set(bodies).size === count, `bob decrypted ${count} distinct messages, no duplicates`);
+  check(
+    first.every((id) => bob.store.allMessages().some((m) => m.messageId === id)),
+    'every message ID arrived',
+  );
+  await until(() => allIn(first, 'delivered_to_recipient_device'), 'round 1 receipts');
+  check(true, `${count} × delivered_to_recipient_device after bob's receipts`);
   const commandsAfter = await redisCommands();
 
   console.log('round 2: recipient online');
-  let delivered = 0;
+  const second: string[] = [];
   for (let i = 0; i < count; i++) {
-    const { packet } = fakeEnvelope(alice.deviceId, bob.deviceId);
-    const answer = aliceSocket.sendEnvelope(packet);
-    await again.drain(50);
-    if (status(await answer) === 'DELIVERED_TRANSPORT') delivered++;
+    second.push((await alice.engine.sendText(conversationId, `${MARKER} online #${i}`)).messageId);
   }
-  check(delivered === count, `${count} × Accepted{DELIVERED_TRANSPORT}`);
+  await until(() => allIn(second, 'delivered_to_recipient_device'), 'round 2 receipts');
+  check(bob.store.allMessages().length === 2 * count, `${count} more delivered once each`);
 
+  check(
+    !frames.some((frame) => containsMarker(frame, MARKER)),
+    `no plaintext in ${frames.length} captured WebSocket frames`,
+  );
   if (commandsBefore !== undefined && commandsAfter !== undefined) {
     const used = commandsAfter - commandsBefore;
     console.log(
-      `redis: ${used} commands for ${count} stored messages (store, fetch, ack): ${(used / count).toFixed(1)} per message`,
+      `redis: ${used} commands for ${count} offline messages and their receipts: ${(used / count).toFixed(1)} per message`,
     );
   }
-  aliceSocket.close();
-  again.close();
+  await alice.stop();
+  await bob.stop();
 }
 
 main().then(

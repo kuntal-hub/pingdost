@@ -49,6 +49,14 @@ export const UserKeysResponseSchema = z.object({
 });
 export type UserKeysResponse = z.infer<typeof UserKeysResponseSchema>;
 
+// GET /v1/keys/devices/:deviceId (active devices only)
+/**
+ * Which user owns a device, so a receiver can fetch and verify that user's directory before
+ * it decrypts a first message from the device (ADR 0011).
+ */
+export const DeviceOwnerResponseSchema = z.object({ deviceId: IdSchema, userId: IdSchema });
+export type DeviceOwnerResponse = z.infer<typeof DeviceOwnerResponseSchema>;
+
 // POST /v1/keys/claim
 export const ClaimKeysRequestSchema = z.object({
   deviceIds: z.array(IdSchema).min(1).max(MAX_CLAIM_DEVICES),

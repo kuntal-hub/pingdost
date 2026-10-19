@@ -20,6 +20,10 @@ message ContentHeader {
   int64 sent_at_ms = 5;
   // The message this one replies to (16 bytes).
   optional bytes reply_to = 6;
+  // Direct conversations: the other user (16 bytes). The sender's own other devices need it
+  // to file their copy, and every receiver checks that
+  // conversation_id = directConversationIdFor(sender_user_id, recipient_user_id).
+  optional bytes recipient_user_id = 7;
 }
 
 message Content {

@@ -38,3 +38,9 @@ History sync from the phone and attachments on web (18); calls (25).
 - Two web tabs open: there is no duplicate socket and the UI stays consistent.
 - Push arrives with the tab closed (Chrome) and contains no content.
 - `pnpm lint typecheck test` and `pnpm --filter @pingdost/web build` pass.
+
+## Handoff notes
+**From Phase 9 (ADR 0011):**
+- The Dexie store must pass `runEngineStoreContract` from `@pingdost/message-engine/testing`, and `apply(batch)` must be one IndexedDB transaction.
+- `WsTransport` runs in browsers unchanged.
+- Decide whether receipts should go to all of the sender's devices, so a phone and a browser both show "delivered".

@@ -50,3 +50,6 @@ Web chat (17); history sync (18).
 - **From Phase 7 (ADR 0009):**
   - The expo-image-picker plugin blocks `CAMERA` (`cameraPermission: false` in `app.json`). expo-camera's own plugin must add the permission for QR scanning: check the merged manifest after prebuild.
   - Settings → Devices already lists devices and lets the primary revoke linked ones (`src/screens/settings/devices.tsx`).
+- **From Phase 9 (ADR 0011):**
+  - `apps/server/test/engine.int.test.ts` adds a linked device out of band (`bindLinkedDevice`: device record, session bind, refresh). Replace it with real pairing.
+  - A linked device stores copies of its own user's messages as outgoing `sent_to_server`. Receipts go only to the sending device.

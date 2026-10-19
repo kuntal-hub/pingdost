@@ -4,6 +4,9 @@
   "private": true,
   "license": "AGPL-3.0-or-later",
   "type": "module",
+  "exports": {
+    ".": "./src/lib.ts"
+  },
   "scripts": {
     "start": "tsx src/index.ts",
     "lint": "eslint .",
@@ -12,8 +15,10 @@
   "dependencies": {
     "@pingdost/api-client": "workspace:*",
     "@pingdost/crypto": "workspace:*",
+    "@pingdost/message-engine": "workspace:*",
     "@pingdost/protocol": "workspace:*",
-    "@pingdost/shared-types": "workspace:*"
+    "@pingdost/shared-types": "workspace:*",
+    "@pingdost/transport": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

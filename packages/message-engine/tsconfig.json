@@ -1,4 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src"]
+  "compilerOptions": {
+    // Timers, TextEncoder and structuredClone, as browsers and React Native provide them.
+    "lib": ["ES2022", "DOM"],
+    // Tests load the WASM crypto provider in Node.
+    "types": ["node"]
+  },
+  "include": ["src", "vitest.config.ts"]
 }

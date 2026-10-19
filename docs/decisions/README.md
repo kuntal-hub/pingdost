@@ -15,6 +15,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0008](0008-devices-identity-keys-directory.md) | Devices, account identity key, key directory and Google linking | 06 | Accepted |
 | [0009](0009-mobile-session-and-device-setup.md) | Mobile session, device setup and device resume | 07 | Accepted |
 | [0010](0010-gateway-mailbox-redis-budget.md) | Realtime gateway, delivery mailbox and the Redis budget | 08 | Accepted (provider: Phase 20) |
+| [0011](0011-message-engine.md) | Message engine: store contract, outbox, sessions, repair and receipts | 09 | Accepted |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 

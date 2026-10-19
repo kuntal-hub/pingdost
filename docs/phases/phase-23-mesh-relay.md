@@ -46,3 +46,9 @@ File chunk transfer (24); iOS (30).
 - The relay opt-in, opt-out and cache clearing work on a device.
 - The UI distinguishes queued / relayed / delivered.
 - The ADR is written, and `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 9 (ADR 0011):**
+- A receiver finds the owner of an unknown sending device with `GET /v1/keys/devices/:id`, which is impossible offline.
+- For offline first contact, use cached directories: `DirectoryRecord.devices[].fallbackKey` is signature-checked. A Hello handshake is the other option.
+- `MeshAck` should map to a `relayed` delivery row (`states.ts` already ranks it).

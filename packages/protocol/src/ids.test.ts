@@ -4,6 +4,7 @@ import { ProtocolError } from './errors';
 import {
   bytesEqual,
   bytesToUuid,
+  directConversationIdFor,
   envelopeIdFor,
   fromBase64,
   isUuid,
@@ -16,6 +17,19 @@ import {
 
 const MESSAGE_ID = '0192f1a0-0000-7000-8000-000000000001';
 const DEVICE_ID = '0192f1a0-0000-7000-8000-0000000000b2';
+
+describe('directConversationIdFor', () => {
+  it('gives both users the same stable UUID', () => {
+    const id = directConversationIdFor(MESSAGE_ID, DEVICE_ID);
+    expect(id).toBe(directConversationIdFor(DEVICE_ID, MESSAGE_ID));
+    expect(id).toBe(directConversationIdFor(uuidToBytes(DEVICE_ID), MESSAGE_ID));
+    expect(isUuid(id)).toBe(true);
+    expect(id[14]).toBe('5');
+    // Pinned: changing the namespace or byte order would split existing conversations.
+    expect(id).toMatchInlineSnapshot(`"43b31080-4baf-5542-a727-240026f0142f"`);
+    expect(directConversationIdFor(MESSAGE_ID, MESSAGE_ID)).not.toBe(id);
+  });
+});
 
 describe('UUIDv7', () => {
   it('creates canonical, time-ordered v7 IDs', () => {

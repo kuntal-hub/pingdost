@@ -57,3 +57,9 @@ Web group UI (17); group calls (never).
 
 ## Handoff notes
 **From Phase 8 (ADR 0010):** the mailbox routes one envelope per recipient device (`dst` = device ID). A group message is N sends with N envelope IDs (`envelopeIdFor(messageId, deviceId)`). Each one costs 5 Redis commands on the offline path, so watch the budget for large groups.
+**From Phase 9 (ADR 0011):**
+- The receive pipeline ACKs and drops `CRYPTO_TYPE_MEGOLM` envelopes.
+- `checkHeader` (`message-engine/src/content.ts`) accepts only direct messages (`recipient_user_id` set, conversation ID = `directConversationIdFor`). Add the group rules: the conversation ID is the group ID, and membership comes from group control messages.
+- `ConversationRecord.kind` is `'direct'` only.
+- The engine must reject a replayed Megolm `(sessionId, messageIndex)`: the seen set holds message and envelope IDs only.
+- Fan-out is per user (`FanoutItem.recipientUserIds`) and reuses the device-item outbox.

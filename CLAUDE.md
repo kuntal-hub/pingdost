@@ -85,8 +85,10 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - `pnpm --filter @pingdost/server test:int` needs `pnpm infra:up`. OTP emails land in Mailpit (http://localhost:8025).
   - Probe it with `127.0.0.1`, not `localhost`: Windows tries `::1` first and the server listens on IPv4.
   - WebSocket gateway: `ws://<host>:3000/v1/ws` (protobuf frames; the first must be `Auth`). `/metrics` (Prometheus) needs `METRICS_TOKEN` set on the server and `Authorization: Bearer <token>`.
-  - `pnpm --filter @pingdost/sim-client start -- --messages 20 [--metrics-token <token>]` runs two headless devices against the dev server (offline then online delivery, fake ciphertext; needs Mailpit). With the token it prints Redis commands per stored message.
+  - `pnpm --filter @pingdost/sim-client start -- --messages 20 [--metrics-token <token>]` runs two headless devices with real E2EE (message engine + WASM crypto) against the dev server: offline then online delivery, receipts, and a plaintext-marker scan of every WS frame. It needs Mailpit. With the token it prints Redis commands per message.
+  - `test/engine.int.test.ts` runs the Phase 9 engine scenarios through a listening test server (`SimClient` from `@pingdost/sim-client`).
   - `test/redis-budget.int.test.ts` prints `REDIS_BUDGET {...}` and fails if an operation costs more Redis commands than ADR 0010 allows.
+- **Message engine** (`packages/message-engine`, `packages/transport`; ADR 0011): `pnpm --filter @pingdost/message-engine test` runs the engine over an in-memory fake server with real vodozemac. `@pingdost/message-engine/testing` exports `runEngineStoreContract` (every `EngineStore` must pass it) and `FakeServer`.
 - **Protocol** (`packages/protocol`, ADR 0006):
   - `pnpm --filter @pingdost/protocol gen` regenerates `src/gen/` from `proto/` (committed; never hand-edit). CI fails if the committed code differs.
   - The package's `lint` also runs `buf lint`.

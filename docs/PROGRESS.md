@@ -17,6 +17,43 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-19 — Phase 09: Message engine & session management — ✅ done
+**Done (ADR 0011):**
+- **`@pingdost/transport`:**
+  - the `Transport` interface;
+  - `WsTransport` (standard WebSocket API): `Auth`, backoff with jitter, idle pings, a liveness check, close codes 4001/4002/4003/4008, coalesced ACKs;
+  - a `TransportRouter` skeleton.
+- **`@pingdost/message-engine`:**
+  - `MessageEngine` and the `EngineStore` interface (one atomic `apply(batch)`), with `MemoryEngineStore`;
+  - a two-level outbox (fan-out → per-device items, encrypted once, same bytes on retransmit, batched key claims, backoff);
+  - REQ §8.3 states aggregated over recipient devices (own devices never count);
+  - verified directory cache (certificates, fallback-key signatures, added/removed devices, "safety number changed");
+  - Olm session manager with pre-key routing;
+  - session repair (`SessionReset` + resend);
+  - coalesced E2EE receipts, expiry sweep, transient typing, `replenishKeys` with weekly fallback rotation.
+  - `/testing`: the store contract suite and an in-memory fake server.
+- **Protocol:**
+  - `ContentHeader.recipient_user_id` (field 7) and `directConversationIdFor`;
+  - `decodeContentHeader` for "update needed" placeholders.
+- **Server:** `GET /v1/keys/devices/:id` (device → owner). **Config:** `DEFAULT_LIMITS.messageMaxRetentionSeconds`.
+- **`tools/sim-client`:** a `SimClient` library (real E2EE) plus the CLI scenario with a WS frame plaintext scan. The old `socket.ts`/`device.ts` are removed.
+
+**Deviations / decisions:** ADR 0011, no REQ changes.
+- A protocol field and a REST endpoint were added (add-only within v1).
+- An undecryptable envelope is ACKed but not marked seen, so the post-repair resend under the same envelope ID gets through.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 42/42 tasks, 300 unit tests (message-engine 37, transport 13, protocol 83). `pnpm format` was applied.
+- `pnpm --filter @pingdost/server test:int`: 104/104. `test/engine.int.test.ts` passes all 8 scenarios: online, offline, reconnect mid-send, duplicate Deliver frames, server restart, an added device, a revoked device, and the plaintext-marker scan of Redis, Mongo and WS frames.
+- Sim client against the dev server: 20 offline + 20 online messages decrypted once each and delivered after receipts; no marker in 136 frames.
+
+**Known issues / tech debt:**
+- Linked devices are bound out of band in tests until Phase 16.
+- Receipts go only to the sending device.
+- A failed commit after a new inbound session loses that message (logged).
+- Earlier items are still open: binding drift check, pickle-key zeroization (Phase 27), `OWNER` in `repository.url`, stale `C:\dev\pd`, the native MongoDB Windows service.
+
+**Next:** Phase 10. See its Phase 9 handoff notes: SQLite `EngineStore` + contract tests, engine wiring, the `TextDecoder` polyfill.
 ## 2026-10-19 — Phase 08: Realtime gateway & delivery mailbox — ✅ done
 **Done (ADR 0010):**
 - **Gateway** `GET /v1/ws` (`@fastify/websocket` 11.3.4):

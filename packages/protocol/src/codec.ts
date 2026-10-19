@@ -9,7 +9,7 @@
 import { fromBinary, toBinary, type DescMessage, type MessageShape } from '@bufbuild/protobuf';
 
 import { ProtocolError } from './errors';
-import { ContentSchema, type Content } from './gen/pingdost/v1/content_pb';
+import { ContentSchema, type Content, type ContentHeader } from './gen/pingdost/v1/content_pb';
 import { CryptoType, EnvelopeSchema, type Envelope } from './gen/pingdost/v1/envelope_pb';
 import {
   PacketKind,
@@ -199,8 +199,7 @@ export function decodeEnvelope(bytes: Uint8Array, options: CodecOptions = {}): E
 
 // Content
 
-function checkContent(content: Content): void {
-  const { header, body } = content;
+function checkHeader(header: ContentHeader | undefined): void {
   if (header === undefined) throw missing('header');
   checkVersion(header.version, 'header.version');
   checkId(header.messageId, 'header.message_id');
@@ -211,6 +210,12 @@ function checkContent(content: Content): void {
   checkId(header.senderUserId, 'header.sender_user_id');
   if (header.sentAtMs <= 0n) throw missing('header.sent_at_ms');
   checkOptionalId(header.replyTo, 'header.reply_to');
+  checkOptionalId(header.recipientUserId, 'header.recipient_user_id');
+}
+
+function checkContent(content: Content): void {
+  const { header, body } = content;
+  checkHeader(header);
 
   switch (body.case) {
     case undefined:
@@ -261,6 +266,16 @@ export function decodeContent(bytes: Uint8Array, options: CodecOptions = {}): Co
   const content = parse(ContentSchema, bytes, limitsFor(options).content);
   checkContent(content);
   return content;
+}
+
+/**
+ * Only the checked header of a decrypted Content, for one `decodeContent` rejected with
+ * `UNKNOWN_BODY`: the receiver can still file an "update needed" placeholder (ADR 0006).
+ */
+export function decodeContentHeader(bytes: Uint8Array, options: CodecOptions = {}): ContentHeader {
+  const { header } = parse(ContentSchema, bytes, limitsFor(options).content);
+  checkHeader(header);
+  return header as ContentHeader;
 }
 
 // WebSocket frames

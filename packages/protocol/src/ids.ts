@@ -17,6 +17,12 @@ export const UUID_BYTES = 16;
  */
 export const ENVELOPE_ID_NAMESPACE = '7a9f4a0a-78e5-4e69-99d3-4cd3fac446d6';
 
+/**
+ * The fixed UUIDv5 namespace for direct (1:1) conversation IDs. Never change it: both users
+ * derive the same ID independently (ADR 0011).
+ */
+export const DIRECT_CONVERSATION_NAMESPACE = 'c3a1d5e2-4b7f-4f0e-9a26-5d8e1f3b7c90';
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** A new UUIDv7 as a canonical string. */
@@ -72,6 +78,32 @@ export function envelopeIdFor(
   name.set(idBytes(messageId), 0);
   name.set(idBytes(recipientDeviceId), UUID_BYTES);
   return v5(name, ENVELOPE_ID_NAMESPACE, new Uint8Array(UUID_BYTES));
+}
+
+/**
+ * The conversation ID two users share for their direct chat, as a canonical UUID string:
+ * UUIDv5(DIRECT_CONVERSATION_NAMESPACE, lower user ID bytes ‖ higher user ID bytes). The
+ * order does not matter: `directConversationIdFor(a, b) === directConversationIdFor(b, a)`.
+ */
+export function directConversationIdFor(
+  userA: Uint8Array | string,
+  userB: Uint8Array | string,
+): string {
+  const a = idBytes(userA);
+  const b = idBytes(userB);
+  const [low, high] = compareBytes(a, b) <= 0 ? [a, b] : [b, a];
+  const name = new Uint8Array(2 * UUID_BYTES);
+  name.set(low, 0);
+  name.set(high, UUID_BYTES);
+  return v5(name, DIRECT_CONVERSATION_NAMESPACE);
+}
+
+function compareBytes(a: Uint8Array, b: Uint8Array): number {
+  for (let i = 0; i < a.length; i++) {
+    const diff = (a[i] ?? 0) - (b[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
 }
 
 /** Standard base64 with padding (keys and signatures in REST DTOs). */

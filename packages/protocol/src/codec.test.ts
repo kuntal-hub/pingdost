@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   decodeClientFrame,
   decodeContent,
+  decodeContentHeader,
   decodeEnvelope,
   decodeServerFrame,
   decodeTransportPacket,
@@ -274,6 +275,17 @@ describe('Content', () => {
     // Field 14 is not defined in v1: a newer peer's body type.
     const bytes = Uint8Array.from([...toBinary(ContentSchema, noBody), 0x72, 0x01, 0x00]);
     expectProtocolError(() => decodeContent(bytes), 'UNKNOWN_BODY', 'body');
+    // The header alone still decodes, for an "update needed" placeholder.
+    expect(decodeContentHeader(bytes)).toEqual(noBody.header);
+  });
+
+  it('checks the recipient user ID', () => {
+    const direct = textContent('x');
+    if (direct.header) direct.header.recipientUserId = uuidv7Bytes();
+    expect(decodeContent(encodeContent(direct)).header).toEqual(direct.header);
+    if (direct.header) direct.header.recipientUserId = new Uint8Array(3);
+    expectProtocolError(() => encodeContent(direct), 'INVALID_FIELD', 'header.recipient_user_id');
+    expectProtocolError(() => decodeContentHeader(new Uint8Array()), 'MISSING_FIELD', 'header');
   });
 
   it('rejects content that cannot fit in an envelope', () => {

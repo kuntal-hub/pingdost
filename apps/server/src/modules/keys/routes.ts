@@ -6,6 +6,7 @@ import { z } from 'zod';
 import {
   ClaimKeysRequestSchema,
   ClaimKeysResponseSchema,
+  DeviceOwnerResponseSchema,
   IdSchema,
   OneTimeKeyCountSchema,
   UploadKeysRequestSchema,
@@ -54,6 +55,19 @@ export const keyRoutes: FastifyPluginCallback<KeyRoutesOptions> = (fastify, opti
       schema: { params: z.object({ userId: IdSchema }), response: { 200: UserKeysResponseSchema } },
     },
     async (request) => service.directory(request.params.userId),
+  );
+
+  app.get(
+    '/v1/keys/devices/:deviceId',
+    {
+      config: { rateLimit: limits.keysDirectory },
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ deviceId: IdSchema }),
+        response: { 200: DeviceOwnerResponseSchema },
+      },
+    },
+    async (request) => service.deviceOwner(request.params.deviceId),
   );
 
   app.post(

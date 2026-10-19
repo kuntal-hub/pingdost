@@ -11,11 +11,11 @@ Build a platform-neutral, transport-neutral engine: local outbox, REQ §8.3 stat
 - The E2EE ADR
 
 ## Tasks
-- [ ] **`packages/transport`:**
+- [x] **`packages/transport`:**
   - `Transport` interface: `send(packet)`, `onPacket`, `status$`, `kind`;
   - `WsTransport`, using the standard `WebSocket` API so it works in RN and browsers, with a `ws` shim in Node: auth frame, reconnect with exponential backoff + jitter, heartbeat, and resume fetch on reconnect;
   - a `TransportRouter` skeleton (Internet only; nearby added in Phase 22).
-- [ ] **`packages/message-engine`:**
+- [x] **`packages/message-engine`:**
   - **`EngineStore` interface** (conversations, messages, outbox, delivery_state, crypto sessions/pickles, device-directory cache, seen message IDs, settings). Include an **in-memory implementation** for tests. SQLite comes in Phase 10, Dexie in Phase 17.
   - **Outbox:**
     - create the local message (UUIDv7) **before** any network call;
@@ -39,8 +39,8 @@ Build a platform-neutral, transport-neutral engine: local outbox, REQ §8.3 stat
     6. send an E2EE `Receipt{DELIVERED}` if the user setting allows it.
   - **Expiry:** mark `expired_undelivered` when there is no delivery receipt by createdAt + max retention (value from public config).
   - **Events API** for UIs: `subscribe(conversationId)` and `onConversationListChanged`.
-- [ ] Upgrade `tools/sim-client` to the engine + WASM `CryptoProvider` + in-memory store.
-- [ ] **Integration tests** (`pnpm test:int`, real server + infra). Two or three sim clients:
+- [x] Upgrade `tools/sim-client` to the engine + WASM `CryptoProvider` + in-memory store.
+- [x] **Integration tests** (`pnpm test:int`, real server + infra). Two or three sim clients:
   1. online exchange;
   2. offline recipient, then later online;
   3. reconnect mid-send (no duplicates);
@@ -49,7 +49,7 @@ Build a platform-neutral, transport-neutral engine: local outbox, REQ §8.3 stat
   6. recipient adds a second device: new messages go to both, and the new device does not get old ones;
   7. recipient device revoked: no further envelopes to it;
   8. **ciphertext-only check:** scan Redis/Mongo dumps and captured WS frames for a plaintext marker string (REQ §19.1 bullets 1–2).
-- [ ] **Unit tests:** state machine transitions, outbox retry/backoff, dedupe, session repair.
+- [x] **Unit tests:** state machine transitions, outbox retry/backoff, dedupe, session repair.
 
 ## Key files
 `packages/transport/src/*`, `packages/message-engine/src/{engine.ts,outbox.ts,states.ts,sessions.ts,receive.ts,store.ts,memoryStore.ts}`, `tools/sim-client/*`

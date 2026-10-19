@@ -7,6 +7,7 @@ import type { Collection } from 'mongodb';
 import { ProtocolError, signedKeyMessage } from '@pingdost/protocol';
 import type {
   ClaimKeysResponse,
+  DeviceOwnerResponse,
   DirectoryDevice,
   SignedKey,
   UploadKeysRequest,
@@ -142,6 +143,16 @@ export class KeyService {
         fallbackKey: device.fallbackKey,
       })),
     };
+  }
+
+  /** The owner of an active device (ADR 0011); revoked and unknown devices are NOT_FOUND. */
+  async deviceOwner(deviceId: string): Promise<DeviceOwnerResponse> {
+    const device = await this.d.devices.devices.findOne(
+      { _id: deviceId, status: 'active' },
+      { projection: { userId: 1 } },
+    );
+    if (!device) throw new AppError('NOT_FOUND');
+    return { deviceId, userId: device.userId };
   }
 
   /**

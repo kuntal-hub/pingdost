@@ -44,3 +44,6 @@ Multi-hop relay (23); file chunks (24).
 - Turning Internet back on doesn't duplicate messages.
 - Bluetooth-denied and Bluetooth-off states are visible.
 - The tests pass, and `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 9 (ADR 0011):** `TransportRouter` (`packages/transport/src/router.ts`) sends over the first online transport. Add the nearby transport, routing by recipient reachability and `waiting_for_nearby_route`. Incoming packets already fan in with a per-transport `ack`.

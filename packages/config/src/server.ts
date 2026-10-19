@@ -66,7 +66,9 @@ const serverEnvSchema = z.object({
 
   // Delivery mailbox (REQ §9).
   MESSAGE_REDIS_STAGE_SECONDS: int(MINUTE, 30 * DAY).default(50_400),
-  MESSAGE_MAX_RETENTION_SECONDS: int(HOUR, 30 * DAY).default(1_209_600),
+  MESSAGE_MAX_RETENTION_SECONDS: int(HOUR, 30 * DAY).default(
+    DEFAULT_LIMITS.messageMaxRetentionSeconds,
+  ),
   MESSAGE_MIGRATION_GRACE_SECONDS: int(MINUTE, DAY).default(900),
   MESSAGE_MIGRATION_POLL_SECONDS: int(10, HOUR).default(300),
   MESSAGE_REAPER_INTERVAL_SECONDS: int(5, HOUR).default(60),

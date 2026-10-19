@@ -14,7 +14,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 06 | [Google sign-in, devices, key directory, profiles](phases/phase-06-google-devices-keys.md) | 05 | ✅ |
 | 07 | [Mobile onboarding & account UI](phases/phase-07-mobile-onboarding.md) | 03, 06 | ✅ |
 | 08 | [Realtime gateway & delivery mailbox](phases/phase-08-gateway-mailbox.md) | 06 | ✅ |
-| 09 | [Message engine & session management](phases/phase-09-message-engine.md) | 04, 08 | ⬜ |
+| 09 | [Message engine & session management](phases/phase-09-message-engine.md) | 04, 08 | ✅ |
 | 10 | [1:1 chat on Android](phases/phase-10-android-1to1-chat.md) | 07, 09 | ⬜ |
 | 11 | [Chat features](phases/phase-11-chat-features.md) | 10 | ⬜ |
 | 12 | [Push notifications](phases/phase-12-push-notifications.md) | 10 | ⬜ |

@@ -65,3 +65,19 @@ Reactions, edit, search and other extras (11); push (12); groups (13); attachmen
   - 4008: back off;
   - 1002: protocol bug.
 - Frames need the `TextDecoder` polyfill (see the Phase 7 note).
+**From Phase 9 (ADR 0011):**
+- Implement `EngineStore` (`packages/message-engine/src/store.ts`). `apply(batch)` must be one transaction on the keyed connection (never `withExclusiveTransactionAsync`). Run `runEngineStoreContract` from `@pingdost/message-engine/testing` against it.
+- The engine re-pickles the Olm account into `batch.account`: write it to the same `crypto_store` row that `CryptoStore` uses (`device-olm-account`), and pass `CryptoStore.account` as `EngineOptions.account`.
+- Wiring:
+  - `new WsTransport({ url, getAccessToken, refreshToken })` inside a `TransportRouter`;
+  - `api: { ...keysApi(client), keys: keysApi(client) }`;
+  - `self.accountIdentityKey` from SecureStore;
+  - on the transport's `otk_low` event, call `engine.replenishKeys()`;
+  - on `revoked`, sign out.
+- `apps/mobile/src/device/keys.ts` duplicates `publishKeys`/`syncKeys`, which now live in the engine: re-export them.
+- The UI API:
+  - `openDirectConversation`, `sendText`, `retry`, `markRead`, `listMessages` (cursor `{ sortAt, messageId }`), `messageInfo`;
+  - `subscribe(conversationId)` (message and typing events), `onConversationListChanged`;
+  - `setTyping`, `contact` / `markVerified`, and `onEvent` (`identity_changed`).
+- System notices are `kind: 'system'` with `body: 'safety_number_changed'`. Unknown bodies are `kind: 'unsupported'` (show "update needed").
+- The engine imports `@pingdost/protocol` (the root), so the `TextDecoder` polyfill must be in `src/polyfills.ts` first.

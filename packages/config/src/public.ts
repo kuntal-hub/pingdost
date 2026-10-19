@@ -20,6 +20,11 @@ export const DEFAULT_LIMITS = {
   attachmentMaxBytes: 104_857_600,
   envelopeMaxBytes: 65_536,
   groupMaxMembers: 64,
+  /**
+   * `MESSAGE_MAX_RETENTION_SECONDS`: senders mark a message `expired_undelivered` when no
+   * delivery receipt arrived by then (ARCHITECTURE A3).
+   */
+  messageMaxRetentionSeconds: 1_209_600,
   meshPacketMaxHops: 8,
   meshPacketTtlSeconds: 1_209_600,
   meshRelayStorageLimitBytes: 262_144_000,

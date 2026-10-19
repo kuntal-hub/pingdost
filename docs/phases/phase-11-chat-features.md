@@ -46,3 +46,10 @@ Group-specific semantics (13); media (15).
 ## Handoff notes
 **From Phase 7 (ADR 0009):** privacy prefs (`readReceipts`, `typingIndicators`, `lastSeen`) are edited in Settings → Privacy, stored on the server and cached in `local_settings` (`privacy`). Read them with `useAccount` or `cachedPrivacy()` from `apps/mobile/src/settings/account.ts` to decide what to send.
 **From Phase 8 (ADR 0010):** `Typing` is relayed to any listed online device, limited only by rate (30 per 10 s per socket); scope it to the sender's conversations here. `Presence` frames are accepted and ignored until this phase. The block-list hook is `DeliveryDeps.isBlocked` (`modules/delivery/service.ts`); decide how a blocked send is answered.
+**From Phase 9 (ADR 0011):**
+- The receive pipeline drops Reaction, Edit and Delete bodies (the `default` case in `packages/message-engine/src/receive.ts`). Handle them there, and add them to `MessageRecord` and the store.
+- Read receipts:
+  - the sender side already applies `Receipt{READ}` (`#applyReceipt`);
+  - the reading side needs `markRead` to queue `ReceiptItem`s with `receipt: 'read'`, gated by `receipts('read')`;
+  - messages have no per-message read flag yet.
+- `engine.setTyping` / the `typing` conversation event already respect the `typingIndicators` option.

@@ -153,6 +153,27 @@ describe('directory', () => {
     });
     expect(json(response)).toMatchObject({ code: 'NOT_FOUND' });
   });
+
+  it('names the owner of an active device, and nothing for revoked ones', async () => {
+    const owner = await userWithDevice();
+    const reader = await registeredUser(server);
+    const lookup = () =>
+      server.app.inject({
+        method: 'GET',
+        url: `/v1/keys/devices/${owner.device.deviceId}`,
+        headers: bearer(reader.accessToken),
+      });
+    expect(json(await lookup())).toEqual({
+      deviceId: owner.device.deviceId,
+      userId: owner.userId,
+    });
+    await server.app.inject({
+      method: 'DELETE',
+      url: `/v1/devices/${owner.device.deviceId}`,
+      headers: bearer(owner.accessToken),
+    });
+    expect(json(await lookup())).toMatchObject({ code: 'NOT_FOUND' });
+  });
 });
 
 describe('claims', () => {
