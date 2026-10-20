@@ -17,8 +17,8 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 09 | [Message engine & session management](phases/phase-09-message-engine.md) | 04, 08 | ✅ |
 | 10 | [1:1 chat on Android](phases/phase-10-android-1to1-chat.md) | 07, 09 | 🔄 |
 | 11 | [Chat features](phases/phase-11-chat-features.md) | 10 | 🔄 |
-| 12 | [Push notifications](phases/phase-12-push-notifications.md) | 10 | ⬜ |
-| 13 | [Groups (Megolm)](phases/phase-13-groups.md) | 10 | ⬜ |
+| 12 | [Push notifications](phases/phase-12-push-notifications.md) | 10 | 🔄 |
+| 13 | [Groups (Megolm)](phases/phase-13-groups.md) | 10 | 🔄 |
 | 14 | [Attachments core](phases/phase-14-attachments-core.md) | 09 | ⬜ |
 | 15 | [Attachments UX (Android)](phases/phase-15-attachments-android-ux.md) | 10, 14 | ⬜ |
 | 16 | [Web foundation + QR pairing](phases/phase-16-web-pairing.md) | 09, 10 | ⬜ |

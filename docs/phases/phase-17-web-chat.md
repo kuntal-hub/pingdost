@@ -52,3 +52,11 @@ History sync from the phone and attachments on web (18); calls (25).
 - The Dexie store must pass the extended `runEngineStoreContract`: `listUnread`, `searchMessages` (semantics in `message-engine/src/search.ts`; `matchesQuery` / `highlightRanges` are shared), `listOps`, and `deleteMessages` / `deleteConversations`.
 - Blocks: `/v1/blocks` plus the engine's `blocked` option.
 - Receipts follow `privacy.readReceipts` / `deliveryReceipts`.
+
+**From Phase 12 (ADR 0015):**
+- Web Push: register the browser's `PushSubscription.toJSON()` with `PUT /v1/push/token` (`provider: 'webpush'`, https endpoints only); the server's `WebPushSender` sends `{"t":"wake"}` with VAPID. The web app needs the VAPID public key (a `VITE_*` value) and a service worker that wakes the tab or shows a content-free notice.
+- The engine emits `received` for each new incoming message: build local notifications from it (see `apps/mobile/src/push/notifications.ts`).
+**From Phase 13 (ADR 0016):**
+- The Dexie store must also pass the group part of the store contract: `groups`, Megolm sessions (inbound keyed by sender device + session ID), held records, `deleteGroups`, and the outbox's `groupId`/`megolm`/`purpose` fields.
+- Wire `api.groups` (`groupsApi`) into the engine and call `engine.syncGroup` on the transport's `group_changed` event.
+- UI: `parseGroupNotice` for system messages; group pictures are inline bytes (`data:` URIs); no call action in groups.

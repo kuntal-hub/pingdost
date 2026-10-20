@@ -11,6 +11,7 @@ import { authStore } from '@/api';
 import { useAppStage } from '@/auth/use-auth';
 import { configError } from '@/config';
 import { startChat, stopChat } from '@/engine/runtime';
+import { startPushToken } from '@/push/token';
 import { ThemeRoot } from '@/theme/theme-root';
 
 // react-native-css-interop (NativeWind 4) wraps ImageBackground at import time; the app
@@ -46,10 +47,15 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (configError || stage !== 'loading') void SplashScreen.hideAsync();
-    // The chat engine runs while a registered device is signed in (it also tops up keys).
-    if (stage === 'ready')
-      void startChat().catch((error: unknown) => console.warn('chat start failed', error));
-    else void stopChat();
+    // The chat engine runs while a registered device is signed in (it also tops up keys), and
+    // the server knows where to send its push wakes.
+    if (stage !== 'ready') {
+      void stopChat();
+      return undefined;
+    }
+    void startChat().catch((error: unknown) => console.warn('chat start failed', error));
+    const deviceId = authStore.getState().session?.deviceId;
+    return deviceId ? startPushToken(deviceId) : undefined;
   }, [stage]);
 
   if (configError) {

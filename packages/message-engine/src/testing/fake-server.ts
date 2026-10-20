@@ -15,6 +15,7 @@ import {
 } from '@pingdost/protocol';
 import type {
   ClaimKeysResponse,
+  Group,
   SignedKey,
   UploadKeysRequest,
   UserKeysResponse,
@@ -29,7 +30,7 @@ import {
   type TypingSignal,
 } from '@pingdost/transport';
 
-import type { EngineOptions } from '../core';
+import type { EngineOptions, GroupsApi } from '../core';
 import type { DirectoryApi } from '../directory';
 import { MessageEngine } from '../engine';
 import { publishKeys } from '../keys';
@@ -73,6 +74,9 @@ export class FakeServer {
   duplicateDeliveries = false;
   /** REST calls fail as if the server were unreachable. */
   apiDown = false;
+  /** Group membership, as `/v1/groups` keeps it (ADR 0016). */
+  readonly groups = new Map<string, Group>();
+  groupMaxMembers = 64;
   readonly #transports = new Map<string, FakeTransport>();
 
   addUser(identity: SigningKey): string {
@@ -120,6 +124,7 @@ export class FakeServer {
   /** The REST API as `deviceId` sees it. */
   api(deviceId: string): DirectoryApi & {
     keys: { count(): Promise<number>; upload(body: UploadKeysRequest): Promise<number> };
+    groups: GroupsApi;
   } {
     const call = <T>(run: () => T): Promise<T> => {
       if (this.apiDown) return Promise.reject(new FakeApiError('UNAVAILABLE'));
@@ -149,6 +154,114 @@ export class FakeServer {
             return device.oneTimeKeys.length;
           }),
       },
+      groups: this.#groupsApi(() => this.#device(deviceId).userId, call),
+    };
+  }
+
+  /** `/v1/groups` with the server's role rules (apps/server/src/modules/groups). */
+  #groupsApi(caller: () => string, call: <T>(run: () => T) => Promise<T>): GroupsApi {
+    const RANK = { owner: 3, admin: 2, member: 1 } as const;
+    const load = (groupId: string) => {
+      const group = this.groups.get(groupId);
+      if (!group) throw new FakeApiError('NOT_FOUND');
+      return group;
+    };
+    const roleIn = (group: Group, userId: string) =>
+      group.members.find((m) => m.userId === userId)?.role;
+    const require = (group: Group, userId: string, min: keyof typeof RANK) => {
+      const role = roleIn(group, userId);
+      if (!role) throw new FakeApiError('NOT_A_MEMBER');
+      if (RANK[role] < RANK[min]) throw new FakeApiError('FORBIDDEN');
+      return role;
+    };
+    const save = (group: Group, members: Group['members']): Group => {
+      const next = { ...group, members, version: group.version + 1 };
+      if (members.length === 0) this.groups.delete(group.groupId);
+      else this.groups.set(group.groupId, next);
+      return structuredClone(next);
+    };
+    return {
+      create: (groupId, memberUserIds) =>
+        call(() => {
+          const me = caller();
+          if (this.groups.has(groupId)) throw new FakeApiError('CONFLICT');
+          const others = [...new Set(memberUserIds)].filter((id) => id !== me);
+          if (others.length + 1 > this.groupMaxMembers) throw new FakeApiError('GROUP_FULL');
+          const now = Date.now();
+          const group: Group = {
+            groupId,
+            createdBy: me,
+            version: 1,
+            createdAt: now,
+            members: [
+              { userId: me, role: 'owner', addedAt: now },
+              ...others.map((userId) => ({ userId, role: 'member' as const, addedAt: now })),
+            ],
+          };
+          this.groups.set(groupId, group);
+          return structuredClone(group);
+        }),
+      list: () =>
+        call(() =>
+          structuredClone(
+            [...this.groups.values()].filter((g) => g.members.some((m) => m.userId === caller())),
+          ),
+        ),
+      get: (groupId) =>
+        call(() => {
+          const group = load(groupId);
+          require(group, caller(), 'member');
+          return structuredClone(group);
+        }),
+      addMembers: (groupId, userIds) =>
+        call(() => {
+          const group = load(groupId);
+          require(group, caller(), 'admin');
+          const added = [...new Set(userIds)].filter((id) => !roleIn(group, id));
+          if (added.length === 0) return structuredClone(group);
+          if (group.members.length + added.length > this.groupMaxMembers) {
+            throw new FakeApiError('GROUP_FULL');
+          }
+          const now = Date.now();
+          return save(group, [
+            ...group.members,
+            ...added.map((userId) => ({ userId, role: 'member' as const, addedAt: now })),
+          ]);
+        }),
+      removeMember: (groupId, userId) =>
+        call(() => {
+          const group = load(groupId);
+          const me = caller();
+          const target = roleIn(group, userId);
+          if (me !== userId) {
+            const mine = require(group, me, 'admin');
+            if (!target) return structuredClone(group);
+            if (RANK[target] >= RANK[mine]) throw new FakeApiError('FORBIDDEN');
+          } else if (!target) {
+            throw new FakeApiError('NOT_A_MEMBER');
+          }
+          const rest = group.members.filter((m) => m.userId !== userId);
+          if (target === 'owner' && rest[0]) {
+            const heir = rest.find((m) => m.role === 'admin') ?? rest[0];
+            return save(
+              group,
+              rest.map((m) => (m === heir ? { ...m, role: 'owner' as const } : m)),
+            );
+          }
+          return save(group, rest);
+        }),
+      setRole: (groupId, userId, role) =>
+        call(() => {
+          const group = load(groupId);
+          require(group, caller(), 'owner');
+          const target = roleIn(group, userId);
+          if (!target) throw new FakeApiError('NOT_A_MEMBER');
+          if (target === 'owner') throw new FakeApiError('FORBIDDEN');
+          return save(
+            group,
+            group.members.map((m) => (m.userId === userId ? { ...m, role } : m)),
+          );
+        }),
     };
   }
 
@@ -161,8 +274,19 @@ export class FakeServer {
       return { ok: false, code: 'FORBIDDEN', retryable: false };
     }
     const to = bytesToUuid(envelope.recipientDeviceId);
-    if (!this.devices.get(to)?.active) {
+    const recipient = this.devices.get(to);
+    if (!recipient?.active) {
       return { ok: false, code: 'RECIPIENT_UNKNOWN', retryable: false };
+    }
+    if (envelope.groupId) {
+      // Group traffic only between current members (the gateway's check).
+      const group = this.groups.get(bytesToUuid(envelope.groupId));
+      const sender = this.devices.get(from)?.userId;
+      const member = (userId: string | undefined) =>
+        group?.members.some((m) => m.userId === userId) ?? false;
+      if (!member(sender) || !member(recipient.userId)) {
+        return { ok: false, code: 'NOT_A_MEMBER', retryable: false };
+      }
     }
     const envelopeId = bytesToUuid(envelope.envelopeId);
     let box = this.mailbox.get(to);

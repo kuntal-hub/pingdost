@@ -72,6 +72,11 @@ export function SettingsScreen() {
           onPress={() => router.push('/privacy')}
         />
         <ListRow
+          title="Notifications"
+          subtitle="Previews, sender name, battery"
+          onPress={() => router.push('/notifications')}
+        />
+        <ListRow
           title="Devices"
           subtitle="This phone and linked browsers"
           onPress={() => router.push('/devices')}

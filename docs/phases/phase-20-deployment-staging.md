@@ -94,3 +94,8 @@ coturn (25); production launch (27, on the same VPS).
 **From the 2026-10-19 hosting change (ADR 0013):**
 - `loadServerConfig` refuses a production `REDIS_URL` without a password.
 - The dev `docker-compose.yml` Valkey already runs AOF + `noeviction`; staging adds `maxmemory` and `requirepass`.
+
+**From Phases 12–13 (ADR 0015, 0016):**
+- Push: set `FCM_PROJECT_ID` + `FCM_SERVICE_ACCOUNT_JSON_BASE64` (and later the `WEB_PUSH_*` VAPID trio) on the VPS; `PUSH_WAKE_THROTTLE_SECONDS` defaults to 10. Watch `pingdost_push_wakes_total{result="failed"|"invalid_token"}`.
+- The Android release build needs `apps/mobile/google-services.json` at build time (`app.config.js` adds it only when present).
+- Groups: `GROUP_MAX_MEMBERS` (64). Group messages cost one envelope per member device in the mailbox budget.

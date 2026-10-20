@@ -71,6 +71,12 @@ export class Metrics {
     labelNames: ['store'] as const,
     registers: [this.registry],
   });
+  readonly pushWakes = new Counter({
+    name: 'pingdost_push_wakes_total',
+    help: 'Push wake requests, by outcome (sent, throttled, no_token, invalid_token, failed, ...).',
+    labelNames: ['result'] as const,
+    registers: [this.registry],
+  });
   readonly wsConnections = new Gauge({
     name: 'pingdost_ws_connections',
     help: 'Authenticated WebSocket connections on this instance.',

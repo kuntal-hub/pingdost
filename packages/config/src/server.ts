@@ -134,6 +134,8 @@ const serverEnvSchema = z.object({
     .string()
     .regex(/^(mailto:|https:\/\/)/, 'must start with mailto: or https://')
     .optional(),
+  // At most one wake per device per window; wakes inside it collapse into one at its end.
+  PUSH_WAKE_THROTTLE_SECONDS: int(1, 10 * MINUTE).default(10),
 
   // Web pairing, sync and groups.
   WEB_PAIRING_TTL_SECONDS: int(30, 600).default(DEFAULT_LIMITS.webPairingTtlSeconds),

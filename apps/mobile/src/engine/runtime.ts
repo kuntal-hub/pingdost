@@ -1,8 +1,9 @@
 // The chat engine of the signed-in device (ADR 0012): one per process, started in the
 // `ready` stage and stopped on sign-out. It owns the gateway socket:
 // - foreground: connected, presence "online" (if the user shares it);
-// - background: presence off at once, the socket closed after a grace period (push wakes the
-//   app from Phase 12);
+// - background: presence off at once, the socket closed after a grace period; after that a
+//   push wake (`push/wake.ts`) connects it briefly, and received messages become local
+//   notifications;
 // - network back: reconnect now instead of waiting out the backoff;
 // - 4001: token refresh through the auth store; revoked: chat data wiped and signed out.
 // While the engine runs, every change to the Olm account goes through it. Receipts, typing
@@ -16,6 +17,7 @@ import { api, authStore } from '@/api';
 import { publicConfig } from '@/config';
 import { getCryptoContext } from '@/crypto/bootstrap';
 import { getOrCreateSecret, SECRET_ITEMS, SECURE_STORE_OPTIONS } from '@/crypto/secrets';
+import { installNotifier } from '@/push/notifications';
 import { cachedPrivacy, useAccount } from '@/settings/account';
 import type { CryptoProvider } from '@pingdost/crypto/core';
 import { MessageEngine } from '@pingdost/message-engine';
@@ -118,7 +120,7 @@ async function boot(): Promise<ChatRuntime> {
     pickleKey,
     store: new SqliteEngineStore(db),
     transport: router,
-    api: { ...api.keys, keys: api.keys },
+    api: { ...api.keys, keys: api.keys, groups: api.groups },
     // The privacy toggles (Settings → Privacy); read receipts are reciprocal (ADR 0014).
     receipts: (type) => {
       const privacy = useAccount.getState().privacy;
@@ -152,6 +154,8 @@ async function boot(): Promise<ChatRuntime> {
   };
 
   cleanup.push(
+    // Local notifications for messages that arrive while the app is not on screen (Phase 12).
+    installNotifier(engine),
     router.status$.subscribe((status) => useChatStore.setState({ status }), { emitCurrent: true }),
     transport.onEvent((event) => {
       switch (event.type) {
@@ -165,6 +169,10 @@ async function boot(): Promise<ChatRuntime> {
           break;
         case 'replaced':
           useChatStore.setState({ replaced: true });
+          break;
+        case 'group_changed':
+          // Membership changed on the server: apply its removals now (ADR 0016).
+          void engine.syncGroup(event.groupId).catch(() => undefined);
           break;
         case 'revoked':
           void revoked();

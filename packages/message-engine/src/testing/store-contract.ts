@@ -11,7 +11,11 @@ import type {
   DirectoryRecord,
   EngineStore,
   FanoutItem,
+  GroupRecord,
+  HeldGroupRecord,
+  InboundGroupSessionRecord,
   MessageRecord,
+  OutboundGroupSessionRecord,
   PendingOpRecord,
   ReceiptItem,
   SessionRecord,
@@ -212,6 +216,22 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
       expect(await store.getOutboxItem(device.id)).toEqual(sent);
       expect(await store.getOutboxItem(receipt.id)).toBeUndefined();
       expect(await store.listOutbox()).toHaveLength(2);
+
+      // Group items keep their group and Megolm marks (ADR 0016).
+      const groupId = testId();
+      const groupFanout: FanoutItem = { ...fanout, id: testId(), groupId, purpose: 'control' };
+      const megolm: DeviceItem = {
+        ...device,
+        id: testId(),
+        groupId,
+        megolm: true,
+        packet: Uint8Array.of(7),
+      };
+      const roomKey: DeviceItem = { ...device, id: testId(), purpose: 'room_key', groupId };
+      await store.apply({ outbox: [groupFanout, megolm, roomKey] });
+      expect(await store.getOutboxItem(groupFanout.id)).toEqual(groupFanout);
+      expect(await store.getOutboxItem(megolm.id)).toEqual(megolm);
+      expect(await store.getOutboxItem(roomKey.id)).toEqual(roomKey);
     });
 
     it('lists sessions per device', async () => {
@@ -443,6 +463,118 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
       await expect(
         store.apply({ account: 'pickle', seen: [{ id: testId(), seenAt: 1 }] }),
       ).resolves.toBeUndefined();
+    });
+
+    it('keeps groups, Megolm sessions and held group traffic (ADR 0016)', async () => {
+      const store = await makeStore();
+      const groupId = testId();
+      const group: GroupRecord = {
+        groupId,
+        version: 3,
+        members: [
+          { userId: testId(), role: 'owner' },
+          { userId: testId(), role: 'member' },
+        ],
+        serverVersion: 2,
+        serverMembers: [{ userId: testId(), role: 'admin' }],
+        name: 'Trip',
+        description: 'Goa in May',
+        avatar: Uint8Array.of(9, 8, 7),
+        infoAt: 5,
+        infoId: testId(),
+        left: false,
+        createdAt: 2,
+        updatedAt: 4,
+      };
+      const older: GroupRecord = { ...group, groupId: testId(), avatar: null, createdAt: 1 };
+      const conversation = conversationRecord({
+        conversationId: groupId,
+        kind: 'group',
+        peerUserId: '',
+      });
+      const outbound: OutboundGroupSessionRecord = {
+        groupId,
+        sessionId: 'session-out',
+        pickle: 'pickle-out',
+        createdAt: 1,
+        messageCount: 4,
+        sharedWith: [testId(), testId()],
+        memberKey: 'a,b',
+      };
+      const senderDeviceId = testId();
+      const inbound: InboundGroupSessionRecord = {
+        sessionId: 'session-in',
+        groupId,
+        senderUserId: testId(),
+        senderDeviceId,
+        senderKey: 'curve',
+        pickle: 'pickle-in',
+        firstKnownIndex: 2,
+        seenIndices: [2, 5],
+        createdAt: 3,
+        sharedAt: { [testId()]: 4 },
+      };
+      // The same session ID from another device is another session.
+      const claimed: InboundGroupSessionRecord = {
+        ...inbound,
+        senderDeviceId: testId(),
+        pickle: 'other',
+        seenIndices: [],
+      };
+      delete claimed.sharedAt;
+      const held = (receivedAt: number, kind: HeldGroupRecord['kind']): HeldGroupRecord => ({
+        id: testId(),
+        kind,
+        groupId,
+        sessionId: 'session-in',
+        senderUserId: inbound.senderUserId,
+        senderDeviceId,
+        payload: Uint8Array.of(1, 2, 3),
+        receivedAt,
+        requestedAt: 0,
+      });
+      const late = held(5, 'megolm');
+      const early = held(2, 'room_key');
+      await store.apply({
+        conversations: [conversation],
+        groups: [group, older],
+        outboundGroupSessions: [outbound],
+        inboundGroupSessions: [inbound, claimed],
+        held: [late, early],
+      });
+
+      expect(await store.getConversation(groupId)).toEqual(conversation);
+      expect(await store.getGroup(groupId)).toEqual(group);
+      expect(await store.listGroups()).toEqual([older, group]);
+      expect(await store.getOutboundGroupSession(groupId)).toEqual(outbound);
+      expect(await store.getInboundGroupSession(senderDeviceId, 'session-in')).toEqual(inbound);
+      expect(await store.getInboundGroupSession(claimed.senderDeviceId, 'session-in')).toEqual(
+        claimed,
+      );
+      expect(await store.getInboundGroupSession(testId(), 'session-in')).toBeUndefined();
+      expect(await store.listHeld(groupId)).toEqual([early, late]);
+
+      // One current outbound session per group; held records go by ID or age.
+      const rotated = { ...outbound, sessionId: 'session-new', messageCount: 0 };
+      await store.apply({
+        outboundGroupSessions: [rotated],
+        held: [{ ...late, requestedAt: 9 }],
+        deleteHeld: [early.id],
+      });
+      expect(await store.getOutboundGroupSession(groupId)).toEqual(rotated);
+      expect(await store.listHeld(groupId)).toEqual([{ ...late, requestedAt: 9 }]);
+      await store.apply({ pruneHeldBefore: 6 });
+      expect(await store.listHeld(groupId)).toEqual([]);
+
+      // Deleting a group takes its sessions and held records, not its conversation.
+      await store.apply({ held: [late] });
+      await store.apply({ deleteGroups: [groupId] });
+      expect(await store.getGroup(groupId)).toBeUndefined();
+      expect(await store.getOutboundGroupSession(groupId)).toBeUndefined();
+      expect(await store.getInboundGroupSession(senderDeviceId, 'session-in')).toBeUndefined();
+      expect(await store.listHeld(groupId)).toEqual([]);
+      expect(await store.listGroups()).toEqual([older]);
+      expect(await store.getConversation(groupId)).toEqual(conversation);
     });
   });
 }

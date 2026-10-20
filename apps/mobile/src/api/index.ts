@@ -9,7 +9,9 @@ import {
   authApi,
   createApiClient,
   devicesApi,
+  groupsApi,
   keysApi,
+  pushApi,
   securityApi,
 } from '@pingdost/api-client';
 
@@ -26,11 +28,17 @@ export const api = {
   devices: devicesApi(client),
   keys: keysApi(client),
   security: securityApi(client),
+  push: pushApi(client),
+  groups: groupsApi(client),
 };
 
 export const authStore = createAuthStore({
   storage: secureSessionStorage,
   refresh: (refreshToken) => api.auth.refresh(refreshToken),
-  logout: () => api.auth.logout(),
+  // A signed-out phone must not be woken: drop its push token while the session still works.
+  logout: async () => {
+    await api.push.unregisterToken().catch(() => undefined);
+    await api.auth.logout();
+  },
   afterLogout: signOutOfGoogle,
 });

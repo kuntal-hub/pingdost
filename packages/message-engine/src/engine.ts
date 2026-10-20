@@ -16,6 +16,7 @@ import { MessageState } from '@pingdost/shared-types';
 
 import { buildContent, textContentFor } from './content';
 import { EngineCore, type ConversationEvent, type EngineEvent, type EngineOptions } from './core';
+import { MessageActionError } from './errors';
 import {
   applyOp,
   canDeleteForEveryone,
@@ -24,6 +25,7 @@ import {
   isValidReaction,
   type Op,
 } from './features/ops';
+import { GroupManager, type GroupInfo } from './groups/manager';
 import { FALLBACK_KEY_MAX_AGE_MS, publishKeys, type PublishKeysResult } from './keys';
 import { Outbox } from './outbox';
 import { Receiver } from './receive';
@@ -33,6 +35,7 @@ import type {
   DeliveryRecord,
   DirectoryRecord,
   FanoutItem,
+  GroupRecord,
   MessageCursor,
   MessageRecord,
   OutboxItem,
@@ -40,16 +43,15 @@ import type {
   WriteBatch,
 } from './store';
 
-/** Why a message action was refused. */
-export class MessageActionError extends Error {
-  constructor(
-    readonly code: 'not_found' | 'not_allowed' | 'invalid',
-    message: string,
-  ) {
-    super(message);
-    this.name = 'MessageActionError';
-  }
+/** Who a conversation's messages go to: the peer, or the group's members. */
+interface Audience {
+  recipientUserIds: string[];
+  /** Direct: the peer named in each Content header. */
+  peerUserId?: string;
+  groupId?: string;
 }
+
+export { MessageActionError };
 
 /** Seen IDs outlive the longest an envelope can stay in a mailbox, plus a margin. */
 const SEEN_MARGIN_MS = 86_400_000;
@@ -67,6 +69,7 @@ export class MessageEngine {
   readonly #core: EngineCore;
   readonly #outbox: Outbox;
   readonly #receiver: Receiver;
+  readonly #groups: GroupManager;
   readonly #unsubscribe: (() => void)[] = [];
   #sweepTimer: ReturnType<typeof setInterval> | undefined;
   readonly #typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -77,6 +80,8 @@ export class MessageEngine {
     this.#core = new EngineCore(options);
     this.#outbox = new Outbox(this.#core);
     this.#receiver = new Receiver(this.#core, this.#outbox);
+    this.#groups = new GroupManager(this.#core, this.#outbox);
+    this.#core.groupSync = (groupId) => this.#groups.sync(groupId);
   }
 
   get self(): EngineOptions['self'] {
@@ -102,6 +107,8 @@ export class MessageEngine {
     this.#sweepTimer = setInterval(() => void this.#sweep(), core.settings.expirySweepMs);
     await this.#sweep();
     this.#outbox.start();
+    // Removals the server knows of (e.g. while this device was off), in the background.
+    if (core.options.api.groups) void this.#groups.syncAll().catch(() => undefined);
   }
 
   /** Stops listening and waits for in-flight work. The store keeps the outbox for next time. */
@@ -112,6 +119,7 @@ export class MessageEngine {
     clearInterval(this.#sweepTimer);
     for (const timer of this.#typingTimers.values()) clearTimeout(timer);
     this.#typingTimers.clear();
+    this.#receiver.dispose();
     await this.#outbox.stop();
     await this.#receiver.idle();
     await this.#core.mutex.run(() => undefined);
@@ -130,7 +138,7 @@ export class MessageEngine {
     return this.#core.subscribe(conversationId, listener);
   }
 
-  /** Something in the chat list changed (new message, state, unread count). */
+  /** Something in the chat list changed (new message, state, unread count, a group). */
   onConversationListChanged(listener: () => void): () => void {
     return this.#core.onConversationListChanged(listener);
   }
@@ -202,6 +210,7 @@ export class MessageEngine {
     const message = await core.mutex.run(async () => {
       const conversation = await core.store.getConversation(conversationId);
       if (!conversation) throw new Error('unknown conversation');
+      const audience = await this.#audience(conversation);
       const quoted = options.replyTo ? await core.store.getMessage(options.replyTo) : undefined;
       const now = core.now();
       const record: MessageRecord = {
@@ -225,11 +234,7 @@ export class MessageEngine {
         reactions: [],
       };
       // Throws OVERSIZED for text that cannot fit in an envelope: nothing is stored then.
-      const content = textContentFor(
-        record,
-        conversation.peerUserId,
-        core.settings.envelopeMaxBytes,
-      );
+      const content = textContentFor(record, audience.peerUserId, core.settings.envelopeMaxBytes);
       await core.commit({
         messages: [record],
         conversations: [
@@ -239,7 +244,7 @@ export class MessageEngine {
             lastMessageId: record.messageId,
           },
         ],
-        outbox: [this.#fanout(record, conversation.peerUserId, content, now)],
+        outbox: [this.#fanout(record, audience, content, now)],
       });
       return record;
     });
@@ -255,6 +260,7 @@ export class MessageEngine {
       if (message?.state !== 'failed' || message.kind !== 'text') return;
       const conversation = await core.store.getConversation(message.conversationId);
       if (!conversation) return;
+      const audience = await this.#audience(conversation);
       const now = core.now();
       const deliveries = await core.store.listDeliveries(messageId);
       const queued = (await core.store.listOutbox()).filter((item) => item.messageId === messageId);
@@ -271,8 +277,8 @@ export class MessageEngine {
         outbox: [
           this.#fanout(
             retried,
-            conversation.peerUserId,
-            textContentFor(message, conversation.peerUserId, core.settings.envelopeMaxBytes),
+            audience,
+            textContentFor(message, audience.peerUserId, core.settings.envelopeMaxBytes),
             now,
           ),
         ],
@@ -386,6 +392,7 @@ export class MessageEngine {
       const target = await core.store.getMessage(messageId);
       const conversation = target && (await core.store.getConversation(target.conversationId));
       if (!target || !conversation) throw new MessageActionError('not_found', 'no such message');
+      const audience = await this.#audience(conversation);
       if (type === 'reaction' && !canReact(target)) {
         throw new MessageActionError('not_allowed', 'cannot react to this message');
       }
@@ -409,7 +416,7 @@ export class MessageEngine {
           messageId: op.opId,
           conversationId: target.conversationId,
           senderUserId: core.self.userId,
-          recipientUserId: conversation.peerUserId,
+          ...(audience.peerUserId ? { recipientUserId: audience.peerUserId } : {}),
           sentAt: now,
         },
         content,
@@ -417,7 +424,7 @@ export class MessageEngine {
       );
       const batch: WriteBatch = {
         messages: [next],
-        outbox: [this.#controlFanout(op.opId, conversation, encoded, now)],
+        outbox: [this.#controlFanout(op.opId, conversation, audience, encoded, now)],
       };
       if (type === 'delete') {
         // Not sent yet to anyone: the message itself need not go out any more.
@@ -489,7 +496,13 @@ export class MessageEngine {
   async deleteConversation(conversationId: string): Promise<void> {
     const core = this.#core;
     await core.mutex.run(async () => {
-      if (!(await core.store.getConversation(conversationId))) return;
+      const conversation = await core.store.getConversation(conversationId);
+      if (!conversation) return;
+      const group =
+        conversation.kind === 'group' ? await core.store.getGroup(conversationId) : undefined;
+      if (group && !group.left) {
+        throw new MessageActionError('not_allowed', 'leave the group before deleting its chat');
+      }
       const queued: OutboxItem[] = [];
       for (const item of await core.store.listOutbox()) {
         if (item.type === 'fanout') {
@@ -502,6 +515,7 @@ export class MessageEngine {
       await core.commit({
         deleteConversations: [conversationId],
         deleteOutbox: queued.map((item) => item.id),
+        ...(group ? { deleteGroups: [conversationId] } : {}),
       });
     });
   }
@@ -544,9 +558,26 @@ export class MessageEngine {
     });
   }
 
+  /** The recipients of a conversation's messages; a group this user left takes none. */
+  async #audience(conversation: ConversationRecord): Promise<Audience> {
+    const core = this.#core;
+    if (conversation.kind === 'direct') {
+      return {
+        recipientUserIds: [conversation.peerUserId, core.self.userId],
+        peerUserId: conversation.peerUserId,
+      };
+    }
+    const group = await core.store.getGroup(conversation.conversationId);
+    if (!group || group.left) {
+      throw new MessageActionError('not_allowed', 'not a member of this group');
+    }
+    return { recipientUserIds: group.members.map((m) => m.userId), groupId: group.groupId };
+  }
+
   #controlFanout(
     opId: string,
     conversation: ConversationRecord,
+    audience: Audience,
     content: Uint8Array,
     now: number,
   ): FanoutItem {
@@ -556,7 +587,8 @@ export class MessageEngine {
       id: opId,
       messageId: opId,
       conversationId: conversation.conversationId,
-      recipientUserIds: [conversation.peerUserId, this.#core.self.userId],
+      recipientUserIds: audience.recipientUserIds,
+      ...(audience.groupId ? { groupId: audience.groupId } : {}),
       content,
       createdAt: now,
       expiresAt: now + this.#core.settings.maxRetentionMs,
@@ -567,7 +599,7 @@ export class MessageEngine {
 
   #fanout(
     message: MessageRecord,
-    peerUserId: string,
+    audience: Audience,
     content: Uint8Array,
     now: number,
   ): FanoutItem {
@@ -576,13 +608,55 @@ export class MessageEngine {
       id: message.messageId,
       messageId: message.messageId,
       conversationId: message.conversationId,
-      recipientUserIds: [peerUserId, this.#core.self.userId],
+      recipientUserIds: audience.recipientUserIds,
+      ...(audience.groupId ? { groupId: audience.groupId } : {}),
       content,
       createdAt: now,
       expiresAt: message.expiresAt ?? now + this.#core.settings.maxRetentionMs,
       attempts: 0,
       nextAttemptAt: now,
     };
+  }
+
+  // Groups (ADR 0016)
+
+  /** Creates a group on the server and tells the members; this user is the owner. */
+  createGroup(input: GroupInfo & { memberUserIds: string[] }): Promise<ConversationRecord> {
+    return this.#groups.create(input);
+  }
+
+  getGroup(groupId: string): Promise<GroupRecord | undefined> {
+    return this.#core.store.getGroup(groupId);
+  }
+
+  /** Admins and the owner. */
+  addGroupMembers(groupId: string, userIds: string[]): Promise<void> {
+    return this.#groups.addMembers(groupId, userIds);
+  }
+
+  /** Admins remove plain members, the owner anyone; removing oneself is leaving. */
+  removeGroupMember(groupId: string, userId: string): Promise<void> {
+    return this.#groups.removeMember(groupId, userId);
+  }
+
+  /** The chat stays on this device, read-only. */
+  leaveGroup(groupId: string): Promise<void> {
+    return this.#groups.leave(groupId);
+  }
+
+  /** The owner only. */
+  setGroupRole(groupId: string, userId: string, role: 'admin' | 'member'): Promise<void> {
+    return this.#groups.setRole(groupId, userId, role);
+  }
+
+  /** Name, description and picture (E2EE only); admins and the owner. */
+  updateGroupInfo(groupId: string, info: GroupInfo): Promise<void> {
+    return this.#groups.updateInfo(groupId, info);
+  }
+
+  /** Applies the server's view of a group (call it on the transport's `group_changed`). */
+  syncGroup(groupId: string): Promise<void> {
+    return this.#groups.sync(groupId);
   }
 
   // Contacts and keys
@@ -665,7 +739,8 @@ export class MessageEngine {
     const last = this.#typingSentAt.get(conversationId) ?? 0;
     if (active && now - last < TYPING_REFRESH_MS) return;
     const conversation = await core.store.getConversation(conversationId);
-    if (!conversation) return;
+    // Typing in groups is not relayed (ADR 0016).
+    if (conversation?.kind !== 'direct') return;
     const directory = await core.store.getDirectory(conversation.peerUserId);
     const recipientDeviceIds = directory?.devices.map((d) => d.deviceId) ?? [];
     if (recipientDeviceIds.length === 0) return;
@@ -737,6 +812,7 @@ export class MessageEngine {
           deleteOutbox: [],
           pruneSeenBefore: horizon,
           pruneOpsBefore: horizon,
+          pruneHeldBefore: horizon,
         };
         if (expiring.length > 0) {
           const outbox = await core.store.listOutbox();
@@ -757,6 +833,7 @@ export class MessageEngine {
         }
         await core.commit(batch);
       });
+      await this.#receiver.requestMissingKeys();
     } catch (error) {
       core.log('error', 'expiry sweep failed', { error: String(error) });
     }

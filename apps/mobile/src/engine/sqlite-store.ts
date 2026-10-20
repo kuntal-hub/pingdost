@@ -2,15 +2,21 @@
 // `apply` is one `BEGIN IMMEDIATE … COMMIT` on the keyed connection; never expo-sqlite's
 // `withExclusiveTransactionAsync`, whose second connection has no key (ADR 0005). Applies
 // are queued, so two batches never interleave on the shared connection. Search uses the
-// FTS5 index that migration 003's triggers keep in step with `messages` (ADR 0014).
+// FTS5 index that migration 003's triggers keep in step with `messages` (ADR 0014). Groups
+// and their Megolm sessions are migration 004's tables (ADR 0016).
 import {
   ftsQuery,
   type ConversationRecord,
   type DeliveryRecord,
+  type DeviceItem,
   type DirectoryRecord,
   type EngineStore,
+  type GroupRecord,
+  type HeldGroupRecord,
+  type InboundGroupSessionRecord,
   type MessageCursor,
   type MessageRecord,
+  type OutboundGroupSessionRecord,
   type OutboxItem,
   type PendingOpRecord,
   type SessionRecord,
@@ -48,7 +54,10 @@ const CHAT_TABLES = [
   'directory_devices',
   'seen_ids',
   'contacts',
-  'group_memberships',
+  'groups',
+  'group_sessions_out',
+  'group_sessions_in',
+  'group_held',
   'attachments',
   'seen_mesh_packets',
   'device_sync_state',
@@ -263,6 +272,7 @@ function toOutbox(r: OutboxRow): OutboxItem {
     nextAttemptAt: r.next_attempt_at,
   };
   const fields = JSON.parse(r.fields) as Record<string, unknown>;
+  const groupId = typeof fields.groupId === 'string' ? { groupId: fields.groupId } : {};
   if (r.type === 'fanout') {
     return {
       ...base,
@@ -270,18 +280,22 @@ function toOutbox(r: OutboxRow): OutboxItem {
       conversationId: fields.conversationId as string,
       recipientUserIds: fields.recipientUserIds as string[],
       content: bytes(r.content) ?? new Uint8Array(),
+      ...(fields.purpose ? { purpose: fields.purpose as 'message' | 'control' } : {}),
+      ...groupId,
     };
   }
   if (r.type === 'device') {
     return {
       ...base,
       type: 'device',
-      purpose: fields.purpose as 'message' | 'receipt' | 'session_reset',
+      purpose: fields.purpose as DeviceItem['purpose'],
       recipientUserId: fields.recipientUserId as string,
       recipientDeviceId: fields.recipientDeviceId as string,
       newSession: fields.newSession === true,
       content: bytes(r.content) ?? new Uint8Array(),
       packet: bytes(r.packet),
+      ...groupId,
+      ...(fields.megolm === true ? { megolm: true } : {}),
     };
   }
   return {
@@ -299,7 +313,12 @@ function outboxParams(item: OutboxItem): SqlValue[] {
   let packet: Uint8Array | null = null;
   switch (item.type) {
     case 'fanout':
-      fields = { conversationId: item.conversationId, recipientUserIds: item.recipientUserIds };
+      fields = {
+        conversationId: item.conversationId,
+        recipientUserIds: item.recipientUserIds,
+        purpose: item.purpose,
+        groupId: item.groupId,
+      };
       content = item.content;
       break;
     case 'device':
@@ -308,6 +327,8 @@ function outboxParams(item: OutboxItem): SqlValue[] {
         recipientUserId: item.recipientUserId,
         recipientDeviceId: item.recipientDeviceId,
         newSession: item.newSession,
+        groupId: item.groupId,
+        megolm: item.megolm,
       };
       content = item.content;
       packet = item.packet;
@@ -351,6 +372,108 @@ const toDirectory = (r: DirectoryRow): DirectoryRecord => ({
   fetchedAt: r.fetched_at,
   verifiedIdentityKey: r.verified_identity_key,
   devices: JSON.parse(r.devices) as DirectoryRecord['devices'],
+});
+
+interface GroupRow {
+  group_id: string;
+  version: number;
+  members: string;
+  server_version: number;
+  server_members: string;
+  name: string;
+  description: string;
+  avatar: Uint8Array | null;
+  info_at: number;
+  info_id: string;
+  left_group: number;
+  created_at: number;
+  updated_at: number;
+}
+
+interface OutboundGroupSessionRow {
+  group_id: string;
+  session_id: string;
+  pickle: string;
+  created_at: number;
+  message_count: number;
+  shared_with: string;
+  member_key: string;
+}
+
+interface InboundGroupSessionRow {
+  sender_device_id: string;
+  session_id: string;
+  group_id: string;
+  sender_user_id: string;
+  sender_key: string;
+  pickle: string;
+  first_known_index: number;
+  seen_indices: string;
+  shared_at: string | null;
+  created_at: number;
+}
+
+interface HeldRow {
+  id: string;
+  kind: string;
+  group_id: string;
+  session_id: string;
+  sender_user_id: string;
+  sender_device_id: string;
+  payload: Uint8Array;
+  received_at: number;
+  requested_at: number;
+}
+
+const toGroup = (r: GroupRow): GroupRecord => ({
+  groupId: r.group_id,
+  version: r.version,
+  members: JSON.parse(r.members) as GroupRecord['members'],
+  serverVersion: r.server_version,
+  serverMembers: JSON.parse(r.server_members) as GroupRecord['serverMembers'],
+  name: r.name,
+  description: r.description,
+  avatar: bytes(r.avatar),
+  infoAt: r.info_at,
+  infoId: r.info_id,
+  left: r.left_group === 1,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+});
+
+const toOutboundGroupSession = (r: OutboundGroupSessionRow): OutboundGroupSessionRecord => ({
+  groupId: r.group_id,
+  sessionId: r.session_id,
+  pickle: r.pickle,
+  createdAt: r.created_at,
+  messageCount: r.message_count,
+  sharedWith: JSON.parse(r.shared_with) as string[],
+  memberKey: r.member_key,
+});
+
+const toInboundGroupSession = (r: InboundGroupSessionRow): InboundGroupSessionRecord => ({
+  sessionId: r.session_id,
+  groupId: r.group_id,
+  senderUserId: r.sender_user_id,
+  senderDeviceId: r.sender_device_id,
+  senderKey: r.sender_key,
+  pickle: r.pickle,
+  firstKnownIndex: r.first_known_index,
+  seenIndices: JSON.parse(r.seen_indices) as number[],
+  createdAt: r.created_at,
+  ...(r.shared_at === null ? {} : { sharedAt: JSON.parse(r.shared_at) as Record<string, number> }),
+});
+
+const toHeld = (r: HeldRow): HeldGroupRecord => ({
+  id: r.id,
+  kind: r.kind as HeldGroupRecord['kind'],
+  groupId: r.group_id,
+  sessionId: r.session_id,
+  senderUserId: r.sender_user_id,
+  senderDeviceId: r.sender_device_id,
+  payload: bytes(r.payload) ?? new Uint8Array(),
+  receivedAt: r.received_at,
+  requestedAt: r.requested_at,
 });
 
 const placeholders = (count: number) => Array.from({ length: count }, () => '?').join(', ');
@@ -517,11 +640,145 @@ export class SqliteEngineStore implements EngineStore {
           );
         }
       }
+      await this.#applyGroups(b);
       await db.execAsync('COMMIT');
     } catch (error) {
       await db.execAsync('ROLLBACK').catch(() => undefined);
       throw error;
     }
+  }
+
+  /** Groups, Megolm sessions and held group traffic (migration 004). */
+  async #applyGroups(b: WriteBatch): Promise<void> {
+    const { db } = this;
+    for (const groupId of b.deleteGroups ?? []) {
+      for (const table of ['groups', 'group_sessions_out', 'group_sessions_in', 'group_held']) {
+        await db.runAsync(`DELETE FROM ${table} WHERE group_id = ?`, [groupId]);
+      }
+    }
+    for (const g of b.groups ?? []) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO groups (group_id, version, members, server_version, server_members,
+           name, description, avatar, info_at, info_id, left_group, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          g.groupId,
+          g.version,
+          JSON.stringify(g.members),
+          g.serverVersion,
+          JSON.stringify(g.serverMembers),
+          g.name,
+          g.description,
+          g.avatar,
+          g.infoAt,
+          g.infoId,
+          g.left ? 1 : 0,
+          g.createdAt,
+          g.updatedAt,
+        ],
+      );
+    }
+    for (const s of b.outboundGroupSessions ?? []) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO group_sessions_out (group_id, session_id, pickle, created_at,
+           message_count, shared_with, member_key)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          s.groupId,
+          s.sessionId,
+          s.pickle,
+          s.createdAt,
+          s.messageCount,
+          JSON.stringify(s.sharedWith),
+          s.memberKey,
+        ],
+      );
+    }
+    for (const s of b.inboundGroupSessions ?? []) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO group_sessions_in (sender_device_id, session_id, group_id,
+           sender_user_id, sender_key, pickle, first_known_index, seen_indices, shared_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          s.senderDeviceId,
+          s.sessionId,
+          s.groupId,
+          s.senderUserId,
+          s.senderKey,
+          s.pickle,
+          s.firstKnownIndex,
+          JSON.stringify(s.seenIndices),
+          s.sharedAt === undefined ? null : JSON.stringify(s.sharedAt),
+          s.createdAt,
+        ],
+      );
+    }
+    if (b.pruneHeldBefore !== undefined) {
+      await db.runAsync('DELETE FROM group_held WHERE received_at < ?', [b.pruneHeldBefore]);
+    }
+    for (const id of b.deleteHeld ?? []) {
+      await db.runAsync('DELETE FROM group_held WHERE id = ?', [id]);
+    }
+    for (const h of b.held ?? []) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO group_held (id, kind, group_id, session_id, sender_user_id,
+           sender_device_id, payload, received_at, requested_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          h.id,
+          h.kind,
+          h.groupId,
+          h.sessionId,
+          h.senderUserId,
+          h.senderDeviceId,
+          h.payload,
+          h.receivedAt,
+          h.requestedAt,
+        ],
+      );
+    }
+  }
+
+  async getGroup(groupId: string): Promise<GroupRecord | undefined> {
+    const row = await this.db.getFirstAsync<GroupRow>('SELECT * FROM groups WHERE group_id = ?', [
+      groupId,
+    ]);
+    return row ? toGroup(row) : undefined;
+  }
+
+  async listGroups(): Promise<GroupRecord[]> {
+    const rows = await this.db.getAllAsync<GroupRow>(
+      'SELECT * FROM groups ORDER BY created_at, group_id',
+      [],
+    );
+    return rows.map(toGroup);
+  }
+
+  async getOutboundGroupSession(groupId: string): Promise<OutboundGroupSessionRecord | undefined> {
+    const row = await this.db.getFirstAsync<OutboundGroupSessionRow>(
+      'SELECT * FROM group_sessions_out WHERE group_id = ?',
+      [groupId],
+    );
+    return row ? toOutboundGroupSession(row) : undefined;
+  }
+
+  async getInboundGroupSession(
+    senderDeviceId: string,
+    sessionId: string,
+  ): Promise<InboundGroupSessionRecord | undefined> {
+    const row = await this.db.getFirstAsync<InboundGroupSessionRow>(
+      'SELECT * FROM group_sessions_in WHERE sender_device_id = ? AND session_id = ?',
+      [senderDeviceId, sessionId],
+    );
+    return row ? toInboundGroupSession(row) : undefined;
+  }
+
+  async listHeld(groupId: string): Promise<HeldGroupRecord[]> {
+    const rows = await this.db.getAllAsync<HeldRow>(
+      'SELECT * FROM group_held WHERE group_id = ? ORDER BY received_at, id',
+      [groupId],
+    );
+    return rows.map(toHeld);
   }
 
   async getConversation(conversationId: string): Promise<ConversationRecord | undefined> {

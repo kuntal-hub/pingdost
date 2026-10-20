@@ -238,11 +238,21 @@ function checkContent(content: Content): void {
     case 'groupControl':
       checkId(body.value.groupId, 'group_control.group_id');
       checkEnumSet(body.value.action, 'group_control.action');
+      // Empty for UPDATE_INFO.
+      for (const id of body.value.memberUserIds) checkId(id, 'group_control.member_user_ids');
+      for (const member of body.value.members) {
+        checkId(member.userId, 'group_control.members.user_id');
+        checkEnumSet(member.role, 'group_control.members.role');
+      }
       break;
     case 'roomKey':
       checkId(body.value.groupId, 'room_key.group_id');
       checkText(body.value.sessionId, 'room_key.session_id');
       checkText(body.value.sessionKey, 'room_key.session_key');
+      break;
+    case 'roomKeyRequest':
+      checkId(body.value.groupId, 'room_key_request.group_id');
+      checkText(body.value.sessionId, 'room_key_request.session_id');
       break;
     case 'syncChunk':
       checkId(body.value.syncId, 'sync_chunk.sync_id');
@@ -345,6 +355,9 @@ function checkServerFrame(frame: ServerFrame, options: CodecOptions): void {
       break;
     case 'error':
       checkText(body.value.code, 'error.code');
+      break;
+    case 'groupChanged':
+      checkId(body.value.groupId, 'group_changed.group_id');
       break;
     case 'otkLow':
     case 'revoked':

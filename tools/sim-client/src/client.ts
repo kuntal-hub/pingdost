@@ -10,6 +10,7 @@ import {
   authApi,
   createApiClient,
   devicesApi,
+  groupsApi,
   keysApi,
   type ApiClient,
 } from '@pingdost/api-client';
@@ -234,13 +235,15 @@ export class SimClient {
       pickleKey: this.pickleKey,
       store: this.store,
       transport: router,
-      api: { ...keys, keys },
+      api: { ...keys, keys, groups: groupsApi(this.api) },
       ...(options.settings ? { settings: options.settings } : {}),
       ...(options.receipts ? { receipts: options.receipts } : {}),
       ...(options.log ? { log: options.log } : {}),
     });
     transport.onEvent((event) => {
       if (event.type === 'otk_low') void engine.replenishKeys().catch(() => undefined);
+      if (event.type === 'group_changed')
+        void engine.syncGroup(event.groupId).catch(() => undefined);
     });
     return [transport, router, engine];
   }

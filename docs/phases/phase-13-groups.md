@@ -11,14 +11,14 @@ Secure group chats: server-side membership and roles kept only as routing metada
 - The E2EE ADR
 
 ## Tasks
-- [ ] **Server `groups` module:**
+- [x] **Server `groups` module:**
   - collection `{groupId, createdBy, members:[{userId, role: owner|admin|member, addedAt}], version, createdAt}`, with a limit of `GROUP_MAX_MEMBERS` (default 64);
   - endpoints: create, add members (admin+), remove (admin+, or self = leave), change role (owner), get group (members only);
   - every change bumps `version`, and members' online devices get a WS notice;
   - **routing check:** an envelope with `group_id` is only accepted for recipients who are current members, from a sender who is a current member;
   - each recipient device gets its own queued copy (REQ §8.2).
   - **No group name or avatar on the server.**
-- [ ] **Engine:**
+- [x] **Engine:**
   - a group conversation type;
   - one outbound Megolm session per (group, sender device);
   - `RoomKey` content shared over Olm to all member devices (including own other devices);
@@ -28,14 +28,14 @@ Secure group chats: server-side membership and roles kept only as routing metada
   - **Megolm replay check (ADR 0003):** Megolm itself accepts the same message twice, so reject any (sessionId, messageIndex) pair already accepted. Persist the seen indices with the inbound session;
   - accept room keys only over an Olm session with a certified member device. There is no key forwarding from other devices (the lesson from the 2023 Matrix analysis);
   - handle messages that arrive before their keys (hold, then request the key from the sender device).
-- [ ] **E2EE group state:** `GroupControl` content (name, description, avatar as a small inline encrypted image) sent by admins. Clients apply it only if the sender is an admin per the server-confirmed membership version. Late joiners get a current-state snapshot from the adder.
-- [ ] **UI:**
+- [x] **E2EE group state:** `GroupControl` content (name, description, avatar as a small inline encrypted image) sent by admins. Clients apply it only if the sender is an admin per the server-confirmed membership version. Late joiners get a current-state snapshot from the adder.
+- [x] **UI:**
   - create group (pick contacts by username; name/avatar);
   - group chat (sender names/colors);
   - group info (members, roles, add/remove, leave, mute);
   - system messages ("A added B", "Security code changed for C").
   - **There must be no call action anywhere in groups** (REQ §8.2).
-- [ ] **Tests (sim-client integration):**
+- [x] **Tests (sim-client integration):**
   - 3 members exchange messages;
   - **removed member cannot decrypt messages sent after removal**;
   - new member cannot decrypt messages from before joining;

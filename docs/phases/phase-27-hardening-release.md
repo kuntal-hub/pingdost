@@ -48,3 +48,9 @@ Make the product release-worthy: security and privacy audits, full acceptance tr
 **From Phase 11 (ADR 0014):**
 - `abuse_reports` has no review tooling yet: add a moderation path, and keep the in-app copy ("deleted after 90 days") in step with `ABUSE_REPORT_RETENTION_SECONDS`.
 - Ops (edit, delete, reaction) are not resent after a session repair once the server accepted them. Measure how often this happens before changing it.
+**From Phase 12 (ADR 0015):**
+- The notification small icon is the Expo template's monochrome glyph (`assets/images/android-icon-monochrome.png`): replace it with the PingDost mark.
+- FCM may deprioritize high-priority data messages that rarely end in a visible notification (muted chats, duplicates): check delivery delay on real phones, including OEM battery savers.
+**From Phase 13 (ADR 0016):**
+- A device that missed a promotion rejects that admin's controls until a newer control or server notice: measure how often added members end up without keys from some members.
+- Admins plus a compromised server can add members; document this in the security review.

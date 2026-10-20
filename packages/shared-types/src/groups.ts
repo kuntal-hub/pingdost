@@ -27,20 +27,32 @@ export const GroupSchema = z.object({
 });
 export type Group = z.infer<typeof GroupSchema>;
 
+// GET /v1/groups: the caller's groups.
+export const GroupListResponseSchema = z.object({ groups: z.array(GroupSchema) });
+export type GroupListResponse = z.infer<typeof GroupListResponseSchema>;
+
+/** At most this many users per create or add request (the group limit still applies). */
+export const MAX_GROUP_REQUEST_USERS = 256;
+
 // POST /v1/groups
 export const CreateGroupRequestSchema = z.object({
   /** Client-generated UUIDv7. */
   groupId: IdSchema,
-  memberUserIds: z.array(IdSchema).min(1),
+  /** The other members; the caller becomes the owner. */
+  memberUserIds: z.array(IdSchema).min(1).max(MAX_GROUP_REQUEST_USERS),
 });
 export type CreateGroupRequest = z.infer<typeof CreateGroupRequestSchema>;
 
-// POST /v1/groups/:groupId/members
-export const AddGroupMembersRequestSchema = z.object({ userIds: z.array(IdSchema).min(1) });
+// POST /v1/groups/:groupId/members (admins and the owner)
+export const AddGroupMembersRequestSchema = z.object({
+  userIds: z.array(IdSchema).min(1).max(MAX_GROUP_REQUEST_USERS),
+});
 export type AddGroupMembersRequest = z.infer<typeof AddGroupMembersRequestSchema>;
 
-// PATCH /v1/groups/:groupId/members/:userId
-export const ChangeGroupRoleRequestSchema = z.object({ role: GroupRoleSchema });
+// PATCH /v1/groups/:groupId/members/:userId (the owner). Ownership cannot be handed over
+// this way; it passes on only when the owner leaves.
+export const ChangeGroupRoleRequestSchema = z.object({ role: z.enum(['admin', 'member']) });
 export type ChangeGroupRoleRequest = z.infer<typeof ChangeGroupRoleRequestSchema>;
 
 // DELETE /v1/groups/:groupId/members/:userId (remove, or leave when it is the caller) → Group
+// as it is after the change.

@@ -39,7 +39,15 @@ message ServerFrame {
     Revoked revoked = 9;
     ServerError error = 10;
     Pong pong = 11;
+    GroupChanged group_changed = 12;
   }
+}
+
+// A group's membership or roles changed (ADR 0016): members' clients refetch it. Sent to
+// the online devices of members before and after the change.
+message GroupChanged {
+  bytes group_id = 1;
+  uint64 version = 2;
 }
 
 // The first frame on a connection.

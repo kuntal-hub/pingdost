@@ -272,8 +272,8 @@ describe('Content', () => {
   it('reports a body from a newer version as UNKNOWN_BODY', () => {
     const noBody = textContent('x');
     noBody.body = { case: undefined };
-    // Field 14 is not defined in v1: a newer peer's body type.
-    const bytes = Uint8Array.from([...toBinary(ContentSchema, noBody), 0x72, 0x01, 0x00]);
+    // Field 16 is not defined in v1: a newer peer's body type.
+    const bytes = Uint8Array.from([...toBinary(ContentSchema, noBody), 0x82, 0x01, 0x01, 0x00]);
     expectProtocolError(() => decodeContent(bytes), 'UNKNOWN_BODY', 'body');
     // The header alone still decodes, for an "update needed" placeholder.
     expect(decodeContentHeader(bytes)).toEqual(noBody.header);

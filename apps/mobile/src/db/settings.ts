@@ -10,6 +10,8 @@ export const SETTING_KEYS = {
   privacy: 'privacy',
   /** The users this account blocked (`{ userId, ids }`), cached for offline use. */
   blocks: 'blocks',
+  /** `NotificationPrefs` (Settings → Notifications); local to this phone. */
+  notifications: 'notifications',
 } as const;
 
 export async function readSetting<T>(

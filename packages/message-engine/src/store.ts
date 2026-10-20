@@ -13,10 +13,10 @@
 import type { MessageState } from '@pingdost/shared-types';
 
 export interface ConversationRecord {
+  /** A group's conversation ID is its group ID (ADR 0016). */
   conversationId: string;
-  /** Groups arrive in Phase 13. */
-  kind: 'direct';
-  /** The other user of a direct conversation. */
+  kind: 'direct' | 'group';
+  /** The other user of a direct conversation; empty for a group. */
   peerUserId: string;
   createdAt: number;
   /** The last activity: the chat list's sort key. */
@@ -44,7 +44,96 @@ export type MessageKind =
   /** Deleted for everyone by its sender: a tombstone, `body` is empty. */
   | 'deleted';
 
-export type SystemNotice = 'safety_number_changed';
+/**
+ * `safety_number_changed` (the sender's account key changed), or a group event as `group:`
+ * plus JSON (`groups/notices.ts`).
+ */
+export type SystemNotice = string;
+
+export type GroupRole = 'owner' | 'admin' | 'member';
+
+export interface GroupMemberRecord {
+  userId: string;
+  role: GroupRole;
+}
+
+/**
+ * A group as this device knows it (ADR 0016). Membership comes from E2EE `GroupControl`s
+ * sent by admins; the server's view only ever removes members or lowers roles here.
+ */
+export interface GroupRecord {
+  groupId: string;
+  /** The membership version (the server's numbering) of the state applied last. */
+  version: number;
+  members: GroupMemberRecord[];
+  /** The server's members and roles as last fetched, and its version (0: never fetched). */
+  serverVersion: number;
+  serverMembers: GroupMemberRecord[];
+  name: string;
+  description: string;
+  /** A small image, or null. */
+  avatar: Uint8Array | null;
+  /** Last-write-wins key of the shown info: its control's header time and message ID. */
+  infoAt: number;
+  infoId: string;
+  /** This user left or was removed: read-only, no keys are shared any more. */
+  left: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** This device's current Megolm session for a group. */
+export interface OutboundGroupSessionRecord {
+  groupId: string;
+  sessionId: string;
+  pickle: string;
+  createdAt: number;
+  /** Messages encrypted with it; rotation after 100. */
+  messageCount: number;
+  /** Devices that were sent its key: a device that is no longer a recipient forces a rotation. */
+  sharedWith: string[];
+  /** The member set it was made for (sorted user IDs); any change forces a rotation. */
+  memberKey: string;
+}
+
+/** A Megolm session of a sender device, received over Olm. */
+export interface InboundGroupSessionRecord {
+  sessionId: string;
+  groupId: string;
+  senderUserId: string;
+  senderDeviceId: string;
+  /** The sender device's Curve25519 key when the session arrived. */
+  senderKey: string;
+  pickle: string;
+  firstKnownIndex: number;
+  /** Message indices already accepted: Megolm does not reject replays itself (ADR 0003). */
+  seenIndices: number[];
+  createdAt: number;
+  /**
+   * This device's own sessions only: each device it was shared with and the first message
+   * index that device may read. Only these get a `RoomKeyRequest` answered, from that index.
+   */
+  sharedAt?: Record<string, number>;
+}
+
+/**
+ * Group traffic that cannot be read yet, kept until it can: a Megolm message whose key has
+ * not arrived (`megolm`), or a room key for a group this device does not know yet
+ * (`room_key`, the decrypted Content). Pruned with the pending ops.
+ */
+export interface HeldGroupRecord {
+  /** The envelope ID. */
+  id: string;
+  kind: 'megolm' | 'room_key';
+  groupId: string;
+  sessionId: string;
+  senderUserId: string;
+  senderDeviceId: string;
+  payload: Uint8Array;
+  receivedAt: number;
+  /** When this device last asked the sender for the key (0: never). */
+  requestedAt: number;
+}
 
 /** One user's reaction to a message; the newest event per user wins (ADR 0014). */
 export interface ReactionEntry {
@@ -153,10 +242,15 @@ export interface FanoutItem extends OutboxBase {
   content: Uint8Array;
   /** What the device items will be; default `message`. */
   purpose?: 'message' | 'control';
+  /** Group traffic: encrypted once with the group's Megolm session (ADR 0016). */
+  groupId?: string;
 }
 
-/** `control`: an edit, delete or reaction; it has no delivery rows or message state. */
-export type DevicePurpose = 'message' | 'control' | 'receipt' | 'session_reset';
+/**
+ * `control`: an edit, delete, reaction or group control; no delivery rows or message state.
+ * `room_key`: a Megolm session key for one member device.
+ */
+export type DevicePurpose = 'message' | 'control' | 'receipt' | 'session_reset' | 'room_key';
 
 /** One Content to one device. `id` is the envelope ID. */
 export interface DeviceItem extends OutboxBase {
@@ -169,6 +263,10 @@ export interface DeviceItem extends OutboxBase {
   packet: Uint8Array | null;
   /** Encrypt with a fresh Olm session (session repair). */
   newSession: boolean;
+  /** The envelope names this group, so the server checks membership (room keys, Megolm). */
+  groupId?: string;
+  /** Megolm-encrypted at fan-out: `packet` is final and never re-encrypted with Olm. */
+  megolm?: boolean;
 }
 
 /** A receipt to send; queued receipts to one device go out together as one Content. */
@@ -254,6 +352,16 @@ export interface WriteBatch {
   pruneSeenBefore?: number;
   /** JSON values; `null` deletes the key. */
   settings?: Record<string, unknown>;
+  /** Deletes each group with its Megolm sessions and held records. */
+  deleteGroups?: string[];
+  groups?: GroupRecord[];
+  /** Upserted by group ID: one current session per group. */
+  outboundGroupSessions?: OutboundGroupSessionRecord[];
+  inboundGroupSessions?: InboundGroupSessionRecord[];
+  held?: HeldGroupRecord[];
+  deleteHeld?: string[];
+  /** Deletes held records received before this time. */
+  pruneHeldBefore?: number;
 }
 
 export interface EngineStore {
@@ -302,4 +410,18 @@ export interface EngineStore {
   hasSeen(id: string): Promise<boolean>;
 
   getSetting(key: string): Promise<unknown>;
+
+  getGroup(groupId: string): Promise<GroupRecord | undefined>;
+  listGroups(): Promise<GroupRecord[]>;
+  getOutboundGroupSession(groupId: string): Promise<OutboundGroupSessionRecord | undefined>;
+  /**
+   * Keyed by sender device and session ID: a session is trusted only for the device that
+   * shared it, so no member can claim another device's session ID first.
+   */
+  getInboundGroupSession(
+    senderDeviceId: string,
+    sessionId: string,
+  ): Promise<InboundGroupSessionRecord | undefined>;
+  /** Held records of a group, oldest first. */
+  listHeld(groupId: string): Promise<HeldGroupRecord[]>;
 }

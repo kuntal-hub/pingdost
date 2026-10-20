@@ -195,6 +195,38 @@ describe('MessageEngine', () => {
     expect(info?.message.state).toBe('sent_to_server');
   });
 
+  it('announces each new incoming message once, for notifications', async () => {
+    const server = new FakeServer();
+    const alicePhone = await client(server);
+    const aliceWeb = await client(server, { sameUserAs: alicePhone });
+    const bob = await client(server);
+    const received = (c: TestClient) => {
+      const events: EngineEvent[] = [];
+      c.engine.onEvent((event) => {
+        if (event.type === 'received') events.push(event);
+      });
+      return events;
+    };
+    const atBob = received(bob);
+    const atAliceWeb = received(aliceWeb);
+    await online(alicePhone, aliceWeb, bob);
+    const { conversationId } = await chat(alicePhone, bob);
+    const sent = await alicePhone.engine.sendText(conversationId, 'ping');
+    await eventually(async () => (await messagesOf(bob)).length === 1);
+    await alicePhone.engine.editMessage(sent.messageId, 'ping!');
+    await alicePhone.engine.react(sent.messageId, '👍');
+    await eventually(async () => (await bob.engine.getMessage(sent.messageId))?.body === 'ping!');
+    await eventually(async () => (await messagesOf(aliceWeb)).length === 1);
+
+    expect(atBob).toHaveLength(1);
+    expect(atBob[0]).toMatchObject({
+      type: 'received',
+      message: { messageId: sent.messageId, body: 'ping' },
+    });
+    // The sender's own other device files a copy, which is not news.
+    expect(atAliceWeb).toEqual([]);
+  });
+
   it("sends new messages to a peer's new device, but not old ones", async () => {
     const server = new FakeServer();
     const alice = await client(server);

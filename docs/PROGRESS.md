@@ -17,6 +17,49 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-20 — Phase 13: Groups (Megolm) — 🔄 partial (device checks open)
+**Done (ADR 0016):**
+- **Server** `modules/groups`: `groups` collection; create, list, get (members only), add (admins), remove (admins remove plain members, the owner anyone; anyone leaves; a leaving owner hands over), role change (owner); `GROUP_MAX_MEMBERS` → `GROUP_FULL`; versioned with optimistic concurrency.
+  - `GroupChanged` WS frame to members' sockets before and after each change (`ConnectionRegistry.forUser`).
+  - Routing: envelopes with `group_id` pass only between current members (`NOT_A_MEMBER`); a Megolm envelope without `group_id` is malformed.
+- **Protocol (add-only, `buf breaking` clean):** `GroupControl` version/members/description/avatar + `CHANGE_ROLE`/`SNAPSHOT`; `GroupMember`; `RoomKey.exported`; `RoomKeyRequest` (body 14); `GroupChanged` (server frame 12). New golden vectors (additions only).
+- **Engine:** `groups/{state,megolm,content,notices,manager}.ts`.
+  - Membership from admins' E2EE controls; the server's view only removes/demotes (`reconcile`); late ADD/promotion counts if the server agrees.
+  - Megolm session per (group, device), rotated on member-set or device changes, 100 messages or 7 days; room keys over Olm (group-tagged) to devices lacking them; one encryption per message.
+  - Inbound sessions keyed by (sender device, session), replay check on stored indices; held messages/keys with `RoomKeyRequest` after 10 s (answered only for devices the session was shared with, from their index).
+  - Per-member group states (`aggregateGroupState`); group notices (`group:` JSON system messages); "security code changed" in shared groups; group typing not relayed.
+  - Store contract: groups, sessions, held records, outbox `groupId`/`megolm`/`purpose`.
+- **Android:** migration 004; SQLite store; New group, Group info (roles, add, remove, leave, mute, edit info and picture), Add members; sender names/colours; group headers, notices, read-only footer after leaving; group pictures ≤ 32 KiB via `expo-image-manipulator` 58.0.15; group notifications ("Trip — Asha: …").
+- Sim client: `groupsApi` + `group_changed` → `syncGroup`.
+- **Phase 11 bug fixed:** the SQLite store dropped a fan-out's `purpose`, so an edit/reaction queued offline came back as a message fan-out with delivery rows.
+
+**Remaining (user device checks):**
+- [ ] A group of 3 on devices (2 phones, or phone + emulator + `sim-client`): create, send both ways, add, remove (the removed phone goes read-only), leave, rename, picture.
+- Steps: `pnpm infra:up`; `pnpm --filter @pingdost/server dev`; install the app on both devices (needs `npx expo prebuild --platform android --clean` first: new native module); New chat → New group.
+
+**Deviations / decisions:** ADR 0016; no REQ changes. Client-side membership follows ADR 0003 (controls, not the server); admins plus a compromised server could still add members (documented).
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 42/42 tasks, 420 unit tests (engine 87 incl. 17 group tests over the fake server with real vodozemac; mobile 67; server 35). `pnpm format:check` passes.
+- `pnpm --filter @pingdost/server test:int`: 126/126 (new `groups.int.test.ts`: REST roles/limits, member-only routing, `GroupChanged`, and sim clients: three members, **a removed member's sessions cannot decrypt the Megolm ciphertexts sent after removal (REQ §19.1 bullet 4)**, a late joiner cannot read earlier messages, two devices, a key arriving after its message).
+- Every new/changed route bundled through Metro for Android. Not run: any device check (no phone attached).
+
+**Known issues / tech debt:** see ADR 0016 Consequences (missed promotions; group cost in the mailbox budget). Phase 17 notes added for the Dexie store and web groups.
+
+## 2026-10-20 — Phase 12: Push notifications — 🔄 partial (Firebase setup and device checks open)
+**Done (ADR 0015):**
+- **Server** `modules/push`: `push_tokens` (one address per device; moved on reinstall; deleted on revoke and logout); `PUT|DELETE /v1/push/token`; `PushService` (≤ 1 wake per device per `PUSH_WAKE_THROTTLE_SECONDS`, one deferred wake at the window's end unless connected, urgent bypass, ≤ 2 retries with `Retry-After`, invalid tokens deleted); FCM HTTP v1 over `fetch` with a `jose`-signed OAuth grant; Web Push via `web-push` 3.6.7; `pingdost_push_wakes_total{result}`.
+- **Engine:** `received` event once per new incoming unread message.
+- **Android:** `expo-notifications` 58.1.5 + `expo-task-manager` 58.0.12; custom entry `index.ts` (polyfills → wake task → router); headless wake (connect, drain until quiet, close); local notifications per chat (mute, previews, hide sender; group title); channels `messages`/`calls`; Android 13 explainer card; tap → chat; Settings → Notifications (previews, sender, battery optimization link); token registration on start, rotation, delete on logout; `app.config.js` adds `google-services.json` only when present.
+
+**Remaining:**
+- [ ] User: Firebase project + `google-services.json` + service account (steps in `docs/phases/phase-12-push-notifications.md`, "User setup").
+- [ ] On a phone: notification within seconds when backgrounded, swiped away and locked; record each state's behaviour.
+- [ ] An FCM request body inspected live (the integration test already proves it is exactly `{token, data:{t:"wake"}, android:{priority HIGH, collapse_key wake, ttl}}`).
+
+**Verification results:** unit tests (server push 10, mobile content 6); `test/push.int.test.ts` 6/6 (real FCM sender against a fake Google: body content-free, no marker, message, envelope, user or device ID); an x86_64 debug APK with the notification modules built (`assembleDebug`).
+
+**Known issues:** the notification icon is the template glyph (Phase 27). Delivery when swiped away depends on Android/OEM battery policies (ADR 0015).
 ## 2026-10-20 — Phase 11: Chat features — 🔄 partial (device checks open)
 **Done (ADR 0014):**
 - **Engine** (`packages/message-engine`):

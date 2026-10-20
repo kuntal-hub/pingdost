@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { messageRecord } from '@pingdost/message-engine/testing';
 import { MessageStateSchema } from '@pingdost/shared-types';
 
-import { shownState, stateLabel } from './labels';
+import { previewText, shownState, stateLabel, systemText } from './labels';
 import { buildTimeline, dayLabel } from './timeline';
 
 describe('stateLabel', () => {
@@ -29,6 +29,40 @@ describe('stateLabel', () => {
     expect(shownState('read', false)).toBe('delivered_to_recipient_device');
     expect(shownState('read', true)).toBe('read');
     expect(shownState('sent_to_server', false)).toBe('sent_to_server');
+  });
+});
+
+describe('systemText', () => {
+  const names = {
+    name: (id: string) => ({ a: 'Asha', b: 'Bilal', c: 'Chen' })[id] ?? 'PingDost user',
+    selfUserId: 'me',
+  };
+  const notice = (body: object, senderUserId = 'a') =>
+    messageRecord({ kind: 'system', senderUserId, body: `group:${JSON.stringify(body)}` });
+
+  it('words group events with names, and "you" for this user', () => {
+    expect(systemText(notice({ type: 'created', by: 'a' }), names)).toBe('Asha created the group');
+    expect(systemText(notice({ type: 'added', by: 'me', users: ['b', 'c'] }), names)).toBe(
+      'You added Bilal and Chen',
+    );
+    expect(systemText(notice({ type: 'removed', by: 'a', users: ['me'] }), names)).toBe(
+      'Asha removed you',
+    );
+    expect(systemText(notice({ type: 'left', users: ['c'] }), names)).toBe('Chen left');
+    expect(systemText(notice({ type: 'role', by: 'a', users: ['b'], role: 'admin' }), names)).toBe(
+      'Asha made Bilal an admin',
+    );
+    expect(systemText(notice({ type: 'joined', by: 'a' }), names)).toBe('Asha added you');
+  });
+
+  it('names whose safety number changed', () => {
+    const changed = messageRecord({
+      kind: 'system',
+      senderUserId: 'b',
+      body: 'safety_number_changed',
+    });
+    expect(systemText(changed, names)).toBe('Safety number changed for Bilal');
+    expect(previewText(changed)).toBe('Safety number changed');
   });
 });
 

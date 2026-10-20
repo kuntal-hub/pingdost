@@ -72,12 +72,15 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - `zeptomail` (HTTP API; the first 10K emails are free).
 - **Push:** a `PushNotifier` adapter with `fcm` (FCM HTTP v1, service account) and `webpush` (VAPID); `apns` comes in the iOS track.
   - Payloads are a **content-free wake** (`{"t":"wake"}` or `{"t":"call"}`), coalesced per device.
+  - (ADR 0015) `push_tokens` holds one address per device. FCM v1 is called over `fetch` with a `jose`-signed OAuth grant (no Firebase SDK). At most one wake per device per `PUSH_WAKE_THROTTLE_SECONDS`, plus one deferred wake at the window's end. Rejected tokens are deleted.
+  - The phone fetches, decrypts and shows a **local** notification itself. Previews, sender name and mute are device settings.
 - **Attachment staging:** an `AttachmentStore` interface with two adapters:
   - `fs` (VPS disk, REQ §22; signed HMAC URL tokens served by the API with range support);
   - `s3` (AWS SDK v3; R2- and MinIO-compatible; presigned multipart).
   - ⚠ This resolves the REQ §10.3 vs §22 conflict.
 - **Avatars:** Cloudinary (free) for **user profile avatars only**, using signed client uploads. ⚠ Group name, avatar and description travel **E2EE inside group control messages**; the server stores none of them.
 - **User discovery:** **exact-match username lookup only**, rate-limited. No contact upload and no fuzzy search.
+- **Groups (ADR 0016):** `groups` keeps members, roles and a `version` as routing metadata (`GROUP_MAX_MEMBERS`). Envelopes that carry `group_id` (Megolm messages, room keys) pass only between current members (`NOT_A_MEMBER`). Every change sends `GroupChanged` to members' sockets.
 - **Blocks and reports (ADR 0014):** `blocks` (`blocker:blocked`, at most 1,000 per user) and `abuse_reports` (TTL `ABUSE_REPORT_RETENTION_SECONDS`).
   - A send to a user who blocked the sender is answered `Accepted{STORED}` and dropped, so the sender learns nothing.
   - Presence and typing stop both ways; lookups still work.
@@ -143,6 +146,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - **Olm** v1 (Double Ratchet + 3DH) for per-device 1:1 sessions. One-time keys plus a fallback key, published via the key directory, give asynchronous prekeys.
   - **Megolm** v1 for groups. The outbound session rotates on every membership change (mandatory on removal) and every 100 messages / 7 days. Room keys are shared to each member device over Olm.
   - Megolm does not reject replays, so the engine rejects seen (sessionId, messageIndex) pairs. Repeated pre-key messages are routed by `prekeyMessageSessionId()`.
+  - (ADR 0016) Clients share keys only with members that admins announced in E2EE `GroupControl`s; the server's membership view only ever removes. A device that lost a key asks the session's sender (`RoomKeyRequest`), which answers only devices it shared the session with, from the index they got.
   - Why not MLS: MLS requires totally ordered commits, which breaks under offline/mesh delivery. Why not libsignal: no official RN or web builds. Both are scored in the Phase 2 matrix anyway.
 - **Bindings:** a Rust wrapper crate `crates/pingdost-crypto` with a narrow uniffi API, built with **uniffi-bindgen-react-native (ubrn)**.
   - Android/iOS (ADR 0005): the ubrn **`jsi2`** flavour. `packages/crypto-native` ships `libpingdost_crypto.so` (built locally, git-ignored) plus committed TypeScript bindings; the app loads it through the `@ubjs/react-native` JSI player Turbo Module, which must be a direct app dependency.
@@ -183,13 +187,15 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - A raw 32-byte key (`PRAGMA key = "x'…'"`) from SecureStore; opening checks `PRAGMA cipher_version`, because plain SQLite would ignore the key silently.
   - Raw-SQL repositories plus a migration runner keyed on `PRAGMA user_version` (`apps/mobile/src/db/migrate.ts`; `STRICT` tables).
   - Tables: REQ §14.1 entities plus `crypto_store` (pickles) and an FTS5 table.
+  - Groups (ADR 0016, migration 004): `groups`, `group_sessions_out`, `group_sessions_in` (keyed by sender device + session, with accepted indices), `group_held`.
   - Local search (ADR 0014): `messages_fts` keyed by the `messages` rowid and kept in step by triggers, so messages are upserted (`ON CONFLICT DO UPDATE`), never `INSERT OR REPLACE`. Tokenizer: `unicode61 remove_diacritics 2 categories 'L* N* Co M*'`. Queries are built only from quoted prefix phrases.
 - **Files:** `expo-file-system` (new File API, chunked reads, no base64 for big files). Attachments are stored **as encrypted files**; plaintext is decrypted to a temp cache only for viewing.
 - **Libraries, by phase:**
   - Phase 3: crypto Turbo Module (ubrn).
   - Phase 7 (ADR 0009): Zustand (app state), `@react-native-google-signin/google-signin` (free Original API; no Android config plugin without Firebase), expo-image-picker (avatars; camera and microphone permissions blocked), expo-network (offline banner), expo-symbols (Material icons for the native tabs on Android).
   - Phase 10 (ADR 0012): FlashList, expo-image (avatars), expo-camera (QR safety codes; moved up from Phase 16), qrcode-generator. `@pingdost/protocol` adds @noble/hashes (safety numbers).
-  - Phase 12: expo-notifications (FCM token + background task).
+  - Phase 12: expo-notifications 58.1.5 + expo-task-manager 58.0.12 (FCM token, headless wake task defined in the custom entry `index.ts`).
+  - Phase 13: expo-image-manipulator 58.0.15 (group pictures shrunk to ≤ 32 KiB on the phone).
   - Phase 15: expo-document-picker, expo-audio, expo-video, react-native-compressor (re-validate).
   - Phase 16: QR pairing reuses expo-camera (installed in Phase 10).
   - Phase 21: nearby Expo module in Kotlin.
@@ -262,6 +268,7 @@ GOOGLE_CLIENT_IDS=                          # comma-separated audiences (web + a
 CLOUDINARY_CLOUD_NAME= CLOUDINARY_API_KEY= CLOUDINARY_API_SECRET=
 FCM_PROJECT_ID= FCM_SERVICE_ACCOUNT_JSON_BASE64=
 WEB_PUSH_VAPID_PUBLIC_KEY= WEB_PUSH_VAPID_PRIVATE_KEY= WEB_PUSH_SUBJECT=
+PUSH_WAKE_THROTTLE_SECONDS=10               # Phase 12: max one wake per device per window
 ATTACHMENT_STORE=fs                          # fs | s3
 ATTACHMENT_FS_ROOT=./.data/attachments
 ATTACHMENT_USER_QUOTA_BYTES=1073741824

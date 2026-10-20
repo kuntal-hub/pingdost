@@ -11,23 +11,32 @@ Offline Android devices get woken by FCM with a payload that carries no content.
 - **Load skill `expo:expo-overview`**
 
 ## Tasks
-- [ ] **User setup steps** (write them out; free): create a Firebase project → add the Android app `com.pingdost.app` → download `google-services.json` (gitignored; path via app config env) → create a service account key for FCM HTTP v1 → base64 it into `FCM_SERVICE_ACCOUNT_JSON_BASE64`.
-- [ ] **Server push module:**
+- [x] **User setup steps** (write them out; free): create a Firebase project → add the Android app `com.pingdost.app` → download `google-services.json` (gitignored; path via app config env) → create a service account key for FCM HTTP v1 → base64 it into `FCM_SERVICE_ACCOUNT_JSON_BASE64`.
+- [x] **Server push module:**
   - `push_tokens` collection (deviceId, provider fcm|webpush, token/subscription, updatedAt); `PUT /v1/push/token`, `DELETE /v1/push/token`;
   - `PushNotifier` implementation with an `fcm` adapter (OAuth via the service account JWT; check the current FCM v1 API) and a `webpush` adapter (`web-push` lib, VAPID env; used by web in Phase 17);
   - payload `{t:"wake"}` only, high priority, collapse key per device;
   - throttle at most 1 wake per device per N seconds (env);
   - remove invalid tokens on `UNREGISTERED`.
-- [ ] Hook `wake()` into the delivery offline path (Phase 8 interface).
-- [ ] **Android client:**
+- [x] Hook `wake()` into the delivery offline path (Phase 8 interface).
+- [x] **Android client:**
   - `expo-notifications`: get the **device** FCM token (`getDevicePushTokenAsync`) and register it;
   - background task (`expo-task-manager` + `Notifications.registerTaskAsync`): on a data message, start the engine headless → connect WS → fetch → decrypt → ack → local notification → disconnect;
   - notification channels (Messages; Calls placeholder);
   - Android 13+ notification permission prompt with an explanation;
   - tapping a notification deep-links to the chat;
   - **Settings:** "Show message previews" (default on; when off: "New message"), per-chat mute respected, and a "Hide sender name" option.
-- [ ] Handle Doze/battery: document the high-priority data message limits and add a "battery optimization" help link in Settings.
-- [ ] **Tests:** server unit tests with mocked FCM/web-push endpoints (payload has no content fields, throttling, token cleanup).
+- [x] Handle Doze/battery: document the high-priority data message limits and add a "battery optimization" help link in Settings.
+- [x] **Tests:** server unit tests with mocked FCM/web-push endpoints (payload has no content fields, throttling, token cleanup).
+
+### User setup (done by hand, free; ADR 0015)
+1. https://console.firebase.google.com → **Create a project** `pingdost`, Google Analytics off (Spark plan, no card).
+2. Add an **Android** app with package `com.pingdost.app` (no SHA-1 needed) → **Register app**.
+3. Download `google-services.json` to `apps/mobile/google-services.json` (git-ignored; `GOOGLE_SERVICES_JSON` can point elsewhere). Skip the SDK steps of the wizard.
+4. **Project settings → Service accounts → Generate new private key**: keep the JSON outside the repo.
+5. **Project settings → Cloud Messaging**: "Firebase Cloud Messaging API (V1)" must say *Enabled*.
+6. Root `.env`: `FCM_PROJECT_ID=<project id>` and `FCM_SERVICE_ACCOUNT_JSON_BASE64=<base64 of the JSON>` (PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes('<path>'))`).
+7. `npx expo prebuild --platform android --clean` in `apps/mobile`, then rebuild the app.
 
 ## Key files
 `apps/server/src/modules/push/*`, `apps/mobile/src/push/*`, `apps/mobile/app.config.ts` (google-services path)

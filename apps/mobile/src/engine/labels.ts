@@ -1,15 +1,59 @@
 // What each message state is called in the UI (REQ §8.3, §11.6; ARCHITECTURE A8). Never
 // "delivered" for a server or relay hop: only a receipt from the recipient's device says so.
-import type { MessageRecord } from '@pingdost/message-engine';
+import { parseGroupNotice, type MessageRecord } from '@pingdost/message-engine';
 import type { MessageState } from '@pingdost/shared-types';
 
+/** How to name people in notices: a contact name, and who "you" are. */
+export interface Names {
+  name: (userId: string) => string;
+  selfUserId: string;
+}
+
+function list(users: string[], who: (userId: string) => string): string {
+  const named = users.map(who);
+  if (named.length <= 1) return named[0] ?? 'someone';
+  return `${named.slice(0, -1).join(', ')} and ${named.at(-1)}`;
+}
+
+/** A system message as a sentence: a changed safety number, or a group event (ADR 0016). */
+export function systemText(message: MessageRecord, names?: Names): string {
+  const who = (userId: string) =>
+    names && userId === names.selfUserId ? 'You' : (names?.name(userId) ?? 'Someone');
+  const notice = parseGroupNotice(message.body);
+  if (!notice) {
+    return names && message.senderUserId !== names.selfUserId
+      ? `Safety number changed for ${who(message.senderUserId)}`
+      : 'Safety number changed';
+  }
+  switch (notice.type) {
+    case 'created':
+      return `${who(notice.by)} created the group`;
+    case 'joined':
+      return `${who(notice.by)} added you`;
+    case 'added':
+      return `${who(notice.by)} added ${list(notice.users, who)}`;
+    case 'removed':
+      return `${who(notice.by)} removed ${list(notice.users, (id) => (id === names?.selfUserId ? 'you' : who(id)))}`;
+    case 'left':
+      return `${list(notice.users, who)} left`;
+    case 'role':
+      return notice.role === 'admin'
+        ? `${who(notice.by)} made ${list(notice.users, who)} an admin`
+        : `${who(notice.by)} removed admin rights from ${list(notice.users, who)}`;
+    case 'info':
+      return `${who(notice.by)} changed the group info`;
+    case 'not_member':
+      return "You're no longer a member of this group";
+  }
+}
+
 /** One line standing for a message: previews, quotes, search results. */
-export function previewText(message: MessageRecord): string {
+export function previewText(message: MessageRecord, names?: Names): string {
   switch (message.kind) {
     case 'deleted':
       return 'This message was deleted';
     case 'system':
-      return 'Safety number changed';
+      return systemText(message, names);
     case 'unsupported':
       return 'Update PingDost to see this message';
     case 'text':

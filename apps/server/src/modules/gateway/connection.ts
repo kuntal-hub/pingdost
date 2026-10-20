@@ -196,6 +196,18 @@ export class Connection implements PresencePeer {
     return { userId: this.#userId, deviceId: this.#deviceId };
   }
 
+  /** A group this user is or was in changed (ADR 0016); the client refetches it. */
+  notifyGroupChanged(groupId: string, version: number): void {
+    if (this.#state !== 'open') return;
+    this.#send({
+      requestId: 0,
+      body: {
+        case: 'groupChanged',
+        value: { groupId: uuidToBytes(groupId), version: BigInt(version) },
+      },
+    });
+  }
+
   /** A watched user's presence (best effort: dropped when the reader is behind). */
   notifyPresence(userId: string, online: boolean): void {
     this.#sendIfRoom({

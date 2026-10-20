@@ -25,6 +25,7 @@ import {
   CallSignal_Type,
   ContentSchema,
   GroupControl_Action,
+  GroupMember_Role,
   Receipt_Type,
 } from './gen/pingdost/v1/content_pb';
 import { CryptoType, EnvelopeSchema } from './gen/pingdost/v1/envelope_pb';
@@ -304,6 +305,25 @@ export function createVectors(): ProtocolVectors {
       }),
     ),
     vector(
+      'content/group-control-snapshot',
+      ContentSchema,
+      content({
+        case: 'groupControl',
+        value: {
+          groupId: GROUP,
+          action: GroupControl_Action.SNAPSHOT,
+          version: 3n,
+          members: [
+            { userId: USER_A, role: GroupMember_Role.OWNER },
+            { userId: USER_B, role: GroupMember_Role.MEMBER },
+          ],
+          name: 'Weekend trip',
+          description: 'Goa, May',
+          avatar: filler(24, 31),
+        },
+      }),
+    ),
+    vector(
       'content/room-key',
       ContentSchema,
       content({
@@ -313,6 +333,14 @@ export function createVectors(): ProtocolVectors {
           sessionId: MEGOLM_SESSION_ID,
           sessionKey: 'c2Vzc2lvbi1rZXktc3RhbmQtaW4',
         },
+      }),
+    ),
+    vector(
+      'content/room-key-request',
+      ContentSchema,
+      content({
+        case: 'roomKeyRequest',
+        value: { groupId: GROUP, sessionId: MEGOLM_SESSION_ID, fromIndex: 7 },
       }),
     ),
     vector(
@@ -473,6 +501,11 @@ export function createVectors(): ProtocolVectors {
       'server-frame/pong',
       ServerFrameSchema,
       serverFrame({ case: 'pong', value: { nonce: 42 } }, 9),
+    ),
+    vector(
+      'server-frame/group-changed',
+      ServerFrameSchema,
+      serverFrame({ case: 'groupChanged', value: { groupId: GROUP, version: 4n } }),
     ),
   ];
 

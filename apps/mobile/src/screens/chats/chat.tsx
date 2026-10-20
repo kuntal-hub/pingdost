@@ -11,6 +11,7 @@ import { Button } from '@/components/button';
 import { OfflineBanner } from '@/components/offline-banner';
 import { useBlocks, useIsBlocked } from '@/engine/blocks';
 import { contactName } from '@/engine/contacts';
+import { groupPictureUri, senderColor, useGroup, useNames } from '@/engine/groups';
 import {
   useChatRuntime,
   useConnectionStatus,
@@ -21,13 +22,15 @@ import {
   useReadReceipts,
   takeJump,
 } from '@/engine/hooks';
-import { previewText, shownState, stateLabel } from '@/engine/labels';
+import { previewText, shownState, stateLabel, systemText, type Names } from '@/engine/labels';
 import { watchPresence } from '@/engine/runtime';
 import { timeLabel, type TimelineItem } from '@/engine/timeline';
+import { dismissChatNotification } from '@/push/notifications';
 import { usePalette } from '@/theme/theme-root';
 import {
   canReact,
   MessageActionError,
+  parseGroupNotice,
   summarizeReactions,
   type ConversationRecord,
   type MessageRecord,
@@ -77,6 +80,33 @@ function HeaderTitle({ peerUserId }: { peerUserId: string | undefined }) {
           {verified ? '  ✓' : ''}
         </Text>
         {online && <Text className="text-muted">online</Text>}
+      </View>
+    </Pressable>
+  );
+}
+
+function GroupHeaderTitle({ groupId }: { groupId: string }) {
+  const router = useRouter();
+  const group = useGroup(groupId);
+  const name = group?.name || 'Group';
+  const subtitle = !group
+    ? ''
+    : group.left
+      ? "You're not a member"
+      : `${group.members.length} member${group.members.length === 1 ? '' : 's'}`;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${name}, ${subtitle}. Group info`}
+      onPress={() => router.push({ pathname: '/group/[groupId]', params: { groupId } })}
+      className="flex-row items-center gap-3 active:opacity-70"
+    >
+      <Avatar url={groupPictureUri(group?.avatar)} name={name} size={36} />
+      <View>
+        <Text numberOfLines={1} className="text-base font-semibold text-foreground">
+          {name}
+        </Text>
+        {subtitle !== '' && <Text className="text-muted">{subtitle}</Text>}
       </View>
     </Pressable>
   );
@@ -165,7 +195,9 @@ interface BubbleProps {
   message: MessageRecord;
   online: boolean;
   readReceipts: boolean;
-  peerUserId: string | undefined;
+  /** Group chats show who wrote each incoming message. */
+  isGroup: boolean;
+  people: Names;
   selfUserId: string;
   loaded: ReadonlyMap<string, MessageRecord>;
   names: (message: MessageRecord) => string;
@@ -176,22 +208,26 @@ interface BubbleProps {
 }
 
 function Bubble(props: BubbleProps) {
-  const { message, online, readReceipts, peerUserId, highlighted } = props;
+  const { message, online, readReceipts, isGroup, people, highlighted } = props;
   const router = useRouter();
   const runtime = useChatRuntime();
 
   if (message.kind === 'system') {
+    // Group events are just told; a changed safety number links to that person.
+    const safety = parseGroupNotice(message.body) === undefined;
+    const userId = message.senderUserId;
     return (
       <Pressable
-        accessibilityRole="button"
-        onPress={() =>
-          peerUserId &&
-          router.push({ pathname: '/contact/[userId]', params: { userId: peerUserId } })
-        }
+        accessibilityRole={safety ? 'button' : 'text'}
+        disabled={!safety}
+        onPress={() => router.push({ pathname: '/contact/[userId]', params: { userId } })}
         className="mx-6 my-2 items-center rounded-md border border-border px-3 py-2"
       >
         <Text className="text-center text-muted">
-          Your safety number with this contact changed. Tap to verify it again.
+          {safety && !isGroup
+            ? 'Your safety number with this contact changed. Tap to verify it again.'
+            : systemText(message, people)}
+          {safety && isGroup ? '. Tap to verify it.' : ''}
         </Text>
       </Pressable>
     );
@@ -216,12 +252,13 @@ function Bubble(props: BubbleProps) {
       ? () => void runtime.engine.retry(message.messageId)
       : undefined;
   const edited = message.editedAt !== null && !deleted;
+  const sender = outgoing ? 'You' : isGroup ? people.name(message.senderUserId) : 'They';
 
   return (
     <View className={`my-1 max-w-[82%] gap-1 px-3 ${outgoing ? 'self-end' : 'self-start'}`}>
       <Pressable
         accessibilityRole="text"
-        accessibilityLabel={`${outgoing ? 'You' : 'They'}: ${body}. ${timeLabel(message.sortAt)}${edited ? ', edited' : ''}${status ? `. ${status.long}` : ''}`}
+        accessibilityLabel={`${sender}: ${body}. ${timeLabel(message.sortAt)}${edited ? ', edited' : ''}${status ? `. ${status.long}` : ''}`}
         accessibilityHint={retry ? 'Double tap to send it again' : 'Long press for actions'}
         onLongPress={() => props.onLongPress(message)}
         onPress={retry}
@@ -233,6 +270,16 @@ function Bubble(props: BubbleProps) {
               : 'border border-border bg-surface'
         } ${highlighted ? 'opacity-70' : ''}`}
       >
+        {isGroup && !outgoing && (
+          <Text
+            numberOfLines={1}
+            importantForAccessibility="no"
+            className="font-semibold"
+            style={{ color: senderColor(message.senderUserId) }}
+          >
+            {sender}
+          </Text>
+        )}
         {message.replyTo && !deleted && (
           <Quote
             replyTo={message.replyTo}
@@ -382,6 +429,22 @@ function Composer({
   );
 }
 
+/** In place of the composer once this user left (or was removed from) a group. */
+function LeftGroupNotice() {
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      className="border-t border-border bg-background px-4 pt-3"
+      style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+    >
+      <Text className="text-center text-muted">
+        You&apos;re no longer a member of this group. You can read what is here, but you can&apos;t
+        send or receive new messages.
+      </Text>
+    </View>
+  );
+}
+
 function BlockedNotice({ peerUserId, name }: { peerUserId: string; name: string }) {
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
@@ -427,10 +490,13 @@ export function ChatScreen({
   const { items, loaded, loadOlder, loadUntil, typing } = useConversation(conversationId);
   const focused = useRef(false);
   const list = useRef<FlashListRef<TimelineItem>>(null);
-  const peerUserId = conversation?.peerUserId;
+  const isGroup = conversation?.kind === 'group';
+  const peerUserId = isGroup ? undefined : conversation?.peerUserId;
   const contact = useContact(peerUserId);
+  const group = useGroup(isGroup ? conversationId : undefined);
   const blocked = useIsBlocked(peerUserId);
-  const name = contactName(contact);
+  const people = useNames();
+  const name = isGroup ? group?.name || 'this group' : contactName(contact);
   const [selected, setSelected] = useState<MessageRecord>();
   const [deleting, setDeleting] = useState<MessageRecord>();
   const [replyTo, setReplyTo] = useState<MessageRecord>();
@@ -439,8 +505,13 @@ export function ChatScreen({
   const selfUserId = runtime?.userId ?? '';
 
   const names = useCallback(
-    (message: MessageRecord) => (message.senderUserId === selfUserId ? 'You' : name),
-    [selfUserId, name],
+    (message: MessageRecord) =>
+      message.senderUserId === selfUserId
+        ? 'You'
+        : isGroup
+          ? people.name(message.senderUserId)
+          : name,
+    [selfUserId, name, isGroup, people],
   );
 
   useEffect(() => {
@@ -460,9 +531,12 @@ export function ChatScreen({
     }, [runtime, conversationId, peerUserId]),
   );
 
-  // Reading the conversation clears its unread count (and sends read receipts if on).
+  // Reading the conversation clears its unread count (and sends read receipts if on) and its
+  // notification.
   useEffect(() => {
-    if (focused.current && runtime) void runtime.engine.markRead(conversationId);
+    if (!focused.current || !runtime) return;
+    void runtime.engine.markRead(conversationId);
+    dismissChatNotification(conversationId);
   }, [runtime, conversationId, items.length]);
 
   const itemsRef = useRef(items);
@@ -519,7 +593,8 @@ export function ChatScreen({
           message={item.message}
           online={status === 'online'}
           readReceipts={readReceipts}
-          peerUserId={peerUserId}
+          isGroup={isGroup}
+          people={people}
           selfUserId={selfUserId}
           loaded={loaded}
           names={names}
@@ -529,16 +604,17 @@ export function ChatScreen({
           onReact={react}
         />
       ),
-    [status, readReceipts, peerUserId, selfUserId, loaded, names, highlight, jumpTo, react],
+    [status, readReceipts, isGroup, people, selfUserId, loaded, names, highlight, jumpTo, react],
   );
+  const left = isGroup && group?.left === true;
 
   const actions: SheetAction[] = [];
   if (selected && runtime) {
     const message = selected;
-    if (canReact(message) && !blocked) {
+    if (canReact(message) && !blocked && !left) {
       actions.push({ label: 'Reply', onPress: () => setReplyTo(message) });
     }
-    if (runtime.engine.canEdit(message)) {
+    if (runtime.engine.canEdit(message) && !left) {
       actions.push({
         label: 'Edit',
         onPress: () => {
@@ -566,11 +642,13 @@ export function ChatScreen({
     const message = deleting;
     deleteActions.push({
       label: 'Delete for me',
-      detail: `Removes it from this phone only. ${message.direction === 'out' ? name : 'The sender'} keeps their copy.`,
+      detail: isGroup
+        ? 'Removes it from this phone only. The other members keep their copies.'
+        : `Removes it from this phone only. ${message.direction === 'out' ? name : 'The sender'} keeps their copy.`,
       destructive: true,
       onPress: () => void runtime.engine.deleteForMe([message.messageId]),
     });
-    if (runtime.engine.canDeleteForEveryone(message)) {
+    if (runtime.engine.canDeleteForEveryone(message) && !left) {
       deleteActions.push({
         label: 'Delete for everyone',
         detail:
@@ -593,7 +671,12 @@ export function ChatScreen({
     >
       <Stack.Screen
         options={{
-          headerTitle: () => <HeaderTitle peerUserId={peerUserId} />,
+          headerTitle: () =>
+            isGroup ? (
+              <GroupHeaderTitle groupId={conversationId} />
+            ) : (
+              <HeaderTitle peerUserId={peerUserId} />
+            ),
           headerRight: () => (
             <Pressable
               accessibilityRole="button"
@@ -624,8 +707,9 @@ export function ChatScreen({
         contentContainerStyle={{ paddingVertical: 8 }}
         ListEmptyComponent={
           <Text className="mx-6 my-8 text-center text-muted">
-            Messages with {name} are end-to-end encrypted. No one else, not even PingDost, can read
-            them.
+            {isGroup
+              ? `Messages in ${name} are end-to-end encrypted for its members. No one else, not even PingDost, can read them.`
+              : `Messages with ${name} are end-to-end encrypted. No one else, not even PingDost, can read them.`}
           </Text>
         }
       />
@@ -634,7 +718,9 @@ export function ChatScreen({
           {name} is typing…
         </Text>
       )}
-      {blocked && peerUserId ? (
+      {left ? (
+        <LeftGroupNotice />
+      ) : blocked && peerUserId ? (
         <BlockedNotice peerUserId={peerUserId} name={name} />
       ) : (
         <Composer
@@ -652,9 +738,9 @@ export function ChatScreen({
       <ActionSheet
         visible={selected !== undefined}
         onClose={() => setSelected(undefined)}
-        {...(selected ? { title: previewText(selected) } : {})}
+        {...(selected ? { title: previewText(selected, people) } : {})}
         header={
-          selected && canReact(selected) && !blocked ? (
+          selected && canReact(selected) && !blocked && !left ? (
             <View className="flex-row justify-around px-2 pb-2">
               {QUICK_REACTIONS.map((emoji) => (
                 <Pressable

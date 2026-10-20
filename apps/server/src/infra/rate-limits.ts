@@ -39,6 +39,10 @@ export const DEFAULT_ROUTE_LIMITS = {
   blocksList: { max: 120, timeWindow: 15 * MINUTE },
   blocksChange: { max: 60, timeWindow: 15 * MINUTE },
   reports: { max: 10, timeWindow: HOUR },
+  pushToken: { max: 30, timeWindow: 15 * MINUTE },
+  groupsCreate: { max: 20, timeWindow: HOUR },
+  groupsRead: { max: 300, timeWindow: 15 * MINUTE },
+  groupsChange: { max: 120, timeWindow: 15 * MINUTE },
   /** WebSocket upgrades; frames on an open socket have their own per-socket limits. */
   wsConnect: { max: 60, timeWindow: 15 * MINUTE },
   metrics: { max: 120, timeWindow: 15 * MINUTE },

@@ -55,6 +55,7 @@ export interface TestServerOptions {
   onDeviceRevoked?: AppDeps['onDeviceRevoked'];
   delivery?: AppDeps['delivery'];
   gateway?: AppDeps['gateway'];
+  pushSenders?: AppDeps['pushSenders'];
   mongo?: Mongo;
 }
 
@@ -97,6 +98,7 @@ export async function startTestServer(options: TestServerOptions = {}): Promise<
     ...(options.onDeviceRevoked ? { onDeviceRevoked: options.onDeviceRevoked } : {}),
     delivery: { ...options.delivery, settings: mailbox },
     ...(options.gateway ? { gateway: options.gateway } : {}),
+    ...(options.pushSenders ? { pushSenders: options.pushSenders } : {}),
   });
   await app.ready();
 

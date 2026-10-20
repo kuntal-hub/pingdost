@@ -37,6 +37,9 @@ import { backoffDelay, type SendResult } from '@pingdost/transport';
 import { buildContent, receiptBody, textContentFor } from './content';
 import { EngineCore } from './core';
 import { claimedKeySigned, errorCode } from './directory';
+import { keyRequestBody, roomKeyBody } from './groups/content';
+import { needsRotation } from './groups/megolm';
+import { memberKey } from './groups/state';
 import type { RemoteDevice } from './sessions';
 import { advance } from './states';
 import type {
@@ -44,7 +47,9 @@ import type {
   DeviceItem,
   DirectoryDeviceRecord,
   FanoutItem,
+  InboundGroupSessionRecord,
   MessageRecord,
+  OutboundGroupSessionRecord,
   OutboxItem,
   ReceiptItem,
   WriteBatch,
@@ -121,7 +126,9 @@ export class Outbox {
 
     for (const item of await core.store.listOutbox()) {
       if (this.#stopped) return;
-      if (item.type === 'fanout' && this.#due(item)) await this.#fanOut(item);
+      if (item.type !== 'fanout' || !this.#due(item)) continue;
+      if (item.groupId) await this.#fanOutGroup({ ...item, groupId: item.groupId });
+      else await this.#fanOut(item);
     }
     const due = (await core.store.listOutbox()).filter(
       (item): item is DeviceItem => item.type === 'device' && this.#due(item),
@@ -224,7 +231,7 @@ export class Outbox {
     const { core } = this;
     const recipients: { userId: string; device: DirectoryDeviceRecord; own: boolean }[] = [];
     let unavailable = false;
-    let peerGone = false;
+    let gone = 0;
     for (const userId of item.recipientUserIds) {
       const lookup = await core.directoryFor(userId, core.settings.directoryMaxAgeMs);
       if (lookup.status === 'unavailable') {
@@ -232,7 +239,7 @@ export class Outbox {
         break;
       }
       if (lookup.status === 'not_found') {
-        if (userId !== core.self.userId) peerGone = true;
+        if (userId !== core.self.userId) gone++;
         continue;
       }
       for (const device of lookup.record.devices) {
@@ -240,6 +247,9 @@ export class Outbox {
         recipients.push({ userId, device, own: userId === core.self.userId });
       }
     }
+    // Every other recipient's account is gone (a group control still reaches the rest).
+    const others = item.recipientUserIds.filter((u) => u !== core.self.userId).length;
+    const peerGone = others > 0 && gone === others;
 
     await core.mutex.run(async () => {
       const stored = await core.store.getOutboxItem(item.id);
@@ -292,6 +302,330 @@ export class Outbox {
       }
       await core.commit(batch);
     });
+  }
+
+  /**
+   * Group traffic (ADR 0016): the Content is encrypted once with this device's Megolm session
+   * for the group and the same ciphertext goes to every member device. Devices that have not
+   * had the session's key get it first, over Olm, at the current index: this message is the
+   * first they can read. The session is replaced first when the members or their devices
+   * changed, or it is old or busy (`needsRotation`).
+   */
+  async #fanOutGroup(item: FanoutItem & { groupId: string }): Promise<void> {
+    const { core } = this;
+    const { groupId } = item;
+    const before = await core.store.getGroup(groupId);
+    const recipients: { userId: string; device: DirectoryDeviceRecord; own: boolean }[] = [];
+    let unavailable = false;
+    for (const { userId } of before && !before.left ? before.members : []) {
+      const lookup = await core.directoryFor(userId, core.settings.directoryMaxAgeMs);
+      if (lookup.status === 'unavailable') {
+        unavailable = true;
+        break;
+      }
+      if (lookup.status === 'not_found') continue;
+      for (const device of lookup.record.devices) {
+        if (device.deviceId === core.self.deviceId) continue;
+        recipients.push({ userId, device, own: userId === core.self.userId });
+      }
+    }
+
+    await core.mutex.run(async () => {
+      const stored = await core.store.getOutboxItem(item.id);
+      if (stored?.type !== 'fanout') return;
+      const purpose = stored.purpose ?? 'message';
+      const now = core.now();
+      const group = await core.store.getGroup(groupId);
+      const batch: WriteBatch = {};
+      if (!group || group.left) {
+        // No longer a member: it can never go out.
+        batch.deleteOutbox = [item.id];
+        await this.#fail(batch, stored);
+        await core.commit(batch);
+        return;
+      }
+      // The members may have changed while the directories were fetched.
+      const members = new Set(group.members.map((m) => m.userId));
+      const targets = recipients.filter((r) => members.has(r.userId));
+      if (unavailable || !targets.some((r) => !r.own)) {
+        if (!unavailable && !group.members.some((m) => m.userId !== core.self.userId)) {
+          // Alone in the group: nobody can receive it.
+          batch.deleteOutbox = [item.id];
+          await this.#fail(batch, stored);
+        } else {
+          batch.outbox = [this.#retryLater(stored, now)];
+        }
+        await core.commit(batch);
+        return;
+      }
+
+      const self = this.#selfSender();
+      const key = memberKey(group);
+      let session = await core.store.getOutboundGroupSession(groupId);
+      let own = session
+        ? await core.store.getInboundGroupSession(core.self.deviceId, session.sessionId)
+        : undefined;
+      const rotation = {
+        maxMessages: core.settings.groupRotationMessages,
+        maxAgeMs: core.settings.groupRotationMs,
+      };
+      const deviceIds = targets.map((r) => r.device.deviceId);
+      if (
+        !session ||
+        !own ||
+        needsRotation(session, { now, memberKey: key, recipientDeviceIds: deviceIds }, rotation)
+      ) {
+        const created = core.groupSessions.create(groupId, self, key, now);
+        session = created.outbound;
+        own = created.own;
+      }
+
+      batch.deleteOutbox = [item.id];
+      batch.outbox = [];
+      batch.deliveries = [];
+      const shared = new Set(session.sharedWith);
+      const unshared = targets.filter((r) => !shared.has(r.device.deviceId));
+      // Sessions made here start at index 0, so the count is the next message's index.
+      const sharedAt = { ...own.sharedAt };
+      for (const r of unshared) sharedAt[r.device.deviceId] = session.messageCount;
+      if (unshared.length > 0) {
+        const keyId = uuidv7();
+        const keyContent = buildContent(
+          {
+            messageId: keyId,
+            conversationId: groupId,
+            senderUserId: core.self.userId,
+            sentAt: now,
+          },
+          roomKeyBody(groupId, session.sessionId, core.groupSessions.sessionKey(session), false),
+          core.settings.envelopeMaxBytes,
+        );
+        for (const r of unshared) {
+          // Sorted before the message, so it usually goes out first.
+          batch.outbox.push(
+            this.#olmItem('room_key', keyId, r, keyContent, item.createdAt - 1, now, groupId),
+          );
+        }
+        session = {
+          ...session,
+          sharedWith: [...session.sharedWith, ...unshared.map((r) => r.device.deviceId)],
+        };
+      }
+
+      const { ciphertext, record } = core.groupSessions.encrypt(session, stored.content);
+      for (const r of targets) {
+        const id = bytesToUuid(envelopeIdFor(item.messageId, r.device.deviceId));
+        let packet: Uint8Array;
+        try {
+          packet = this.#megolmPacket(id, r.device.deviceId, groupId, record, ciphertext, {
+            expiresAt: stored.expiresAt,
+            now,
+          });
+        } catch {
+          // Too large or already expired: it can never be sent.
+          await core.commit({
+            deleteOutbox: [item.id],
+            outboundGroupSessions: [record],
+            inboundGroupSessions: [{ ...own, sharedAt }],
+            ...(await this.#fail({}, stored)),
+          });
+          return;
+        }
+        batch.outbox.push({
+          type: 'device',
+          purpose,
+          id,
+          messageId: item.messageId,
+          recipientUserId: r.userId,
+          recipientDeviceId: r.device.deviceId,
+          content: stored.content,
+          packet,
+          newSession: false,
+          groupId,
+          megolm: true,
+          createdAt: item.createdAt,
+          expiresAt: item.expiresAt,
+          attempts: 0,
+          nextAttemptAt: now,
+        });
+        if (purpose !== 'message') continue;
+        batch.deliveries.push({
+          messageId: item.messageId,
+          deviceId: r.device.deviceId,
+          userId: r.userId,
+          own: r.own,
+          state: 'local_queued',
+          updatedAt: now,
+        });
+      }
+      batch.outboundGroupSessions = [record];
+      batch.inboundGroupSessions = [{ ...own, sharedAt }];
+      await core.commit(batch);
+    });
+  }
+
+  /** Marks the fan-out's message failed (message items only). */
+  async #fail(batch: WriteBatch, item: FanoutItem): Promise<WriteBatch> {
+    if ((item.purpose ?? 'message') !== 'message') return batch;
+    const message = await this.core.store.getMessage(item.messageId);
+    if (message?.state) {
+      batch.messages = [
+        ...(batch.messages ?? []),
+        { ...message, state: advance(message.state, 'failed') },
+      ];
+    }
+    return batch;
+  }
+
+  #selfSender(): { userId: string; deviceId: string; curve25519: string } {
+    const { core } = this;
+    return {
+      userId: core.self.userId,
+      deviceId: core.self.deviceId,
+      curve25519: core.options.account.identityKeys().curve25519,
+    };
+  }
+
+  /** One Olm-encrypted Content to one device (`id` = its envelope ID). */
+  #olmItem(
+    purpose: DeviceItem['purpose'],
+    contentId: string,
+    to: { userId: string; device: { deviceId: string } },
+    content: Uint8Array,
+    createdAt: number,
+    now: number,
+    groupId?: string,
+  ): DeviceItem {
+    return {
+      type: 'device',
+      purpose,
+      id: bytesToUuid(envelopeIdFor(contentId, to.device.deviceId)),
+      messageId: contentId,
+      recipientUserId: to.userId,
+      recipientDeviceId: to.device.deviceId,
+      content,
+      packet: null,
+      newSession: false,
+      ...(groupId ? { groupId } : {}),
+      createdAt,
+      expiresAt: now + this.core.settings.maxRetentionMs,
+      attempts: 0,
+      nextAttemptAt: now,
+    };
+  }
+
+  #megolmPacket(
+    envelopeId: string,
+    recipientDeviceId: string,
+    groupId: string,
+    session: OutboundGroupSessionRecord,
+    ciphertext: Uint8Array,
+    at: { expiresAt: number; now: number },
+  ): Uint8Array {
+    const { core } = this;
+    const options = { envelopeMaxBytes: core.settings.envelopeMaxBytes, nowMs: at.now };
+    const payload = encodeEnvelope(
+      create(EnvelopeSchema, {
+        envelopeId: uuidToBytes(envelopeId),
+        senderDeviceId: uuidToBytes(core.self.deviceId),
+        recipientDeviceId: uuidToBytes(recipientDeviceId),
+        cryptoType: CryptoType.MEGOLM,
+        groupId: uuidToBytes(groupId),
+        megolmSessionId: session.sessionId,
+        ciphertext,
+      }),
+      options,
+    );
+    return encodeTransportPacket(
+      create(TransportPacketSchema, {
+        version: PROTOCOL_VERSION,
+        packetId: uuidv7Bytes(),
+        kind: PacketKind.ENVELOPE,
+        dst: uuidToBytes(recipientDeviceId),
+        createdAtMs: BigInt(at.now),
+        expiresAtMs: BigInt(at.expiresAt),
+        hopBudget: 0,
+        flags: 0,
+        payload,
+      }),
+      options,
+    );
+  }
+
+  /** Asks the device that sent a Megolm session for its key (`RoomKeyRequest`). */
+  async requestRoomKey(
+    sender: { userId: string; deviceId: string },
+    groupId: string,
+    sessionId: string,
+    fromIndex: number,
+  ): Promise<void> {
+    const { core } = this;
+    await core.mutex.run(async () => {
+      const now = core.now();
+      const contentId = uuidv7();
+      const content = buildContent(
+        {
+          messageId: contentId,
+          conversationId: groupId,
+          senderUserId: core.self.userId,
+          sentAt: now,
+        },
+        keyRequestBody(groupId, sessionId, fromIndex),
+        core.settings.envelopeMaxBytes,
+      );
+      await core.commit({
+        outbox: [
+          this.#olmItem(
+            'control',
+            contentId,
+            { userId: sender.userId, device: { deviceId: sender.deviceId } },
+            content,
+            now,
+            now,
+            groupId,
+          ),
+        ],
+      });
+    });
+    this.kick();
+  }
+
+  /**
+   * Answers a key request with this device's session exported from the index asked for.
+   * Called under the lock by the receiver, which checked the requester may have it.
+   */
+  answerKeyRequest(
+    batch: WriteBatch,
+    requester: { userId: string; deviceId: string },
+    own: InboundGroupSessionRecord,
+    fromIndex: number,
+  ): void {
+    const { core } = this;
+    const exported = core.groupSessions.exportFrom(own, fromIndex);
+    if (!exported) return;
+    const now = core.now();
+    const contentId = uuidv7();
+    const content = buildContent(
+      {
+        messageId: contentId,
+        conversationId: own.groupId,
+        senderUserId: core.self.userId,
+        sentAt: now,
+      },
+      roomKeyBody(own.groupId, own.sessionId, exported, true),
+      core.settings.envelopeMaxBytes,
+    );
+    (batch.outbox ??= []).push(
+      this.#olmItem(
+        'room_key',
+        contentId,
+        { userId: requester.userId, device: { deviceId: requester.deviceId } },
+        content,
+        now,
+        now,
+        own.groupId,
+      ),
+    );
   }
 
   // Devices
@@ -420,6 +754,8 @@ export class Outbox {
         senderDeviceId: uuidToBytes(core.self.deviceId),
         recipientDeviceId: uuidToBytes(item.recipientDeviceId),
         cryptoType: ciphertext.type === 'prekey' ? CryptoType.OLM_PREKEY : CryptoType.OLM,
+        // Room keys name their group: the server delivers them only between members.
+        ...(item.groupId ? { groupId: uuidToBytes(item.groupId) } : {}),
         ciphertext: ciphertext.body,
       }),
       options,
@@ -457,6 +793,11 @@ export class Outbox {
     } else if (result.code === 'RECIPIENT_UNKNOWN') {
       await core.commit(await this.#drop(stored));
       void core.refreshDirectory(item.recipientUserId);
+      return;
+    } else if (result.code === 'NOT_A_MEMBER') {
+      // The server says the recipient (or this user) left the group: refresh the membership.
+      await core.commit(await this.#drop(stored));
+      if (stored.groupId) void core.groupSync?.(stored.groupId);
       return;
     } else if (result.retryable) {
       batch.outbox = [this.#retryLater(stored, now)];
@@ -524,9 +865,9 @@ export class Outbox {
         if (item.type === 'device' && item.recipientDeviceId === deviceId)
           queued.set(item.id, item);
       }
-      // Still queued: encrypt again on the now preferred session.
+      // Still queued: encrypt again on the now preferred session (Megolm packets stay).
       for (const item of queued.values()) {
-        if (item.packet) outbox.push({ ...item, packet: null, nextAttemptAt: now });
+        if (item.packet && !item.megolm) outbox.push({ ...item, packet: null, nextAttemptAt: now });
       }
       const rows: DeliveryRecord[] = await core.store.listDeliveriesTo(deviceId, [
         'local_queued',
@@ -540,6 +881,8 @@ export class Outbox {
         const message: MessageRecord | undefined = await core.store.getMessage(row.messageId);
         if (message?.kind !== 'text' || message.expiresAt === null || message.expiresAt <= now)
           continue;
+        // Group messages are Megolm: a device that lost one asks for the key instead.
+        if ((await core.store.getConversation(message.conversationId))?.kind === 'group') continue;
         outbox.push({
           type: 'device',
           purpose: 'message',

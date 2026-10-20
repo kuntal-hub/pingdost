@@ -42,6 +42,7 @@ message Content {
     CallSignal call_signal = 11;
     SessionReset session_reset = 12;
     KeyChange key_change = 13;
+    RoomKeyRequest room_key_request = 14;
   }
 
   // Zero bytes that pad the encoded Content to a size bucket (codec padding policy).
@@ -109,7 +110,8 @@ message AttachmentManifest {
 }
 
 // Group membership and info changes, E2EE so the server stores no group name or avatar.
-// Phase 13 extends it.
+// Sent over Olm by an admin (LEAVE: by the leaving member) after the server accepted the
+// change; clients apply it only if the sender may make it (ADR 0016).
 message GroupControl {
   enum Action {
     ACTION_UNSPECIFIED = 0;
@@ -118,13 +120,38 @@ message GroupControl {
     ACTION_REMOVE_MEMBERS = 3;
     ACTION_LEAVE = 4;
     ACTION_UPDATE_INFO = 5;
+    ACTION_CHANGE_ROLE = 6;
+    // The whole current state, for members who were just added.
+    ACTION_SNAPSHOT = 7;
   }
 
   bytes group_id = 1;
   Action action = 2;
-  // User IDs, 16 bytes each: the members added or removed (all members on CREATE).
+  // User IDs, 16 bytes each: the members added, removed or whose role changed (all members
+  // on CREATE).
   repeated bytes member_user_ids = 3;
+  // Name, description and avatar count only on CREATE, SNAPSHOT and UPDATE_INFO.
   string name = 4;
+  // The server's membership version after the change.
+  uint64 version = 5;
+  // Every member and role after the change.
+  repeated GroupMember members = 6;
+  string description = 7;
+  // A small image (JPEG/PNG/WebP, at most 32 KiB); empty for none.
+  bytes avatar = 8;
+}
+
+message GroupMember {
+  enum Role {
+    ROLE_UNSPECIFIED = 0;
+    ROLE_OWNER = 1;
+    ROLE_ADMIN = 2;
+    ROLE_MEMBER = 3;
+  }
+
+  // 16 bytes.
+  bytes user_id = 1;
+  Role role = 2;
 }
 
 // A Megolm room key, sent to each member device over Olm (ARCHITECTURE A5).
@@ -134,6 +161,19 @@ message RoomKey {
   string session_id = 2;
   // Signed Megolm session key (base64). Secret.
   string session_key = 3;
+  // `session_key` is an exported key (from a given index, unsigned), sent in answer to a
+  // RoomKeyRequest by the session's own sender device.
+  bool exported = 4;
+}
+
+// A member device asks the sender device of a Megolm session for its key, e.g. after its
+// RoomKey was lost to a broken Olm session. Answered only for devices the session was
+// shared with.
+message RoomKeyRequest {
+  bytes group_id = 1;
+  string session_id = 2;
+  // The first message index needed.
+  uint32 from_index = 3;
 }
 
 // One chunk of a history sync from the phone to a linked web device. Phase 18 extends it.

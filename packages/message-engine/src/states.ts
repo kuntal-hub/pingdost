@@ -57,3 +57,54 @@ export function nextMessageState(
 ): MessageState {
   return advance(current, aggregateState(current, deliveries));
 }
+
+/**
+ * A group message (ADR 0016): each member's state is the best of their devices; the message
+ * is delivered (read) once every member who can still get it has it delivered (read).
+ * Members whose devices all failed or expired do not hold it back; until then it shows the
+ * least advanced state among the members still pending.
+ */
+export function aggregateGroupState(
+  current: MessageState,
+  deliveries: readonly DeliveryRecord[],
+): MessageState {
+  const byUser = new Map<string, DeliveryRecord[]>();
+  for (const row of deliveries) {
+    if (row.own) continue;
+    byUser.set(row.userId, [...(byUser.get(row.userId) ?? []), row]);
+  }
+  if (byUser.size === 0) return current;
+  const done: MessageState[] = [];
+  const dead: DeliveryRecord[] = [];
+  const pending = new Set<MessageState>();
+  for (const rows of byUser.values()) {
+    const best = aggregateState(current, rows);
+    if (best === 'read' || best === 'delivered_to_recipient_device') done.push(best);
+    else if (best === 'failed' || best === 'expired_undelivered') dead.push(...rows);
+    else pending.add(best);
+  }
+  if (pending.size > 0) {
+    // The least advanced pending member decides.
+    for (const state of [
+      'local_queued',
+      'waiting_for_nearby_route',
+      'sending',
+      'relayed',
+      'sent_to_server',
+    ] as const) {
+      if (pending.has(state)) return state;
+    }
+    return [...pending][0]!;
+  }
+  if (done.length > 0) {
+    return done.every((state) => state === 'read') ? 'read' : 'delivered_to_recipient_device';
+  }
+  return aggregateState(current, dead);
+}
+
+export function nextGroupState(
+  current: MessageState,
+  deliveries: readonly DeliveryRecord[],
+): MessageState {
+  return advance(current, aggregateGroupState(current, deliveries));
+}

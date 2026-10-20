@@ -10,8 +10,12 @@ import type {
   DeliveryRecord,
   DirectoryRecord,
   EngineStore,
+  GroupRecord,
+  HeldGroupRecord,
+  InboundGroupSessionRecord,
   MessageCursor,
   MessageRecord,
+  OutboundGroupSessionRecord,
   OutboxItem,
   PendingOpRecord,
   SessionRecord,
@@ -44,6 +48,10 @@ export class MemoryEngineStore implements EngineStore {
   readonly #seen = new Map<string, number>();
   readonly #settings = new Map<string, unknown>();
   readonly #ops = new Map<string, PendingOpRecord>();
+  readonly #groups = new Map<string, GroupRecord>();
+  readonly #outboundGroup = new Map<string, OutboundGroupSessionRecord>();
+  readonly #inboundGroup = new Map<string, InboundGroupSessionRecord>();
+  readonly #held = new Map<string, HeldGroupRecord>();
   /** Fault injection for tests: the next `apply` rejects with this error and writes nothing. */
   failNextApply: Error | undefined;
 
@@ -93,7 +101,55 @@ export class MemoryEngineStore implements EngineStore {
       if (value === null) this.#settings.delete(key);
       else this.#settings.set(key, value);
     }
+    for (const groupId of b.deleteGroups ?? []) {
+      this.#groups.delete(groupId);
+      this.#outboundGroup.delete(groupId);
+      for (const [id, s] of this.#inboundGroup)
+        if (s.groupId === groupId) this.#inboundGroup.delete(id);
+      for (const [id, h] of this.#held) if (h.groupId === groupId) this.#held.delete(id);
+    }
+    for (const g of b.groups ?? []) this.#groups.set(g.groupId, g);
+    for (const s of b.outboundGroupSessions ?? []) this.#outboundGroup.set(s.groupId, s);
+    for (const s of b.inboundGroupSessions ?? []) {
+      this.#inboundGroup.set(`${s.senderDeviceId}:${s.sessionId}`, s);
+    }
+    if (b.pruneHeldBefore !== undefined) {
+      for (const [id, h] of this.#held) if (h.receivedAt < b.pruneHeldBefore) this.#held.delete(id);
+    }
+    for (const id of b.deleteHeld ?? []) this.#held.delete(id);
+    for (const h of b.held ?? []) this.#held.set(h.id, h);
     return Promise.resolve();
+  }
+
+  getGroup(groupId: string): Promise<GroupRecord | undefined> {
+    return Promise.resolve(copy(this.#groups.get(groupId)));
+  }
+
+  listGroups(): Promise<GroupRecord[]> {
+    return Promise.resolve(
+      copy([...this.#groups.values()].sort((a, b) => a.createdAt - b.createdAt)),
+    );
+  }
+
+  getOutboundGroupSession(groupId: string): Promise<OutboundGroupSessionRecord | undefined> {
+    return Promise.resolve(copy(this.#outboundGroup.get(groupId)));
+  }
+
+  getInboundGroupSession(
+    senderDeviceId: string,
+    sessionId: string,
+  ): Promise<InboundGroupSessionRecord | undefined> {
+    return Promise.resolve(copy(this.#inboundGroup.get(`${senderDeviceId}:${sessionId}`)));
+  }
+
+  listHeld(groupId: string): Promise<HeldGroupRecord[]> {
+    return Promise.resolve(
+      copy(
+        [...this.#held.values()]
+          .filter((h) => h.groupId === groupId)
+          .sort((a, b) => a.receivedAt - b.receivedAt || (a.id < b.id ? -1 : 1)),
+      ),
+    );
   }
 
   getConversation(conversationId: string): Promise<ConversationRecord | undefined> {

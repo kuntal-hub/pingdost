@@ -69,7 +69,15 @@
           "recordAudioAndroid": false
         }
       ],
-      "expo-image"
+      "expo-image",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#0B7A64",
+          "defaultChannel": "messages"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

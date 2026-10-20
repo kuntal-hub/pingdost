@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file pingdost/v1/ws.proto.
  */
 export const file_pingdost_v1_ws: GenFile = /*@__PURE__*/
-  fileDesc("ChRwaW5nZG9zdC92MS93cy5wcm90bxILcGluZ2Rvc3QudjEisgIKC0NsaWVudEZyYW1lEhIKCnJlcXVlc3RfaWQYASABKA0SIQoEYXV0aBgCIAEoCzIRLnBpbmdkb3N0LnYxLkF1dGhIABIhCgRzZW5kGAMgASgLMhEucGluZ2Rvc3QudjEuU2VuZEgAEh8KA2FjaxgEIAEoCzIQLnBpbmdkb3N0LnYxLkFja0gAEikKCHByZXNlbmNlGAUgASgLMhUucGluZ2Rvc3QudjEuUHJlc2VuY2VIABIlCgZ0eXBpbmcYBiABKAsyEy5waW5nZG9zdC52MS5UeXBpbmdIABIrCgllcGhlbWVyYWwYByABKAsyFi5waW5nZG9zdC52MS5FcGhlbWVyYWxIABIhCgRwaW5nGAggASgLMhEucGluZ2Rvc3QudjEuUGluZ0gAQgYKBGJvZHkiwwMKC1NlcnZlckZyYW1lEhIKCnJlcXVlc3RfaWQYASABKA0SJgoHYXV0aF9vaxgCIAEoCzITLnBpbmdkb3N0LnYxLkF1dGhPa0gAEikKCGFjY2VwdGVkGAMgASgLMhUucGluZ2Rvc3QudjEuQWNjZXB0ZWRIABInCgdkZWxpdmVyGAQgASgLMhQucGluZ2Rvc3QudjEuRGVsaXZlckgAEikKCHByZXNlbmNlGAUgASgLMhUucGluZ2Rvc3QudjEuUHJlc2VuY2VIABIlCgZ0eXBpbmcYBiABKAsyEy5waW5nZG9zdC52MS5UeXBpbmdIABIrCgllcGhlbWVyYWwYByABKAsyFi5waW5nZG9zdC52MS5FcGhlbWVyYWxIABImCgdvdGtfbG93GAggASgLMhMucGluZ2Rvc3QudjEuT3RrTG93SAASJwoHcmV2b2tlZBgJIAEoCzIULnBpbmdkb3N0LnYxLlJldm9rZWRIABIpCgVlcnJvchgKIAEoCzIYLnBpbmdkb3N0LnYxLlNlcnZlckVycm9ySAASIQoEcG9uZxgLIAEoCzIRLnBpbmdkb3N0LnYxLlBvbmdIAEIGCgRib2R5IjYKBEF1dGgSFAoMYWNjZXNzX3Rva2VuGAEgASgJEhgKEHByb3RvY29sX3ZlcnNpb24YAiABKA0iYwoGQXV0aE9rEg8KB3VzZXJfaWQYASABKAwSEQoJZGV2aWNlX2lkGAIgASgMEhYKDnNlcnZlcl90aW1lX21zGAMgASgDEh0KFWhlYXJ0YmVhdF9pbnRlcnZhbF9tcxgEIAEoDSI0CgRTZW5kEiwKBnBhY2tldBgBIAEoCzIcLnBpbmdkb3N0LnYxLlRyYW5zcG9ydFBhY2tldCK1AQoIQWNjZXB0ZWQSEQoJcGFja2V0X2lkGAEgASgMEhMKC2VudmVsb3BlX2lkGAIgASgMEiwKBnN0YXR1cxgDIAEoDjIcLnBpbmdkb3N0LnYxLkFjY2VwdGVkLlN0YXR1cyJTCgZTdGF0dXMSFgoSU1RBVFVTX1VOU1BFQ0lGSUVEEAASEQoNU1RBVFVTX1NUT1JFRBABEh4KGlNUQVRVU19ERUxJVkVSRURfVFJBTlNQT1JUEAIiNwoHRGVsaXZlchIsCgZwYWNrZXQYASABKAsyHC5waW5nZG9zdC52MS5UcmFuc3BvcnRQYWNrZXQiQwoIUHJlc2VuY2USDwoHdXNlcl9pZBgBIAEoDBIOCgZvbmxpbmUYAiABKAgSFgoOd2F0Y2hfdXNlcl9pZHMYAyADKAwidAoGVHlwaW5nEhwKFHJlY2lwaWVudF9kZXZpY2VfaWRzGAEgAygMEhgKEHNlbmRlcl9kZXZpY2VfaWQYAiABKAwSFQoIZ3JvdXBfaWQYAyABKAxIAIgBARIOCgZhY3RpdmUYBCABKAhCCwoJX2dyb3VwX2lkIjkKCUVwaGVtZXJhbBIsCgZwYWNrZXQYASABKAsyHC5waW5nZG9zdC52MS5UcmFuc3BvcnRQYWNrZXQiGwoGT3RrTG93EhEKCXJlbWFpbmluZxgBIAEoDSIgCgdSZXZva2VkEhUKDXJldm9rZWRfYXRfbXMYASABKAMiPwoLU2VydmVyRXJyb3ISDAoEY29kZRgBIAEoCRIRCglyZXRyeWFibGUYAiABKAgSDwoHbWVzc2FnZRgDIAEoCSIVCgRQaW5nEg0KBW5vbmNlGAEgASgNIhUKBFBvbmcSDQoFbm9uY2UYASABKA1iBnByb3RvMw", [file_pingdost_v1_packet]);
+  fileDesc("ChRwaW5nZG9zdC92MS93cy5wcm90bxILcGluZ2Rvc3QudjEisgIKC0NsaWVudEZyYW1lEhIKCnJlcXVlc3RfaWQYASABKA0SIQoEYXV0aBgCIAEoCzIRLnBpbmdkb3N0LnYxLkF1dGhIABIhCgRzZW5kGAMgASgLMhEucGluZ2Rvc3QudjEuU2VuZEgAEh8KA2FjaxgEIAEoCzIQLnBpbmdkb3N0LnYxLkFja0gAEikKCHByZXNlbmNlGAUgASgLMhUucGluZ2Rvc3QudjEuUHJlc2VuY2VIABIlCgZ0eXBpbmcYBiABKAsyEy5waW5nZG9zdC52MS5UeXBpbmdIABIrCgllcGhlbWVyYWwYByABKAsyFi5waW5nZG9zdC52MS5FcGhlbWVyYWxIABIhCgRwaW5nGAggASgLMhEucGluZ2Rvc3QudjEuUGluZ0gAQgYKBGJvZHki9wMKC1NlcnZlckZyYW1lEhIKCnJlcXVlc3RfaWQYASABKA0SJgoHYXV0aF9vaxgCIAEoCzITLnBpbmdkb3N0LnYxLkF1dGhPa0gAEikKCGFjY2VwdGVkGAMgASgLMhUucGluZ2Rvc3QudjEuQWNjZXB0ZWRIABInCgdkZWxpdmVyGAQgASgLMhQucGluZ2Rvc3QudjEuRGVsaXZlckgAEikKCHByZXNlbmNlGAUgASgLMhUucGluZ2Rvc3QudjEuUHJlc2VuY2VIABIlCgZ0eXBpbmcYBiABKAsyEy5waW5nZG9zdC52MS5UeXBpbmdIABIrCgllcGhlbWVyYWwYByABKAsyFi5waW5nZG9zdC52MS5FcGhlbWVyYWxIABImCgdvdGtfbG93GAggASgLMhMucGluZ2Rvc3QudjEuT3RrTG93SAASJwoHcmV2b2tlZBgJIAEoCzIULnBpbmdkb3N0LnYxLlJldm9rZWRIABIpCgVlcnJvchgKIAEoCzIYLnBpbmdkb3N0LnYxLlNlcnZlckVycm9ySAASIQoEcG9uZxgLIAEoCzIRLnBpbmdkb3N0LnYxLlBvbmdIABIyCg1ncm91cF9jaGFuZ2VkGAwgASgLMhkucGluZ2Rvc3QudjEuR3JvdXBDaGFuZ2VkSABCBgoEYm9keSIxCgxHcm91cENoYW5nZWQSEAoIZ3JvdXBfaWQYASABKAwSDwoHdmVyc2lvbhgCIAEoBCI2CgRBdXRoEhQKDGFjY2Vzc190b2tlbhgBIAEoCRIYChBwcm90b2NvbF92ZXJzaW9uGAIgASgNImMKBkF1dGhPaxIPCgd1c2VyX2lkGAEgASgMEhEKCWRldmljZV9pZBgCIAEoDBIWCg5zZXJ2ZXJfdGltZV9tcxgDIAEoAxIdChVoZWFydGJlYXRfaW50ZXJ2YWxfbXMYBCABKA0iNAoEU2VuZBIsCgZwYWNrZXQYASABKAsyHC5waW5nZG9zdC52MS5UcmFuc3BvcnRQYWNrZXQitQEKCEFjY2VwdGVkEhEKCXBhY2tldF9pZBgBIAEoDBITCgtlbnZlbG9wZV9pZBgCIAEoDBIsCgZzdGF0dXMYAyABKA4yHC5waW5nZG9zdC52MS5BY2NlcHRlZC5TdGF0dXMiUwoGU3RhdHVzEhYKElNUQVRVU19VTlNQRUNJRklFRBAAEhEKDVNUQVRVU19TVE9SRUQQARIeChpTVEFUVVNfREVMSVZFUkVEX1RSQU5TUE9SVBACIjcKB0RlbGl2ZXISLAoGcGFja2V0GAEgASgLMhwucGluZ2Rvc3QudjEuVHJhbnNwb3J0UGFja2V0IkMKCFByZXNlbmNlEg8KB3VzZXJfaWQYASABKAwSDgoGb25saW5lGAIgASgIEhYKDndhdGNoX3VzZXJfaWRzGAMgAygMInQKBlR5cGluZxIcChRyZWNpcGllbnRfZGV2aWNlX2lkcxgBIAMoDBIYChBzZW5kZXJfZGV2aWNlX2lkGAIgASgMEhUKCGdyb3VwX2lkGAMgASgMSACIAQESDgoGYWN0aXZlGAQgASgIQgsKCV9ncm91cF9pZCI5CglFcGhlbWVyYWwSLAoGcGFja2V0GAEgASgLMhwucGluZ2Rvc3QudjEuVHJhbnNwb3J0UGFja2V0IhsKBk90a0xvdxIRCglyZW1haW5pbmcYASABKA0iIAoHUmV2b2tlZBIVCg1yZXZva2VkX2F0X21zGAEgASgDIj8KC1NlcnZlckVycm9yEgwKBGNvZGUYASABKAkSEQoJcmV0cnlhYmxlGAIgASgIEg8KB21lc3NhZ2UYAyABKAkiFQoEUGluZxINCgVub25jZRgBIAEoDSIVCgRQb25nEg0KBW5vbmNlGAEgASgNYgZwcm90bzM", [file_pingdost_v1_packet]);
 
 /**
  * @generated from message pingdost.v1.ClientFrame
@@ -160,6 +160,12 @@ export type ServerFrame = Message<"pingdost.v1.ServerFrame"> & {
      */
     value: Pong;
     case: "pong";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.GroupChanged group_changed = 12;
+     */
+    value: GroupChanged;
+    case: "groupChanged";
   } | { case: undefined; value?: undefined };
 };
 
@@ -169,6 +175,31 @@ export type ServerFrame = Message<"pingdost.v1.ServerFrame"> & {
  */
 export const ServerFrameSchema: GenMessage<ServerFrame> = /*@__PURE__*/
   messageDesc(file_pingdost_v1_ws, 1);
+
+/**
+ * A group's membership or roles changed (ADR 0016): members' clients refetch it. Sent to
+ * the online devices of members before and after the change.
+ *
+ * @generated from message pingdost.v1.GroupChanged
+ */
+export type GroupChanged = Message<"pingdost.v1.GroupChanged"> & {
+  /**
+   * @generated from field: bytes group_id = 1;
+   */
+  groupId: Uint8Array;
+
+  /**
+   * @generated from field: uint64 version = 2;
+   */
+  version: bigint;
+};
+
+/**
+ * Describes the message pingdost.v1.GroupChanged.
+ * Use `create(GroupChangedSchema)` to create a new message.
+ */
+export const GroupChangedSchema: GenMessage<GroupChanged> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_ws, 2);
 
 /**
  * The first frame on a connection.
@@ -196,7 +227,7 @@ export type Auth = Message<"pingdost.v1.Auth"> & {
  * Use `create(AuthSchema)` to create a new message.
  */
 export const AuthSchema: GenMessage<Auth> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 2);
+  messageDesc(file_pingdost_v1_ws, 3);
 
 /**
  * @generated from message pingdost.v1.AuthOk
@@ -232,7 +263,7 @@ export type AuthOk = Message<"pingdost.v1.AuthOk"> & {
  * Use `create(AuthOkSchema)` to create a new message.
  */
 export const AuthOkSchema: GenMessage<AuthOk> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 3);
+  messageDesc(file_pingdost_v1_ws, 4);
 
 /**
  * Sends one packet of kind ENVELOPE to the mailbox.
@@ -251,7 +282,7 @@ export type Send = Message<"pingdost.v1.Send"> & {
  * Use `create(SendSchema)` to create a new message.
  */
 export const SendSchema: GenMessage<Send> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 4);
+  messageDesc(file_pingdost_v1_ws, 5);
 
 /**
  * The server holds the envelope, so the sender may leave `sending` for `sent_to_server`.
@@ -281,7 +312,7 @@ export type Accepted = Message<"pingdost.v1.Accepted"> & {
  * Use `create(AcceptedSchema)` to create a new message.
  */
 export const AcceptedSchema: GenMessage<Accepted> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 5);
+  messageDesc(file_pingdost_v1_ws, 6);
 
 /**
  * @generated from enum pingdost.v1.Accepted.Status
@@ -311,7 +342,7 @@ export enum Accepted_Status {
  * Describes the enum pingdost.v1.Accepted.Status.
  */
 export const Accepted_StatusSchema: GenEnum<Accepted_Status> = /*@__PURE__*/
-  enumDesc(file_pingdost_v1_ws, 5, 0);
+  enumDesc(file_pingdost_v1_ws, 6, 0);
 
 /**
  * A packet of kind ENVELOPE for this device.
@@ -330,7 +361,7 @@ export type Deliver = Message<"pingdost.v1.Deliver"> & {
  * Use `create(DeliverSchema)` to create a new message.
  */
 export const DeliverSchema: GenMessage<Deliver> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 6);
+  messageDesc(file_pingdost_v1_ws, 7);
 
 /**
  * Client → server: whether this client is in the foreground.
@@ -366,7 +397,7 @@ export type Presence = Message<"pingdost.v1.Presence"> & {
  * Use `create(PresenceSchema)` to create a new message.
  */
 export const PresenceSchema: GenMessage<Presence> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 7);
+  messageDesc(file_pingdost_v1_ws, 8);
 
 /**
  * A typing indicator, relayed in memory to online devices only.
@@ -406,7 +437,7 @@ export type Typing = Message<"pingdost.v1.Typing"> & {
  * Use `create(TypingSchema)` to create a new message.
  */
 export const TypingSchema: GenMessage<Typing> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 8);
+  messageDesc(file_pingdost_v1_ws, 9);
 
 /**
  * A packet of kind EPHEMERAL, relayed in memory to the online recipient device only.
@@ -425,7 +456,7 @@ export type Ephemeral = Message<"pingdost.v1.Ephemeral"> & {
  * Use `create(EphemeralSchema)` to create a new message.
  */
 export const EphemeralSchema: GenMessage<Ephemeral> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 9);
+  messageDesc(file_pingdost_v1_ws, 10);
 
 /**
  * This device should upload more one-time keys.
@@ -444,7 +475,7 @@ export type OtkLow = Message<"pingdost.v1.OtkLow"> & {
  * Use `create(OtkLowSchema)` to create a new message.
  */
 export const OtkLowSchema: GenMessage<OtkLow> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 10);
+  messageDesc(file_pingdost_v1_ws, 11);
 
 /**
  * This device was revoked: the client signs out and wipes local data.
@@ -463,7 +494,7 @@ export type Revoked = Message<"pingdost.v1.Revoked"> & {
  * Use `create(RevokedSchema)` to create a new message.
  */
 export const RevokedSchema: GenMessage<Revoked> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 11);
+  messageDesc(file_pingdost_v1_ws, 12);
 
 /**
  * Named so the generated type does not shadow the global `Error`.
@@ -498,7 +529,7 @@ export type ServerError = Message<"pingdost.v1.ServerError"> & {
  * Use `create(ServerErrorSchema)` to create a new message.
  */
 export const ServerErrorSchema: GenMessage<ServerError> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 12);
+  messageDesc(file_pingdost_v1_ws, 13);
 
 /**
  * @generated from message pingdost.v1.Ping
@@ -515,7 +546,7 @@ export type Ping = Message<"pingdost.v1.Ping"> & {
  * Use `create(PingSchema)` to create a new message.
  */
 export const PingSchema: GenMessage<Ping> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 13);
+  messageDesc(file_pingdost_v1_ws, 14);
 
 /**
  * @generated from message pingdost.v1.Pong
@@ -532,5 +563,5 @@ export type Pong = Message<"pingdost.v1.Pong"> & {
  * Use `create(PongSchema)` to create a new message.
  */
 export const PongSchema: GenMessage<Pong> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_ws, 14);
+  messageDesc(file_pingdost_v1_ws, 15);
 

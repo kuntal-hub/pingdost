@@ -10,14 +10,15 @@
 import { DEFAULT_LIMITS } from '@pingdost/config/public';
 import type { CryptoProvider, OlmAccount } from '@pingdost/crypto/core';
 import { directConversationIdFor, uuidv7 } from '@pingdost/protocol';
-import type { MessageState } from '@pingdost/shared-types';
+import type { Group, MessageState } from '@pingdost/shared-types';
 import { Listeners, type BackoffOptions, type Transport } from '@pingdost/transport';
 
 import { diffDirectory, isNotFound, verifyDirectory, type DirectoryApi } from './directory';
+import { GroupSessionManager } from './groups/megolm';
 import type { PublishKeysDeps } from './keys';
 import { Mutex } from './mutex';
 import { SessionManager } from './sessions';
-import { nextMessageState, SETTLED_STATES } from './states';
+import { nextGroupState, nextMessageState, SETTLED_STATES } from './states';
 import type {
   ConversationRecord,
   DeliveryRecord,
@@ -32,6 +33,16 @@ export type EngineTransport = Pick<
   Transport,
   'status$' | 'send' | 'onPacket' | 'sendTyping' | 'onTyping'
 >;
+
+/** The group calls the engine makes (`@pingdost/api-client`'s `groupsApi` fits). */
+export interface GroupsApi {
+  create(groupId: string, memberUserIds: string[]): Promise<Group>;
+  list(): Promise<Group[]>;
+  get(groupId: string): Promise<Group>;
+  addMembers(groupId: string, userIds: string[]): Promise<Group>;
+  removeMember(groupId: string, userId: string): Promise<Group>;
+  setRole(groupId: string, userId: string, role: 'admin' | 'member'): Promise<Group>;
+}
 
 export interface EngineSettings {
   /** `MESSAGE_MAX_RETENTION_SECONDS` in ms: the packet expiry and the expiry deadline. */
@@ -56,6 +67,14 @@ export interface EngineSettings {
   editWindowMs: number;
   /** How long after sending a message may be deleted for everyone. */
   deleteWindowMs: number;
+  /** A Megolm session is replaced after this many messages (ADR 0003). */
+  groupRotationMessages: number;
+  /** ... or after this long. */
+  groupRotationMs: number;
+  /** A group message whose key is missing this long makes this device ask the sender. */
+  roomKeyRequestDelayMs: number;
+  /** At most one key request per held session in this window. */
+  roomKeyRequestIntervalMs: number;
 }
 
 export const DEFAULT_ENGINE_SETTINGS: EngineSettings = {
@@ -70,6 +89,10 @@ export const DEFAULT_ENGINE_SETTINGS: EngineSettings = {
   typingTimeoutMs: 6_000,
   editWindowMs: DEFAULT_LIMITS.messageEditWindowSeconds * 1000,
   deleteWindowMs: DEFAULT_LIMITS.messageDeleteWindowSeconds * 1000,
+  groupRotationMessages: 100,
+  groupRotationMs: 7 * 86_400_000,
+  roomKeyRequestDelayMs: 10_000,
+  roomKeyRequestIntervalMs: 5 * 60_000,
 };
 
 /** Never pass plaintext, keys or ciphertext (ARCHITECTURE A10): IDs and counts only. */
@@ -92,8 +115,11 @@ export interface EngineOptions {
   pickleKey: Uint8Array;
   store: EngineStore;
   transport: EngineTransport;
-  /** Key directory calls; `keys` lets the engine top up one-time keys. */
-  api: DirectoryApi & { keys?: PublishKeysDeps['keys'] };
+  /**
+   * Key directory calls; `keys` lets the engine top up one-time keys; `groups` (`/v1/groups`)
+   * is needed for group chats.
+   */
+  api: DirectoryApi & { keys?: PublishKeysDeps['keys']; groups?: GroupsApi };
   now?: () => number;
   settings?: Partial<EngineSettings>;
   /**
@@ -122,7 +148,13 @@ export type EngineEvent =
   /** The user's account identity key changed: a new safety number, verification reset. */
   | { type: 'identity_changed'; userId: string }
   /** A message from this device could not be decrypted; a session reset was requested. */
-  | { type: 'decrypt_failed'; userId: string; deviceId: string };
+  | { type: 'decrypt_failed'; userId: string; deviceId: string }
+  /**
+   * A new message from another user was stored and is unread: once per message, after it is
+   * committed (not for edits, reactions, or copies from this user's other devices). Apps use
+   * it for local notifications (Phase 12).
+   */
+  | { type: 'received'; message: MessageRecord };
 
 export type DirectoryLookup =
   { status: 'ok'; record: DirectoryRecord } | { status: 'not_found' } | { status: 'unavailable' };
@@ -136,6 +168,9 @@ export class EngineCore {
   readonly settings: EngineSettings;
   readonly mutex = new Mutex();
   readonly sessions: SessionManager;
+  readonly groupSessions: GroupSessionManager;
+  /** Refreshes a group from the server (set by the engine; parts call it without the lock). */
+  groupSync: ((groupId: string) => Promise<void>) | undefined;
   readonly events = new Listeners<[EngineEvent]>();
   readonly #conversationListeners = new Map<string, Listeners<[ConversationEvent]>>();
   readonly #listListeners = new Listeners<[]>();
@@ -151,6 +186,7 @@ export class EngineCore {
       options.pickleKey,
       options.store,
     );
+    this.groupSessions = new GroupSessionManager(options.crypto, options.pickleKey);
   }
 
   get store(): EngineStore {
@@ -187,6 +223,8 @@ export class EngineCore {
       await this.store.apply(batch);
     } catch (error) {
       for (const session of batch.sessions ?? []) this.sessions.forget(session.sessionId);
+      for (const session of batch.outboundGroupSessions ?? []) this.groupSessions.forget(session);
+      for (const session of batch.inboundGroupSessions ?? []) this.groupSessions.forget(session);
       throw error;
     }
     for (const message of batch.messages ?? []) {
@@ -196,7 +234,9 @@ export class EngineCore {
       batch.messages?.length ||
       batch.conversations?.length ||
       batch.deleteMessages?.length ||
-      batch.deleteConversations?.length
+      batch.deleteConversations?.length ||
+      batch.groups?.length ||
+      batch.deleteGroups?.length
     ) {
       this.#listChanged();
     }
@@ -246,6 +286,7 @@ export class EngineCore {
   dispose(): void {
     clearTimeout(this.#listTimer);
     this.sessions.dispose();
+    this.groupSessions.dispose();
   }
 
   /**
@@ -266,7 +307,10 @@ export class EngineCore {
     for (const deviceId of removed) rows.delete(deviceId);
     for (const row of changed) if (row.messageId === messageId) rows.set(row.deviceId, row);
     const deliveries = [...rows.values()];
-    let state = nextMessageState(message.state, deliveries);
+    const group = (await this.store.getConversation(message.conversationId))?.kind === 'group';
+    let state = group
+      ? nextGroupState(message.state, deliveries)
+      : nextMessageState(message.state, deliveries);
     // Every recipient device is gone (revoked) and none confirmed: it cannot be delivered.
     if (
       removed.length > 0 &&
@@ -348,10 +392,23 @@ export class EngineCore {
     return { status: 'ok', record: next };
   }
 
-  /** "Safety number changed", in the conversation with `userId` if there is one. */
+  /**
+   * "Safety number changed", in the conversation with `userId` if there is one, and in every
+   * group they share with this user ("security code changed for …").
+   */
   async #addNotice(batch: WriteBatch, userId: string): Promise<void> {
-    const conversation = await this.store.getConversation(this.directConversationId(userId));
-    if (!conversation) return;
+    const conversations: ConversationRecord[] = [];
+    const direct = await this.store.getConversation(this.directConversationId(userId));
+    if (direct) conversations.push(direct);
+    for (const group of await this.store.listGroups()) {
+      if (group.left || !group.members.some((m) => m.userId === userId)) continue;
+      const conversation = await this.store.getConversation(group.groupId);
+      if (conversation) conversations.push(conversation);
+    }
+    for (const conversation of conversations) this.#addNoticeTo(batch, conversation, userId);
+  }
+
+  #addNoticeTo(batch: WriteBatch, conversation: ConversationRecord, userId: string): void {
     const now = this.now();
     const notice: MessageRecord = {
       messageId: uuidv7(),
@@ -446,5 +503,67 @@ export class EngineCore {
       archived: false,
       mutedUntil: null,
     };
+  }
+
+  /** A new group conversation record (not stored); its ID is the group ID. */
+  newGroupConversation(groupId: string, now: number): ConversationRecord {
+    return {
+      conversationId: groupId,
+      kind: 'group',
+      peerUserId: '',
+      createdAt: now,
+      updatedAt: now,
+      lastMessageId: null,
+      unreadCount: 0,
+      pinnedAt: null,
+      archived: false,
+      mutedUntil: null,
+    };
+  }
+
+  /**
+   * Adds a system message to a conversation in `batch` (the conversation's record must be
+   * in the batch or the store). It counts as read.
+   */
+  addSystemMessage(
+    batch: WriteBatch,
+    conversation: ConversationRecord,
+    body: string,
+    senderUserId: string,
+  ): ConversationRecord {
+    const now = this.now();
+    const notice: MessageRecord = {
+      messageId: uuidv7(),
+      conversationId: conversation.conversationId,
+      senderUserId,
+      senderDeviceId: '',
+      direction: senderUserId === this.self.userId ? 'out' : 'in',
+      kind: 'system',
+      body,
+      replyTo: null,
+      sentAt: now,
+      sortAt: now,
+      createdAt: now,
+      state: null,
+      expiresAt: null,
+      editedAt: null,
+      editId: null,
+      deletedAt: null,
+      readAt: now,
+      reactions: [],
+    };
+    (batch.messages ??= []).push(notice);
+    const updated: ConversationRecord = {
+      ...conversation,
+      updatedAt: Math.max(conversation.updatedAt, now),
+      lastMessageId: notice.messageId,
+    };
+    batch.conversations = [
+      ...(batch.conversations ?? []).filter(
+        (c) => c.conversationId !== conversation.conversationId,
+      ),
+      updated,
+    ];
+    return updated;
   }
 }

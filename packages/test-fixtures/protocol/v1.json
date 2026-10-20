@@ -329,6 +329,39 @@
       "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDNCRgoQAZLxoAAAcACAAAAAAAAAYRABGhABkvGgAABwAIAAAAAAAAChGhABkvGgAABwAIAAAAAAAACxIgxXZWVrZW5kIHRyaXB6dQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
     },
     {
+      "name": "content/group-control-snapshot",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "groupControl": {
+          "groupId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "action": "ACTION_SNAPSHOT",
+          "name": "Weekend trip",
+          "version": "3",
+          "members": [
+            {
+              "userId": "AZLxoAAAcACAAAAAAAAAoQ==",
+              "role": "ROLE_OWNER"
+            },
+            {
+              "userId": "AZLxoAAAcACAAAAAAAAAsQ==",
+              "role": "ROLE_MEMBER"
+            }
+          ],
+          "description": "Goa, May",
+          "avatar": "Hz5dfJu62fgXNlV0k7LR8A8uTWyLqsno"
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDNCdAoQAZLxoAAAcACAAAAAAAAAYRAHIgxXZWVrZW5kIHRyaXAoAzIUChABkvGgAABwAIAAAAAAAAChEAEyFAoQAZLxoAAAcACAAAAAAAAAsRADOghHb2EsIE1heUIYHz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoekcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
       "name": "content/room-key",
       "type": "pingdost.v1.Content",
       "json": {
@@ -347,6 +380,26 @@
         "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
       },
       "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDNKUwoQAZLxoAAAcACAAAAAAAAAYRIiWlhoaGJYQnNaUzF0WldkdmJHMHRjMlZ6YzJsdmJpMXBaQRobYzJWemMybHZiaTFyWlhrdGMzUmhibVF0YVc0emgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "name": "content/room-key-request",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "roomKeyRequest": {
+          "groupId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "sessionId": "ZXhhbXBsZS1tZWdvbG0tc2Vzc2lvbi1pZA",
+          "fromIndex": 7
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDNyOAoQAZLxoAAAcACAAAAAAAAAYRIiWlhoaGJYQnNaUzF0WldkdmJHMHRjMlZ6YzJsdmJpMXBaQRgHeoIBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
     },
     {
       "name": "content/sync-chunk",
@@ -669,6 +722,17 @@
         }
       },
       "binary": "CAlaAggq"
+    },
+    {
+      "name": "server-frame/group-changed",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "groupChanged": {
+          "groupId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "version": "4"
+        }
+      },
+      "binary": "YhQKEAGS8aAAAHAAgAAAAAAAAGEQBA=="
     }
   ]
 }

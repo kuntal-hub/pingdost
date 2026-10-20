@@ -51,10 +51,13 @@ export function buildContent(
   );
 }
 
-/** The Content of a stored outgoing text message, e.g. to send it again after a repair. */
+/**
+ * The Content of a stored outgoing text message, e.g. to send it again after a repair.
+ * `peerUserId` is undefined for a group.
+ */
 export function textContentFor(
   message: MessageRecord,
-  peerUserId: string,
+  peerUserId: string | undefined,
   envelopeMaxBytes?: number,
 ): Uint8Array {
   return buildContent(
@@ -62,7 +65,7 @@ export function textContentFor(
       messageId: message.messageId,
       conversationId: message.conversationId,
       senderUserId: message.senderUserId,
-      recipientUserId: peerUserId,
+      ...(peerUserId ? { recipientUserId: peerUserId } : {}),
       sentAt: message.sentAt,
       replyTo: message.replyTo,
     },
@@ -96,14 +99,9 @@ export interface CheckedHeader {
  * this user (or come from this user's own other device) and carry the matching conversation
  * ID, so a sender cannot file a message into someone else's conversation.
  */
-export function checkHeader(
-  header: ContentHeader,
-  sender: { userId: string },
-  selfUserId: string,
-): CheckedHeader | undefined {
-  let checked: CheckedHeader;
+function readHeader(header: ContentHeader): CheckedHeader | undefined {
   try {
-    checked = {
+    return {
       messageId: bytesToUuid(header.messageId),
       conversationId: bytesToUuid(header.conversationId),
       senderUserId: bytesToUuid(header.senderUserId),
@@ -112,11 +110,35 @@ export function checkHeader(
       replyTo: header.replyTo ? bytesToUuid(header.replyTo) : null,
     };
   } catch {
-    return undefined; // a 32-byte (group hash) conversation ID: groups arrive in Phase 13
+    return undefined; // not a 16-byte ID
   }
+}
+
+/**
+ * Group content (Megolm messages, and group controls and keys over Olm; ADR 0016): it names
+ * no recipient, its conversation is the group, and its sender owns the sending device.
+ */
+export function checkGroupHeader(
+  header: ContentHeader,
+  sender: { userId: string },
+  groupId: string,
+): CheckedHeader | undefined {
+  const checked = readHeader(header);
+  if (!checked || checked.senderUserId !== sender.userId) return undefined;
+  if (checked.recipientUserId !== undefined || checked.conversationId !== groupId) return undefined;
+  return checked;
+}
+
+export function checkHeader(
+  header: ContentHeader,
+  sender: { userId: string },
+  selfUserId: string,
+): CheckedHeader | undefined {
+  const checked = readHeader(header);
+  if (!checked) return undefined;
   if (checked.senderUserId !== sender.userId) return undefined;
   const { recipientUserId } = checked;
-  if (recipientUserId === undefined) return undefined; // direct messages only, for now
+  if (recipientUserId === undefined) return undefined; // group content: `checkGroupHeader`
   const forUs = recipientUserId === selfUserId || checked.senderUserId === selfUserId;
   if (!forUs) return undefined;
   if (checked.conversationId !== directConversationIdFor(checked.senderUserId, recipientUserId)) {

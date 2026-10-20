@@ -74,6 +74,8 @@ export interface EnvelopeOptions {
   /** Overrides the envelope's sender (to test spoofing). */
   senderDeviceId?: string;
   kind?: PacketKind;
+  /** Group traffic: a Megolm envelope for this group (ADR 0016). */
+  groupId?: string;
 }
 
 /** A TransportPacket holding an Envelope from `from` to `to`, and its envelope ID. */
@@ -90,7 +92,10 @@ export function envelopePacket(
     envelopeId,
     senderDeviceId: uuidToBytes(options.senderDeviceId ?? from),
     recipientDeviceId: uuidToBytes(to),
-    cryptoType: CryptoType.OLM,
+    cryptoType: options.groupId ? CryptoType.MEGOLM : CryptoType.OLM,
+    ...(options.groupId
+      ? { groupId: uuidToBytes(options.groupId), megolmSessionId: 'test-session' }
+      : {}),
     ciphertext: options.ciphertext ?? new Uint8Array(randomBytes(200)),
   });
   const packet = create(TransportPacketSchema, {

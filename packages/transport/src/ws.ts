@@ -79,7 +79,9 @@ export type WsEvent =
   /** `Auth` was rejected with this code (the transport retries or refreshes). */
   | { type: 'auth_failed'; code: string }
   /** A watched user's presence changed (see watchPresence). */
-  | { type: 'presence'; userId: string; online: boolean };
+  | { type: 'presence'; userId: string; online: boolean }
+  /** A group's membership changed on the server (ADR 0016): refetch it. */
+  | { type: 'group_changed'; groupId: string; version: number };
 
 export interface WsTransportOptions {
   /** `ws(s)://<host>/v1/ws`. */
@@ -370,6 +372,13 @@ export class WsTransport implements Transport {
           type: 'presence',
           userId: bytesToUuid(body.value.userId),
           online: body.value.online,
+        });
+        break;
+      case 'groupChanged':
+        this.#events.emit({
+          type: 'group_changed',
+          groupId: bytesToUuid(body.value.groupId),
+          version: Number(body.value.version),
         });
         break;
       default:

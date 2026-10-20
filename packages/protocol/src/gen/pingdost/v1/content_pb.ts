@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file pingdost/v1/content.proto.
  */
 export const file_pingdost_v1_content: GenFile = /*@__PURE__*/
-  fileDesc("ChlwaW5nZG9zdC92MS9jb250ZW50LnByb3RvEgtwaW5nZG9zdC52MSLTAQoNQ29udGVudEhlYWRlchIPCgd2ZXJzaW9uGAEgASgNEhIKCm1lc3NhZ2VfaWQYAiABKAwSFwoPY29udmVyc2F0aW9uX2lkGAMgASgMEhYKDnNlbmRlcl91c2VyX2lkGAQgASgMEhIKCnNlbnRfYXRfbXMYBSABKAMSFQoIcmVwbHlfdG8YBiABKAxIAIgBARIeChFyZWNpcGllbnRfdXNlcl9pZBgHIAEoDEgBiAEBQgsKCV9yZXBseV90b0IUChJfcmVjaXBpZW50X3VzZXJfaWQi7QQKB0NvbnRlbnQSKgoGaGVhZGVyGAEgASgLMhoucGluZ2Rvc3QudjEuQ29udGVudEhlYWRlchIhCgR0ZXh0GAIgASgLMhEucGluZ2Rvc3QudjEuVGV4dEgAEikKCHJlYWN0aW9uGAMgASgLMhUucGluZ2Rvc3QudjEuUmVhY3Rpb25IABIhCgRlZGl0GAQgASgLMhEucGluZ2Rvc3QudjEuRWRpdEgAEiUKBmRlbGV0ZRgFIAEoCzITLnBpbmdkb3N0LnYxLkRlbGV0ZUgAEicKB3JlY2VpcHQYBiABKAsyFC5waW5nZG9zdC52MS5SZWNlaXB0SAASPgoTYXR0YWNobWVudF9tYW5pZmVzdBgHIAEoCzIfLnBpbmdkb3N0LnYxLkF0dGFjaG1lbnRNYW5pZmVzdEgAEjIKDWdyb3VwX2NvbnRyb2wYCCABKAsyGS5waW5nZG9zdC52MS5Hcm91cENvbnRyb2xIABIoCghyb29tX2tleRgJIAEoCzIULnBpbmdkb3N0LnYxLlJvb21LZXlIABIsCgpzeW5jX2NodW5rGAogASgLMhYucGluZ2Rvc3QudjEuU3luY0NodW5rSAASLgoLY2FsbF9zaWduYWwYCyABKAsyFy5waW5nZG9zdC52MS5DYWxsU2lnbmFsSAASMgoNc2Vzc2lvbl9yZXNldBgMIAEoCzIZLnBpbmdkb3N0LnYxLlNlc3Npb25SZXNldEgAEiwKCmtleV9jaGFuZ2UYDSABKAsyFi5waW5nZG9zdC52MS5LZXlDaGFuZ2VIABIPCgdwYWRkaW5nGA8gASgMQgYKBGJvZHkiFAoEVGV4dBIMCgRib2R5GAEgASgJIkQKCFJlYWN0aW9uEhkKEXRhcmdldF9tZXNzYWdlX2lkGAEgASgMEg0KBWVtb2ppGAIgASgJEg4KBnJlbW92ZRgDIAEoCCIvCgRFZGl0EhkKEXRhcmdldF9tZXNzYWdlX2lkGAEgASgMEgwKBGJvZHkYAiABKAkiIwoGRGVsZXRlEhkKEXRhcmdldF9tZXNzYWdlX2lkGAEgASgMIq4BCgdSZWNlaXB0EicKBHR5cGUYASABKA4yGS5waW5nZG9zdC52MS5SZWNlaXB0LlR5cGUSEwoLbWVzc2FnZV9pZHMYAiADKAwSFgoJaG9wX2NvdW50GAMgASgNSACIAQEiPwoEVHlwZRIUChBUWVBFX1VOU1BFQ0lGSUVEEAASEgoOVFlQRV9ERUxJVkVSRUQQARINCglUWVBFX1JFQUQQAkIMCgpfaG9wX2NvdW50IpMCChJBdHRhY2htZW50TWFuaWZlc3QSFQoNYXR0YWNobWVudF9pZBgBIAEoDBIOCgZzY2hlbWUYAiABKAkSCwoDa2V5GAMgASgMEhQKDG5vbmNlX3ByZWZpeBgEIAEoDBIWCg5wbGFpbnRleHRfc2l6ZRgFIAEoBBISCgpjaHVua19zaXplGAYgASgNEhMKC2NodW5rX2NvdW50GAcgASgNEhEKCW1pbWVfdHlwZRgIIAEoCRIWCglmaWxlX25hbWUYCSABKAlIAIgBARIZChFjaXBoZXJ0ZXh0X3NoYTI1NhgKIAEoDBIeChZjaHVua19oYXNoX2xpc3Rfc2hhMjU2GAsgASgMQgwKCl9maWxlX25hbWUijAIKDEdyb3VwQ29udHJvbBIQCghncm91cF9pZBgBIAEoDBIwCgZhY3Rpb24YAiABKA4yIC5waW5nZG9zdC52MS5Hcm91cENvbnRyb2wuQWN0aW9uEhcKD21lbWJlcl91c2VyX2lkcxgDIAMoDBIMCgRuYW1lGAQgASgJIpABCgZBY3Rpb24SFgoSQUNUSU9OX1VOU1BFQ0lGSUVEEAASEQoNQUNUSU9OX0NSRUFURRABEhYKEkFDVElPTl9BRERfTUVNQkVSUxACEhkKFUFDVElPTl9SRU1PVkVfTUVNQkVSUxADEhAKDEFDVElPTl9MRUFWRRAEEhYKEkFDVElPTl9VUERBVEVfSU5GTxAFIkQKB1Jvb21LZXkSEAoIZ3JvdXBfaWQYASABKAwSEgoKc2Vzc2lvbl9pZBgCIAEoCRITCgtzZXNzaW9uX2tleRgDIAEoCSJKCglTeW5jQ2h1bmsSDwoHc3luY19pZBgBIAEoDBIQCghzZXF1ZW5jZRgCIAEoDRIMCgRsYXN0GAMgASgIEgwKBGRhdGEYBCABKAwihQIKCkNhbGxTaWduYWwSDwoHY2FsbF9pZBgBIAEoDBIqCgR0eXBlGAIgASgOMhwucGluZ2Rvc3QudjEuQ2FsbFNpZ25hbC5UeXBlEg0KBXZpZGVvGAMgASgIEgsKA3NkcBgEIAEoCRIVCg1pY2VfY2FuZGlkYXRlGAUgASgJIoYBCgRUeXBlEhQKEFRZUEVfVU5TUEVDSUZJRUQQABIOCgpUWVBFX09GRkVSEAESDwoLVFlQRV9BTlNXRVIQAhIWChJUWVBFX0lDRV9DQU5ESURBVEUQAxIPCgtUWVBFX0hBTkdVUBAEEg8KC1RZUEVfUkVKRUNUEAUSDQoJVFlQRV9CVVNZEAYiIgoMU2Vzc2lvblJlc2V0EhIKCnNlc3Npb25faWQYASABKAkiIAoJS2V5Q2hhbmdlEhMKC2tleV92ZXJzaW9uGAEgASgNYgZwcm90bzM");
+  fileDesc("ChlwaW5nZG9zdC92MS9jb250ZW50LnByb3RvEgtwaW5nZG9zdC52MSLTAQoNQ29udGVudEhlYWRlchIPCgd2ZXJzaW9uGAEgASgNEhIKCm1lc3NhZ2VfaWQYAiABKAwSFwoPY29udmVyc2F0aW9uX2lkGAMgASgMEhYKDnNlbmRlcl91c2VyX2lkGAQgASgMEhIKCnNlbnRfYXRfbXMYBSABKAMSFQoIcmVwbHlfdG8YBiABKAxIAIgBARIeChFyZWNpcGllbnRfdXNlcl9pZBgHIAEoDEgBiAEBQgsKCV9yZXBseV90b0IUChJfcmVjaXBpZW50X3VzZXJfaWQipgUKB0NvbnRlbnQSKgoGaGVhZGVyGAEgASgLMhoucGluZ2Rvc3QudjEuQ29udGVudEhlYWRlchIhCgR0ZXh0GAIgASgLMhEucGluZ2Rvc3QudjEuVGV4dEgAEikKCHJlYWN0aW9uGAMgASgLMhUucGluZ2Rvc3QudjEuUmVhY3Rpb25IABIhCgRlZGl0GAQgASgLMhEucGluZ2Rvc3QudjEuRWRpdEgAEiUKBmRlbGV0ZRgFIAEoCzITLnBpbmdkb3N0LnYxLkRlbGV0ZUgAEicKB3JlY2VpcHQYBiABKAsyFC5waW5nZG9zdC52MS5SZWNlaXB0SAASPgoTYXR0YWNobWVudF9tYW5pZmVzdBgHIAEoCzIfLnBpbmdkb3N0LnYxLkF0dGFjaG1lbnRNYW5pZmVzdEgAEjIKDWdyb3VwX2NvbnRyb2wYCCABKAsyGS5waW5nZG9zdC52MS5Hcm91cENvbnRyb2xIABIoCghyb29tX2tleRgJIAEoCzIULnBpbmdkb3N0LnYxLlJvb21LZXlIABIsCgpzeW5jX2NodW5rGAogASgLMhYucGluZ2Rvc3QudjEuU3luY0NodW5rSAASLgoLY2FsbF9zaWduYWwYCyABKAsyFy5waW5nZG9zdC52MS5DYWxsU2lnbmFsSAASMgoNc2Vzc2lvbl9yZXNldBgMIAEoCzIZLnBpbmdkb3N0LnYxLlNlc3Npb25SZXNldEgAEiwKCmtleV9jaGFuZ2UYDSABKAsyFi5waW5nZG9zdC52MS5LZXlDaGFuZ2VIABI3ChByb29tX2tleV9yZXF1ZXN0GA4gASgLMhsucGluZ2Rvc3QudjEuUm9vbUtleVJlcXVlc3RIABIPCgdwYWRkaW5nGA8gASgMQgYKBGJvZHkiFAoEVGV4dBIMCgRib2R5GAEgASgJIkQKCFJlYWN0aW9uEhkKEXRhcmdldF9tZXNzYWdlX2lkGAEgASgMEg0KBWVtb2ppGAIgASgJEg4KBnJlbW92ZRgDIAEoCCIvCgRFZGl0EhkKEXRhcmdldF9tZXNzYWdlX2lkGAEgASgMEgwKBGJvZHkYAiABKAkiIwoGRGVsZXRlEhkKEXRhcmdldF9tZXNzYWdlX2lkGAEgASgMIq4BCgdSZWNlaXB0EicKBHR5cGUYASABKA4yGS5waW5nZG9zdC52MS5SZWNlaXB0LlR5cGUSEwoLbWVzc2FnZV9pZHMYAiADKAwSFgoJaG9wX2NvdW50GAMgASgNSACIAQEiPwoEVHlwZRIUChBUWVBFX1VOU1BFQ0lGSUVEEAASEgoOVFlQRV9ERUxJVkVSRUQQARINCglUWVBFX1JFQUQQAkIMCgpfaG9wX2NvdW50IpMCChJBdHRhY2htZW50TWFuaWZlc3QSFQoNYXR0YWNobWVudF9pZBgBIAEoDBIOCgZzY2hlbWUYAiABKAkSCwoDa2V5GAMgASgMEhQKDG5vbmNlX3ByZWZpeBgEIAEoDBIWCg5wbGFpbnRleHRfc2l6ZRgFIAEoBBISCgpjaHVua19zaXplGAYgASgNEhMKC2NodW5rX2NvdW50GAcgASgNEhEKCW1pbWVfdHlwZRgIIAEoCRIWCglmaWxlX25hbWUYCSABKAlIAIgBARIZChFjaXBoZXJ0ZXh0X3NoYTI1NhgKIAEoDBIeChZjaHVua19oYXNoX2xpc3Rfc2hhMjU2GAsgASgMQgwKCl9maWxlX25hbWUimgMKDEdyb3VwQ29udHJvbBIQCghncm91cF9pZBgBIAEoDBIwCgZhY3Rpb24YAiABKA4yIC5waW5nZG9zdC52MS5Hcm91cENvbnRyb2wuQWN0aW9uEhcKD21lbWJlcl91c2VyX2lkcxgDIAMoDBIMCgRuYW1lGAQgASgJEg8KB3ZlcnNpb24YBSABKAQSKQoHbWVtYmVycxgGIAMoCzIYLnBpbmdkb3N0LnYxLkdyb3VwTWVtYmVyEhMKC2Rlc2NyaXB0aW9uGAcgASgJEg4KBmF2YXRhchgIIAEoDCK9AQoGQWN0aW9uEhYKEkFDVElPTl9VTlNQRUNJRklFRBAAEhEKDUFDVElPTl9DUkVBVEUQARIWChJBQ1RJT05fQUREX01FTUJFUlMQAhIZChVBQ1RJT05fUkVNT1ZFX01FTUJFUlMQAxIQCgxBQ1RJT05fTEVBVkUQBBIWChJBQ1RJT05fVVBEQVRFX0lORk8QBRIWChJBQ1RJT05fQ0hBTkdFX1JPTEUQBhITCg9BQ1RJT05fU05BUFNIT1QQByKaAQoLR3JvdXBNZW1iZXISDwoHdXNlcl9pZBgBIAEoDBIrCgRyb2xlGAIgASgOMh0ucGluZ2Rvc3QudjEuR3JvdXBNZW1iZXIuUm9sZSJNCgRSb2xlEhQKEFJPTEVfVU5TUEVDSUZJRUQQABIOCgpST0xFX09XTkVSEAESDgoKUk9MRV9BRE1JThACEg8KC1JPTEVfTUVNQkVSEAMiVgoHUm9vbUtleRIQCghncm91cF9pZBgBIAEoDBISCgpzZXNzaW9uX2lkGAIgASgJEhMKC3Nlc3Npb25fa2V5GAMgASgJEhAKCGV4cG9ydGVkGAQgASgIIkoKDlJvb21LZXlSZXF1ZXN0EhAKCGdyb3VwX2lkGAEgASgMEhIKCnNlc3Npb25faWQYAiABKAkSEgoKZnJvbV9pbmRleBgDIAEoDSJKCglTeW5jQ2h1bmsSDwoHc3luY19pZBgBIAEoDBIQCghzZXF1ZW5jZRgCIAEoDRIMCgRsYXN0GAMgASgIEgwKBGRhdGEYBCABKAwihQIKCkNhbGxTaWduYWwSDwoHY2FsbF9pZBgBIAEoDBIqCgR0eXBlGAIgASgOMhwucGluZ2Rvc3QudjEuQ2FsbFNpZ25hbC5UeXBlEg0KBXZpZGVvGAMgASgIEgsKA3NkcBgEIAEoCRIVCg1pY2VfY2FuZGlkYXRlGAUgASgJIoYBCgRUeXBlEhQKEFRZUEVfVU5TUEVDSUZJRUQQABIOCgpUWVBFX09GRkVSEAESDwoLVFlQRV9BTlNXRVIQAhIWChJUWVBFX0lDRV9DQU5ESURBVEUQAxIPCgtUWVBFX0hBTkdVUBAEEg8KC1RZUEVfUkVKRUNUEAUSDQoJVFlQRV9CVVNZEAYiIgoMU2Vzc2lvblJlc2V0EhIKCnNlc3Npb25faWQYASABKAkiIAoJS2V5Q2hhbmdlEhMKC2tleV92ZXJzaW9uGAEgASgNYgZwcm90bzM");
 
 /**
  * @generated from message pingdost.v1.ContentHeader
@@ -165,6 +165,12 @@ export type Content = Message<"pingdost.v1.Content"> & {
      */
     value: KeyChange;
     case: "keyChange";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.RoomKeyRequest room_key_request = 14;
+     */
+    value: RoomKeyRequest;
+    case: "roomKeyRequest";
   } | { case: undefined; value?: undefined };
 
   /**
@@ -415,7 +421,8 @@ export const AttachmentManifestSchema: GenMessage<AttachmentManifest> = /*@__PUR
 
 /**
  * Group membership and info changes, E2EE so the server stores no group name or avatar.
- * Phase 13 extends it.
+ * Sent over Olm by an admin (LEAVE: by the leaving member) after the server accepted the
+ * change; clients apply it only if the sender may make it (ADR 0016).
  *
  * @generated from message pingdost.v1.GroupControl
  */
@@ -431,16 +438,45 @@ export type GroupControl = Message<"pingdost.v1.GroupControl"> & {
   action: GroupControl_Action;
 
   /**
-   * User IDs, 16 bytes each: the members added or removed (all members on CREATE).
+   * User IDs, 16 bytes each: the members added, removed or whose role changed (all members
+   * on CREATE).
    *
    * @generated from field: repeated bytes member_user_ids = 3;
    */
   memberUserIds: Uint8Array[];
 
   /**
+   * Name, description and avatar count only on CREATE, SNAPSHOT and UPDATE_INFO.
+   *
    * @generated from field: string name = 4;
    */
   name: string;
+
+  /**
+   * The server's membership version after the change.
+   *
+   * @generated from field: uint64 version = 5;
+   */
+  version: bigint;
+
+  /**
+   * Every member and role after the change.
+   *
+   * @generated from field: repeated pingdost.v1.GroupMember members = 6;
+   */
+  members: GroupMember[];
+
+  /**
+   * @generated from field: string description = 7;
+   */
+  description: string;
+
+  /**
+   * A small image (JPEG/PNG/WebP, at most 32 KiB); empty for none.
+   *
+   * @generated from field: bytes avatar = 8;
+   */
+  avatar: Uint8Array;
 };
 
 /**
@@ -483,6 +519,18 @@ export enum GroupControl_Action {
    * @generated from enum value: ACTION_UPDATE_INFO = 5;
    */
   UPDATE_INFO = 5,
+
+  /**
+   * @generated from enum value: ACTION_CHANGE_ROLE = 6;
+   */
+  CHANGE_ROLE = 6,
+
+  /**
+   * The whole current state, for members who were just added.
+   *
+   * @generated from enum value: ACTION_SNAPSHOT = 7;
+   */
+  SNAPSHOT = 7,
 }
 
 /**
@@ -490,6 +538,61 @@ export enum GroupControl_Action {
  */
 export const GroupControl_ActionSchema: GenEnum<GroupControl_Action> = /*@__PURE__*/
   enumDesc(file_pingdost_v1_content, 8, 0);
+
+/**
+ * @generated from message pingdost.v1.GroupMember
+ */
+export type GroupMember = Message<"pingdost.v1.GroupMember"> & {
+  /**
+   * 16 bytes.
+   *
+   * @generated from field: bytes user_id = 1;
+   */
+  userId: Uint8Array;
+
+  /**
+   * @generated from field: pingdost.v1.GroupMember.Role role = 2;
+   */
+  role: GroupMember_Role;
+};
+
+/**
+ * Describes the message pingdost.v1.GroupMember.
+ * Use `create(GroupMemberSchema)` to create a new message.
+ */
+export const GroupMemberSchema: GenMessage<GroupMember> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 9);
+
+/**
+ * @generated from enum pingdost.v1.GroupMember.Role
+ */
+export enum GroupMember_Role {
+  /**
+   * @generated from enum value: ROLE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ROLE_OWNER = 1;
+   */
+  OWNER = 1,
+
+  /**
+   * @generated from enum value: ROLE_ADMIN = 2;
+   */
+  ADMIN = 2,
+
+  /**
+   * @generated from enum value: ROLE_MEMBER = 3;
+   */
+  MEMBER = 3,
+}
+
+/**
+ * Describes the enum pingdost.v1.GroupMember.Role.
+ */
+export const GroupMember_RoleSchema: GenEnum<GroupMember_Role> = /*@__PURE__*/
+  enumDesc(file_pingdost_v1_content, 9, 0);
 
 /**
  * A Megolm room key, sent to each member device over Olm (ARCHITECTURE A5).
@@ -515,6 +618,14 @@ export type RoomKey = Message<"pingdost.v1.RoomKey"> & {
    * @generated from field: string session_key = 3;
    */
   sessionKey: string;
+
+  /**
+   * `session_key` is an exported key (from a given index, unsigned), sent in answer to a
+   * RoomKeyRequest by the session's own sender device.
+   *
+   * @generated from field: bool exported = 4;
+   */
+  exported: boolean;
 };
 
 /**
@@ -522,7 +633,40 @@ export type RoomKey = Message<"pingdost.v1.RoomKey"> & {
  * Use `create(RoomKeySchema)` to create a new message.
  */
 export const RoomKeySchema: GenMessage<RoomKey> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_content, 9);
+  messageDesc(file_pingdost_v1_content, 10);
+
+/**
+ * A member device asks the sender device of a Megolm session for its key, e.g. after its
+ * RoomKey was lost to a broken Olm session. Answered only for devices the session was
+ * shared with.
+ *
+ * @generated from message pingdost.v1.RoomKeyRequest
+ */
+export type RoomKeyRequest = Message<"pingdost.v1.RoomKeyRequest"> & {
+  /**
+   * @generated from field: bytes group_id = 1;
+   */
+  groupId: Uint8Array;
+
+  /**
+   * @generated from field: string session_id = 2;
+   */
+  sessionId: string;
+
+  /**
+   * The first message index needed.
+   *
+   * @generated from field: uint32 from_index = 3;
+   */
+  fromIndex: number;
+};
+
+/**
+ * Describes the message pingdost.v1.RoomKeyRequest.
+ * Use `create(RoomKeyRequestSchema)` to create a new message.
+ */
+export const RoomKeyRequestSchema: GenMessage<RoomKeyRequest> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 11);
 
 /**
  * One chunk of a history sync from the phone to a linked web device. Phase 18 extends it.
@@ -558,7 +702,7 @@ export type SyncChunk = Message<"pingdost.v1.SyncChunk"> & {
  * Use `create(SyncChunkSchema)` to create a new message.
  */
 export const SyncChunkSchema: GenMessage<SyncChunk> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_content, 10);
+  messageDesc(file_pingdost_v1_content, 12);
 
 /**
  * WebRTC call signaling, relayed as an ephemeral packet. Phase 25 extends it.
@@ -603,7 +747,7 @@ export type CallSignal = Message<"pingdost.v1.CallSignal"> & {
  * Use `create(CallSignalSchema)` to create a new message.
  */
 export const CallSignalSchema: GenMessage<CallSignal> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_content, 11);
+  messageDesc(file_pingdost_v1_content, 13);
 
 /**
  * @generated from enum pingdost.v1.CallSignal.Type
@@ -649,7 +793,7 @@ export enum CallSignal_Type {
  * Describes the enum pingdost.v1.CallSignal.Type.
  */
 export const CallSignal_TypeSchema: GenEnum<CallSignal_Type> = /*@__PURE__*/
-  enumDesc(file_pingdost_v1_content, 11, 0);
+  enumDesc(file_pingdost_v1_content, 13, 0);
 
 /**
  * Asks the peer device to start a new Olm session, e.g. after an undecryptable message.
@@ -670,7 +814,7 @@ export type SessionReset = Message<"pingdost.v1.SessionReset"> & {
  * Use `create(SessionResetSchema)` to create a new message.
  */
 export const SessionResetSchema: GenMessage<SessionReset> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_content, 12);
+  messageDesc(file_pingdost_v1_content, 14);
 
 /**
  * The sender's device list or keys changed: refetch them from the key directory.
@@ -689,5 +833,5 @@ export type KeyChange = Message<"pingdost.v1.KeyChange"> & {
  * Use `create(KeyChangeSchema)` to create a new message.
  */
 export const KeyChangeSchema: GenMessage<KeyChange> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_content, 13);
+  messageDesc(file_pingdost_v1_content, 15);
 

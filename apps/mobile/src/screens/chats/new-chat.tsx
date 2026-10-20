@@ -5,6 +5,7 @@ import { Text, View } from 'react-native';
 import { api } from '@/api';
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
+import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
 import { TextField } from '@/components/text-field';
@@ -69,6 +70,13 @@ export function NewChatScreen() {
 
   return (
     <Screen offlineBanner>
+      <ListSection>
+        <ListRow
+          title="New group"
+          subtitle="Chat with several people at once"
+          onPress={() => router.push('/new-group')}
+        />
+      </ListSection>
       <TextField
         label="Username"
         value={username}

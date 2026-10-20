@@ -13,6 +13,7 @@ import type { Logger } from 'pino';
 
 import type { ServerConfig } from '@pingdost/config';
 import { limitsFor } from '@pingdost/protocol';
+import type { PushProvider } from '@pingdost/shared-types';
 
 import { systemClock, type Clock } from './infra/clock';
 import { AppError, registerErrorHandling } from './infra/errors';
@@ -51,12 +52,18 @@ import {
 import { PresenceHub } from './modules/gateway/presence';
 import { ConnectionRegistry } from './modules/gateway/registry';
 import { gatewayRoutes } from './modules/gateway/routes';
+import { groupRoutes } from './modules/groups/routes';
+import { groupIndexes, GroupService } from './modules/groups/service';
 import { metricsRoutes } from './modules/health/metrics-routes';
 import { healthRoutes } from './modules/health/routes';
 import { keyIndexes, oneTimeKeys } from './modules/keys/repo';
 import { keyRoutes } from './modules/keys/routes';
 import { KeyService } from './modules/keys/service';
-import { noopPushNotifier, type PushNotifier } from './modules/push/notifier';
+import { createPushSenders } from './modules/push';
+import { noopPushNotifier, type PushNotifier, type PushSender } from './modules/push/notifier';
+import { pushTokenIndexes, PushTokens } from './modules/push/repo';
+import { pushRoutes } from './modules/push/routes';
+import { PushService } from './modules/push/service';
 import { blockIndexes, BlockService } from './modules/security/blocks';
 import { securityEventIndexes, SecurityEvents } from './modules/security/events';
 import { reportIndexes, ReportService } from './modules/security/reports';
@@ -77,8 +84,10 @@ export interface AppDeps {
   onDeviceRevoked?: DeviceRevokedHook[];
   /** Shared with the in-process jobs (`createAppMetrics`); created here when absent. */
   metrics?: Metrics;
-  /** Phase 12 passes the FCM / Web Push notifier. */
+  /** Replaces the wake scheduler entirely (tests); otherwise `PushService` is used. */
   push?: PushNotifier;
+  /** Replaces the configured FCM / Web Push senders (tests with fake providers). */
+  pushSenders?: Partial<Record<PushProvider, PushSender>>;
   /** Test overrides: mailbox timings and a replacement Mongo store. */
   delivery?: { settings?: Partial<MailboxSettings>; mongoStore?: MongoMailboxStore };
   gateway?: Partial<GatewaySettings>;
@@ -93,6 +102,8 @@ export const INDEXES: readonly IndexSetup[] = [
   securityEventIndexes,
   blockIndexes,
   reportIndexes,
+  pushTokenIndexes,
+  groupIndexes,
   schedulerIndexes,
 ];
 
@@ -184,6 +195,19 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
       ? new GoogleVerifier(config.google.clientIds, clock, deps.googleKeys)
       : undefined,
   });
+  const pushTokens = new PushTokens(db, clock);
+  const pushService = deps.push
+    ? undefined
+    : new PushService({
+        tokens: pushTokens,
+        senders: deps.pushSenders ?? createPushSenders(config, clock),
+        throttleMs: config.PUSH_WAKE_THROTTLE_SECONDS * 1_000,
+        clock,
+        metrics,
+        log: deps.logger,
+        isConnected: (deviceId) => registry.get(deviceId) !== undefined,
+      });
+  if (pushService) app.addHook('onClose', () => pushService.close());
   const deviceService = new DeviceService({
     devices,
     auth: collections,
@@ -193,6 +217,10 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     clock,
     onRevoked: [
       (deviceId) => registry.get(deviceId)?.revoke(clock.now()),
+      (deviceId) =>
+        void pushTokens
+          .delete(deviceId)
+          .catch((error: unknown) => deps.logger.warn({ err: error }, 'push token delete failed')),
       ...(deps.onDeviceRevoked ?? []),
     ],
   });
@@ -212,6 +240,19 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     },
   });
   const blocks = new BlockService(db, clock);
+  const groups = new GroupService({
+    db,
+    users: collections.users,
+    clock,
+    maxMembers: config.GROUP_MAX_MEMBERS,
+    onChanged: (groupId, version, userIds) => {
+      for (const userId of userIds) {
+        for (const connection of registry.forUser(userId)) {
+          connection.notifyGroupChanged(groupId, version);
+        }
+      }
+    },
+  });
   const reports = new ReportService(
     db,
     collections.users,
@@ -233,6 +274,7 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
         )
       )?.userId,
     isBlocked: (blockerUserId, userId) => blocks.isBlocked(blockerUserId, userId),
+    isGroupMember: (groupId, userId) => groups.isMember(groupId, userId),
   });
   const presence = new PresenceHub<Connection>({
     sharesPresence: async (userId) =>
@@ -266,6 +308,8 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     limits,
     onBlocksChanged: (a, b) => void presence.blocksChanged(a, b).catch(() => undefined),
   });
+  await app.register(pushRoutes, { tokens: pushTokens, authenticate, limits });
+  await app.register(groupRoutes, { groups, authenticate, limits });
   await app.register(gatewayRoutes, {
     limits,
     deps: {
@@ -279,7 +323,7 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
       devices: devices.devices,
       oneTimeKeys: otks,
       delivery,
-      push: deps.push ?? noopPushNotifier,
+      push: deps.push ?? pushService ?? noopPushNotifier,
       registry,
       presence,
       blocks,

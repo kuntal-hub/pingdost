@@ -37,3 +37,9 @@ iOS CallKit (29).
 - The REQ §19.5 call criteria pass on devices per the matrix: calls work phone↔phone and phone↔web, direct and via TURN; the backend stores no recording or record.
 - The incoming call rings on a locked phone.
 - `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 12 (ADR 0015):**
+- `PushService.wake(deviceId, urgent)` already skips the throttle when `urgent`, but always sends `{"t":"wake"}`: add the `{"t":"call"}` payload (`PUSH_WAKE` / `PushPayload` in `@pingdost/shared-types`) for call invites.
+- The `calls` notification channel (max importance) already exists (`apps/mobile/src/push/notifications.ts`); the headless task treats every data message as a wake today (`push/task.ts`).
+**From Phase 13 (ADR 0016):** group screens have no call action; keep it that way (REQ §8.2).

@@ -9,6 +9,7 @@ import type { Logger } from 'pino';
 import {
   bytesEqual,
   bytesToUuid,
+  CryptoType,
   decodeEnvelope,
   encodeTransportPacket,
   ProtocolError,
@@ -69,6 +70,8 @@ export interface DeliveryDeps {
   activeDeviceOwner(deviceId: string): Promise<string | undefined>;
   /** Whether `blockerUserId` blocked `userId` (ADR 0014). */
   isBlocked?(blockerUserId: string, userId: string): Promise<boolean>;
+  /** Whether `userId` is a current member of the group (ADR 0016). */
+  isGroupMember?(groupId: string, userId: string): Promise<boolean>;
 }
 
 /** A checked `Send`. `blocked`: the recipient blocked the sender, so it must go nowhere. */
@@ -93,6 +96,7 @@ export class DeliveryService {
     const now = clock.now();
     let envelopeId: string;
     let recipientDeviceId: string;
+    let groupId: string | undefined;
     try {
       const envelope = decodeEnvelope(packet.payload, {
         envelopeMaxBytes: settings.envelopeMaxBytes,
@@ -103,8 +107,12 @@ export class DeliveryService {
       if (bytesToUuid(envelope.senderDeviceId) !== senderDeviceId) {
         throw new DeliveryError('FORBIDDEN', 'sender_device_id is not this device');
       }
+      if (envelope.cryptoType === CryptoType.MEGOLM && !envelope.groupId) {
+        throw new DeliveryError('MALFORMED_FRAME', 'a Megolm envelope needs its group');
+      }
       envelopeId = bytesToUuid(envelope.envelopeId);
       recipientDeviceId = bytesToUuid(envelope.recipientDeviceId);
+      groupId = envelope.groupId ? bytesToUuid(envelope.groupId) : undefined;
     } catch (error) {
       if (error instanceof ProtocolError) {
         throw new DeliveryError(protocolErrorCode(error), 'invalid envelope');
@@ -114,6 +122,14 @@ export class DeliveryService {
     const recipientUserId = await this.d.activeDeviceOwner(recipientDeviceId);
     if (recipientUserId === undefined) {
       throw new DeliveryError('RECIPIENT_UNKNOWN', 'no such active device');
+    }
+    // Group traffic (Megolm messages, room keys) flows only between current members, so a
+    // removed member gets no new keys or messages (REQ §8.2, ADR 0016).
+    if (groupId !== undefined) {
+      const allowed =
+        ((await this.d.isGroupMember?.(groupId, sender.userId)) ?? false) &&
+        ((await this.d.isGroupMember?.(groupId, recipientUserId)) ?? false);
+      if (!allowed) throw new DeliveryError('NOT_A_MEMBER', 'not a current group member');
     }
     const blocked =
       recipientUserId !== sender.userId &&
