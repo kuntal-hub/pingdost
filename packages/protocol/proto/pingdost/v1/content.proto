@@ -107,6 +107,11 @@ message AttachmentManifest {
   bytes ciphertext_sha256 = 10;
   // SHA-256 of the list of per-chunk ciphertext SHA-256 hashes.
   bytes chunk_hash_list_sha256 = 11;
+  // A small preview (image or video frame), encrypted and staged as its own attachment with
+  // its own key (ADR 0004). Made on the sender's device, never by a server.
+  AttachmentManifest thumbnail = 12;
+  // Text shown with the attachment.
+  string caption = 13;
 }
 
 // Group membership and info changes, E2EE so the server stores no group name or avatar.

@@ -47,6 +47,25 @@ export function systemText(message: MessageRecord, names?: Names): string {
   }
 }
 
+/** An attachment's type as an icon and a word; other files go by their name. */
+export function attachmentType(message: Pick<MessageRecord, 'attachment'>): {
+  icon: string;
+  name: string;
+} {
+  const mime = message.attachment?.mimeType ?? '';
+  if (mime.startsWith('image/')) return { icon: '📷', name: 'Photo' };
+  if (mime.startsWith('video/')) return { icon: '🎥', name: 'Video' };
+  if (mime.startsWith('audio/')) return { icon: '🎵', name: 'Audio' };
+  return { icon: '📄', name: message.attachment?.fileName ?? 'File' };
+}
+
+/** One line for an attachment message: its caption, or else what it is. */
+export function attachmentText(message: Pick<MessageRecord, 'attachment' | 'body'>): string {
+  const { icon, name } = attachmentType(message);
+  const caption = message.body.replace(/\s+/g, ' ').trim();
+  return `${icon} ${caption || name}`;
+}
+
 /** One line standing for a message: previews, quotes, search results. */
 export function previewText(message: MessageRecord, names?: Names): string {
   switch (message.kind) {
@@ -56,6 +75,8 @@ export function previewText(message: MessageRecord, names?: Names): string {
       return systemText(message, names);
     case 'unsupported':
       return 'Update PingDost to see this message';
+    case 'attachment':
+      return attachmentText(message);
     case 'text':
       return message.body.replace(/\s+/g, ' ').trim();
   }

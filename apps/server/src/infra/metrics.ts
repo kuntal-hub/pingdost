@@ -71,6 +71,20 @@ export class Metrics {
     labelNames: ['store'] as const,
     registers: [this.registry],
   });
+  readonly attachmentsDeleted = new Counter({
+    name: 'pingdost_attachments_deleted_total',
+    help: 'Staged attachments deleted, by reason (acked, expired, orphaned, leftover).',
+    labelNames: ['reason'] as const,
+    registers: [this.registry],
+  });
+  readonly attachmentDeletionFailures = new Counter({
+    name: 'pingdost_attachment_deletion_failures_total',
+    help: 'Staged attachment deletions that failed (retried by the janitor).',
+    registers: [this.registry],
+  });
+  /** Set by the app once the attachment service exists; read on each scrape. */
+  attachmentStats:
+    (() => Promise<{ bytes: number; count: number; oldestAgeSeconds: number }>) | undefined;
   readonly pushWakes = new Counter({
     name: 'pingdost_push_wakes_total',
     help: 'Push wake requests, by outcome (sent, throttled, no_token, invalid_token, failed, ...).',
@@ -130,6 +144,30 @@ export class Metrics {
         const mailbox = await collectors.mongoMailbox();
         this.set(mailbox.oldestAgeSeconds);
         mongoCount.set(mailbox.count);
+      },
+    });
+    const attachmentBytes = new Gauge({
+      name: 'pingdost_attachments_staged_bytes',
+      help: 'Ciphertext bytes staged for delivery (uploading or ready).',
+      registers: [this.registry],
+    });
+    const attachmentCount = new Gauge({
+      name: 'pingdost_attachments_staged_count',
+      help: 'Staged attachment records.',
+      registers: [this.registry],
+    });
+    const stats = () => this.attachmentStats;
+    new Gauge({
+      name: 'pingdost_attachments_oldest_age_seconds',
+      help: 'Age of the oldest staged attachment; it should stay under the retention cap.',
+      registers: [this.registry],
+      async collect() {
+        const read = stats();
+        if (!read) return;
+        const current = await read();
+        this.set(current.oldestAgeSeconds);
+        attachmentBytes.set(current.bytes);
+        attachmentCount.set(current.count);
       },
     });
   }

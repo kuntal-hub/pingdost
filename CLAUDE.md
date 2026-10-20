@@ -92,6 +92,10 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - Groups (ADR 0016): `test/groups.int.test.ts` covers the REST roles and limits, the gateway's member-only routing, and sim clients in Megolm groups (removal, late joiner, two devices, a key after its message). Engine-level group tests: `packages/message-engine/src/groups/*.test.ts`.
   - Push (ADR 0015): `test/push.int.test.ts` runs the real FCM sender against a fake Google and checks the exact request body. Real pushes need `FCM_PROJECT_ID` + `FCM_SERVICE_ACCOUNT_JSON_BASE64` in the root `.env` (setup steps in `docs/phases/phase-12-push-notifications.md`).
   - `test/redis-budget.int.test.ts` prints `REDIS_BUDGET {...}` and fails if an operation costs more Redis commands than ADR 0010 allows.
+- **Attachments** (`packages/attachments`, server `modules/attachments`; ADR 0004, 0017):
+  - `docker compose --profile s3 up -d --wait` adds SeaweedFS (local S3 on :8333, dev credentials in `docker-compose.yml`). The `s3` halves of `test/attachments.int.test.ts` run only while it is up; `fs` always runs. `pnpm infra:down` leaves it running: stop it with `docker compose --profile s3 down`.
+  - The 100 MiB spike is tagged slow: `$env:PINGDOST_SLOW='1'; pnpm --filter @pingdost/server exec vitest run --config vitest.int.config.ts test/attachments-100mb --silent=false`. It prints `ATTACHMENT_SPIKE {...}` (about 45 s for both stores).
+  - `pnpm --filter @pingdost/crypto make-attachment-vectors` rewrites `packages/test-fixtures/crypto/attachment-stream-v1.json`. Run it only when the attachment format changes.
 - **Message engine** (`packages/message-engine`, `packages/transport`; ADR 0011): `pnpm --filter @pingdost/message-engine test` runs the engine over an in-memory fake server with real vodozemac. `@pingdost/message-engine/testing` exports `runEngineStoreContract` (every `EngineStore` must pass it) and `FakeServer`.
 - **Protocol** (`packages/protocol`, ADR 0006):
   - `pnpm --filter @pingdost/protocol gen` regenerates `src/gen/` from `proto/` (committed; never hand-edit). CI fails if the committed code differs.

@@ -11,9 +11,10 @@
  *   user's other devices as control Contents (`features/ops.ts`, ADR 0014).
  * - Read receipts go out when the user opens the chat, only while the toggle is on.
  */
-import { uuidToBytes, uuidv7 } from '@pingdost/protocol';
+import { uuidToBytes, uuidv7, type AttachmentManifest } from '@pingdost/protocol';
 import { MessageState } from '@pingdost/shared-types';
 
+import { attachmentContentFor, readAttachment } from './attachments';
 import { buildContent, textContentFor } from './content';
 import { EngineCore, type ConversationEvent, type EngineEvent, type EngineOptions } from './core';
 import { MessageActionError } from './errors';
@@ -201,10 +202,59 @@ export class MessageEngine {
    * Stores the message and queues it; the returned record is `local_queued`. A `replyTo`
    * outside this conversation is dropped.
    */
-  async sendText(
+  sendText(
     conversationId: string,
     text: string,
     options: { replyTo?: string } = {},
+  ): Promise<MessageRecord> {
+    return this.#send(conversationId, { kind: 'text', body: text, attachment: null }, options);
+  }
+
+  /**
+   * Sends a staged attachment: `manifest` (`buildManifest`, caption included) describes a
+   * file already encrypted and uploaded for `attachmentRecipients` (ADR 0017). The manifest is
+   * checked like a received one; an invalid one is refused and nothing is stored.
+   */
+  async sendAttachment(
+    conversationId: string,
+    manifest: AttachmentManifest,
+    options: { replyTo?: string } = {},
+  ): Promise<MessageRecord> {
+    const read = readAttachment(manifest);
+    if (!read) throw new MessageActionError('invalid', 'invalid attachment manifest');
+    return this.#send(
+      conversationId,
+      { kind: 'attachment', body: read.caption, attachment: read.info },
+      options,
+    );
+  }
+
+  /**
+   * The devices a conversation's next message goes to (the recipients' and this user's other
+   * devices): an attachment is staged for exactly these. Throws when a directory cannot be
+   * fetched (offline).
+   */
+  async attachmentRecipients(conversationId: string): Promise<string[]> {
+    const core = this.#core;
+    const conversation = await core.store.getConversation(conversationId);
+    if (!conversation) throw new MessageActionError('not_found', 'unknown conversation');
+    const audience = await this.#audience(conversation);
+    const devices: string[] = [];
+    for (const userId of audience.recipientUserIds) {
+      const lookup = await core.directoryFor(userId, core.settings.directoryMaxAgeMs);
+      if (lookup.status === 'unavailable') throw new Error('key directory unavailable');
+      if (lookup.status === 'not_found') continue;
+      for (const device of lookup.record.devices) {
+        if (device.deviceId !== core.self.deviceId) devices.push(device.deviceId);
+      }
+    }
+    return devices;
+  }
+
+  async #send(
+    conversationId: string,
+    fields: Pick<MessageRecord, 'kind' | 'body' | 'attachment'>,
+    options: { replyTo?: string },
   ): Promise<MessageRecord> {
     const core = this.#core;
     const message = await core.mutex.run(async () => {
@@ -219,8 +269,7 @@ export class MessageEngine {
         senderUserId: core.self.userId,
         senderDeviceId: core.self.deviceId,
         direction: 'out',
-        kind: 'text',
-        body: text,
+        ...fields,
         replyTo: quoted?.conversationId === conversationId ? quoted.messageId : null,
         sentAt: now,
         sortAt: now,
@@ -234,7 +283,7 @@ export class MessageEngine {
         reactions: [],
       };
       // Throws OVERSIZED for text that cannot fit in an envelope: nothing is stored then.
-      const content = textContentFor(record, audience.peerUserId, core.settings.envelopeMaxBytes);
+      const content = this.#contentFor(record, audience);
       await core.commit({
         messages: [record],
         conversations: [
@@ -257,7 +306,8 @@ export class MessageEngine {
     const core = this.#core;
     await core.mutex.run(async () => {
       const message = await core.store.getMessage(messageId);
-      if (message?.state !== 'failed' || message.kind !== 'text') return;
+      if (message?.state !== 'failed') return;
+      if (message.kind !== 'text' && message.kind !== 'attachment') return;
       const conversation = await core.store.getConversation(message.conversationId);
       if (!conversation) return;
       const audience = await this.#audience(conversation);
@@ -274,14 +324,7 @@ export class MessageEngine {
         messages: [retried],
         deleteDeliveries: deliveries.map((d) => ({ messageId, deviceId: d.deviceId })),
         deleteOutbox: queued.map((item) => item.id),
-        outbox: [
-          this.#fanout(
-            retried,
-            audience,
-            textContentFor(message, audience.peerUserId, core.settings.envelopeMaxBytes),
-            now,
-          ),
-        ],
+        outbox: [this.#fanout(retried, audience, this.#contentFor(message, audience), now)],
       });
     });
     this.#outbox.kick();
@@ -572,6 +615,14 @@ export class MessageEngine {
       throw new MessageActionError('not_allowed', 'not a member of this group');
     }
     return { recipientUserIds: group.members.map((m) => m.userId), groupId: group.groupId };
+  }
+
+  /** The Content of an outgoing text or attachment message. */
+  #contentFor(message: MessageRecord, audience: Audience): Uint8Array {
+    const max = this.#core.settings.envelopeMaxBytes;
+    return message.kind === 'attachment'
+      ? attachmentContentFor(message, audience.peerUserId, max)
+      : textContentFor(message, audience.peerUserId, max);
   }
 
   #controlFanout(

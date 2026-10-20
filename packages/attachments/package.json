@@ -9,9 +9,19 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pingdost/api-client": "workspace:*",
+    "@pingdost/config": "workspace:*",
+    "@pingdost/crypto": "workspace:*",
+    "@pingdost/protocol": "workspace:*",
+    "@pingdost/shared-types": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "catalog:"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

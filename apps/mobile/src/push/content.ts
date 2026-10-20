@@ -5,6 +5,8 @@ import { z } from 'zod';
 
 import type { ConversationRecord, MessageRecord } from '@pingdost/message-engine';
 
+import { attachmentText } from '../engine/labels';
+
 /** Settings → Notifications; local to this phone. */
 export const NotificationPrefsSchema = z.object({
   /** Show the message text; when off, "New message". */
@@ -46,7 +48,7 @@ export function shouldNotify(input: {
 export function notificationContent(input: {
   senderName: string;
   groupName?: string;
-  message: Pick<MessageRecord, 'kind' | 'body'>;
+  message: Pick<MessageRecord, 'kind' | 'body'> & { attachment?: MessageRecord['attachment'] };
   unreadCount: number;
   prefs: Pick<NotificationPrefs, 'showPreviews' | 'hideSender'>;
 }): { title: string; body: string } {
@@ -58,7 +60,12 @@ export function notificationContent(input: {
   let text =
     message.kind === 'text'
       ? truncate(message.body.replace(/\s+/g, ' ').trim(), PREVIEW_MAX)
-      : 'New message (update PingDost to read it)';
+      : message.kind === 'attachment'
+        ? truncate(
+            attachmentText({ body: message.body, attachment: message.attachment ?? null }),
+            PREVIEW_MAX,
+          )
+        : 'New message (update PingDost to read it)';
   if (groupName !== undefined && !prefs.hideSender) text = `${senderName}: ${text}`;
   return { title, body: unreadCount > 1 ? `${text} · ${unreadCount} new messages` : text };
 }

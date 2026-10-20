@@ -4,6 +4,15 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-10-20 — Phase 14: attachment staging (ADR 0017)
+1. **The local S3 test service is SeaweedFS, not MinIO.** ARCHITECTURE A1 and the Phase 14 plan named MinIO; REQ does not.
+   - *Reason:* MinIO's community edition is no longer distributed, and its image pulls were denied on the dev PC. SeaweedFS is Apache-2.0 and serves the same S3 API.
+   - *Trade-off:* none in production: `fs` on the VPS disk is the production store, and `s3` stays an R2 option that needs a card.
+   - *Affects:* 14 (done), 20.
+2. **A total staging cap (`ATTACHMENT_TOTAL_QUOTA_BYTES`, 30 GiB) is added next to the REQ per-user quota.** When it is full, uploads get `ATTACHMENT_STAGING_FULL` (503) until space frees up; nearby transfer (Phase 24) still works.
+   - *Reason:* the 50 GB VPS disk is shared with everything else.
+   - *Affects:* 15 (show the error), 20 (disk sizing).
+
 ### 2026-10-19 — Hosting: one Hostinger VPS, Valkey only (ADR 0013)
 1. **Upstash is dropped; the hot mailbox is self-hosted Valkey on the VPS.** REQ §2, §4, §17 and §22 name Upstash Redis.
    - *Reason:* Upstash free (500K commands/month) fits only about 50–60 active users (ADR 0010). Valkey costs nothing extra and was already the dev and test path.

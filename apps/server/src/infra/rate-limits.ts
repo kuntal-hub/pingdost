@@ -43,6 +43,12 @@ export const DEFAULT_ROUTE_LIMITS = {
   groupsCreate: { max: 20, timeWindow: HOUR },
   groupsRead: { max: 300, timeWindow: 15 * MINUTE },
   groupsChange: { max: 120, timeWindow: 15 * MINUTE },
+  attachmentsCreate: { max: 60, timeWindow: 15 * MINUTE },
+  attachmentsRead: { max: 600, timeWindow: 15 * MINUTE },
+  attachmentsAck: { max: 600, timeWindow: 15 * MINUTE },
+  /** Part uploads (about 1 MiB each): a 100 MB file is about 100 parts. */
+  attachmentParts: { max: 3_000, timeWindow: 15 * MINUTE },
+  attachmentBlob: { max: 600, timeWindow: 15 * MINUTE },
   /** WebSocket upgrades; frames on an open socket have their own per-socket limits. */
   wsConnect: { max: 60, timeWindow: 15 * MINUTE },
   metrics: { max: 120, timeWindow: 15 * MINUTE },

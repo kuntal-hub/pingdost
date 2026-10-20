@@ -99,3 +99,12 @@ coturn (25); production launch (27, on the same VPS).
 - Push: set `FCM_PROJECT_ID` + `FCM_SERVICE_ACCOUNT_JSON_BASE64` (and later the `WEB_PUSH_*` VAPID trio) on the VPS; `PUSH_WAKE_THROTTLE_SECONDS` defaults to 10. Watch `pingdost_push_wakes_total{result="failed"|"invalid_token"}`.
 - The Android release build needs `apps/mobile/google-services.json` at build time (`app.config.js` adds it only when present).
 - Groups: `GROUP_MAX_MEMBERS` (64). Group messages cost one envelope per member device in the mailbox budget.
+
+**From Phase 14 (ADR 0017):**
+- Attachments stage on the VPS disk: `ATTACHMENT_STORE=fs`, `ATTACHMENT_FS_ROOT` on a named Docker volume. Size its headroom against `ATTACHMENT_TOTAL_QUOTA_BYTES` (30 GiB default on KVM 1's 50 GB). `PUBLIC_API_URL` must be the public HTTPS origin: signed part and download URLs carry it.
+- Caddy:
+  - allow request bodies of at least one part (16 × 65,552 B ≈ 1 MiB, plus headers) on `PUT /v1/attachments/*/parts/*`;
+  - do not buffer `GET …/blob` responses (range and streaming);
+  - keep `TRUST_PROXY=true` for the per-IP limits.
+- Jobs: `attachment-janitor` runs every `ATTACHMENT_JANITOR_INTERVAL_SECONDS` (300). Alert on `pingdost_attachment_deletion_failures_total` increasing, `pingdost_attachments_oldest_age_seconds` above `ATTACHMENT_MAX_RETENTION_SECONDS`, and staged bytes near the total cap.
+- R2 (`ATTACHMENT_STORE=s3`, `ATTACHMENT_OBJECT_STORE_REGION=auto`) needs a card even on the free tier: only with the user's go-ahead.

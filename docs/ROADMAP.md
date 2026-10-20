@@ -19,7 +19,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 11 | [Chat features](phases/phase-11-chat-features.md) | 10 | 🔄 |
 | 12 | [Push notifications](phases/phase-12-push-notifications.md) | 10 | 🔄 |
 | 13 | [Groups (Megolm)](phases/phase-13-groups.md) | 10 | 🔄 |
-| 14 | [Attachments core](phases/phase-14-attachments-core.md) | 09 | ⬜ |
+| 14 | [Attachments core](phases/phase-14-attachments-core.md) | 09 | ✅ |
 | 15 | [Attachments UX (Android)](phases/phase-15-attachments-android-ux.md) | 10, 14 | ⬜ |
 | 16 | [Web foundation + QR pairing](phases/phase-16-web-pairing.md) | 09, 10 | ⬜ |
 | 17 | [Web chat](phases/phase-17-web-chat.md) | 13, 16 | ⬜ |
@@ -48,7 +48,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
   |---|---|
   | Crypto | 02–03 |
   | Redis/queue budget | 08 |
-  | Object store | 14 |
+  | Object store | 14 (done: ADR 0017) |
   | Nearby | 21 |
   | 100 MB nearby transfer | 24 |
   | WebRTC | 25 |

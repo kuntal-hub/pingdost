@@ -275,6 +275,16 @@ const DEFINITIONS = {
       ret: FfiType.Void,
       hasRustCallStatus: true,
     },
+    uniffi_pingdost_crypto_fn_clone_attachmentencryptor: {
+      args: [FfiType.Handle],
+      ret: FfiType.Handle,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_free_attachmentencryptor: {
+      args: [FfiType.Handle],
+      ret: FfiType.Void,
+      hasRustCallStatus: true,
+    },
     uniffi_pingdost_crypto_fn_clone_groupsession: {
       args: [FfiType.Handle],
       ret: FfiType.Handle,
@@ -305,6 +315,16 @@ const DEFINITIONS = {
       ret: FfiType.Void,
       hasRustCallStatus: true,
     },
+    uniffi_pingdost_crypto_fn_clone_sha256hasher: {
+      args: [FfiType.Handle],
+      ret: FfiType.Handle,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_free_sha256hasher: {
+      args: [FfiType.Handle],
+      ret: FfiType.Void,
+      hasRustCallStatus: true,
+    },
     uniffi_pingdost_crypto_fn_clone_signingkey: {
       args: [FfiType.Handle],
       ret: FfiType.Handle,
@@ -315,12 +335,28 @@ const DEFINITIONS = {
       ret: FfiType.Void,
       hasRustCallStatus: true,
     },
+    uniffi_pingdost_crypto_fn_func_attachment_decrypt_chunk: {
+      args: [
+        FfiType.RustBuffer,
+        FfiType.RustBuffer,
+        FfiType.UInt32,
+        FfiType.Int8,
+        FfiType.RustBuffer,
+      ],
+      ret: FfiType.RustBuffer,
+      hasRustCallStatus: true,
+    },
     uniffi_pingdost_crypto_fn_func_ed25519_verify: {
       args: [FfiType.RustBuffer, FfiType.RustBuffer, FfiType.RustBuffer],
       ret: FfiType.Void,
       hasRustCallStatus: true,
     },
     uniffi_pingdost_crypto_fn_func_prekey_message_session_id: {
+      args: [FfiType.RustBuffer],
+      ret: FfiType.RustBuffer,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_func_sha256: {
       args: [FfiType.RustBuffer],
       ret: FfiType.RustBuffer,
       hasRustCallStatus: true,
@@ -387,6 +423,21 @@ const DEFINITIONS = {
     },
     uniffi_pingdost_crypto_fn_method_account_sign: {
       args: [FfiType.Handle, FfiType.RustBuffer],
+      ret: FfiType.RustBuffer,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_constructor_attachmentencryptor_new: {
+      args: [FfiType.RustBuffer, FfiType.RustBuffer],
+      ret: FfiType.Handle,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_method_attachmentencryptor_encrypt_chunk: {
+      args: [FfiType.Handle, FfiType.RustBuffer, FfiType.Int8],
+      ret: FfiType.RustBuffer,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_method_attachmentencryptor_finish: {
+      args: [FfiType.Handle],
       ret: FfiType.RustBuffer,
       hasRustCallStatus: true,
     },
@@ -500,6 +551,21 @@ const DEFINITIONS = {
       ret: FfiType.RustBuffer,
       hasRustCallStatus: true,
     },
+    uniffi_pingdost_crypto_fn_constructor_sha256hasher_new: {
+      args: [],
+      ret: FfiType.Handle,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_method_sha256hasher_digest: {
+      args: [FfiType.Handle],
+      ret: FfiType.RustBuffer,
+      hasRustCallStatus: true,
+    },
+    uniffi_pingdost_crypto_fn_method_sha256hasher_update: {
+      args: [FfiType.Handle, FfiType.RustBuffer],
+      ret: FfiType.Void,
+      hasRustCallStatus: true,
+    },
     uniffi_pingdost_crypto_fn_constructor_signingkey_from_secret: {
       args: [FfiType.RustBuffer],
       ret: FfiType.Handle,
@@ -530,12 +596,22 @@ const DEFINITIONS = {
       ret: FfiType.UInt32,
       hasRustCallStatus: false,
     },
+    uniffi_pingdost_crypto_checksum_func_attachment_decrypt_chunk: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
     uniffi_pingdost_crypto_checksum_func_ed25519_verify: {
       args: [],
       ret: FfiType.UInt16,
       hasRustCallStatus: false,
     },
     uniffi_pingdost_crypto_checksum_func_prekey_message_session_id: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
+    uniffi_pingdost_crypto_checksum_func_sha256: {
       args: [],
       ret: FfiType.UInt16,
       hasRustCallStatus: false,
@@ -601,6 +677,21 @@ const DEFINITIONS = {
       hasRustCallStatus: false,
     },
     uniffi_pingdost_crypto_checksum_method_account_sign: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
+    uniffi_pingdost_crypto_checksum_constructor_attachmentencryptor_new: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
+    uniffi_pingdost_crypto_checksum_method_attachmentencryptor_encrypt_chunk: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
+    uniffi_pingdost_crypto_checksum_method_attachmentencryptor_finish: {
       args: [],
       ret: FfiType.UInt16,
       hasRustCallStatus: false,
@@ -711,6 +802,21 @@ const DEFINITIONS = {
       hasRustCallStatus: false,
     },
     uniffi_pingdost_crypto_checksum_method_session_session_id: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
+    uniffi_pingdost_crypto_checksum_constructor_sha256hasher_new: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
+    uniffi_pingdost_crypto_checksum_method_sha256hasher_digest: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
+    uniffi_pingdost_crypto_checksum_method_sha256hasher_update: {
       args: [],
       ret: FfiType.UInt16,
       hasRustCallStatus: false,
@@ -899,6 +1005,14 @@ interface NativeModuleInterface {
     uniffi_out_err: UniffiRustCallStatus,
   ): bigint;
   uniffi_pingdost_crypto_fn_free_account(ptr: bigint, uniffi_out_err: UniffiRustCallStatus): void;
+  uniffi_pingdost_crypto_fn_clone_attachmentencryptor(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): bigint;
+  uniffi_pingdost_crypto_fn_free_attachmentencryptor(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): void;
   uniffi_pingdost_crypto_fn_clone_groupsession(
     ptr: bigint,
     uniffi_out_err: UniffiRustCallStatus,
@@ -920,6 +1034,14 @@ interface NativeModuleInterface {
     uniffi_out_err: UniffiRustCallStatus,
   ): bigint;
   uniffi_pingdost_crypto_fn_free_session(ptr: bigint, uniffi_out_err: UniffiRustCallStatus): void;
+  uniffi_pingdost_crypto_fn_clone_sha256hasher(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): bigint;
+  uniffi_pingdost_crypto_fn_free_sha256hasher(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): void;
   uniffi_pingdost_crypto_fn_clone_signingkey(
     ptr: bigint,
     uniffi_out_err: UniffiRustCallStatus,
@@ -928,6 +1050,14 @@ interface NativeModuleInterface {
     ptr: bigint,
     uniffi_out_err: UniffiRustCallStatus,
   ): void;
+  uniffi_pingdost_crypto_fn_func_attachment_decrypt_chunk(
+    key: Uint8Array,
+    noncePrefix: Uint8Array,
+    index: number,
+    last: number,
+    ciphertext: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): Uint8Array;
   uniffi_pingdost_crypto_fn_func_ed25519_verify(
     publicKey: Uint8Array,
     message: Uint8Array,
@@ -936,6 +1066,10 @@ interface NativeModuleInterface {
   ): void;
   uniffi_pingdost_crypto_fn_func_prekey_message_session_id(
     message: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): Uint8Array;
+  uniffi_pingdost_crypto_fn_func_sha256(
+    data: Uint8Array,
     uniffi_out_err: UniffiRustCallStatus,
   ): Uint8Array;
   uniffi_pingdost_crypto_fn_constructor_account_from_pickle(
@@ -993,6 +1127,21 @@ interface NativeModuleInterface {
   uniffi_pingdost_crypto_fn_method_account_sign(
     uniffiSelf: bigint,
     message: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): Uint8Array;
+  uniffi_pingdost_crypto_fn_constructor_attachmentencryptor_new(
+    key: Uint8Array,
+    noncePrefix: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): bigint;
+  uniffi_pingdost_crypto_fn_method_attachmentencryptor_encrypt_chunk(
+    uniffiSelf: bigint,
+    plaintext: Uint8Array,
+    last: number,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): Uint8Array;
+  uniffi_pingdost_crypto_fn_method_attachmentencryptor_finish(
+    uniffiSelf: bigint,
     uniffi_out_err: UniffiRustCallStatus,
   ): Uint8Array;
   uniffi_pingdost_crypto_fn_constructor_groupsession_from_pickle(
@@ -1093,6 +1242,18 @@ interface NativeModuleInterface {
     uniffiSelf: bigint,
     uniffi_out_err: UniffiRustCallStatus,
   ): Uint8Array;
+  uniffi_pingdost_crypto_fn_constructor_sha256hasher_new(
+    uniffi_out_err: UniffiRustCallStatus,
+  ): bigint;
+  uniffi_pingdost_crypto_fn_method_sha256hasher_digest(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): Uint8Array;
+  uniffi_pingdost_crypto_fn_method_sha256hasher_update(
+    uniffiSelf: bigint,
+    data: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): void;
   uniffi_pingdost_crypto_fn_constructor_signingkey_from_secret(
     secret: Uint8Array,
     uniffi_out_err: UniffiRustCallStatus,
@@ -1114,8 +1275,10 @@ interface NativeModuleInterface {
     uniffi_out_err: UniffiRustCallStatus,
   ): Uint8Array;
   ffi_pingdost_crypto_uniffi_contract_version(): number;
+  uniffi_pingdost_crypto_checksum_func_attachment_decrypt_chunk(): number;
   uniffi_pingdost_crypto_checksum_func_ed25519_verify(): number;
   uniffi_pingdost_crypto_checksum_func_prekey_message_session_id(): number;
+  uniffi_pingdost_crypto_checksum_func_sha256(): number;
   uniffi_pingdost_crypto_checksum_constructor_account_from_pickle(): number;
   uniffi_pingdost_crypto_checksum_constructor_account_new(): number;
   uniffi_pingdost_crypto_checksum_method_account_create_inbound_session(): number;
@@ -1129,6 +1292,9 @@ interface NativeModuleInterface {
   uniffi_pingdost_crypto_checksum_method_account_one_time_keys(): number;
   uniffi_pingdost_crypto_checksum_method_account_pickle(): number;
   uniffi_pingdost_crypto_checksum_method_account_sign(): number;
+  uniffi_pingdost_crypto_checksum_constructor_attachmentencryptor_new(): number;
+  uniffi_pingdost_crypto_checksum_method_attachmentencryptor_encrypt_chunk(): number;
+  uniffi_pingdost_crypto_checksum_method_attachmentencryptor_finish(): number;
   uniffi_pingdost_crypto_checksum_constructor_groupsession_from_pickle(): number;
   uniffi_pingdost_crypto_checksum_constructor_groupsession_new(): number;
   uniffi_pingdost_crypto_checksum_method_groupsession_encrypt(): number;
@@ -1151,6 +1317,9 @@ interface NativeModuleInterface {
   uniffi_pingdost_crypto_checksum_method_session_has_received_message(): number;
   uniffi_pingdost_crypto_checksum_method_session_pickle(): number;
   uniffi_pingdost_crypto_checksum_method_session_session_id(): number;
+  uniffi_pingdost_crypto_checksum_constructor_sha256hasher_new(): number;
+  uniffi_pingdost_crypto_checksum_method_sha256hasher_digest(): number;
+  uniffi_pingdost_crypto_checksum_method_sha256hasher_update(): number;
   uniffi_pingdost_crypto_checksum_constructor_signingkey_from_secret(): number;
   uniffi_pingdost_crypto_checksum_constructor_signingkey_new(): number;
   uniffi_pingdost_crypto_checksum_method_signingkey_export_secret(): number;

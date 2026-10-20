@@ -8,7 +8,7 @@
  * 32-byte pickle key) before it is stored, and disposed when no longer needed.
  *
  * Later phases extend it by adding members only: the account identity signing key
- * (Phase 6) and attachment stream encryption (Phase 14, ADR 0004).
+ * (Phase 6) and attachment stream encryption with SHA-256 (Phase 14, ADR 0004).
  */
 
 /** A device's public identity keys (base64). */
@@ -109,6 +109,37 @@ export interface SigningKey extends Disposable {
   exportSecret(): string;
 }
 
+/** Hashes an attachment's encryption produced, for its manifest (ADR 0004). */
+export interface AttachmentDigests {
+  chunkCount: number;
+  plaintextSize: number;
+  ciphertextSize: number;
+  /** SHA-256 over all ciphertext chunks in order. */
+  ciphertextSha256: Uint8Array;
+  /** SHA-256 of the concatenated per-chunk SHA-256s. */
+  chunkHashListSha256: Uint8Array;
+}
+
+/**
+ * Encrypts one attachment with XChaCha20-Poly1305 STREAM (ADR 0004), chunk by chunk in order:
+ * 64 KiB of plaintext per chunk, the last one shorter (possibly empty) and flagged.
+ */
+export interface AttachmentEncryptor extends Disposable {
+  encryptChunk(
+    plaintext: Uint8Array,
+    last: boolean,
+  ): { ciphertext: Uint8Array; sha256: Uint8Array };
+  /** After the last chunk. */
+  finish(): AttachmentDigests;
+}
+
+/** Incremental SHA-256. */
+export interface Sha256Hasher extends Disposable {
+  update(data: Uint8Array): void;
+  /** The digest of everything so far (more may follow). */
+  digest(): Uint8Array;
+}
+
 export interface CryptoProvider {
   /** Implementation name and version, e.g. for diagnostics. */
   readonly implementation: string;
@@ -134,4 +165,17 @@ export interface CryptoProvider {
 
   /** Strict Ed25519 verification; returns false for a bad signature or malformed input. */
   verifyEd25519(publicKey: string, message: Uint8Array, signature: string): boolean;
+
+  /** Attachments (Phase 14): a 32-byte random key and a 19-byte random nonce prefix per file. */
+  createAttachmentEncryptor(key: Uint8Array, noncePrefix: Uint8Array): AttachmentEncryptor;
+  /** Decrypts chunk `index` alone; `last` exactly for the final chunk. Throws if it fails. */
+  decryptAttachmentChunk(
+    key: Uint8Array,
+    noncePrefix: Uint8Array,
+    index: number,
+    last: boolean,
+    ciphertext: Uint8Array,
+  ): Uint8Array;
+  sha256(data: Uint8Array): Uint8Array;
+  createSha256(): Sha256Hasher;
 }

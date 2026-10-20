@@ -37,3 +37,11 @@ Web nearby (browsers can't do this); iOS (30).
 - The REQ §19.3 last bullet is satisfied in simulation and on 2 devices (direct).
 - ROADMAP notes **"Offline-mesh launch requirement met on Android"**.
 - `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 14 (ADR 0004, 0017):**
+- The E2EE `AttachmentManifest` carries `chunkHashListSha256`, the SHA-256 of the list of per-64-KiB-chunk ciphertext hashes, not the list itself.
+  - Send the list as the first mesh chunk (or add a manifest field with a protocol change), and check it against `chunkHashListSha256` before trusting per-chunk hashes.
+  - `encryptStream` returns `chunkHashes`.
+- Use the manifest's `attachmentId` (UUIDv7) as the mesh transfer ID; the receiver also checks `ciphertextSha256` and decrypts (AEAD per chunk) before sending the receipt.
+- A file sent over the mesh needs no staged upload: send the manifest with `engine.sendAttachment` and skip `uploadAttachment`.

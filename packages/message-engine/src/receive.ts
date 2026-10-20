@@ -28,6 +28,7 @@ import {
   type TransportPacket,
 } from '@pingdost/protocol';
 
+import { readAttachment } from './attachments';
 import { checkGroupHeader, checkHeader, type CheckedHeader } from './content';
 import { EngineCore } from './core';
 import { applyOp, applyPending, type Op } from './features/ops';
@@ -38,6 +39,7 @@ import { compareMessages } from './memoryStore';
 import type { Outbox } from './outbox';
 import type { RemoteDevice } from './sessions';
 import type {
+  AttachmentInfo,
   ConversationRecord,
   DeliveryRecord,
   GroupRecord,
@@ -48,6 +50,9 @@ import type {
 } from './store';
 
 type Effect = () => void | Promise<void>;
+
+/** What group members may send over Megolm; everything else comes over Olm or not at all. */
+const GROUP_BODIES = new Set<string>(['text', 'attachmentManifest', 'reaction', 'edit', 'delete']);
 
 /** A key request from one device for one session is answered at most this often. */
 const KEY_ANSWER_INTERVAL_MS = 60_000;
@@ -522,7 +527,7 @@ export class Receiver {
     if (group) {
       // Over Megolm: only members' messages, edits, deletes and reactions count.
       if (!isMember(group, checked.senderUserId)) return [];
-      if (kind !== undefined && !['text', 'reaction', 'edit', 'delete'].includes(kind)) return [];
+      if (kind !== undefined && !GROUP_BODIES.has(kind)) return [];
     }
 
     const body = content?.body;
@@ -531,6 +536,20 @@ export class Receiver {
         return this.#storeMessage(batch, checked, sender, 'unsupported', '', now);
       case 'text':
         return this.#storeMessage(batch, checked, sender, 'text', body.value.body, now);
+      case 'attachmentManifest': {
+        // Kept for an on-demand download; a manifest that fails the checks is a placeholder.
+        const read = readAttachment(body.value);
+        if (!read) return this.#storeMessage(batch, checked, sender, 'unsupported', '', now);
+        return this.#storeMessage(
+          batch,
+          checked,
+          sender,
+          'attachment',
+          read.caption,
+          now,
+          read.info,
+        );
+      }
       case 'reaction':
         await this.#applyOp(batch, checked, 'reaction', body.value.targetMessageId, now, {
           body: body.value.emoji,
@@ -564,7 +583,7 @@ export class Receiver {
       case 'keyChange':
         return [() => void core.refreshDirectory(sender.userId)];
       default:
-        // Attachments, groups, sync and calls arrive with their phases (13, 14, 18, 25).
+        // History sync and calls arrive with their phases (18, 25).
         return [];
     }
   }
@@ -630,6 +649,7 @@ export class Receiver {
     kind: MessageRecord['kind'],
     text: string,
     now: number,
+    attachment: AttachmentInfo | null = null,
   ): Promise<Effect[]> {
     const { core } = this;
     // From this user's other device: a copy of something this user sent.
@@ -649,6 +669,7 @@ export class Receiver {
       direction: own ? 'out' : 'in',
       kind,
       body: text,
+      attachment,
       replyTo: header.replyTo,
       sentAt: header.sentAt,
       // A sender clock ahead of ours must not pin the message below newer ones.

@@ -61,6 +61,8 @@ export const ErrorCodeSchema = z.enum([
   // Attachments (Phase 14)
   'ATTACHMENT_TOO_LARGE',
   'ATTACHMENT_QUOTA_EXCEEDED',
+  /** The server's staging space is full for now: retry later, or send over nearby. */
+  'ATTACHMENT_STAGING_FULL',
   'ATTACHMENT_NOT_FOUND',
   'ATTACHMENT_EXPIRED',
   // Web pairing (Phase 16)
@@ -123,6 +125,7 @@ export const ERROR_STATUS: Readonly<Record<ErrorCode, number>> = {
   NOT_A_MEMBER: 403,
   ATTACHMENT_TOO_LARGE: 413,
   ATTACHMENT_QUOTA_EXCEEDED: 413,
+  ATTACHMENT_STAGING_FULL: 503,
   ATTACHMENT_NOT_FOUND: 404,
   ATTACHMENT_EXPIRED: 410,
   PAIRING_NOT_FOUND: 404,

@@ -23,6 +23,7 @@ import {
   FfiConverterObject,
   FfiConverterOptional,
   FfiConverterUInt32,
+  FfiConverterUInt64,
   FfiConverterUInt8,
   RustBuffer,
   UniffiAbstractObject,
@@ -47,6 +48,37 @@ const uniffiIsDebug =
   false;
 
 // Public interface members begin here.
+
+/**
+ * Decrypts chunk `index` on its own; `last` must be set exactly for the final chunk.
+ */
+export function attachmentDecryptChunk(
+  key: ArrayBuffer,
+  noncePrefix: ArrayBuffer,
+  index: number,
+  last: boolean,
+  ciphertext: ArrayBuffer,
+): ArrayBuffer /*throws*/ {
+  const __rb: Uint8Array = uniffiCaller.rustCallWithError(
+    /*liftError:*/ FfiConverterTypeCryptoError.lift.bind(FfiConverterTypeCryptoError),
+    /*caller:*/ (callStatus) => {
+      return nativeModule().uniffi_pingdost_crypto_fn_func_attachment_decrypt_chunk(
+        FfiConverterArrayBuffer.lower(key, nativeModule().rustbuffer_alloc),
+        FfiConverterArrayBuffer.lower(noncePrefix, nativeModule().rustbuffer_alloc),
+        FfiConverterUInt32.lower(index, nativeModule().rustbuffer_alloc),
+        FfiConverterBool.lower(last, nativeModule().rustbuffer_alloc),
+        FfiConverterArrayBuffer.lower(ciphertext, nativeModule().rustbuffer_alloc),
+        callStatus,
+      );
+    },
+    /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+  );
+  try {
+    return FfiConverterArrayBuffer.lift(__rb);
+  } finally {
+    nativeModule().rustbuffer_free(__rb);
+  }
+}
 
 /**
  * Verifies an Ed25519 signature (strict verification). Key and signature are base64.
@@ -91,6 +123,133 @@ export function prekeyMessageSessionId(message: OlmCiphertext): string /*throws*
     nativeModule().rustbuffer_free(__rb);
   }
 }
+
+/**
+ * SHA-256 of `data`.
+ */
+export function sha256(data: ArrayBuffer): ArrayBuffer {
+  const __rb: Uint8Array = uniffiCaller.rustCall(
+    /*caller:*/ (callStatus) => {
+      return nativeModule().uniffi_pingdost_crypto_fn_func_sha256(
+        FfiConverterArrayBuffer.lower(data, nativeModule().rustbuffer_alloc),
+        callStatus,
+      );
+    },
+    /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+  );
+  try {
+    return FfiConverterArrayBuffer.lift(__rb);
+  } finally {
+    nativeModule().rustbuffer_free(__rb);
+  }
+}
+
+export type AttachmentDigests = {
+  chunkCount: number;
+  plaintextSize: bigint;
+  ciphertextSize: bigint;
+  /**
+   * SHA-256 over every ciphertext chunk in order.
+   */
+  ciphertextSha256: ArrayBuffer;
+  /**
+   * SHA-256 of the concatenated per-chunk SHA-256s.
+   */
+  chunkHashListSha256: ArrayBuffer;
+};
+
+/**
+ * Generated factory for {@link AttachmentDigests} record objects.
+ */
+export const AttachmentDigests = (() => {
+  const defaults = () => ({});
+  const create = (() => {
+    return uniffiCreateRecord<AttachmentDigests, ReturnType<typeof defaults>>(defaults);
+  })();
+  return Object.freeze({
+    create,
+    new: create,
+    defaults: () => Object.freeze(defaults()) as Partial<AttachmentDigests>,
+  });
+})();
+
+const FfiConverterTypeAttachmentDigests = (() => {
+  type TypeName = AttachmentDigests;
+  class FFIConverter extends AbstractFfiConverterByteArray<TypeName> {
+    readFromCursor(c: Cursor): TypeName {
+      return {
+        chunkCount: FfiConverterUInt32.readFromCursor(c),
+        plaintextSize: FfiConverterUInt64.readFromCursor(c),
+        ciphertextSize: FfiConverterUInt64.readFromCursor(c),
+        ciphertextSha256: FfiConverterArrayBuffer.readFromCursor(c),
+        chunkHashListSha256: FfiConverterArrayBuffer.readFromCursor(c),
+      };
+    }
+    writeIntoCursor(value: TypeName, c: Cursor): void {
+      FfiConverterUInt32.writeIntoCursor(value.chunkCount, c);
+      FfiConverterUInt64.writeIntoCursor(value.plaintextSize, c);
+      FfiConverterUInt64.writeIntoCursor(value.ciphertextSize, c);
+      FfiConverterArrayBuffer.writeIntoCursor(value.ciphertextSha256, c);
+      FfiConverterArrayBuffer.writeIntoCursor(value.chunkHashListSha256, c);
+    }
+    allocationSize(value: TypeName): number {
+      return (
+        FfiConverterUInt32.allocationSize(value.chunkCount) +
+        FfiConverterUInt64.allocationSize(value.plaintextSize) +
+        FfiConverterUInt64.allocationSize(value.ciphertextSize) +
+        FfiConverterArrayBuffer.allocationSize(value.ciphertextSha256) +
+        FfiConverterArrayBuffer.allocationSize(value.chunkHashListSha256)
+      );
+    }
+  }
+  return new FFIConverter();
+})();
+
+export type EncryptedChunk = {
+  ciphertext: ArrayBuffer;
+  /**
+   * SHA-256 of `ciphertext`.
+   */
+  sha256: ArrayBuffer;
+};
+
+/**
+ * Generated factory for {@link EncryptedChunk} record objects.
+ */
+export const EncryptedChunk = (() => {
+  const defaults = () => ({});
+  const create = (() => {
+    return uniffiCreateRecord<EncryptedChunk, ReturnType<typeof defaults>>(defaults);
+  })();
+  return Object.freeze({
+    create,
+    new: create,
+    defaults: () => Object.freeze(defaults()) as Partial<EncryptedChunk>,
+  });
+})();
+
+const FfiConverterTypeEncryptedChunk = (() => {
+  type TypeName = EncryptedChunk;
+  class FFIConverter extends AbstractFfiConverterByteArray<TypeName> {
+    readFromCursor(c: Cursor): TypeName {
+      return {
+        ciphertext: FfiConverterArrayBuffer.readFromCursor(c),
+        sha256: FfiConverterArrayBuffer.readFromCursor(c),
+      };
+    }
+    writeIntoCursor(value: TypeName, c: Cursor): void {
+      FfiConverterArrayBuffer.writeIntoCursor(value.ciphertext, c);
+      FfiConverterArrayBuffer.writeIntoCursor(value.sha256, c);
+    }
+    allocationSize(value: TypeName): number {
+      return (
+        FfiConverterArrayBuffer.allocationSize(value.ciphertext) +
+        FfiConverterArrayBuffer.allocationSize(value.sha256)
+      );
+    }
+  }
+  return new FFIConverter();
+})();
 
 export type GroupDecryptResult = {
   plaintext: ArrayBuffer;
@@ -1302,6 +1461,179 @@ const uniffiTypeAccountObjectFactory: UniffiObjectFactory<AccountLike> = (() => 
 const FfiConverterTypeAccount = new FfiConverterObject(uniffiTypeAccountObjectFactory);
 
 /**
+ * Encrypts one attachment chunk by chunk, in order, hashing as it goes.
+ */
+export interface AttachmentEncryptorLike {
+  /**
+   * The next chunk: exactly 64 KiB unless `last` (then at most 64 KiB, possibly empty).
+   */
+  encryptChunk(plaintext: ArrayBuffer, last: boolean) /*throws*/ : EncryptedChunk;
+  /**
+   * The digests for the manifest, once the last chunk is encrypted.
+   */
+  finish() /*throws*/ : AttachmentDigests;
+}
+/**
+ * @deprecated Use `AttachmentEncryptorLike` instead.
+ */
+export type AttachmentEncryptorInterface = AttachmentEncryptorLike;
+
+/**
+ * Encrypts one attachment chunk by chunk, in order, hashing as it goes.
+ */
+export class AttachmentEncryptor extends UniffiAbstractObject implements AttachmentEncryptorLike {
+  readonly [uniffiTypeNameSymbol] = 'AttachmentEncryptor';
+  readonly [destructorGuardSymbol]: UniffiGcObject;
+  readonly [pointerLiteralSymbol]: UniffiHandle;
+  /**
+   * `key`: 32 random bytes; `nonce_prefix`: 19 random bytes. Never reuse either.
+   */
+  constructor(key: ArrayBuffer, noncePrefix: ArrayBuffer) /*throws*/ {
+    super();
+    const pointer = uniffiCaller.rustCallWithError(
+      /*liftError:*/ FfiConverterTypeCryptoError.lift.bind(FfiConverterTypeCryptoError),
+      /*caller:*/ (callStatus) => {
+        return nativeModule().uniffi_pingdost_crypto_fn_constructor_attachmentencryptor_new(
+          FfiConverterArrayBuffer.lower(key, nativeModule().rustbuffer_alloc),
+          FfiConverterArrayBuffer.lower(noncePrefix, nativeModule().rustbuffer_alloc),
+          callStatus,
+        );
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    );
+    this[pointerLiteralSymbol] = pointer;
+    this[destructorGuardSymbol] = uniffiTypeAttachmentEncryptorObjectFactory.bless(pointer);
+  }
+
+  /**
+   * The next chunk: exactly 64 KiB unless `last` (then at most 64 KiB, possibly empty).
+   */
+  encryptChunk(plaintext: ArrayBuffer, last: boolean): EncryptedChunk /*throws*/ {
+    const __rb: Uint8Array = uniffiCaller.rustCallWithError(
+      /*liftError:*/ FfiConverterTypeCryptoError.lift.bind(FfiConverterTypeCryptoError),
+      /*caller:*/ (callStatus) => {
+        return nativeModule().uniffi_pingdost_crypto_fn_method_attachmentencryptor_encrypt_chunk(
+          uniffiTypeAttachmentEncryptorObjectFactory.clonePointer(this),
+          FfiConverterArrayBuffer.lower(plaintext, nativeModule().rustbuffer_alloc),
+          FfiConverterBool.lower(last, nativeModule().rustbuffer_alloc),
+          callStatus,
+        );
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    );
+    try {
+      return FfiConverterTypeEncryptedChunk.lift(__rb);
+    } finally {
+      nativeModule().rustbuffer_free(__rb);
+    }
+  }
+
+  /**
+   * The digests for the manifest, once the last chunk is encrypted.
+   */
+  finish(): AttachmentDigests /*throws*/ {
+    const __rb: Uint8Array = uniffiCaller.rustCallWithError(
+      /*liftError:*/ FfiConverterTypeCryptoError.lift.bind(FfiConverterTypeCryptoError),
+      /*caller:*/ (callStatus) => {
+        return nativeModule().uniffi_pingdost_crypto_fn_method_attachmentencryptor_finish(
+          uniffiTypeAttachmentEncryptorObjectFactory.clonePointer(this),
+          callStatus,
+        );
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    );
+    try {
+      return FfiConverterTypeAttachmentDigests.lift(__rb);
+    } finally {
+      nativeModule().rustbuffer_free(__rb);
+    }
+  }
+
+  uniffiDestroy(): void {
+    const ptr = (this as any)[destructorGuardSymbol];
+    if (ptr !== undefined) {
+      const pointer = uniffiTypeAttachmentEncryptorObjectFactory.pointer(this);
+      uniffiTypeAttachmentEncryptorObjectFactory.freePointer(pointer);
+      uniffiTypeAttachmentEncryptorObjectFactory.unbless(ptr);
+      delete (this as any)[destructorGuardSymbol];
+    }
+  }
+
+  static instanceOf(obj_: any): obj_ is AttachmentEncryptor {
+    return uniffiTypeAttachmentEncryptorObjectFactory.isConcreteType(obj_);
+  }
+}
+
+const uniffiTypeAttachmentEncryptorObjectFactory: UniffiObjectFactory<AttachmentEncryptorLike> =
+  (() => {
+    /// <reference lib="es2021" />
+    const registry =
+      typeof FinalizationRegistry !== 'undefined'
+        ? new FinalizationRegistry<UniffiHandle>((heldValue: UniffiHandle) => {
+            uniffiTypeAttachmentEncryptorObjectFactory.freePointer(heldValue);
+          })
+        : null;
+
+    return {
+      create(pointer: UniffiHandle): AttachmentEncryptorLike {
+        const instance = Object.create(AttachmentEncryptor.prototype);
+        instance[pointerLiteralSymbol] = pointer;
+        instance[destructorGuardSymbol] = this.bless(pointer);
+        instance[uniffiTypeNameSymbol] = 'AttachmentEncryptor';
+        return instance;
+      },
+
+      bless(p: UniffiHandle): UniffiGcObject {
+        const ptr = {
+          p, // make sure this object doesn't get optimized away.
+          markDestroyed: () => undefined,
+        };
+        if (registry) {
+          registry.register(ptr, p, ptr);
+        }
+        return ptr;
+      },
+
+      unbless(ptr_: UniffiGcObject) {
+        if (registry) {
+          registry.unregister(ptr_);
+        }
+      },
+
+      pointer(obj_: AttachmentEncryptorLike): UniffiHandle {
+        if ((obj_ as any)[destructorGuardSymbol] === undefined) {
+          throw new UniffiInternalError.UnexpectedNullPointer();
+        }
+        return (obj_ as any)[pointerLiteralSymbol];
+      },
+
+      clonePointer(obj_: AttachmentEncryptorLike): UniffiHandle {
+        const pointer = this.pointer(obj_);
+        return uniffiCaller.rustCall(
+          /*caller:*/ (callStatus) =>
+            nativeModule().uniffi_pingdost_crypto_fn_clone_attachmentencryptor(pointer, callStatus),
+          /*liftString:*/ FfiConverterString.lift,
+        );
+      },
+
+      freePointer(pointer: UniffiHandle): void {
+        uniffiCaller.rustCall(
+          /*caller:*/ (callStatus) =>
+            nativeModule().uniffi_pingdost_crypto_fn_free_attachmentencryptor(pointer, callStatus),
+          /*liftString:*/ FfiConverterString.lift,
+        );
+      },
+
+      isConcreteType(obj_: any): obj_ is AttachmentEncryptorLike {
+        return obj_[destructorGuardSymbol] && obj_[uniffiTypeNameSymbol] === 'AttachmentEncryptor';
+      },
+    };
+  })();
+const FfiConverterTypeAttachmentEncryptor = new FfiConverterObject(
+  uniffiTypeAttachmentEncryptorObjectFactory,
+);
+
+/**
  * The sending side of a Megolm session.
  */
 export interface GroupSessionLike {
@@ -1818,6 +2150,156 @@ const FfiConverterTypeInboundGroupSession = new FfiConverterObject(
 );
 
 /**
+ * Incremental SHA-256, e.g. to check a downloaded ciphertext without holding it.
+ */
+export interface Sha256HasherLike {
+  /**
+   * The digest so far (the hasher keeps going).
+   */
+  digest() /*throws*/ : ArrayBuffer;
+  update(data: ArrayBuffer) /*throws*/ : void;
+}
+/**
+ * @deprecated Use `Sha256HasherLike` instead.
+ */
+export type Sha256HasherInterface = Sha256HasherLike;
+
+/**
+ * Incremental SHA-256, e.g. to check a downloaded ciphertext without holding it.
+ */
+export class Sha256Hasher extends UniffiAbstractObject implements Sha256HasherLike {
+  readonly [uniffiTypeNameSymbol] = 'Sha256Hasher';
+  readonly [destructorGuardSymbol]: UniffiGcObject;
+  readonly [pointerLiteralSymbol]: UniffiHandle;
+  constructor() {
+    super();
+    const pointer = uniffiCaller.rustCall(
+      /*caller:*/ (callStatus) => {
+        return nativeModule().uniffi_pingdost_crypto_fn_constructor_sha256hasher_new(callStatus);
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    );
+    this[pointerLiteralSymbol] = pointer;
+    this[destructorGuardSymbol] = uniffiTypeSha256HasherObjectFactory.bless(pointer);
+  }
+
+  /**
+   * The digest so far (the hasher keeps going).
+   */
+  digest(): ArrayBuffer /*throws*/ {
+    const __rb: Uint8Array = uniffiCaller.rustCallWithError(
+      /*liftError:*/ FfiConverterTypeCryptoError.lift.bind(FfiConverterTypeCryptoError),
+      /*caller:*/ (callStatus) => {
+        return nativeModule().uniffi_pingdost_crypto_fn_method_sha256hasher_digest(
+          uniffiTypeSha256HasherObjectFactory.clonePointer(this),
+          callStatus,
+        );
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    );
+    try {
+      return FfiConverterArrayBuffer.lift(__rb);
+    } finally {
+      nativeModule().rustbuffer_free(__rb);
+    }
+  }
+
+  update(data: ArrayBuffer): void /*throws*/ {
+    uniffiCaller.rustCallWithError(
+      /*liftError:*/ FfiConverterTypeCryptoError.lift.bind(FfiConverterTypeCryptoError),
+      /*caller:*/ (callStatus) => {
+        nativeModule().uniffi_pingdost_crypto_fn_method_sha256hasher_update(
+          uniffiTypeSha256HasherObjectFactory.clonePointer(this),
+          FfiConverterArrayBuffer.lower(data, nativeModule().rustbuffer_alloc),
+          callStatus,
+        );
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    );
+  }
+
+  uniffiDestroy(): void {
+    const ptr = (this as any)[destructorGuardSymbol];
+    if (ptr !== undefined) {
+      const pointer = uniffiTypeSha256HasherObjectFactory.pointer(this);
+      uniffiTypeSha256HasherObjectFactory.freePointer(pointer);
+      uniffiTypeSha256HasherObjectFactory.unbless(ptr);
+      delete (this as any)[destructorGuardSymbol];
+    }
+  }
+
+  static instanceOf(obj_: any): obj_ is Sha256Hasher {
+    return uniffiTypeSha256HasherObjectFactory.isConcreteType(obj_);
+  }
+}
+
+const uniffiTypeSha256HasherObjectFactory: UniffiObjectFactory<Sha256HasherLike> = (() => {
+  /// <reference lib="es2021" />
+  const registry =
+    typeof FinalizationRegistry !== 'undefined'
+      ? new FinalizationRegistry<UniffiHandle>((heldValue: UniffiHandle) => {
+          uniffiTypeSha256HasherObjectFactory.freePointer(heldValue);
+        })
+      : null;
+
+  return {
+    create(pointer: UniffiHandle): Sha256HasherLike {
+      const instance = Object.create(Sha256Hasher.prototype);
+      instance[pointerLiteralSymbol] = pointer;
+      instance[destructorGuardSymbol] = this.bless(pointer);
+      instance[uniffiTypeNameSymbol] = 'Sha256Hasher';
+      return instance;
+    },
+
+    bless(p: UniffiHandle): UniffiGcObject {
+      const ptr = {
+        p, // make sure this object doesn't get optimized away.
+        markDestroyed: () => undefined,
+      };
+      if (registry) {
+        registry.register(ptr, p, ptr);
+      }
+      return ptr;
+    },
+
+    unbless(ptr_: UniffiGcObject) {
+      if (registry) {
+        registry.unregister(ptr_);
+      }
+    },
+
+    pointer(obj_: Sha256HasherLike): UniffiHandle {
+      if ((obj_ as any)[destructorGuardSymbol] === undefined) {
+        throw new UniffiInternalError.UnexpectedNullPointer();
+      }
+      return (obj_ as any)[pointerLiteralSymbol];
+    },
+
+    clonePointer(obj_: Sha256HasherLike): UniffiHandle {
+      const pointer = this.pointer(obj_);
+      return uniffiCaller.rustCall(
+        /*caller:*/ (callStatus) =>
+          nativeModule().uniffi_pingdost_crypto_fn_clone_sha256hasher(pointer, callStatus),
+        /*liftString:*/ FfiConverterString.lift,
+      );
+    },
+
+    freePointer(pointer: UniffiHandle): void {
+      uniffiCaller.rustCall(
+        /*caller:*/ (callStatus) =>
+          nativeModule().uniffi_pingdost_crypto_fn_free_sha256hasher(pointer, callStatus),
+        /*liftString:*/ FfiConverterString.lift,
+      );
+    },
+
+    isConcreteType(obj_: any): obj_ is Sha256HasherLike {
+      return obj_[destructorGuardSymbol] && obj_[uniffiTypeNameSymbol] === 'Sha256Hasher';
+    },
+  };
+})();
+const FfiConverterTypeSha256Hasher = new FfiConverterObject(uniffiTypeSha256HasherObjectFactory);
+
+/**
  * An Ed25519 signing key. Plumbing over vodozemac's `Ed25519SecretKey`.
  */
 export interface SigningKeyLike {
@@ -2053,6 +2535,11 @@ function uniffiEnsureInitialized() {
       bindingsContractVersion,
     );
   }
+  if (nativeModule().uniffi_pingdost_crypto_checksum_func_attachment_decrypt_chunk() !== 41938) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_func_attachment_decrypt_chunk',
+    );
+  }
   if (nativeModule().uniffi_pingdost_crypto_checksum_func_ed25519_verify() !== 38195) {
     throw new UniffiInternalError.ApiChecksumMismatch(
       'uniffi_pingdost_crypto_checksum_func_ed25519_verify',
@@ -2061,6 +2548,11 @@ function uniffiEnsureInitialized() {
   if (nativeModule().uniffi_pingdost_crypto_checksum_func_prekey_message_session_id() !== 28391) {
     throw new UniffiInternalError.ApiChecksumMismatch(
       'uniffi_pingdost_crypto_checksum_func_prekey_message_session_id',
+    );
+  }
+  if (nativeModule().uniffi_pingdost_crypto_checksum_func_sha256() !== 49149) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_func_sha256',
     );
   }
   if (nativeModule().uniffi_pingdost_crypto_checksum_constructor_account_from_pickle() !== 3582) {
@@ -2140,6 +2632,28 @@ function uniffiEnsureInitialized() {
   if (nativeModule().uniffi_pingdost_crypto_checksum_method_account_sign() !== 11167) {
     throw new UniffiInternalError.ApiChecksumMismatch(
       'uniffi_pingdost_crypto_checksum_method_account_sign',
+    );
+  }
+  if (
+    nativeModule().uniffi_pingdost_crypto_checksum_constructor_attachmentencryptor_new() !== 54128
+  ) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_constructor_attachmentencryptor_new',
+    );
+  }
+  if (
+    nativeModule().uniffi_pingdost_crypto_checksum_method_attachmentencryptor_encrypt_chunk() !==
+    62028
+  ) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_method_attachmentencryptor_encrypt_chunk',
+    );
+  }
+  if (
+    nativeModule().uniffi_pingdost_crypto_checksum_method_attachmentencryptor_finish() !== 23807
+  ) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_method_attachmentencryptor_finish',
     );
   }
   if (
@@ -2278,6 +2792,21 @@ function uniffiEnsureInitialized() {
       'uniffi_pingdost_crypto_checksum_method_session_session_id',
     );
   }
+  if (nativeModule().uniffi_pingdost_crypto_checksum_constructor_sha256hasher_new() !== 20435) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_constructor_sha256hasher_new',
+    );
+  }
+  if (nativeModule().uniffi_pingdost_crypto_checksum_method_sha256hasher_digest() !== 41096) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_method_sha256hasher_digest',
+    );
+  }
+  if (nativeModule().uniffi_pingdost_crypto_checksum_method_sha256hasher_update() !== 62491) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_method_sha256hasher_update',
+    );
+  }
   if (
     nativeModule().uniffi_pingdost_crypto_checksum_constructor_signingkey_from_secret() !== 7651
   ) {
@@ -2311,7 +2840,10 @@ export default Object.freeze({
   initialize: uniffiEnsureInitialized,
   converters: {
     FfiConverterTypeAccount,
+    FfiConverterTypeAttachmentDigests,
+    FfiConverterTypeAttachmentEncryptor,
     FfiConverterTypeCryptoError,
+    FfiConverterTypeEncryptedChunk,
     FfiConverterTypeGroupDecryptResult,
     FfiConverterTypeGroupSession,
     FfiConverterTypeIdentityKeys,
@@ -2321,6 +2853,7 @@ export default Object.freeze({
     FfiConverterTypeOlmMessageType,
     FfiConverterTypeOneTimeKey,
     FfiConverterTypeSession,
+    FfiConverterTypeSha256Hasher,
     FfiConverterTypeSigningKey,
   },
 });

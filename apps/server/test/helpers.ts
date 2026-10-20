@@ -3,6 +3,7 @@
  * capturing logger and a clock tests can move forward.
  */
 import { randomUUID } from 'node:crypto';
+import { createServer } from 'node:net';
 
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 
@@ -56,6 +57,7 @@ export interface TestServerOptions {
   delivery?: AppDeps['delivery'];
   gateway?: AppDeps['gateway'];
   pushSenders?: AppDeps['pushSenders'];
+  attachments?: AppDeps['attachments'];
   mongo?: Mongo;
 }
 
@@ -99,6 +101,7 @@ export async function startTestServer(options: TestServerOptions = {}): Promise<
     delivery: { ...options.delivery, settings: mailbox },
     ...(options.gateway ? { gateway: options.gateway } : {}),
     ...(options.pushSenders ? { pushSenders: options.pushSenders } : {}),
+    ...(options.attachments ? { attachments: options.attachments } : {}),
   });
   await app.ready();
 
@@ -120,6 +123,18 @@ export async function startTestServer(options: TestServerOptions = {}): Promise<
       await redis.close();
     },
   };
+}
+
+/**
+ * A free local port, for a server that must know its own URL before it listens (signed
+ * attachment URLs carry `PUBLIC_API_URL`).
+ */
+export async function freePort(): Promise<number> {
+  const probe = createServer();
+  await new Promise<void>((resolve) => probe.listen(0, '127.0.0.1', resolve));
+  const { port } = probe.address() as { port: number };
+  await new Promise((resolve) => probe.close(resolve));
+  return port;
 }
 
 /** A fresh user's registration input. */

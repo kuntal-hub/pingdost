@@ -21,6 +21,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0014](0014-chat-features-sync-blocks-reports.md) | Chat features: edit/delete/reaction sync, receipts, search, blocks and reports | 11 | Accepted |
 | [0015](0015-push-wakes.md) | Push notifications: content-free wakes, local notifications | 12 | Accepted |
 | [0016](0016-groups-megolm.md) | Groups: server routing membership, E2EE controls, Megolm sessions | 13 | Accepted |
+| [0017](0017-attachment-staging-store.md) | Attachment staging: `fs` on the VPS disk, `s3` optional; SeaweedFS for local S3 tests | 14 | Accepted |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ ยง7.2 license/dependency matrix).
 
@@ -32,7 +33,7 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ ย
 | Native crypto binding & mobile build (ubrn, APK size, SQLCipher) | 03 | No (done: 0005) |
 | Safety-number / fingerprint format | 10 (proposal in 0003) | No (done: 0012) |
 | Redis command budget & mailbox provider (Upstash vs Valkey) | 08 | No (input to 20) (done: 0010) |
-| Attachment staging store (fs vs s3/R2), 100 MB proof | 14 | No |
+| Attachment staging store (fs vs s3/R2), 100 MB proof | 14 | No (done: 0017) |
 | Web pairing protocol | 16 | No |
 | History sync protocol | 18 | No |
 | Backup format & recovery flows | 19 | No |

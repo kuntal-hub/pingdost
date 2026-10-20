@@ -97,4 +97,40 @@ describe('notificationContent', () => {
       }).body,
     ).toBe('New message (update PingDost to read it)');
   });
+
+  it('names an attachment by its caption or type, never by anything else', () => {
+    const photo = {
+      kind: 'attachment' as const,
+      body: '',
+      attachment: messageAttachment('image/jpeg', 'IMG_0042.jpg'),
+    };
+    const content = (message: typeof photo) =>
+      notificationContent({
+        senderName: 'A',
+        message,
+        unreadCount: 1,
+        prefs: DEFAULT_NOTIFICATION_PREFS,
+      }).body;
+    expect(content(photo)).toBe('📷 Photo');
+    expect(content({ ...photo, body: 'the view' })).toBe('📷 the view');
+    expect(
+      content({ ...photo, attachment: messageAttachment('application/pdf', 'plan.pdf') }),
+    ).toBe('📄 plan.pdf');
+  });
 });
+
+function messageAttachment(mimeType: string, fileName: string) {
+  return {
+    attachmentId: '0192f1a0-0000-7000-8000-000000000001',
+    key: '',
+    noncePrefix: '',
+    plaintextSize: 1,
+    chunkCount: 1,
+    ciphertextSize: 17,
+    mimeType,
+    fileName,
+    ciphertextSha256: '',
+    chunkHashListSha256: '',
+    thumbnail: null,
+  };
+}

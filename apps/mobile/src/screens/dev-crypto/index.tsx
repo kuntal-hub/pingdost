@@ -6,10 +6,13 @@ import {
   INTEROP_STEPS,
   runInteropClient,
   runScenarios,
+  verifyAttachmentVectors,
   verifyVectors,
+  type AttachmentVectors,
   type CryptoVectors,
   type StepResult,
 } from '@pingdost/crypto/conformance';
+import attachmentVectors from '@pingdost/test-fixtures/crypto/attachment-stream-v1.json';
 import storedVectors from '@pingdost/test-fixtures/crypto/vodozemac-0.11.1.json';
 
 import { StepList } from './step-list';
@@ -59,6 +62,7 @@ export function DevCrypto() {
       const steps = [
         ...runScenarios(provider),
         ...verifyVectors(provider, storedVectors as CryptoVectors),
+        ...verifyAttachmentVectors(provider, attachmentVectors as AttachmentVectors),
       ];
       const elapsed = Math.round(performance.now() - started);
       setLocalSteps([...steps, { id: 'time', title: `Ran in ${elapsed} ms`, ok: true }]);

@@ -43,7 +43,7 @@ Web attachments (18); mesh transfer (24).
   - a 100 MB+ PDF rejected;
   - a voice note sent and received;
   - the recipient views the media;
-  - the server object is gone after the ACK (check the fs dir or MinIO);
+  - the server object is gone after the ACK (check the fs dir, or SeaweedFS with the `s3` profile);
   - "Clear cache" leaves history intact.
 - `pnpm lint typecheck test` passes.
 
@@ -53,3 +53,20 @@ Web attachments (18); mesh transfer (24).
 - `engine.deleteConversation` and `deleteForMe` remove rows only. They must also delete local attachment files and `attachments` rows.
 - A delete-for-everyone tombstone must drop the attachment file too.
 - Messages are upserted (`ON CONFLICT DO UPDATE`), never `INSERT OR REPLACE`, because the FTS triggers rely on a stable rowid.
+
+**From Phase 14 (ADR 0017):**
+- Use `@pingdost/attachments` (already a mobile dependency):
+  - `encryptStream` / `decryptStream` take async iterables of `Uint8Array`;
+  - `sniffMime` (never the file name) and `canSend` (REQ §10.1);
+  - `buildManifest` (caption and thumbnail included);
+  - `uploadAttachment`, which resumes from the server's part list. Read parts from the local encrypted copy, so a resume never re-encrypts.
+  - `formatSize` gives the A8 "MB" labels.
+- Send flow: `engine.attachmentRecipients(conversationId)` → encrypt to the local encrypted file → `uploadAttachment({ recipientDeviceIds, expiresAt })` → `engine.sendAttachment(conversationId, manifest)`.
+  - Nothing is stored until the upload completes. Add a local "uploading" placeholder (queued in the `attachments` table) so the bubble shows progress and survives a restart.
+- Receive: `MessageRecord.attachment` (`AttachmentInfo`, base64 key) holds what the download needs. `attachmentDecryptInput(info)` turns it into `decryptStream`'s input. After `decryptStream` succeeds (it checks the whole-ciphertext hash), call `attachmentsApi.ack`.
+  - `download-url` answers `ATTACHMENT_NOT_FOUND` once the object is gone (expired, or every device acked): show "no longer available".
+- Thumbnails are their own staged attachment (`AttachmentInfo.thumbnail`): upload them first, and fetch them before the full file.
+- Errors to show: `ATTACHMENT_TOO_LARGE`, `ATTACHMENT_QUOTA_EXCEEDED` (1 GiB staged per user) and `ATTACHMENT_STAGING_FULL` (server full; retry later).
+- The chat bubble shows only "📷 Photo · 3.2 MB" plus the caption for now (`attachmentBody` in `screens/chats/chat.tsx`). Previews and notifications use `attachmentText`.
+- Search covers text messages only. Decide whether captions should be searchable (the FTS triggers in migration 003 index `kind = 'text'`).
+- The `s3` compose profile runs SeaweedFS, not MinIO. For the "object gone after the ACK" check, look in `ATTACHMENT_FS_ROOT` (default `./.data/attachments`).

@@ -55,6 +55,7 @@ export function messageRecord(overrides: Partial<MessageRecord> = {}): MessageRe
     direction: 'out',
     kind: 'text',
     body: 'hello',
+    attachment: null,
     replyTo: null,
     sentAt: 1_000,
     sortAt: 1_000,
@@ -97,6 +98,34 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
       expect(await store.getConversation(testId())).toBeUndefined();
       await store.apply({ conversations: [{ ...old, updatedAt: 9 }] });
       expect((await store.listConversations())[0]?.conversationId).toBe(old.conversationId);
+    });
+
+    it('keeps attachment messages with their manifest and thumbnail', async () => {
+      const store = await makeStore();
+      const info = (fileName: string | null) => ({
+        attachmentId: testId(),
+        key: 'a2V5'.repeat(11),
+        noncePrefix: 'bm9uY2U=',
+        plaintextSize: 70_000,
+        chunkCount: 2,
+        ciphertextSize: 70_032,
+        mimeType: 'image/jpeg',
+        fileName,
+        ciphertextSha256: 'aGFzaA==',
+        chunkHashListSha256: 'bGlzdA==',
+        thumbnail: null,
+      });
+      const photo = messageRecord({
+        kind: 'attachment',
+        body: 'the caption',
+        attachment: { ...info('photo.jpg'), thumbnail: info(null) },
+      });
+      const file = messageRecord({ kind: 'attachment', body: '', attachment: info(null) });
+      await store.apply({ messages: [photo, file] });
+      expect(await store.getMessage(photo.messageId)).toEqual(photo);
+      expect(await store.getMessage(file.messageId)).toEqual(file);
+      await store.apply({ messages: [{ ...photo, kind: 'deleted', body: '', attachment: null }] });
+      expect((await store.getMessage(photo.messageId))?.attachment).toBeNull();
     });
 
     it('pages messages newest first, ties broken by message ID', async () => {

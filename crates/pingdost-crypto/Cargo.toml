@@ -16,6 +16,10 @@ crate-type = ["lib", "cdylib"]
 uniffi = "=0.31.2"
 vodozemac = "=0.11.1"
 thiserror = "2"
+# Attachments (ADR 0004): XChaCha20-Poly1305 under STREAM (BE32), and SHA-256 for the hashes.
+chacha20poly1305 = "=0.11.0"
+aead-stream = "=0.6.0"
+sha2 = "=0.11.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # Randomness from Web Crypto (crypto.getRandomValues) in browsers and Node.

@@ -3,7 +3,8 @@
 // `withExclusiveTransactionAsync`, whose second connection has no key (ADR 0005). Applies
 // are queued, so two batches never interleave on the shared connection. Search uses the
 // FTS5 index that migration 003's triggers keep in step with `messages` (ADR 0014). Groups
-// and their Megolm sessions are migration 004's tables (ADR 0016).
+// and their Megolm sessions are migration 004's tables (ADR 0016); attachment manifests are
+// migration 005's JSON column (ADR 0017).
 import {
   ftsQuery,
   type ConversationRecord,
@@ -99,6 +100,7 @@ interface MessageRow {
   deleted_at: number | null;
   read_at: number | null;
   reactions: string;
+  attachment: string | null;
 }
 
 interface OpRow {
@@ -186,6 +188,7 @@ const toMessage = (r: MessageRow): MessageRecord => ({
   deletedAt: r.deleted_at,
   readAt: r.read_at,
   reactions: JSON.parse(r.reactions) as MessageRecord['reactions'],
+  attachment: r.attachment ? (JSON.parse(r.attachment) as MessageRecord['attachment']) : null,
 });
 
 const toOp = (r: OpRow): PendingOpRecord => ({
@@ -220,6 +223,7 @@ const MESSAGE_COLUMNS = [
   'deleted_at',
   'read_at',
   'reactions',
+  'attachment',
 ] as const;
 
 const UPSERT_MESSAGE = `INSERT INTO messages (${MESSAGE_COLUMNS.join(', ')})
@@ -247,6 +251,7 @@ const messageParams = (m: MessageRecord): SqlValue[] => [
   m.deletedAt,
   m.readAt,
   JSON.stringify(m.reactions),
+  m.attachment ? JSON.stringify(m.attachment) : null,
 ];
 
 const toDelivery = (r: DeliveryRow): DeliveryRecord => ({

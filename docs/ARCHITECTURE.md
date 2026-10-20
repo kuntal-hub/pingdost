@@ -40,7 +40,7 @@ tools/
 docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, ops/
 ```
 - ⚠ **No `apps/worker`.** The worker is `apps/server/src/worker.ts`, which reuses the server modules. `RUN_WORKER_IN_PROCESS=true` runs the jobs inside the API process, for small hosts.
-- **Local infra:** `docker-compose.yml` runs MongoDB 8 as a single-node replica set (needed for majority writes and transactions), Valkey 8 (Redis-compatible) and Mailpit (SMTP capture with a web UI on :8025). Two compose profiles add services later: `s3` (MinIO, Phase 14) and `calls` (coturn, Phase 25).
+- **Local infra:** `docker-compose.yml` runs MongoDB 8 as a single-node replica set (needed for majority writes and transactions), Valkey 8 (Redis-compatible) and Mailpit (SMTP capture with a web UI on :8025). Two compose profiles add services: `s3` (⚠ SeaweedFS, not MinIO; dev and tests only; ADR 0017) and `calls` (coturn, Phase 25).
 - **Phones reaching the dev server:** use the PC's LAN IP (`EXPO_PUBLIC_API_URL=http://192.168.x.x:3000`, cleartext allowed only in dev builds) or a free Cloudflare quick tunnel (`cloudflared tunnel --url http://localhost:3000`).
 - **CI:** GitHub Actions, free for the public repo. Jobs: format check, lint, typecheck, unit tests, and integration tests. The integration job starts Mongo (replica set) and Valkey from `docker-compose.yml` (`docker compose up -d --wait mongo valkey`), because service containers cannot pass `--replSet`.
 
@@ -74,10 +74,14 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Payloads are a **content-free wake** (`{"t":"wake"}` or `{"t":"call"}`), coalesced per device.
   - (ADR 0015) `push_tokens` holds one address per device. FCM v1 is called over `fetch` with a `jose`-signed OAuth grant (no Firebase SDK). At most one wake per device per `PUSH_WAKE_THROTTLE_SECONDS`, plus one deferred wake at the window's end. Rejected tokens are deleted.
   - The phone fetches, decrypts and shows a **local** notification itself. Previews, sender name and mute are device settings.
-- **Attachment staging:** an `AttachmentStore` interface with two adapters:
-  - `fs` (VPS disk, REQ §22; signed HMAC URL tokens served by the API with range support);
-  - `s3` (AWS SDK v3; R2- and MinIO-compatible; presigned multipart).
+- **Attachment staging (ADR 0017):** an `AttachmentStore` interface with two adapters:
+  - `fs` (VPS disk, REQ §22; signed HMAC URL tokens served by the API with range support). **Production uses it.**
+  - `s3` (AWS SDK v3; R2- and S3-compatible; presigned multipart). R2 stays opt-in because it needs a card.
   - ⚠ This resolves the REQ §10.3 vs §22 conflict.
+  - Resumable part uploads (whole 64 KiB ciphertext chunks: about 1 MiB per part on `fs`, 5 MiB on `s3`). `complete` checks the size and SHA-256. Downloads go to recipient devices only; the last ACK deletes the object.
+  - The `attachment-janitor` job deletes expired, orphaned and leftover objects.
+  - Quotas: 1 GiB per user and `ATTACHMENT_TOTAL_QUOTA_BYTES` (30 GiB) overall, sized for KVM 1's 50 GB disk.
+  - The server stores no key, name or type.
 - **Avatars:** Cloudinary (free) for **user profile avatars only**, using signed client uploads. ⚠ Group name, avatar and description travel **E2EE inside group control messages**; the server stores none of them.
 - **User discovery:** **exact-match username lookup only**, rate-limited. No contact upload and no fuzzy search.
 - **Groups (ADR 0016):** `groups` keeps members, roles and a `version` as routing metadata (`GROUP_MAX_MEMBERS`). Envelopes that carry `group_id` (Megolm messages, room keys) pass only between current members (`NOT_A_MEMBER`). Every change sends `GroupChanged` to members' sockets.
@@ -165,7 +169,8 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - XChaCha20-Poly1305 under the STREAM construction (RustCrypto `chacha20poly1305` + `aead-stream`) inside `crates/pingdost-crypto`, so one implementation runs on every platform.
   - A fresh random key and nonce prefix per file, 64 KiB chunks.
   - libsodium secretstream was dropped because react-native-libsodium only exposes it on web.
-  - The manifest (scheme, key, nonce prefix, sizes, mime, `ciphertextSha256`, `chunkHashListSha256`) travels inside E2EE `Content`.
+  - The manifest (scheme, key, nonce prefix, sizes, mime, `ciphertextSha256`, `chunkHashListSha256`, optional `thumbnail` and `caption`) travels inside E2EE `Content`, over Olm or Megolm. Receivers check it (`readManifest`) before trusting it and keep it in the encrypted store (`MessageRecord.attachment`; ADR 0017).
+  - The AEAD is exposed through `CryptoProvider` (`createAttachmentEncryptor`, `decryptAttachmentChunk`, `sha256`). Both providers are checked against `packages/test-fixtures/crypto/attachment-stream-v1.json`.
 - **Backup rule (ADR 0003):**
   - Back up only the account identity key and Megolm inbound sessions.
   - Never restore a device Olm account, Olm sessions or outbound Megolm sessions. A restored device is a new device certified by the identity key.
@@ -188,6 +193,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Raw-SQL repositories plus a migration runner keyed on `PRAGMA user_version` (`apps/mobile/src/db/migrate.ts`; `STRICT` tables).
   - Tables: REQ §14.1 entities plus `crypto_store` (pickles) and an FTS5 table.
   - Groups (ADR 0016, migration 004): `groups`, `group_sessions_out`, `group_sessions_in` (keyed by sender device + session, with accepted indices), `group_held`.
+  - Attachment messages (ADR 0017, migration 005): `messages.attachment` holds the checked manifest as JSON. The local copy and its state go in 002's `attachments` table (Phase 15).
   - Local search (ADR 0014): `messages_fts` keyed by the `messages` rowid and kept in step by triggers, so messages are upserted (`ON CONFLICT DO UPDATE`), never `INSERT OR REPLACE`. Tokenizer: `unicode61 remove_diacritics 2 categories 'L* N* Co M*'`. Queries are built only from quoted prefix phrases.
 - **Files:** `expo-file-system` (new File API, chunked reads, no base64 for big files). Attachments are stored **as encrypted files**; plaintext is decrypted to a temp cache only for viewing.
 - **Libraries, by phase:**
@@ -196,6 +202,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Phase 10 (ADR 0012): FlashList, expo-image (avatars), expo-camera (QR safety codes; moved up from Phase 16), qrcode-generator. `@pingdost/protocol` adds @noble/hashes (safety numbers).
   - Phase 12: expo-notifications 58.1.5 + expo-task-manager 58.0.12 (FCM token, headless wake task defined in the custom entry `index.ts`).
   - Phase 13: expo-image-manipulator 58.0.15 (group pictures shrunk to ≤ 32 KiB on the phone).
+  - Phase 14 (no new native module): the Rust crate adds `chacha20poly1305` 0.11.0, `aead-stream` 0.6.0 and `sha2` 0.11.1. The server adds `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` 3.1153.0 (Apache-2.0). Tests use `@noble/ciphers` 2.4.0 (MIT, dev only) as an independent check.
   - Phase 15: expo-document-picker, expo-audio, expo-video, react-native-compressor (re-validate).
   - Phase 16: QR pairing reuses expo-camera (installed in Phase 10).
   - Phase 21: nearby Expo module in Kotlin.
@@ -269,10 +276,13 @@ CLOUDINARY_CLOUD_NAME= CLOUDINARY_API_KEY= CLOUDINARY_API_SECRET=
 FCM_PROJECT_ID= FCM_SERVICE_ACCOUNT_JSON_BASE64=
 WEB_PUSH_VAPID_PUBLIC_KEY= WEB_PUSH_VAPID_PRIVATE_KEY= WEB_PUSH_SUBJECT=
 PUSH_WAKE_THROTTLE_SECONDS=10               # Phase 12: max one wake per device per window
-ATTACHMENT_STORE=fs                          # fs | s3
+ATTACHMENT_STORE=fs                          # fs | s3 (ADR 0017: fs in production)
 ATTACHMENT_FS_ROOT=./.data/attachments
 ATTACHMENT_USER_QUOTA_BYTES=1073741824
+ATTACHMENT_TOTAL_QUOTA_BYTES=32212254720     # Phase 14: 30 GiB for all users (50 GB VPS disk)
 ATTACHMENT_ORPHAN_SECONDS=21600
+ATTACHMENT_JANITOR_INTERVAL_SECONDS=300      # Phase 14
+ATTACHMENT_OBJECT_STORE_REGION=auto          # Phase 14: s3 only; R2 wants "auto"
 GROUP_MAX_MEMBERS=64
 SECURITY_EVENT_RETENTION_SECONDS=7776000
 ABUSE_REPORT_RETENTION_SECONDS=7776000      # Phase 11: abuse reports (and attached messages) TTL

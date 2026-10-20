@@ -37,6 +37,8 @@ export const MUTED_FOREVER = Number.MAX_SAFE_INTEGER;
 
 export type MessageKind =
   | 'text'
+  /** A file (`attachment` set); `body` is its caption, possibly empty (ADR 0017). */
+  | 'attachment'
   /** A notice the engine adds, e.g. a changed safety number; `body` is a `SystemNotice`. */
   | 'system'
   /** A body type this build does not know: shown as "update needed" (ADR 0006). */
@@ -135,6 +137,28 @@ export interface HeldGroupRecord {
   requestedAt: number;
 }
 
+/**
+ * A checked `AttachmentManifest` (ADR 0004), as JSON-friendly fields: how to fetch and
+ * decrypt the file from staging. Byte fields are standard base64. `key` is secret: it lives
+ * only in the encrypted store and is never logged. The local copy and its download state
+ * belong to the platform (Phase 15).
+ */
+export interface AttachmentInfo {
+  attachmentId: string;
+  key: string;
+  noncePrefix: string;
+  plaintextSize: number;
+  chunkCount: number;
+  ciphertextSize: number;
+  /** Sniffed by the sender from the file's bytes. */
+  mimeType: string;
+  fileName: string | null;
+  ciphertextSha256: string;
+  chunkHashListSha256: string;
+  /** An encrypted preview staged as its own attachment, or null. */
+  thumbnail: AttachmentInfo | null;
+}
+
 /** One user's reaction to a message; the newest event per user wins (ADR 0014). */
 export interface ReactionEntry {
   userId: string;
@@ -153,8 +177,10 @@ export interface MessageRecord {
   senderDeviceId: string;
   direction: 'in' | 'out';
   kind: MessageKind;
-  /** The text, or the `SystemNotice` code. */
+  /** The text, an attachment's caption, or the `SystemNotice` code. */
   body: string;
+  /** `attachment` messages only; cleared when the sender deletes it for everyone. */
+  attachment: AttachmentInfo | null;
   replyTo: string | null;
   /** The sender's clock, epoch ms. */
   sentAt: number;

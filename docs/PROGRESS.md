@@ -17,6 +17,47 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-20 — Phase 14: Attachments core — ✅ done
+**Done (ADR 0004, 0017):**
+- **Rust** `crates/pingdost-crypto/src/attachment.rs`: XChaCha20-Poly1305 STREAM (`chacha20poly1305` 0.11.0, `aead-stream` 0.6.0), per-chunk SHA-256 and the ciphertext and chunk-hash-list digests (`sha2` 0.11.1). WASM and Android bindings regenerated.
+  - `CryptoProvider` gains `createAttachmentEncryptor`, `decryptAttachmentChunk`, `sha256` and `createSha256`.
+  - Conformance scenarios plus vectors (`test-fixtures/crypto/attachment-stream-v1.json`), cross-checked with `@noble/ciphers` (dev only).
+- **`packages/attachments`:**
+  - `encryptStream` / `decryptStream` over async iterables;
+  - `buildManifest` / `readManifest` (strict; safe file names; thumbnail and caption);
+  - `sniffMime` (magic bytes), `canSend` (REQ §10.1), `formatSize`;
+  - the resumable `uploadAttachment`.
+- **Protocol:** `AttachmentManifest.thumbnail` (12) and `caption` (13), add-only.
+- **Server** `modules/attachments`:
+  - `fs` store (sharded files, HMAC-signed part and blob URLs with ranges, atomic join) and `s3` store (presigned multipart);
+  - create, status, complete (size and SHA-256), download-url (recipients only), ack (the last one deletes);
+  - `attachment-janitor` job: expired, orphaned, stuck deletions, leftovers;
+  - user quota plus the new total cap `ATTACHMENT_TOTAL_QUOTA_BYTES` (30 GiB, `ATTACHMENT_STAGING_FULL`);
+  - rate limits, metrics, and the `ATTACHMENT_OBJECT_STORE_REGION` and `ATTACHMENT_JANITOR_INTERVAL_SECONDS` settings.
+- `docker-compose.yml` profile `s3` runs **SeaweedFS** (MinIO CE is gone).
+- **Engine:** `kind: 'attachment'` + `MessageRecord.attachment` (`AttachmentInfo`); `attachmentRecipients`, `sendAttachment` (Olm, Megolm in groups), receive with `readAttachment` (invalid → `unsupported`); reactions/delete for everyone work (the tombstone drops the key); `attachmentDecryptInput`. Store contract covers it.
+- **Android:** migration 005 (`messages.attachment` JSON), SQLite store, previews/notifications ("📷 Photo" or the caption), a plain attachment bubble (type · size · caption), dev-crypto screen checks the attachment vectors.
+
+**Deviations / decisions:** ADR 0017; CHANGES 2026-10-20 (SeaweedFS instead of MinIO; total staging cap).
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 43/43 tasks, 441 unit tests (engine 94 incl. 6 attachment tests with real vodozemac + AEAD; attachments 7; crypto 24; mobile 70). `pnpm format:check` passes. `cargo test` (11), clippy (host, wasm32, aarch64-android) and fmt clean; `buf breaking` clean.
+- `pnpm test:int`: server 138 passed, 2 skipped (the slow spike). Includes `attachments.int.test.ts` on `fs` and `s3` (SeaweedFS up), and engine scenario 9: encrypt → stage → E2EE manifest → download → decrypt → ACK through the real server, with no marker in the staged bytes or in WS frames.
+- Slow spike (`PINGDOST_SLOW=1`), run twice: 100 MiB round trip on `fs` and `s3` with resume, URL expiry and ACK deletion; heap +2 MiB. Numbers are in ADR 0017.
+- `npx expo export --platform android` bundles.
+- **Not run:** the attachment vectors on the **native** provider. The dev-crypto screen checks them, but the arm64 Gradle build for the attached phone was stopped by low memory. This is a user device check:
+  1. Stop Docker, or run `docker compose --profile s3 stop` first to free RAM.
+  2. `npx expo prebuild --platform android --clean` (already done; `android/` is current).
+  3. `pnpm --filter @pingdost/mobile android`.
+  4. Settings → Developer → **Crypto interop (dev)** → **Run scenarios**. Every attachment step should be green.
+
+**Known issues / tech debt:**
+- Nothing is stored locally until the upload completes (Phase 15 adds the uploading placeholder).
+- Captions are not searchable.
+- The fs→s3 switch does not migrate staged objects.
+
+**Next:** Phase 15 (handoff notes in its file). Phases 10–13 still have device checks open, and Phase 12 needs the Firebase setup.
+
 ## 2026-10-20 — Phase 13: Groups (Megolm) — 🔄 partial (device checks open)
 **Done (ADR 0016):**
 - **Server** `modules/groups`: `groups` collection; create, list, get (members only), add (admins), remove (admins remove plain members, the owner anyone; anyone leaves; a leaving owner hands over), role change (owner); `GROUP_MAX_MEMBERS` → `GROUP_FULL`; versioned with optimistic concurrency.

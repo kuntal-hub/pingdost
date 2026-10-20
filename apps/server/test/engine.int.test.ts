@@ -4,19 +4,31 @@
  * 1. online exchange; 2. offline recipient, then online; 3. reconnect mid-send; 4. duplicate
  * Deliver frames; 5. server restart during the outbox; 6. the recipient adds a device;
  * 7. the recipient revokes a device; 8. ciphertext only in Redis, Mongo and WS frames
- * (REQ §19.1 bullets 1–2).
+ * (REQ §19.1 bullets 1–2); 9. an attachment: encrypted, staged, sent as an E2EE manifest,
+ * downloaded, decrypted and acknowledged (Phase 14).
  */
 import { randomUUID } from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { BSON } from 'mongodb';
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { devicesApi } from '@pingdost/api-client';
+import { attachmentsApi, devicesApi } from '@pingdost/api-client';
+import {
+  buildManifest,
+  decryptStream,
+  encryptStream,
+  uploadAttachment,
+  type EncryptedAttachment,
+} from '@pingdost/attachments';
 import { loadServerConfig } from '@pingdost/config';
 import type { CryptoProvider } from '@pingdost/crypto';
-import { decodeServerFrame } from '@pingdost/protocol';
+import { attachmentDecryptInput } from '@pingdost/message-engine';
+import { decodeServerFrame, uuidv7 } from '@pingdost/protocol';
 import type { AuthTokens } from '@pingdost/shared-types';
 import {
   capturingSocket,
@@ -28,7 +40,7 @@ import {
 import type { WebSocketFactory, WebSocketLike } from '@pingdost/transport';
 
 import { cryptoProvider } from './devices';
-import { json, MAILPIT_URL, startTestServer, type TestServer } from './helpers';
+import { freePort, json, MAILPIT_URL, startTestServer, type TestServer } from './helpers';
 import { setupIndexes } from '../src/app';
 import { Metrics } from '../src/infra/metrics';
 import { createMongo, type Mongo } from '../src/infra/mongo';
@@ -46,6 +58,8 @@ let mongo: Mongo;
 let server: TestServer;
 let mailbox: Partial<MailboxSettings> = { stageMs: STAGE_MS, graceMs: 9_000 };
 let port = 0;
+/** The `fs` attachment staging directory. */
+let staging = '';
 /** Every WebSocket frame any client sent or received. */
 const frames: Uint8Array[] = [];
 const clients: SimClient[] = [];
@@ -54,6 +68,7 @@ const clients: SimClient[] = [];
 async function boot(): Promise<void> {
   server = await startTestServer({
     mongo,
+    env: { PUBLIC_API_URL: `http://127.0.0.1:${port}`, ATTACHMENT_FS_ROOT: staging },
     delivery: { settings: mailbox },
     throttles: { keyClaims: { limit: 10_000, windowMs: 3_600_000 } },
   });
@@ -64,6 +79,9 @@ async function boot(): Promise<void> {
 
 beforeAll(async () => {
   crypto = await cryptoProvider();
+  // Signed attachment URLs name the server's own origin, so the port is fixed up front.
+  port = await freePort();
+  staging = await mkdtemp(join(tmpdir(), 'pingdost-engine-staging-'));
   const config = loadServerConfig({
     NODE_ENV: 'test',
     ...(process.env.MONGODB_URI ? { MONGODB_URI: process.env.MONGODB_URI } : {}),
@@ -78,6 +96,7 @@ afterAll(async () => {
   await server.close();
   await mongo.db.dropDatabase();
   await mongo.close();
+  await rm(staging, { recursive: true, force: true });
 });
 
 function options(overrides: Partial<SimClientOptions> = {}): SimClientOptions {
@@ -384,4 +403,74 @@ describe('message engine through the real server', () => {
     await until(() => received(bob, ids) === 5, 'bob decrypts them');
     expect(bob.store.allMessages().some((m) => m.body.includes(MARKER))).toBe(true);
   });
+
+  it('9. sends an attachment: staged ciphertext, an E2EE manifest, download and ACK', async () => {
+    const { conversationId } = await alice.engine.openDirectConversation(bob.userId);
+    const plaintext = new TextEncoder().encode(`${MARKER}\n`.repeat(4_000)); // ~200 KB
+    const parts: Uint8Array[] = [];
+    const stream = encryptStream(crypto, pieces(plaintext));
+    let encrypted: EncryptedAttachment;
+    for (;;) {
+      const next = await stream.next();
+      if (next.done) {
+        encrypted = next.value;
+        break;
+      }
+      parts.push(next.value);
+    }
+    const ciphertext = new Uint8Array(Buffer.concat(parts));
+
+    // Staged for the devices the message goes to, then sent with the manifest.
+    const recipients = await alice.engine.attachmentRecipients(conversationId);
+    expect(recipients).toContain(bob.deviceId);
+    expect(recipients).not.toContain(alice.deviceId);
+    const attachmentId = uuidv7();
+    await uploadAttachment({
+      api: attachmentsApi(alice.api),
+      attachmentId,
+      ciphertextSize: ciphertext.length,
+      ciphertextSha256: encrypted.ciphertextSha256,
+      recipientDeviceIds: recipients,
+      readRange: (start, end) => Promise.resolve(ciphertext.subarray(start, end)),
+    });
+    const manifest = buildManifest({
+      attachmentId,
+      encrypted,
+      mimeType: 'text/plain',
+      fileName: 'notes.txt',
+      caption: MARKER,
+    });
+    const sent = await alice.engine.sendAttachment(conversationId, manifest);
+
+    await until(
+      async () => (await bob.engine.getMessage(sent.messageId))?.kind === 'attachment',
+      'bob gets the manifest',
+    );
+    const message = (await bob.engine.getMessage(sent.messageId))!;
+    expect(message).toMatchObject({ body: MARKER, attachment: { fileName: 'notes.txt' } });
+    const { url } = await attachmentsApi(bob.api).downloadUrl(attachmentId);
+    const staged = new Uint8Array(await (await fetch(url)).arrayBuffer());
+    expect(staged).toEqual(ciphertext);
+    expect(containsMarker(staged, MARKER)).toBe(false);
+    const opened: Uint8Array[] = [];
+    const input = attachmentDecryptInput(message.attachment!);
+    for await (const piece of decryptStream(crypto, input, pieces(staged))) opened.push(piece);
+    expect(new Uint8Array(Buffer.concat(opened))).toEqual(plaintext);
+    await attachmentsApi(bob.api).ack(attachmentId);
+
+    await until(
+      () => allIn(alice, [sent.messageId], 'delivered_to_recipient_device'),
+      'the delivery receipt',
+    );
+    // The caption and the key travelled only inside E2EE frames.
+    expect(frames.filter((frame) => containsMarker(frame, MARKER))).toEqual([]);
+  });
 });
+
+/** Bytes as a stream of 50 KB pieces, as a file would be read. */
+async function* pieces(data: Uint8Array): AsyncGenerator<Uint8Array> {
+  for (let i = 0; i < data.length; i += 50_000) {
+    await Promise.resolve();
+    yield data.subarray(i, i + 50_000);
+  }
+}

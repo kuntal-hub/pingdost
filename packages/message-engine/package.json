@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@pingdost/attachments": "workspace:*",
     "@pingdost/config": "workspace:*",
     "@pingdost/crypto": "workspace:*",
     "@pingdost/protocol": "workspace:*",

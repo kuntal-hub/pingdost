@@ -1,5 +1,6 @@
 # Local development infrastructure (ARCHITECTURE A1). Start with `pnpm infra:up`.
-# Later phases add profiles: `s3` (MinIO, Phase 14) and `calls` (coturn, Phase 25).
+# Profiles: `s3` (SeaweedFS as a local S3, Phase 14: `docker compose --profile s3 up -d --wait`)
+# and later `calls` (coturn, Phase 25).
 name: pingdost
 
 services:
@@ -66,7 +67,51 @@ services:
       start_period: 10s
       start_interval: 1s
 
+  # An S3-compatible store for the `s3` attachment adapter (ADR 0017). MinIO's community
+  # images are no longer published, so the local stand-in for R2 is SeaweedFS (Apache-2.0).
+  # Dev-only credentials; the bucket is created by the tests or `aws s3 mb`.
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.48
+    profiles: ['s3']
+    command:
+      [
+        'server',
+        '-dir=/data',
+        '-s3',
+        '-s3.port=8333',
+        '-s3.config=/etc/seaweedfs/s3.json',
+        '-master.volumeSizeLimitMB=1024',
+      ]
+    ports:
+      - '8333:8333'
+    configs:
+      - source: seaweedfs-s3
+        target: /etc/seaweedfs/s3.json
+    volumes:
+      - seaweedfs-data:/data
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8333/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+      start_interval: 1s
+
+configs:
+  seaweedfs-s3:
+    content: |
+      {
+        "identities": [
+          {
+            "name": "pingdost-dev",
+            "credentials": [{ "accessKey": "pingdost-dev", "secretKey": "pingdost-dev-secret" }],
+            "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+          }
+        ]
+      }
+
 volumes:
   mongo-data:
   mongo-config:
   valkey-data:
+  seaweedfs-data:

@@ -6,6 +6,34 @@ import { MessageStateSchema } from '@pingdost/shared-types';
 import { previewText, shownState, stateLabel, systemText } from './labels';
 import { buildTimeline, dayLabel } from './timeline';
 
+describe('attachment labels', () => {
+  const attachment = (mimeType: string, fileName: string | null) =>
+    messageRecord({
+      kind: 'attachment',
+      body: '',
+      attachment: {
+        attachmentId: 'a',
+        key: '',
+        noncePrefix: '',
+        plaintextSize: 1,
+        chunkCount: 1,
+        ciphertextSize: 17,
+        mimeType,
+        fileName,
+        ciphertextSha256: '',
+        chunkHashListSha256: '',
+        thumbnail: null,
+      },
+    });
+
+  it('previews a caption, else the type or the file name', () => {
+    expect(previewText(attachment('video/mp4', 'clip.mp4'))).toBe('🎥 Video');
+    expect(previewText({ ...attachment('image/png', null), body: ' a\n view ' })).toBe('📷 a view');
+    expect(previewText(attachment('application/zip', 'notes.zip'))).toBe('📄 notes.zip');
+    expect(previewText(attachment('application/zip', null))).toBe('📄 File');
+  });
+});
+
 describe('stateLabel', () => {
   it('never calls a server or relay hop delivered', () => {
     for (const state of MessageStateSchema.options) {

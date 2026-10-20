@@ -1,5 +1,6 @@
 //! Narrow uniffi wrapper over vodozemac: Olm for per-device 1:1 sessions, Megolm for
-//! groups (ARCHITECTURE A5).
+//! groups (ARCHITECTURE A5); and RustCrypto's XChaCha20-Poly1305 STREAM for attachments
+//! (ADR 0004).
 //!
 //! Plumbing only, no protocol design or business logic (REQ §7.2). Errors never carry
 //! key material, plaintext or ciphertext, and every fallible call returns an error
@@ -8,11 +9,16 @@
 #[cfg(target_arch = "wasm32")]
 extern crate uniffi_runtime_wasm as _;
 
+mod attachment;
 mod error;
 mod megolm;
 mod olm;
 mod signing;
 
+pub use attachment::{
+    AttachmentDigests, AttachmentEncryptor, EncryptedChunk, Sha256Hasher, attachment_decrypt_chunk,
+    sha256,
+};
 pub use error::CryptoError;
 pub use megolm::{GroupDecryptResult, GroupSession, InboundGroupSession};
 pub use olm::{

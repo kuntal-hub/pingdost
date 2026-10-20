@@ -25,6 +25,10 @@ import { schedulerIndexes } from './infra/scheduler';
 import { Hasher } from './infra/secrets';
 import { DEFAULT_THROTTLES, type ThrottleSettings } from './infra/throttles';
 import { accountRoutes } from './modules/account/routes';
+import { createAttachmentService } from './modules/attachments';
+import { attachmentRoutes } from './modules/attachments/routes';
+import { attachmentIndexes, type AttachmentSettings } from './modules/attachments/service';
+import type { AttachmentStore } from './modules/attachments/store/types';
 import { GoogleVerifier } from './modules/auth/google';
 import { createAuthGuard } from './modules/auth/guard';
 import { PasswordHasher } from './modules/auth/passwords';
@@ -91,6 +95,8 @@ export interface AppDeps {
   /** Test overrides: mailbox timings and a replacement Mongo store. */
   delivery?: { settings?: Partial<MailboxSettings>; mongoStore?: MongoMailboxStore };
   gateway?: Partial<GatewaySettings>;
+  /** Test overrides: another staging store (e.g. a temp directory) and settings. */
+  attachments?: { store?: AttachmentStore; settings?: Partial<AttachmentSettings> };
 }
 
 /** Every module's indexes. `main.ts` and `worker.ts` create them at startup. */
@@ -104,6 +110,7 @@ export const INDEXES: readonly IndexSetup[] = [
   reportIndexes,
   pushTokenIndexes,
   groupIndexes,
+  attachmentIndexes,
   schedulerIndexes,
 ];
 
@@ -310,6 +317,22 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
   });
   await app.register(pushRoutes, { tokens: pushTokens, authenticate, limits });
   await app.register(groupRoutes, { groups, authenticate, limits });
+  const attachments = createAttachmentService(config, {
+    db,
+    clock,
+    metrics,
+    log: deps.logger,
+    ...(deps.attachments?.store ? { store: deps.attachments.store } : {}),
+    ...(deps.attachments?.settings ? { settings: deps.attachments.settings } : {}),
+  });
+  metrics.attachmentStats = () => attachments.service.stats();
+  await app.register(attachmentRoutes, {
+    attachments: attachments.service,
+    signer: attachments.signer,
+    authenticate,
+    limits,
+    clock,
+  });
   await app.register(gatewayRoutes, {
     limits,
     deps: {

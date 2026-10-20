@@ -54,3 +54,6 @@ Make the product release-worthy: security and privacy audits, full acceptance tr
 **From Phase 13 (ADR 0016):**
 - A device that missed a promotion rejects that admin's controls until a newer control or server notice: measure how often added members end up without keys from some members.
 - Admins plus a compromised server can add members; document this in the security review.
+**From Phase 14 (ADR 0017):**
+- REQ §19.3 server bullets are covered by `apps/server/test/attachments.int.test.ts` (fs + s3) and `engine.int.test.ts` scenario 9. The 100 MiB spike is slow-tagged: re-run it on the VPS and record the timings.
+- The staged-attachment record keeps the recipient device IDs and sizes until deletion: list this metadata in the privacy notes.

@@ -22,6 +22,10 @@ export type UniffiBindings = Pick<
   | 'OlmMessageType'
   | 'prekeyMessageSessionId'
   | 'ed25519Verify'
+  | 'AttachmentEncryptor'
+  | 'attachmentDecryptChunk'
+  | 'sha256'
+  | 'Sha256Hasher'
 >;
 
 const toBuffer = (data: Uint8Array): ArrayBuffer => data.slice().buffer;
@@ -189,6 +193,42 @@ export function createBindingsProvider(
     }
   }
 
+  class AttachmentEncryptor implements types.AttachmentEncryptor {
+    constructor(private readonly inner: generated.AttachmentEncryptorLike) {}
+
+    encryptChunk(plaintext: Uint8Array, last: boolean) {
+      const chunk = call(() => this.inner.encryptChunk(toBuffer(plaintext), last));
+      return { ciphertext: fromBuffer(chunk.ciphertext), sha256: fromBuffer(chunk.sha256) };
+    }
+    finish(): types.AttachmentDigests {
+      const digests = call(() => this.inner.finish());
+      return {
+        chunkCount: digests.chunkCount,
+        plaintextSize: Number(digests.plaintextSize),
+        ciphertextSize: Number(digests.ciphertextSize),
+        ciphertextSha256: fromBuffer(digests.ciphertextSha256),
+        chunkHashListSha256: fromBuffer(digests.chunkHashListSha256),
+      };
+    }
+    dispose(): void {
+      if (bindings.AttachmentEncryptor.instanceOf(this.inner)) this.inner.uniffiDestroy();
+    }
+  }
+
+  class Sha256Hasher implements types.Sha256Hasher {
+    constructor(private readonly inner: generated.Sha256HasherLike) {}
+
+    update(data: Uint8Array): void {
+      call(() => this.inner.update(toBuffer(data)));
+    }
+    digest(): Uint8Array {
+      return fromBuffer(call(() => this.inner.digest()));
+    }
+    dispose(): void {
+      if (bindings.Sha256Hasher.instanceOf(this.inner)) this.inner.uniffiDestroy();
+    }
+  }
+
   return {
     implementation,
 
@@ -229,5 +269,24 @@ export function createBindingsProvider(
         return false;
       }
     },
+
+    createAttachmentEncryptor: (key, noncePrefix) =>
+      new AttachmentEncryptor(
+        call(() => new bindings.AttachmentEncryptor(toBuffer(key), toBuffer(noncePrefix))),
+      ),
+    decryptAttachmentChunk: (key, noncePrefix, index, last, ciphertext) =>
+      fromBuffer(
+        call(() =>
+          bindings.attachmentDecryptChunk(
+            toBuffer(key),
+            toBuffer(noncePrefix),
+            index,
+            last,
+            toBuffer(ciphertext),
+          ),
+        ),
+      ),
+    sha256: (data) => fromBuffer(call(() => bindings.sha256(toBuffer(data)))),
+    createSha256: () => new Sha256Hasher(call(() => new bindings.Sha256Hasher())),
   };
 }

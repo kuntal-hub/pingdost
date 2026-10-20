@@ -22,11 +22,19 @@ import {
   useReadReceipts,
   takeJump,
 } from '@/engine/hooks';
-import { previewText, shownState, stateLabel, systemText, type Names } from '@/engine/labels';
+import {
+  attachmentType,
+  previewText,
+  shownState,
+  stateLabel,
+  systemText,
+  type Names,
+} from '@/engine/labels';
 import { watchPresence } from '@/engine/runtime';
 import { timeLabel, type TimelineItem } from '@/engine/timeline';
 import { dismissChatNotification } from '@/push/notifications';
 import { usePalette } from '@/theme/theme-root';
+import { formatSize } from '@pingdost/attachments';
 import {
   canReact,
   MessageActionError,
@@ -39,6 +47,13 @@ import {
 /** Longest message; far inside one envelope even in 4-byte UTF-8. */
 const MAX_TEXT = 4_000;
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+/** An attachment bubble: what it is and how big, then its caption (opening it: Phase 15). */
+function attachmentBody(message: MessageRecord): string {
+  const { icon, name } = attachmentType(message);
+  const size = message.attachment ? ` · ${formatSize(message.attachment.plaintextSize)}` : '';
+  return `${icon} ${name}${size}${message.body ? `\n${message.body}` : ''}`;
+}
 
 function failed(action: string, error: unknown): void {
   const reason =
@@ -246,7 +261,9 @@ function Bubble(props: BubbleProps) {
         ? outgoing
           ? 'You deleted this message'
           : 'This message was deleted'
-        : message.body;
+        : message.kind === 'attachment'
+          ? attachmentBody(message)
+          : message.body;
   const retry =
     message.state === 'failed' && runtime && !deleted
       ? () => void runtime.engine.retry(message.messageId)

@@ -18,7 +18,7 @@ After pairing, the browser gets a configurable recent-history window from the ph
 - [ ] **Server:** an ephemeral relay frame type with size limits and rate limits. Add a test proving that no Redis or Mongo writes happen (command counter + Mongo profiler/spy).
 - [ ] **Phone UI:** sync progress in Linked devices. **Web UI:** a progress bar, pause/resume, and a "Load older messages from phone" button per conversation (a scoped request).
 - [ ] **Web attachments:**
-  - **Download:** if the staged object is still on the server and this device is a recipient, download and decrypt it (libsodium WASM streaming → Blob). Otherwise request the bytes from the phone over the ephemeral relay in chunks (size cap, configurable; default 25 MB, with an honest message beyond that).
+  - **Download:** if the staged object is still on the server and this device is a recipient, download and decrypt it (`@pingdost/attachments` `decryptStream` over the WASM provider → Blob; ADR 0004 dropped libsodium). Otherwise request the bytes from the phone over the ephemeral relay in chunks (size cap, configurable; default 25 MB, with an honest message beyond that).
   - **Cache:** an IndexedDB LRU with a size limit setting.
   - **Send from web:** encrypt and upload via Phase 14. Images can be compressed in the browser (canvas). There is no video compression on web in v1; send the original if it is ≤ the limit, else reject with an explanation.
   - Viewers for images, video, audio and documents (download).
@@ -34,3 +34,9 @@ Recovery backups (19).
 - REQ §19.5 sync: only the configured window syncs by default; older history works on request; resume works after killing the web tab mid-sync; tests prove there are no server-side writes.
 - Web views and sends images and docs.
 - `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 14 (ADR 0017):**
+- A web device can download a staged attachment only if it was in `recipientDeviceIds` when the sender uploaded. `engine.attachmentRecipients` lists the devices current at send time, so files sent before pairing come from the phone (the relay path above).
+- The web store (Dexie) must keep `MessageRecord.attachment` (manifest JSON, file key included) inside the encrypted records, and pass `runEngineStoreContract`, which now covers attachment messages.
+- Send from web: `engine.attachmentRecipients` → `encryptStream` → `uploadAttachment` → `engine.sendAttachment`, as on Android (Phase 15 notes).

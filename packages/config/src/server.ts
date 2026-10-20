@@ -82,11 +82,17 @@ const serverEnvSchema = z.object({
   ATTACHMENT_STORE: z.enum(['fs', 's3']).default('fs'),
   ATTACHMENT_FS_ROOT: z.string().default('./.data/attachments'),
   ATTACHMENT_USER_QUOTA_BYTES: int(MIB, 100 * GIB).default(GIB),
+  // All staged ciphertext together: on the VPS (50 GB disk, ADR 0017) `fs` stops at 30 GiB.
+  ATTACHMENT_TOTAL_QUOTA_BYTES: int(GIB, 100 * 1_024 * GIB).default(30 * GIB),
   ATTACHMENT_ORPHAN_SECONDS: int(MINUTE, 7 * DAY).default(21_600),
   ATTACHMENT_OBJECT_STORE_ENDPOINT: httpUrl.optional(),
   ATTACHMENT_OBJECT_STORE_BUCKET: z.string().optional(),
   ATTACHMENT_OBJECT_STORE_ACCESS_KEY: z.string().optional(),
   ATTACHMENT_OBJECT_STORE_SECRET_KEY: z.string().optional(),
+  // R2 wants "auto"; MinIO and SeaweedFS take any region name.
+  ATTACHMENT_OBJECT_STORE_REGION: z.string().min(1).default('auto'),
+  // How often the attachment janitor deletes expired, orphaned and leftover staged data.
+  ATTACHMENT_JANITOR_INTERVAL_SECONDS: int(10, HOUR).default(300),
 
   // Email and OTP.
   EMAIL_PROVIDER: z.enum(['smtp', 'zeptomail', 'console']),
@@ -325,6 +331,10 @@ function crossFieldIssues(c: ServerEnv): string[] {
       'ATTACHMENT_USER_QUOTA_BYTES: must be at least ATTACHMENT_MAX_BYTES',
     ],
     [
+      c.ATTACHMENT_TOTAL_QUOTA_BYTES >= c.ATTACHMENT_USER_QUOTA_BYTES,
+      'ATTACHMENT_TOTAL_QUOTA_BYTES: must be at least ATTACHMENT_USER_QUOTA_BYTES',
+    ],
+    [
       c.ACCESS_TOKEN_TTL_SECONDS < c.REFRESH_TOKEN_TTL_SECONDS,
       'ACCESS_TOKEN_TTL_SECONDS: must be less than REFRESH_TOKEN_TTL_SECONDS',
     ],
@@ -381,6 +391,7 @@ function toServerConfig(env: ServerEnv) {
     ATTACHMENT_OBJECT_STORE_BUCKET,
     ATTACHMENT_OBJECT_STORE_ACCESS_KEY,
     ATTACHMENT_OBJECT_STORE_SECRET_KEY,
+    ATTACHMENT_OBJECT_STORE_REGION,
     SMTP_HOST,
     SMTP_PORT,
     SMTP_USER,
@@ -412,6 +423,7 @@ function toServerConfig(env: ServerEnv) {
       bucket: ATTACHMENT_OBJECT_STORE_BUCKET,
       accessKey: ATTACHMENT_OBJECT_STORE_ACCESS_KEY,
       secretKey: ATTACHMENT_OBJECT_STORE_SECRET_KEY,
+      region: ATTACHMENT_OBJECT_STORE_REGION,
     }),
     smtp: smtpServer && {
       ...smtpServer,

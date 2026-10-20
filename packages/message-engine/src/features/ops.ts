@@ -60,14 +60,14 @@ export function canDeleteForEveryone(
   now: number,
 ) {
   return (
-    (message.kind === 'text' || message.kind === 'unsupported') &&
+    canReact(message) &&
     message.senderUserId === userId &&
     now - message.sentAt <= rules.deleteWindowMs
   );
 }
 
 export function canReact(message: MessageRecord): boolean {
-  return message.kind === 'text' || message.kind === 'unsupported';
+  return message.kind === 'text' || message.kind === 'attachment' || message.kind === 'unsupported';
 }
 
 /** The target after `op`, or undefined when the op is not allowed or changes nothing. */
@@ -89,7 +89,15 @@ export function applyOp(target: MessageRecord, op: Op, rules: OpRules): MessageR
     }
     case 'delete': {
       if (!canDeleteForEveryone(target, op.senderUserId, rules, op.sentAt)) return undefined;
-      return { ...target, kind: 'deleted', body: '', reactions: [], deletedAt: op.sentAt };
+      // The tombstone keeps no file key: the attachment can no longer be fetched or read.
+      return {
+        ...target,
+        kind: 'deleted',
+        body: '',
+        attachment: null,
+        reactions: [],
+        deletedAt: op.sentAt,
+      };
     }
     case 'reaction': {
       if (!canReact(target)) return undefined;
