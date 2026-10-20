@@ -4,7 +4,7 @@
 // are queued, so two batches never interleave on the shared connection. Search uses the
 // FTS5 index that migration 003's triggers keep in step with `messages` (ADR 0014). Groups
 // and their Megolm sessions are migration 004's tables (ADR 0016); attachment manifests are
-// migration 005's JSON column (ADR 0017).
+// migration 005's JSON column (ADR 0017), and their captions are indexed since 006 (ADR 0018).
 import {
   ftsQuery,
   type ConversationRecord,
@@ -489,7 +489,15 @@ export class SqliteEngineStore implements EngineStore {
   constructor(private readonly db: SqlDatabase) {}
 
   apply(batch: WriteBatch): Promise<void> {
-    const run = this.#queue.then(() => this.#apply(batch));
+    return this.exclusive(() => this.#apply(batch));
+  }
+
+  /**
+   * Runs `work` in the apply queue, so other writes on the shared connection (attachment
+   * transfers, ADR 0018) never land inside an open batch transaction.
+   */
+  exclusive<T>(work: () => Promise<T>): Promise<T> {
+    const run = this.#queue.then(work);
     this.#queue = run.catch(() => undefined);
     return run;
   }
@@ -857,7 +865,7 @@ export class SqliteEngineStore implements EngineStore {
     const scoped = options.conversationId !== undefined;
     const rows = await this.db.getAllAsync<MessageRow>(
       `SELECT m.* FROM messages_fts JOIN messages m ON m.rowid = messages_fts.rowid
-       WHERE messages_fts MATCH ? AND m.kind = 'text'${scoped ? ' AND m.conversation_id = ?' : ''}
+       WHERE messages_fts MATCH ? AND m.kind IN ('text', 'attachment')${scoped ? ' AND m.conversation_id = ?' : ''}
        ORDER BY m.sort_at DESC, m.message_id DESC LIMIT ?`,
       [match, ...(scoped ? [options.conversationId!] : []), options.limit],
     );

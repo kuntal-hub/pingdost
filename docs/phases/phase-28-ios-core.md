@@ -29,3 +29,5 @@ An iPhone chats E2EE with Android and web, sends attachments, pairs a browser an
 
 ## Handoff notes
 **From Phase 7 (ADR 0009):** add the `@react-native-google-signin/google-signin` config plugin with `iosUrlScheme` (the reversed iOS client ID) to `app.json`. Android needs no plugin, and adding it without options would apply Firebase `google-services`. SecureStore items already use `WHEN_UNLOCKED_THIS_DEVICE_ONLY`.
+
+**From Phase 15 (ADR 0018):** the local `PingdostMedia` module (`apps/mobile/modules/pingdost-media`) is Android-only (Media3). iOS needs `videoInfo` / `videoFrame` / `compressVideo` with `onCompressProgress` and `cancelCompression` on AVFoundation (`AVAssetExportSession` or `AVAssetWriter`). The expo-audio and expo-image-picker plugins also need iOS usage strings.

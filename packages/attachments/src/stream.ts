@@ -32,7 +32,12 @@ export interface EncryptedAttachment extends AttachmentSecrets {
 
 export class AttachmentError extends Error {
   constructor(
-    readonly code: 'invalid' | 'integrity' | 'too_large',
+    /**
+     * `aborted`: the caller cancelled or paused (a transfer resumes later);
+     * `gone`: the staged copy no longer exists (expired, or every device fetched it);
+     * `network`: the connection kept failing (try again later).
+     */
+    readonly code: 'invalid' | 'integrity' | 'too_large' | 'aborted' | 'gone' | 'network',
     message: string,
   ) {
     super(message);
@@ -155,6 +160,21 @@ export async function* decryptStream(
     }
   } finally {
     hasher.dispose();
+  }
+}
+
+/**
+ * Checks a saved ciphertext completely (every chunk's tag, then the whole-file hash) without
+ * keeping the plaintext: a download is acknowledged only after this passes.
+ */
+export async function verifyStream(
+  provider: CryptoProvider,
+  input: DecryptInput,
+  source: AsyncIterable<Uint8Array>,
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  for await (const _ of decryptStream(provider, input, source)) {
+    // The plaintext is dropped.
   }
 }
 

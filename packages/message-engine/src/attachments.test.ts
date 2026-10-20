@@ -211,6 +211,47 @@ describe('attachment messages', () => {
     });
   });
 
+  it('holds a message while its file uploads, then sends it once (ADR 0018)', async () => {
+    const server = new FakeServer();
+    const alice = await client(server);
+    const bob = await client(server);
+    await online(alice, bob);
+    const { conversationId } = await alice.engine.openDirectConversation(bob.userId);
+    const removed: string[] = [];
+    alice.engine.onEvent((event) => removed.push(event.type));
+
+    const { manifest } = await photo('soon');
+    const voice = buildManifest({
+      attachmentId: uuidv7(),
+      encrypted: (await encrypt(fileBytes(3_000))).encrypted,
+      mimeType: 'audio/mp4',
+      media: { durationMs: 5_200, waveform: Uint8Array.of(0, 128, 255) },
+    });
+    const held = await alice.engine.sendAttachment(conversationId, manifest, { held: true });
+    expect(held.state).toBe('local_queued');
+    expect(await alice.store.listOutbox()).toHaveLength(0);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(attachmentsOf(bob, conversationId)).toHaveLength(0);
+
+    expect(await alice.engine.releaseAttachment(held.messageId)).toBe(true);
+    expect(await alice.engine.releaseAttachment(held.messageId)).toBe(false);
+    await eventually(() => attachmentsOf(bob, conversationId).length === 1, 3_000, 'released');
+
+    const note = await alice.engine.sendAttachment(conversationId, voice);
+    await eventually(() => attachmentsOf(bob, conversationId).length === 2, 3_000, 'voice note');
+    const got = await bob.engine.getMessage(note.messageId);
+    expect(got?.attachment).toMatchObject({ durationMs: 5_200, waveform: 'AID/' });
+    expect(got?.attachment?.width).toBeUndefined();
+
+    // A held message deleted before release is never sent; the app hears to drop its files.
+    const cancelled = await alice.engine.sendAttachment(conversationId, (await photo()).manifest, {
+      held: true,
+    });
+    await alice.engine.deleteForMe([cancelled.messageId]);
+    expect(await alice.engine.releaseAttachment(cancelled.messageId)).toBe(false);
+    expect(removed).toContain('content_removed');
+  });
+
   it('refuses an invalid manifest to send, and stores nothing', async () => {
     const server = new FakeServer();
     const alice = await client(server);

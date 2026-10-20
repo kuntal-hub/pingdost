@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { pick, PickError, usePendingSend, type PickSource } from '@/attachments/pick';
+import { makeDraft, SendError, sendDraft } from '@/attachments/send';
 import { ActionSheet, type SheetAction } from '@/components/action-sheet';
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
@@ -44,16 +46,26 @@ import {
   type MessageRecord,
 } from '@pingdost/message-engine';
 
+import { AttachmentContent } from './attachment-bubble';
+import { VoiceRecorder, type VoiceNote } from './voice-recorder';
+
 /** Longest message; far inside one envelope even in 4-byte UTF-8. */
 const MAX_TEXT = 4_000;
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
-/** An attachment bubble: what it is and how big, then its caption (opening it: Phase 15). */
+/** What an attachment bubble reads as: what it is and how big, then its caption. */
 function attachmentBody(message: MessageRecord): string {
   const { icon, name } = attachmentType(message);
   const size = message.attachment ? ` · ${formatSize(message.attachment.plaintextSize)}` : '';
   return `${icon} ${name}${size}${message.body ? `\n${message.body}` : ''}`;
 }
+
+const PICK_ACTIONS: { source: PickSource; label: string; detail: string }[] = [
+  { source: 'library', label: 'Photo or video', detail: 'From your gallery' },
+  { source: 'photo', label: 'Take a photo', detail: 'With the camera' },
+  { source: 'video', label: 'Record a video', detail: 'With the camera' },
+  { source: 'document', label: 'Document', detail: 'Any file up to 100 MB' },
+];
 
 function failed(action: string, error: unknown): void {
   const reason =
@@ -307,14 +319,23 @@ function Bubble(props: BubbleProps) {
             onPress={props.onQuotePress}
           />
         )}
-        <Text
-          selectable={false}
-          className={`text-base ${outgoing && !deleted ? 'text-on-primary' : 'text-foreground'} ${
-            message.kind === 'unsupported' || deleted ? 'italic' : ''
-          } ${deleted ? 'text-muted' : ''}`}
-        >
-          {deleted ? `🚫 ${body}` : body}
-        </Text>
+        {message.kind === 'attachment' && (
+          <AttachmentContent
+            message={message}
+            outgoing={outgoing}
+            onLongPress={() => props.onLongPress(message)}
+          />
+        )}
+        {(message.kind !== 'attachment' || message.body !== '') && (
+          <Text
+            selectable={false}
+            className={`text-base ${outgoing && !deleted ? 'text-on-primary' : 'text-foreground'} ${
+              message.kind === 'unsupported' || deleted ? 'italic' : ''
+            } ${deleted ? 'text-muted' : ''} ${message.kind === 'attachment' ? 'mt-1' : ''}`}
+          >
+            {deleted ? `🚫 ${body}` : message.kind === 'attachment' ? message.body : body}
+          </Text>
+        )}
       </Pressable>
       {!deleted && (
         <Reactions
@@ -352,14 +373,64 @@ function Composer({
   onDone: () => void;
 }) {
   const runtime = useChatRuntime();
+  const router = useRouter();
   const palette = usePalette();
   const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
+  const [attaching, setAttaching] = useState(false);
+  const [recording, setRecording] = useState(false);
   const trimmed = text.trim();
 
   useEffect(() => {
     if (editing) setText(editing.body);
   }, [editing]);
+
+  async function attach(source: PickSource) {
+    try {
+      const draft = await pick(source);
+      if (!draft) return;
+      usePendingSend.setState({ conversationId, draft, replyTo: replyTo?.messageId });
+      onDone();
+      router.push('/send-attachment');
+    } catch (error) {
+      Alert.alert(
+        'Could not attach that',
+        error instanceof PickError || error instanceof SendError
+          ? error.message
+          : 'Try another file.',
+      );
+    }
+  }
+
+  function sendVoice(note: VoiceNote) {
+    const reply = replyTo?.messageId;
+    onDone();
+    void (async () => {
+      try {
+        const draft = await makeDraft({
+          uri: note.uri,
+          voice: { waveform: note.waveform, durationMs: note.durationMs },
+          temporary: true,
+        });
+        await sendDraft(
+          conversationId,
+          draft,
+          {
+            compress: false,
+            imageQuality: 'standard',
+            caption: '',
+            ...(reply ? { replyTo: reply } : {}),
+          },
+          () => undefined,
+        ).result;
+      } catch (error) {
+        Alert.alert(
+          'Could not send the voice message',
+          error instanceof SendError ? error.message : 'Please try again.',
+        );
+      }
+    })();
+  }
 
   function send() {
     if (!runtime || trimmed === '') return;
@@ -410,38 +481,75 @@ function Composer({
           </Pressable>
         </View>
       )}
-      <View className="flex-row items-end gap-2">
-        <TextInput
-          accessibilityLabel={editing ? 'Edited message' : 'Message'}
-          placeholder="Message"
-          placeholderTextColor={palette.muted}
-          value={text}
-          maxLength={MAX_TEXT}
-          multiline
-          autoFocus={editing !== undefined}
-          onChangeText={(next) => {
-            setText(next);
-            if (runtime && !editing)
-              void runtime.engine.setTyping(conversationId, next.trim() !== '');
-          }}
-          onBlur={() => runtime && void runtime.engine.setTyping(conversationId, false)}
-          className="max-h-[140px] min-h-[44px] flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-base text-foreground"
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={editing ? 'Save' : 'Send'}
-          accessibilityState={{ disabled: trimmed === '' }}
-          disabled={trimmed === '' || !runtime}
-          onPress={send}
-          className={`min-h-[44px] justify-center rounded-lg bg-primary px-4 active:opacity-80 ${
-            trimmed === '' ? 'opacity-50' : ''
-          }`}
-        >
-          <Text className="text-base font-semibold text-on-primary">
-            {editing ? 'Save' : 'Send'}
-          </Text>
-        </Pressable>
-      </View>
+      {recording ? (
+        <VoiceRecorder onSend={sendVoice} onClose={() => setRecording(false)} />
+      ) : (
+        <View className="flex-row items-end gap-2">
+          {!editing && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Attach a photo, video or file"
+              disabled={!runtime}
+              onPress={() => setAttaching(true)}
+              className="min-h-[44px] min-w-[44px] items-center justify-center rounded-lg active:opacity-70"
+            >
+              <Text className="text-2xl text-primary">＋</Text>
+            </Pressable>
+          )}
+          <TextInput
+            accessibilityLabel={editing ? 'Edited message' : 'Message'}
+            placeholder="Message"
+            placeholderTextColor={palette.muted}
+            value={text}
+            maxLength={MAX_TEXT}
+            multiline
+            autoFocus={editing !== undefined}
+            onChangeText={(next) => {
+              setText(next);
+              if (runtime && !editing)
+                void runtime.engine.setTyping(conversationId, next.trim() !== '');
+            }}
+            onBlur={() => runtime && void runtime.engine.setTyping(conversationId, false)}
+            className="max-h-[140px] min-h-[44px] flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-base text-foreground"
+          />
+          {trimmed === '' && !editing ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Record a voice message"
+              disabled={!runtime}
+              onPress={() => setRecording(true)}
+              className="min-h-[44px] justify-center rounded-lg bg-primary px-4 active:opacity-80"
+            >
+              <Text className="text-base font-semibold text-on-primary">🎤</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={editing ? 'Save' : 'Send'}
+              accessibilityState={{ disabled: trimmed === '' }}
+              disabled={trimmed === '' || !runtime}
+              onPress={send}
+              className={`min-h-[44px] justify-center rounded-lg bg-primary px-4 active:opacity-80 ${
+                trimmed === '' ? 'opacity-50' : ''
+              }`}
+            >
+              <Text className="text-base font-semibold text-on-primary">
+                {editing ? 'Save' : 'Send'}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+      <ActionSheet
+        visible={attaching}
+        onClose={() => setAttaching(false)}
+        title="Send a file"
+        actions={PICK_ACTIONS.map(({ source, label, detail }) => ({
+          label,
+          detail,
+          onPress: () => void attach(source),
+        }))}
+      />
     </View>
   );
 }

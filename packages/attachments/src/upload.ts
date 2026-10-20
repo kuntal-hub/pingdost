@@ -27,6 +27,8 @@ export interface UploadInput {
   onProgress?: (sentBytes: number, totalBytes: number) => void;
   /** Attempts per part for transient failures. */
   attempts?: number;
+  /** Pauses or cancels: stops after the part in flight (`AttachmentError('aborted')`). */
+  signal?: AbortSignal;
 }
 
 const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -43,27 +45,35 @@ export function unpaddedBase64(data: Uint8Array): string {
   return out;
 }
 
-async function defaultSendPart(url: string, body: Uint8Array): Promise<number> {
-  const response = await fetch(url, {
-    method: 'PUT',
-    headers: { 'content-type': 'application/octet-stream' },
-    // Parts are read into plain ArrayBuffers.
-    body: body as Uint8Array<ArrayBuffer>,
-  });
-  return response.status;
+function sendPartWith(signal: AbortSignal | undefined) {
+  return async (url: string, body: Uint8Array): Promise<number> => {
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/octet-stream' },
+      // Parts are read into plain ArrayBuffers.
+      body: body as Uint8Array<ArrayBuffer>,
+      ...(signal ? { signal } : {}),
+    });
+    return response.status;
+  };
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) throw new AttachmentError('aborted', 'the transfer was stopped');
+}
 
 /**
  * Creates (or resumes) the staged upload and sends every missing part, then completes it.
  * Safe to call again after any failure: it continues where the server left off.
  */
 export async function uploadAttachment(input: UploadInput): Promise<AttachmentStatusResponse> {
-  const { api, attachmentId } = input;
-  const sendPart = input.sendPart ?? defaultSendPart;
+  const { api, attachmentId, signal } = input;
+  const sendPart = input.sendPart ?? sendPartWith(signal);
   const attempts = input.attempts ?? 4;
 
+  throwIfAborted(signal);
   let status: AttachmentStatusResponse;
   try {
     const created = await api.create({
@@ -103,9 +113,11 @@ export async function uploadAttachment(input: UploadInput): Promise<AttachmentSt
 
   for (let index = 0; index < partCount; index++) {
     if (received.has(index)) continue;
+    throwIfAborted(signal);
     const start = index * partSize;
     const body = await input.readRange(start, start + partLength(index));
     for (let attempt = 1; ; attempt++) {
+      throwIfAborted(signal);
       let url = urls.get(index);
       if (!url) {
         const fresh = await api.status(attachmentId);
@@ -126,13 +138,14 @@ export async function uploadAttachment(input: UploadInput): Promise<AttachmentSt
       } else if (code === 413 || code === 400) {
         throw new AttachmentError('invalid', `part ${index} was refused`);
       }
-      if (attempt >= attempts)
-        throw new AttachmentError('integrity', `part ${index} did not upload`);
+      throwIfAborted(signal);
+      if (attempt >= attempts) throw new AttachmentError('network', `part ${index} did not upload`);
       await sleep(Math.min(8_000, 500 * 2 ** attempt));
     }
     sent += body.length;
     input.onProgress?.(sent, input.ciphertextSize);
   }
+  throwIfAborted(signal);
   const done = await api.complete(attachmentId);
   if (done.status !== 'ready') throw new AttachmentError('integrity', 'the upload is incomplete');
   return done;

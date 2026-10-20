@@ -14,6 +14,11 @@ import { AppState } from 'react-native';
 import { create } from 'zustand';
 
 import { api, authStore } from '@/api';
+import { clearFolder, workDir } from '@/attachments/files';
+import { AttachmentRepo } from '@/attachments/repo';
+import { wipeAttachmentFiles } from '@/attachments/storage';
+import { startTransfers } from '@/attachments/transfers';
+import { clearPlaintext, watchPlaintext } from '@/attachments/view';
 import { publicConfig } from '@/config';
 import { getCryptoContext } from '@/crypto/bootstrap';
 import { getOrCreateSecret, SECRET_ITEMS, SECURE_STORE_OPTIONS } from '@/crypto/secrets';
@@ -113,12 +118,13 @@ async function boot(): Promise<ChatRuntime> {
     refreshToken: () => authStore.getState().refresh(),
   });
   const router = new TransportRouter([transport]);
+  const store = new SqliteEngineStore(db);
   const engine = new MessageEngine({
     self: { userId, deviceId, ...(accountIdentityKey ? { accountIdentityKey } : {}) },
     crypto: context.provider,
     account: context.store.account,
     pickleKey,
-    store: new SqliteEngineStore(db),
+    store,
     transport: router,
     api: { ...api.keys, keys: api.keys, groups: api.groups },
     // The privacy toggles (Settings → Privacy); read receipts are reciprocal (ADR 0014).
@@ -196,6 +202,7 @@ async function boot(): Promise<ChatRuntime> {
   async function revoked() {
     await stopChat();
     await wipeChatData(db).catch(() => undefined);
+    wipeAttachmentFiles();
     await authStore.getState().logout();
   }
 
@@ -224,6 +231,20 @@ async function boot(): Promise<ChatRuntime> {
     .load()
     .catch(() => undefined);
   await engine.start();
+  // Attachments (ADR 0018): leftover plaintext from an earlier run goes first; then queued
+  // transfers resume and new messages' previews download.
+  clearPlaintext();
+  clearFolder(workDir());
+  cleanup.push(
+    watchPlaintext(),
+    startTransfers({
+      engine,
+      provider: context.provider,
+      repo: new AttachmentRepo(db, (work) => store.exclusive(work)),
+      api: api.attachments,
+      deviceId,
+    }),
+  );
   if (AppState.currentState === 'active') foreground();
   // Heals an interrupted first key upload and tops up one-time keys (ADR 0011).
   void engine.replenishKeys({ ensureFallback: true }).catch(() => undefined);

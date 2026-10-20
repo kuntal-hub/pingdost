@@ -112,6 +112,13 @@ message AttachmentManifest {
   AttachmentManifest thumbnail = 12;
   // Text shown with the attachment.
   string caption = 13;
+  // Media details measured on the sender's device (0 = unknown), so a receiver can lay out
+  // and label the file before downloading it (ADR 0018).
+  uint32 width = 14;
+  uint32 height = 15;
+  uint32 duration_ms = 16;
+  // A voice note's loudness envelope: up to 64 samples, 0–255 each. Empty for other files.
+  bytes waveform = 17;
 }
 
 // Group membership and info changes, E2EE so the server stores no group name or avatar.

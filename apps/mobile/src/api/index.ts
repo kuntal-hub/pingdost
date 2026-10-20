@@ -6,6 +6,7 @@ import { secureSessionStorage } from '@/auth/session-storage';
 import { publicConfig } from '@/config';
 import {
   accountApi,
+  attachmentsApi,
   authApi,
   createApiClient,
   devicesApi,
@@ -30,6 +31,7 @@ export const api = {
   security: securityApi(client),
   push: pushApi(client),
   groups: groupsApi(client),
+  attachments: attachmentsApi(client),
 };
 
 export const authStore = createAuthStore({

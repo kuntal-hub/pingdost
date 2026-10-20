@@ -12,6 +12,8 @@ export const SETTING_KEYS = {
   blocks: 'blocks',
   /** `NotificationPrefs` (Settings → Notifications); local to this phone. */
   notifications: 'notifications',
+  /** `AttachmentPrefs` (Settings → Storage): automatic downloads; local to this phone. */
+  attachments: 'attachments',
 } as const;
 
 export async function readSetting<T>(

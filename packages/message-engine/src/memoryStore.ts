@@ -221,7 +221,8 @@ export class MemoryEngineStore implements EngineStore {
         [...this.#messages.values()]
           .filter(
             (m) =>
-              m.kind === 'text' &&
+              // Texts, and attachments by their caption (ADR 0018).
+              (m.kind === 'text' || m.kind === 'attachment') &&
               (options.conversationId === undefined ||
                 m.conversationId === options.conversationId) &&
               matchesQuery(m.body, query),

@@ -154,7 +154,12 @@ export type EngineEvent =
    * committed (not for edits, reactions, or copies from this user's other devices). Apps use
    * it for local notifications (Phase 12).
    */
-  | { type: 'received'; message: MessageRecord };
+  | { type: 'received'; message: MessageRecord }
+  /**
+   * Messages left this device or lost their content: deleted for me, a whole chat deleted, or
+   * deleted for everyone. Apps then drop the files they kept for them (ADR 0018).
+   */
+  | { type: 'content_removed' };
 
 export type DirectoryLookup =
   { status: 'ok'; record: DirectoryRecord } | { status: 'not_found' } | { status: 'unavailable' };
@@ -239,6 +244,13 @@ export class EngineCore {
       batch.deleteGroups?.length
     ) {
       this.#listChanged();
+    }
+    if (
+      batch.deleteMessages?.length ||
+      batch.deleteConversations?.length ||
+      batch.messages?.some((message) => message.kind === 'deleted')
+    ) {
+      this.events.emit({ type: 'content_removed' });
     }
   }
 

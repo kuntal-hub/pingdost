@@ -7,6 +7,7 @@ import { createWasmCryptoProvider, type CryptoProvider } from '@pingdost/crypto'
 import type { AttachmentStatusResponse } from '@pingdost/shared-types';
 
 import {
+  asRecordedAudio,
   AttachmentError,
   buildManifest,
   canSend,
@@ -125,6 +126,23 @@ describe('manifests', () => {
     expect(safeFileName('a\u0000b.txt')).toBe('ab.txt');
     expect(safeFileName('..')).toBeUndefined();
   });
+
+  it('carries media details, clamped, and refuses implausible ones', async () => {
+    const { result } = await encryptAll(new Uint8Array(randomBytes(10)));
+    const manifest = buildManifest({
+      attachmentId: '0192f1a0-0000-7000-8000-000000000002',
+      encrypted: result,
+      mimeType: 'audio/mp4',
+      media: { width: 0, height: -3, durationMs: 4_321.6, waveform: new Uint8Array(80).fill(7) },
+    });
+    const read = readManifest(manifest);
+    expect(read).toMatchObject({ width: 0, height: 0, durationMs: 4_322 });
+    expect(read.waveform).toHaveLength(64);
+    expect(() => readManifest({ ...manifest, width: 70_000 })).toThrow(AttachmentError);
+    expect(() => readManifest({ ...manifest, waveform: new Uint8Array(65) })).toThrow(
+      AttachmentError,
+    );
+  });
 });
 
 describe('sniffMime', () => {
@@ -160,6 +178,14 @@ describe('sniffMime', () => {
     for (const [data, mimeType, category] of cases) {
       expect(sniffMime(data), mimeType).toEqual({ mimeType, category });
     }
+  });
+
+  it('reads the app’s own recordings in an MP4 container as audio', () => {
+    expect(asRecordedAudio(sniffMime(head([0, 0, 0, 24], 'ftypisom')))).toEqual({
+      mimeType: 'audio/mp4',
+      category: 'audio',
+    });
+    expect(asRecordedAudio(sniffMime(head('%PDF-1.7')))).toMatchObject({ category: 'document' });
   });
 });
 
@@ -252,5 +278,29 @@ describe('uploadAttachment', () => {
     failAt = undefined;
     expect(await uploadAttachment(input)).toMatchObject({ status: 'ready' });
     expect(sends).toEqual([0, 1, 1, 2]);
+  });
+
+  it('stops between parts when paused, then resumes', async () => {
+    const size = PART_BYTES * 3;
+    const { api, received } = fakeApi(size);
+    const pause = new AbortController();
+    const input = {
+      api,
+      attachmentId: 'a',
+      ciphertextSize: size,
+      ciphertextSha256: new Uint8Array(32),
+      recipientDeviceIds: ['d'],
+      readRange: (start: number, end: number) => Promise.resolve(new Uint8Array(end - start)),
+      sendPart: (url: string) => {
+        received.add(Number(url.split('/').pop()));
+        if (received.size === 1) pause.abort();
+        return Promise.resolve(200);
+      },
+    };
+    await expect(uploadAttachment({ ...input, signal: pause.signal })).rejects.toMatchObject({
+      code: 'aborted',
+    });
+    expect(received.size).toBe(1);
+    expect(await uploadAttachment(input)).toMatchObject({ status: 'ready' });
   });
 });

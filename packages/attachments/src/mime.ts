@@ -85,6 +85,17 @@ function isText(data: Uint8Array): boolean {
   return true;
 }
 
+/**
+ * A recording this app made itself (a voice note) is audio, even in a container `sniffMime`
+ * reads as video: an MP4 or 3GP head does not say whether a video track follows.
+ */
+export function asRecordedAudio(sniffed: SniffedType): SniffedType {
+  if (sniffed.category === 'audio') return sniffed;
+  if (sniffed.mimeType === 'video/mp4') return { mimeType: 'audio/mp4', category: 'audio' };
+  if (sniffed.mimeType === 'video/3gpp') return { mimeType: 'audio/3gpp', category: 'audio' };
+  return sniffed;
+}
+
 export function sniffMime(head: Uint8Array): SniffedType {
   const d = head;
   if (startsWith(d, [0xff, 0xd8, 0xff])) return { mimeType: 'image/jpeg', category: 'image' };

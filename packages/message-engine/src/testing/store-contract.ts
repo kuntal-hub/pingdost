@@ -118,7 +118,14 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
       const photo = messageRecord({
         kind: 'attachment',
         body: 'the caption',
-        attachment: { ...info('photo.jpg'), thumbnail: info(null) },
+        attachment: {
+          ...info('photo.jpg'),
+          thumbnail: info(null),
+          width: 1_600,
+          height: 1_200,
+          durationMs: 4_000,
+          waveform: 'AAEC',
+        },
       });
       const file = messageRecord({ kind: 'attachment', body: '', attachment: info(null) });
       await store.apply({ messages: [photo, file] });
@@ -454,7 +461,14 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
       const deleted = text('', 4, { kind: 'deleted' });
       const elsewhere = messageRecord({ body: 'hello from another chat', sortAt: 5 });
       const notice = text('safety_number_changed', 6, { kind: 'system' });
-      await store.apply({ messages: [hello, help, hindi, deleted, elsewhere, notice] });
+      // Attachments are found by their caption (ADR 0018).
+      const photo = text('Beach sunset', 7, { kind: 'attachment' });
+      await store.apply({ messages: [hello, help, hindi, deleted, elsewhere, notice, photo] });
+      expect((await store.searchMessages('sunset', { limit: 5 })).map((m) => m.messageId)).toEqual([
+        photo.messageId,
+      ]);
+      await store.apply({ messages: [{ ...photo, kind: 'deleted', body: '' }] });
+      expect(await store.searchMessages('sunset', { limit: 5 })).toEqual([]);
 
       const ids = async (query: string, conversation?: string) =>
         (

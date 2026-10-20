@@ -60,3 +60,7 @@ History sync from the phone and attachments on web (18); calls (25).
 - The Dexie store must also pass the group part of the store contract: `groups`, Megolm sessions (inbound keyed by sender device + session ID), held records, `deleteGroups`, and the outbox's `groupId`/`megolm`/`purpose` fields.
 - Wire `api.groups` (`groupsApi`) into the engine and call `engine.syncGroup` on the transport's `group_changed` event.
 - UI: `parseGroupNotice` for system messages; group pictures are inline bytes (`data:` URIs); no call action in groups.
+
+**From Phase 15 (ADR 0018):**
+- The store contract now also checks that attachment captions are searchable (deleted ones leave the index) and that `AttachmentInfo` keeps its optional media fields (`width`, `height`, `durationMs`, `waveform`).
+- The engine emits `content_removed` when messages leave the device or are tombstoned. The web app drops cached files then (Phase 18).

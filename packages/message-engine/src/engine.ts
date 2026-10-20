@@ -214,11 +214,15 @@ export class MessageEngine {
    * Sends a staged attachment: `manifest` (`buildManifest`, caption included) describes a
    * file already encrypted and uploaded for `attachmentRecipients` (ADR 0017). The manifest is
    * checked like a received one; an invalid one is refused and nothing is stored.
+   *
+   * With `held` (ADR 0018) the message is stored (`local_queued`) but not sent yet: the app
+   * uploads the file meanwhile, so the chat shows it with its progress, also after a restart,
+   * and calls `releaseAttachment` once the upload is complete.
    */
   async sendAttachment(
     conversationId: string,
     manifest: AttachmentManifest,
-    options: { replyTo?: string } = {},
+    options: { replyTo?: string; held?: boolean } = {},
   ): Promise<MessageRecord> {
     const read = readAttachment(manifest);
     if (!read) throw new MessageActionError('invalid', 'invalid attachment manifest');
@@ -227,6 +231,33 @@ export class MessageEngine {
       { kind: 'attachment', body: read.caption, attachment: read.info },
       options,
     );
+  }
+
+  /**
+   * Sends a held attachment message whose upload is complete. False when there is nothing to
+   * send: the message was deleted, or it was released before.
+   */
+  async releaseAttachment(messageId: string): Promise<boolean> {
+    const core = this.#core;
+    const released = await core.mutex.run(async () => {
+      const message = await core.store.getMessage(messageId);
+      if (message?.kind !== 'attachment' || message.direction !== 'out') return false;
+      if (message.senderDeviceId !== core.self.deviceId || message.state !== 'local_queued') {
+        return false;
+      }
+      const queued = (await core.store.listOutbox()).some((item) => item.messageId === messageId);
+      if (queued || (await core.store.listDeliveries(messageId)).length > 0) return false;
+      const conversation = await core.store.getConversation(message.conversationId);
+      if (!conversation) return false;
+      const audience = await this.#audience(conversation);
+      const now = core.now();
+      await core.commit({
+        outbox: [this.#fanout(message, audience, this.#contentFor(message, audience), now)],
+      });
+      return true;
+    });
+    if (released) this.#outbox.kick();
+    return released;
   }
 
   /**
@@ -254,7 +285,7 @@ export class MessageEngine {
   async #send(
     conversationId: string,
     fields: Pick<MessageRecord, 'kind' | 'body' | 'attachment'>,
-    options: { replyTo?: string },
+    options: { replyTo?: string; held?: boolean },
   ): Promise<MessageRecord> {
     const core = this.#core;
     const message = await core.mutex.run(async () => {
@@ -293,11 +324,11 @@ export class MessageEngine {
             lastMessageId: record.messageId,
           },
         ],
-        outbox: [this.#fanout(record, audience, content, now)],
+        outbox: options.held ? [] : [this.#fanout(record, audience, content, now)],
       });
       return record;
     });
-    this.#outbox.kick();
+    if (!options.held) this.#outbox.kick();
     return message;
   }
 
@@ -590,7 +621,10 @@ export class MessageEngine {
 
   // Search
 
-  /** Text messages matching every term as a word prefix, newest first (ADR 0014). */
+  /**
+   * Text messages and attachment captions matching every term as a word prefix, newest first
+   * (ADR 0014, 0018).
+   */
   search(
     query: string,
     options: { conversationId?: string; limit?: number } = {},

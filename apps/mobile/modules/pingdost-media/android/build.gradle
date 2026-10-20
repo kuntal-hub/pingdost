@@ -1,0 +1,25 @@
+// Video metadata, preview frames and compression for attachments (Phase 15, ADR 0018), on
+// AndroidX Media3 Transformer (Apache-2.0). Local module: autolinked from apps/mobile/modules.
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.pingdost.media'
+version = '0.1.0'
+
+android {
+  namespace "com.pingdost.media"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  // The Media3 version expo-video and expo-audio 58 use, so the app has one Media3.
+  def media3Version = "1.9.1"
+  implementation "androidx.media3:media3-common:$media3Version"
+  implementation "androidx.media3:media3-effect:$media3Version"
+  implementation "androidx.media3:media3-transformer:$media3Version"
+}

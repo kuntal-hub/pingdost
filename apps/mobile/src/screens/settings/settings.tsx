@@ -81,6 +81,11 @@ export function SettingsScreen() {
           subtitle="This phone and linked browsers"
           onPress={() => router.push('/devices')}
         />
+        <ListRow
+          title="Storage"
+          subtitle="Space used, automatic downloads, clear cache"
+          onPress={() => router.push('/storage')}
+        />
       </ListSection>
 
       <ListSection title="About">

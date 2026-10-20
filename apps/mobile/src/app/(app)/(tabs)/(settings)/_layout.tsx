@@ -11,6 +11,8 @@ export default function SettingsStack() {
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       <Stack.Screen name="blocked" options={{ title: 'Blocked contacts' }} />
       <Stack.Screen name="devices" options={{ title: 'Devices' }} />
+      <Stack.Screen name="storage" options={{ title: 'Storage' }} />
+      <Stack.Screen name="storage-chat" options={{ title: 'Chat files' }} />
       <Stack.Screen name="about-privacy" options={{ title: 'About privacy' }} />
     </Stack>
   );

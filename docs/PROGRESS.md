@@ -17,6 +17,53 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-20 — Phase 15: Attachments UX (Android) — 🔄 partial (device checks open)
+**Done (ADR 0018):**
+- **Shared packages:**
+  - `@pingdost/attachments`:
+    - `downloadCiphertext` (streamed, `Range` resume, expired-link renewal, `gone`/`network`/`aborted` errors) and `verifyStream`;
+    - `uploadAttachment({ signal })`;
+    - compression plans (`IMAGE_PRESETS`, `planVideo`, `scaledSize`, `THUMBNAIL_PRESET`), `asRecordedAudio`, and media details in `buildManifest`/`readManifest`.
+  - Protocol: `AttachmentManifest` add-only fields 14–17 (`width`, `height`, `duration_ms`, `waveform`).
+  - Engine: `sendAttachment({ held })` plus `releaseAttachment`; the `content_removed` event; captions searchable (memory store plus contract); the session-reset resend covers attachments.
+- **Android** (`apps/mobile/src/attachments/*`):
+  - vault of STREAM ciphertext (`files.ts`, `pipeline.ts`), migration 006 (`attachments` rows, FTS triggers for captions);
+  - transfer runner (`transfers.ts`: two file and four thumbnail slots, pause/resume/cancel/retry, verify then ack, GC, restart-safe);
+  - plaintext view cache with cleanup (`view.ts`), auto-download setting (`prefs.ts`), storage controls (`storage.ts`).
+- **Local Expo module** `apps/mobile/modules/pingdost-media` (Kotlin, Media3 1.9.1): `videoInfo`, `videoFrame`, `compressVideo` (progress, cancel).
+- **UI:**
+  - composer ＋ (gallery, photo, video, document) and 🎤 voice notes;
+  - the send screen (original vs. estimated sizes, Standard/HD/original, rejection reasons, caption, progress, cancel);
+  - bubbles (photo/video tiles with previews, voice/audio player with waveform, document card, transfer line and controls);
+  - viewer (pinch-zoom, video, Share with notice);
+  - Settings → Storage (usage, auto-download, per-chat files with delete, Clear cache, relay-cache row).
+- New deps: expo-file-system 58.0.10, expo-document-picker 58.0.4, expo-audio 58.0.9, expo-video 58.0.12, expo-sharing 58.0.19. `app.json`: `RECORD_AUDIO` with usage strings; background audio and video off.
+
+**Remaining:** the device checks under "Done when". No phone or emulator was attached in this session.
+- [ ] Memory stays flat on a 100 MB file: send one and watch `adb shell dumpsys meminfo com.pingdost.app` (PSS should not grow by ~100 MB).
+- [ ] Photo sent compressed (Standard) and as original; a 100 MB+ video compressed and sent (or refused with the explanation); a 100 MB+ PDF refused.
+- [ ] Voice note sent and received; the recipient views a photo and a video and opens a document via Share.
+- [ ] Server object gone after the ACK: the file under `apps/server/.data/attachments` (or SeaweedFS) disappears once every recipient device downloaded.
+- [ ] "Clear cache" leaves messages and downloaded files.
+- Steps: `pnpm infra:up`; `pnpm --filter @pingdost/server dev`; `pnpm --filter @pingdost/mobile android` (`android/` was regenerated with `prebuild --clean`; the arm64 debug APK builds). The receiving side needs a second PingDost device (phone plus emulator): the sim peer does not handle files.
+
+**Deviations / decisions:** ADR 0018; CHANGES 2026-10-20 (Media3 module instead of react-native-compressor; captions searchable; manifest media details).
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 43/43 tasks (engine 95, attachments 17, mobile 79, protocol 94, …). `pnpm format:check` clean. `buf breaking` against main clean.
+- `pnpm test:int`: server 133 passed, 2 skipped (the slow spike; the `s3` profile was not up).
+- `npx expo export --platform android` bundles. `gradlew :app:assembleDebug -PreactNativeArchitectures=arm64-v8a` builds (106 MB debug APK), so the Kotlin module and Media3 link.
+- **Not run:** anything on a device (see Remaining).
+
+**Known issues / tech debt:**
+- Transfers and video compression run only while the app runs (no foreground service). They resume at the next start.
+- Photo sizes on the send screen come from compressing once; sending compresses again.
+- Previews removed by Clear cache cannot be fetched again (the server copy is gone once acknowledged); the bubble shows a plain card.
+- Attachments this phone sent in Phase 14 builds have no rows, so they show no file.
+- iOS has no `PingdostMedia` implementation (Phase 28).
+
+**Next:** Phase 16 (web + QR pairing). Phases 10–15 have device checks open, and Phase 12 needs the Firebase setup.
+
 ## 2026-10-20 — Phase 14: Attachments core — ✅ done
 **Done (ADR 0004, 0017):**
 - **Rust** `crates/pingdost-crypto/src/attachment.rs`: XChaCha20-Poly1305 STREAM (`chacha20poly1305` 0.11.0, `aead-stream` 0.6.0), per-chunk SHA-256 and the ciphertext and chunk-hash-list digests (`sha2` 0.11.1). WASM and Android bindings regenerated.

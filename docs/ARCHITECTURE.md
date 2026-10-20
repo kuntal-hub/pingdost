@@ -169,7 +169,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - XChaCha20-Poly1305 under the STREAM construction (RustCrypto `chacha20poly1305` + `aead-stream`) inside `crates/pingdost-crypto`, so one implementation runs on every platform.
   - A fresh random key and nonce prefix per file, 64 KiB chunks.
   - libsodium secretstream was dropped because react-native-libsodium only exposes it on web.
-  - The manifest (scheme, key, nonce prefix, sizes, mime, `ciphertextSha256`, `chunkHashListSha256`, optional `thumbnail` and `caption`) travels inside E2EE `Content`, over Olm or Megolm. Receivers check it (`readManifest`) before trusting it and keep it in the encrypted store (`MessageRecord.attachment`; ADR 0017).
+  - The manifest (scheme, key, nonce prefix, sizes, mime, `ciphertextSha256`, `chunkHashListSha256`, optional `thumbnail`, `caption` and media details: width, height, duration, voice waveform; ADR 0018) travels inside E2EE `Content`, over Olm or Megolm. Receivers check it (`readManifest`) before trusting it and keep it in the encrypted store (`MessageRecord.attachment`; ADR 0017).
   - The AEAD is exposed through `CryptoProvider` (`createAttachmentEncryptor`, `decryptAttachmentChunk`, `sha256`). Both providers are checked against `packages/test-fixtures/crypto/attachment-stream-v1.json`.
 - **Backup rule (ADR 0003):**
   - Back up only the account identity key and Megolm inbound sessions.
@@ -196,6 +196,10 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Attachment messages (ADR 0017, migration 005): `messages.attachment` holds the checked manifest as JSON. The local copy and its state go in 002's `attachments` table (Phase 15).
   - Local search (ADR 0014): `messages_fts` keyed by the `messages` rowid and kept in step by triggers, so messages are upserted (`ON CONFLICT DO UPDATE`), never `INSERT OR REPLACE`. Tokenizer: `unicode61 remove_diacritics 2 categories 'L* N* Co M*'`. Queries are built only from quoted prefix phrases.
 - **Files:** `expo-file-system` (new File API, chunked reads, no base64 for big files). Attachments are stored **as encrypted files**; plaintext is decrypted to a temp cache only for viewing.
+  - (ADR 0018) The local copy is the attachment's own STREAM ciphertext, kept in `<documents>/attachments/<id>` with its key in SQLCipher. Uploads read from it; downloads append to it, then are checked in full and acknowledged.
+  - Migration 006's `attachments` table holds each file's transfer (`transfers.ts`).
+  - Plaintext lives only in `<cache>/pingdost-view/`, deleted on close or backgrounding (exports after 10 minutes), and thumbnails only in memory.
+  - Held sends: the engine stores the message while its file uploads (`sendAttachment({ held })` then `releaseAttachment`).
 - **Libraries, by phase:**
   - Phase 3: crypto Turbo Module (ubrn).
   - Phase 7 (ADR 0009): Zustand (app state), `@react-native-google-signin/google-signin` (free Original API; no Android config plugin without Firebase), expo-image-picker (avatars; camera and microphone permissions blocked), expo-network (offline banner), expo-symbols (Material icons for the native tabs on Android).
@@ -203,7 +207,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Phase 12: expo-notifications 58.1.5 + expo-task-manager 58.0.12 (FCM token, headless wake task defined in the custom entry `index.ts`).
   - Phase 13: expo-image-manipulator 58.0.15 (group pictures shrunk to ≤ 32 KiB on the phone).
   - Phase 14 (no new native module): the Rust crate adds `chacha20poly1305` 0.11.0, `aead-stream` 0.6.0 and `sha2` 0.11.1. The server adds `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` 3.1153.0 (Apache-2.0). Tests use `@noble/ciphers` 2.4.0 (MIT, dev only) as an independent check.
-  - Phase 15: expo-document-picker, expo-audio, expo-video, react-native-compressor (re-validate).
+  - ⚠ Phase 15 (ADR 0018): expo-file-system 58.0.10, expo-document-picker 58.0.4, expo-audio 58.0.9, expo-video 58.0.12, expo-sharing 58.0.19. Video compression, metadata and preview frames come from the local Kotlin module `modules/pingdost-media` on AndroidX Media3 Transformer 1.9.1, instead of react-native-compressor (CHANGES 2026-10-20).
   - Phase 16: QR pairing reuses expo-camera (installed in Phase 10).
   - Phase 21: nearby Expo module in Kotlin.
   - Phase 26: react-native-webrtc.

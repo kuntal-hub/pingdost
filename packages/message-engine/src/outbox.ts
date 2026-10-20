@@ -34,6 +34,7 @@ import {
 import { MAX_CLAIM_DEVICES, type MessageState } from '@pingdost/shared-types';
 import { backoffDelay, type SendResult } from '@pingdost/transport';
 
+import { attachmentContentFor } from './attachments';
 import { buildContent, receiptBody, textContentFor } from './content';
 import { EngineCore } from './core';
 import { claimedKeySigned, errorCode } from './directory';
@@ -879,8 +880,8 @@ export class Outbox {
         const id = bytesToUuid(envelopeIdFor(row.messageId, deviceId));
         if (queued.has(id)) continue;
         const message: MessageRecord | undefined = await core.store.getMessage(row.messageId);
-        if (message?.kind !== 'text' || message.expiresAt === null || message.expiresAt <= now)
-          continue;
+        if (message?.kind !== 'text' && message?.kind !== 'attachment') continue;
+        if (message.expiresAt === null || message.expiresAt <= now) continue;
         // Group messages are Megolm: a device that lost one asks for the key instead.
         if ((await core.store.getConversation(message.conversationId))?.kind === 'group') continue;
         outbox.push({
@@ -890,7 +891,10 @@ export class Outbox {
           messageId: message.messageId,
           recipientUserId: userId,
           recipientDeviceId: deviceId,
-          content: textContentFor(message, userId, core.settings.envelopeMaxBytes),
+          content:
+            message.kind === 'attachment'
+              ? attachmentContentFor(message, userId, core.settings.envelopeMaxBytes)
+              : textContentFor(message, userId, core.settings.envelopeMaxBytes),
           packet: null,
           newSession: false,
           createdAt: message.createdAt,

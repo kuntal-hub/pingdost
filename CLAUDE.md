@@ -96,6 +96,9 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - `docker compose --profile s3 up -d --wait` adds SeaweedFS (local S3 on :8333, dev credentials in `docker-compose.yml`). The `s3` halves of `test/attachments.int.test.ts` run only while it is up; `fs` always runs. `pnpm infra:down` leaves it running: stop it with `docker compose --profile s3 down`.
   - The 100 MiB spike is tagged slow: `$env:PINGDOST_SLOW='1'; pnpm --filter @pingdost/server exec vitest run --config vitest.int.config.ts test/attachments-100mb --silent=false`. It prints `ATTACHMENT_SPIKE {...}` (about 45 s for both stores).
   - `pnpm --filter @pingdost/crypto make-attachment-vectors` rewrites `packages/test-fixtures/crypto/attachment-stream-v1.json`. Run it only when the attachment format changes.
+  - Android (ADR 0018):
+    - `apps/mobile/src/attachments/*` holds the vault, transfers and storage controls. Each local copy is the STREAM ciphertext at `<documents>/attachments/<id>`.
+    - Video compression is the local Kotlin module `apps/mobile/modules/pingdost-media` (Media3, autolinked). To compile just it, run `.\gradlew.bat :pingdost-media:compileDebugKotlin` in `apps/mobile/android` after a prebuild.
 - **Message engine** (`packages/message-engine`, `packages/transport`; ADR 0011): `pnpm --filter @pingdost/message-engine test` runs the engine over an in-memory fake server with real vodozemac. `@pingdost/message-engine/testing` exports `runEngineStoreContract` (every `EngineStore` must pass it) and `FakeServer`.
 - **Protocol** (`packages/protocol`, ADR 0006):
   - `pnpm --filter @pingdost/protocol gen` regenerates `src/gen/` from `proto/` (committed; never hand-edit). CI fails if the committed code differs.

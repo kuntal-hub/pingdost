@@ -11,24 +11,27 @@ Send and receive images, videos, voice notes and documents on Android. Compressi
 - **Load skill `expo:expo-overview`**
 
 ## Tasks
-- [ ] **Native streaming I/O:** read and write files in chunks with the expo-file-system File API (no base64), feeding `packages/attachments` encrypt/decrypt with the native crypto provider.
-  - Verify that memory stays flat on a 100 MB file.
-- [ ] **Local storage:** sent and received attachments are stored **as encrypted files** (per-file key in SQLCipher). Viewing decrypts to a temp cache, which is cleaned on exit or after a timeout.
-  - Thumbnails are generated locally **before** encryption (expo-image-manipulator / expo-video-thumbnails) and stored encrypted.
-- [ ] **Compression:**
-  - images via expo-image-manipulator (max dimension and quality presets);
-  - videos via `react-native-compressor`. **Check current maintenance and Expo compatibility first.** If unsuitable, pick an alternative with an ADR note; ffmpeg-kit is retired, so do not use it.
-  - **Before sending, show:** original size, estimated compressed size and quality, and a "Send original" toggle (only if ≤ limit).
-  - **Over 100 MB:** offer compression; send only if the result is ≤ the limit; otherwise explain why it can't be sent. Non-compressible files over the limit are rejected with a clear message.
-- [ ] **Pickers:** camera + gallery (expo-image-picker), documents (expo-document-picker), voice notes (expo-audio: record, playback, simple waveform, duration).
-- [ ] **Transfer UI:** upload and download progress, pause/resume (using resumable chunks), retry, cancel.
-  - Auto-download settings: thumbnails always; full media on Wi-Fi only (default) / always / never.
-- [ ] **Viewers:** image (pinch-zoom), video (expo-video), audio player, documents opened via expo-sharing with an "exports leave PingDost's protection" notice.
-- [ ] **Storage screen:**
+- [x] **Native streaming I/O:** read and write files in chunks with the expo-file-system File API (no base64), feeding `packages/attachments` encrypt/decrypt with the native crypto provider. (`src/attachments/files.ts`, `pipeline.ts`: ~1 MiB reads and writes through `FileHandle`s; downloads stream `expo/fetch` bodies.)
+  - [ ] Verify that memory stays flat on a 100 MB file (**device check**, steps in the PROGRESS entry).
+- [x] **Local storage:** sent and received attachments are stored **as encrypted files** (per-file key in SQLCipher). Viewing decrypts to a temp cache, which is cleaned on exit or after a timeout.
+  - The vault keeps each attachment's own STREAM ciphertext; the key is the manifest key in `messages.attachment` (ADR 0018).
+  - Plaintext lives in `<cache>/pingdost-view/` and is deleted when the viewer closes or the app goes to the background; exports after 10 min; everything left over at the next start.
+  - Thumbnails are generated locally **before** encryption (expo-image-manipulator; video frames from the local Media3 module instead of expo-video-thumbnails) and stored encrypted. They are decrypted into memory only.
+- [x] **Compression:**
+  - images via expo-image-manipulator (Standard 1600 px / q 0.75, HD 2560 px / q 0.85);
+  - videos: react-native-compressor was checked and replaced by AndroidX Media3 Transformer in the local module `modules/pingdost-media` (ADR 0018, CHANGES 2026-10-20). ffmpeg-kit is not used.
+  - **Before sending, show:** original size, estimated compressed size and quality, and a "Send original" toggle (only if ≤ limit). (`screens/chats/send-attachment.tsx`; photo sizes are measured, video sizes estimated from the plan.)
+  - **Over 100 MB:** offer compression; send only if the result is ≤ the limit; otherwise explain why it can't be sent. Non-compressible files over the limit are rejected with a clear message. (`rules.ts` `planDraft`, checked again after compressing.)
+- [x] **Pickers:** camera + gallery (expo-image-picker), documents (expo-document-picker), voice notes (expo-audio: record, playback, a waveform from metering sent in the manifest, duration).
+- [x] **Transfer UI:** upload and download progress, pause/resume (using resumable chunks), retry, cancel. (`transfers.ts` + `screens/chats/attachment-bubble.tsx`)
+  - Auto-download settings: thumbnails always; full media on Wi-Fi only (default) / always / never (Settings → Storage).
+- [x] **Viewers:** image (pinch-zoom, pan, double tap), video (expo-video), audio player (inline), documents opened via expo-sharing with an "exports leave PingDost's protection" notice.
+- [x] **Storage screen:**
   - total usage; per-chat media list and size; delete selected media;
   - **"Clear cache" removes thumbnails and temp files only and says so; it never deletes history** (REQ §14.3);
   - a placeholder row for the mesh relay cache, kept separate (filled in Phase 23).
-- [ ] Recipient ACK after a verified download triggers server deletion (Phase 14 endpoint).
+- [x] Recipient ACK after a verified download triggers server deletion (Phase 14 endpoint). The whole ciphertext is checked first (`verifyStream`); failed acks retry on reconnect.
+- [x] Handoff items: deleting messages or chats (and delete-for-everyone tombstones) drops their files (engine `content_removed`, GC); captions are searchable; held sends show the upload in the chat and survive restarts.
 
 ## Key files
 `apps/mobile/src/attachments/*`, `apps/mobile/app/(app)/chats/[id]/*` (composer, bubbles), `apps/mobile/app/(app)/settings/storage.tsx`

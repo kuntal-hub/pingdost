@@ -26,8 +26,21 @@ import { AttachmentError, type EncryptedAttachment } from './stream';
 /** A thumbnail is a small preview; anything bigger is not one. */
 export const THUMBNAIL_MAX_BYTES = 262_144;
 const MAX_NAME = 255;
+/** Samples in a voice note's waveform. */
+export const WAVEFORM_MAX = 64;
+/** Larger dimensions are not real media. */
+const MAX_DIMENSION = 65_535;
 
-export interface CheckedManifest {
+/** Measured on the sender's device (ADR 0018); 0 or empty means unknown. */
+export interface MediaDetails {
+  width: number;
+  height: number;
+  durationMs: number;
+  /** Voice notes: loudness samples, 0–255. */
+  waveform: Uint8Array;
+}
+
+export interface CheckedManifest extends MediaDetails {
   attachmentId: string;
   key: Uint8Array;
   noncePrefix: Uint8Array;
@@ -64,9 +77,12 @@ export function buildManifest(fields: {
   fileName?: string;
   thumbnail?: AttachmentManifest;
   caption?: string;
+  media?: Partial<MediaDetails>;
 }): AttachmentManifest {
-  const { encrypted } = fields;
+  const { encrypted, media } = fields;
   const fileName = safeFileName(fields.fileName);
+  const dimension = (value: number | undefined) =>
+    value && value > 0 && value <= MAX_DIMENSION ? Math.round(value) : 0;
   return create(AttachmentManifestSchema, {
     attachmentId: uuidToBytes(fields.attachmentId),
     scheme: SCHEME,
@@ -81,6 +97,13 @@ export function buildManifest(fields: {
     chunkHashListSha256: encrypted.chunkHashListSha256,
     ...(fields.thumbnail ? { thumbnail: fields.thumbnail } : {}),
     ...(fields.caption ? { caption: fields.caption.slice(0, CAPTION_MAX) } : {}),
+    width: dimension(media?.width),
+    height: dimension(media?.height),
+    durationMs:
+      media?.durationMs && media.durationMs > 0
+        ? Math.min(Math.round(media.durationMs), 0xffff_ffff)
+        : 0,
+    waveform: media?.waveform?.subarray(0, WAVEFORM_MAX) ?? new Uint8Array(0),
   });
 }
 
@@ -112,6 +135,8 @@ export function readManifest(
   if (manifest.ciphertextSha256.length !== SHA256_BYTES) fail('ciphertext hash');
   if (manifest.chunkHashListSha256.length !== SHA256_BYTES) fail('chunk hash list hash');
   if (manifest.thumbnail && nested) fail('a thumbnail has no thumbnail');
+  if (manifest.width > MAX_DIMENSION || manifest.height > MAX_DIMENSION) fail('dimensions');
+  if (manifest.waveform.length > WAVEFORM_MAX) fail('waveform');
   return {
     attachmentId,
     key: manifest.key,
@@ -127,5 +152,9 @@ export function readManifest(
       ? readManifest(manifest.thumbnail, THUMBNAIL_MAX_BYTES, true)
       : undefined,
     caption: nested ? '' : manifest.caption.slice(0, CAPTION_MAX),
+    width: manifest.width,
+    height: manifest.height,
+    durationMs: manifest.durationMs,
+    waveform: manifest.waveform,
   };
 }

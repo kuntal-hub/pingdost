@@ -1,10 +1,9 @@
 // The SQLite store against the shared EngineStore contract, on Node's built-in SQLite with
 // the app's real migrations (SQLCipher itself is checked on the device).
-import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
-
 import { describe, expect, it } from 'vitest';
 
-import { migrate, migrations, type MigratableDatabase } from '@/db/migrate';
+import { migrate, migrations } from '@/db/migrate';
+import { nodeDatabase } from '@/db/testing';
 import { createWasmCryptoProvider } from '@pingdost/crypto';
 import {
   createTestClient,
@@ -14,23 +13,7 @@ import {
   runEngineStoreContract,
 } from '@pingdost/message-engine/testing';
 
-import { SqliteEngineStore, wipeChatData, type SqlDatabase, type SqlValue } from './sqlite-store';
-
-function nodeDatabase(): SqlDatabase & MigratableDatabase {
-  const db = new DatabaseSync(':memory:');
-  const bind = (params: SqlValue[] = []) => params as SQLInputValue[];
-  return {
-    execAsync(source) {
-      db.exec(source);
-      return Promise.resolve();
-    },
-    runAsync: (source, params) => Promise.resolve(db.prepare(source).run(...bind(params))),
-    getFirstAsync: <T>(source: string, params?: SqlValue[]) =>
-      Promise.resolve((db.prepare(source).get(...bind(params)) ?? null) as T | null),
-    getAllAsync: <T>(source: string, params?: SqlValue[]) =>
-      Promise.resolve(db.prepare(source).all(...bind(params)) as T[]),
-  };
-}
+import { SqliteEngineStore, wipeChatData } from './sqlite-store';
 
 async function migrated() {
   const db = nodeDatabase();
@@ -39,7 +22,7 @@ async function migrated() {
 }
 
 runEngineStoreContract(
-  'SQLite (migrations 002–004)',
+  'SQLite (migrations 002–006)',
   async () => new SqliteEngineStore(await migrated()),
 );
 

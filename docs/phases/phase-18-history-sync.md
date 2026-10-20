@@ -40,3 +40,13 @@ Recovery backups (19).
 - A web device can download a staged attachment only if it was in `recipientDeviceIds` when the sender uploaded. `engine.attachmentRecipients` lists the devices current at send time, so files sent before pairing come from the phone (the relay path above).
 - The web store (Dexie) must keep `MessageRecord.attachment` (manifest JSON, file key included) inside the encrypted records, and pass `runEngineStoreContract`, which now covers attachment messages.
 - Send from web: `engine.attachmentRecipients` → `encryptStream` → `uploadAttachment` → `engine.sendAttachment`, as on Android (Phase 15 notes).
+
+**From Phase 15 (ADR 0018):**
+- Reuse `@pingdost/attachments`:
+  - `downloadCiphertext` (streamed, `Range` resume, expired-link renewal, `gone` / `network` / `aborted` errors; give it the browser `fetch`);
+  - `verifyStream` (check everything before `ack`);
+  - `uploadAttachment` with `signal` for pause/cancel;
+  - `planVideo` / `scaledSize` / `IMAGE_PRESETS` / `THUMBNAIL_PRESET` (480 px JPEG, at most 256 KiB);
+  - `buildManifest({ media })` for width, height, duration and waveform.
+- Send: `engine.sendAttachment(id, manifest, { held: true })` stores the message while it uploads, then `engine.releaseAttachment(messageId)` sends it. Android's runner (`apps/mobile/src/attachments/transfers.ts`) is the model: thumbnail first, recipients fixed at the first attempt, release after the file upload completes.
+- Android does not send file names for photos, videos or voice notes; only documents carry one.

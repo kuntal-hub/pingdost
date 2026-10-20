@@ -45,3 +45,7 @@ Web nearby (browsers can't do this); iOS (30).
   - `encryptStream` returns `chunkHashes`.
 - Use the manifest's `attachmentId` (UUIDv7) as the mesh transfer ID; the receiver also checks `ciphertextSha256` and decrypts (AEAD per chunk) before sending the receipt.
 - A file sent over the mesh needs no staged upload: send the manifest with `engine.sendAttachment` and skip `uploadAttachment`.
+
+**From Phase 15 (ADR 0018):**
+- Each attachment's local copy is its STREAM ciphertext at `<documents>/attachments/<attachmentId>`: the same bytes as the staged object. Send it as it is, and recompute the per-chunk hashes from it (the manifest has only the list's hash).
+- A received copy goes into the vault the same way: append, `verifyStream`, mark the `attachments` row `done`.

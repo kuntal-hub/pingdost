@@ -36,6 +36,10 @@ function infoFrom(checked: CheckedManifest): AttachmentInfo {
     ciphertextSha256: toBase64(checked.ciphertextSha256),
     chunkHashListSha256: toBase64(checked.chunkHashListSha256),
     thumbnail: checked.thumbnail ? infoFrom(checked.thumbnail) : null,
+    ...(checked.width > 0 ? { width: checked.width } : {}),
+    ...(checked.height > 0 ? { height: checked.height } : {}),
+    ...(checked.durationMs > 0 ? { durationMs: checked.durationMs } : {}),
+    ...(checked.waveform.length > 0 ? { waveform: toBase64(checked.waveform) } : {}),
   };
 }
 
@@ -80,6 +84,10 @@ function manifestFrom(info: AttachmentInfo, caption: string): AttachmentManifest
     chunkHashListSha256: fromBase64(info.chunkHashListSha256),
     ...(info.thumbnail ? { thumbnail: manifestFrom(info.thumbnail, '') } : {}),
     ...(caption ? { caption } : {}),
+    width: info.width ?? 0,
+    height: info.height ?? 0,
+    durationMs: info.durationMs ?? 0,
+    waveform: info.waveform ? fromBase64(info.waveform) : new Uint8Array(0),
   });
 }
 

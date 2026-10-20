@@ -39,6 +39,8 @@ export default function AppStack() {
         name="message-info/[messageId]"
         options={{ title: 'Message info', presentation: 'modal' }}
       />
+      <Stack.Screen name="send-attachment" options={{ title: 'Send', presentation: 'modal' }} />
+      <Stack.Screen name="media/[messageId]" options={{ title: '' }} />
     </Stack>
   );
 }

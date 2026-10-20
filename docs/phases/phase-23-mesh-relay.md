@@ -52,3 +52,5 @@ File chunk transfer (24); iOS (30).
 - A receiver finds the owner of an unknown sending device with `GET /v1/keys/devices/:id`, which is impossible offline.
 - For offline first contact, use cached directories: `DirectoryRecord.devices[].fallbackKey` is signature-checked. A Hello handshake is the other option.
 - `MeshAck` should map to a `relayed` delivery row (`states.ts` already ranks it).
+
+**From Phase 15 (ADR 0018):** Settings → Storage has a "Nearby relay cache" row (`screens/settings/storage.tsx`) waiting for real numbers. "Clear cache" there touches only previews and temporary files; give the relay cache its own clear action.

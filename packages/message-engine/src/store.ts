@@ -157,6 +157,12 @@ export interface AttachmentInfo {
   chunkHashListSha256: string;
   /** An encrypted preview staged as its own attachment, or null. */
   thumbnail: AttachmentInfo | null;
+  /** Media details from the sender (ADR 0018); absent when unknown. */
+  width?: number;
+  height?: number;
+  durationMs?: number;
+  /** A voice note's loudness samples (0–255), base64. */
+  waveform?: string;
 }
 
 /** One user's reaction to a message; the newest event per user wins (ADR 0014). */

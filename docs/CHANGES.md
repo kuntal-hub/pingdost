@@ -4,6 +4,16 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-10-20 — Phase 15: attachments on Android (ADR 0018)
+1. **Video compression uses AndroidX Media3 Transformer in a local Expo module (`apps/mobile/modules/pingdost-media`), not react-native-compressor.** ARCHITECTURE A6 and the Phase 15 plan named react-native-compressor, to be re-validated; REQ does not name one.
+   - *Reason:* react-native-compressor 2.0.3 is maintained, but it pulls a Nitro C++ build, a JitPack LAME build and LGPL audio libraries we do not need. Media3 (Apache-2.0, Google) is already in the app through expo-video and expo-audio, and it has hardware encoders, progress and cancel.
+   - *Trade-off:* about 150 lines of Kotlin to maintain; iOS (Phase 28) needs its own implementation.
+   - *Affects:* 15 (done), 28.
+2. **Attachment captions are searchable.** Phase 11 indexed text messages only and left captions open.
+   - *Affects:* 15, 17 (the web store follows the store contract).
+3. **The `AttachmentManifest` gains media details (width, height, duration, voice-note waveform; add-only fields).** Receivers lay out and label files before downloading them.
+   - *Affects:* 15, 18 (web reads and writes them).
+
 ### 2026-10-20 — Phase 14: attachment staging (ADR 0017)
 1. **The local S3 test service is SeaweedFS, not MinIO.** ARCHITECTURE A1 and the Phase 14 plan named MinIO; REQ does not.
    - *Reason:* MinIO's community edition is no longer distributed, and its image pulls were denied on the dev PC. SeaweedFS is Apache-2.0 and serves the same S3 API.
