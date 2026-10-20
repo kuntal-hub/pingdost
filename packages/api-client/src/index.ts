@@ -12,6 +12,8 @@ export { ApiError } from './errors';
 export type { ApiErrorKind } from './errors';
 export { groupsApi } from './groups';
 export type { GroupsApi } from './groups';
+export { pairingApi } from './pairing';
+export type { PairingApi } from './pairing';
 export { pushApi } from './push';
 export type { PushApi } from './push';
 export { securityApi } from './security';

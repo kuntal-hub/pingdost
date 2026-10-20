@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Text } from 'react-native';
 
 import { api } from '@/api';
@@ -8,6 +9,7 @@ import { Button } from '@/components/button';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { useChatRuntime } from '@/engine/hooks';
 import { useCryptoContext } from '@/hooks/use-crypto-context';
 import { usePalette } from '@/theme/theme-root';
 import type { DeviceSummary } from '@pingdost/shared-types';
@@ -24,6 +26,8 @@ function describeDevice(device: DeviceSummary, current: boolean): string {
 }
 
 export function DevicesScreen() {
+  const router = useRouter();
+  const runtime = useChatRuntime();
   const palette = usePalette();
   const currentId = useAuth((state) => state.session?.deviceId);
   const crypto = useCryptoContext();
@@ -37,7 +41,8 @@ export function DevicesScreen() {
       .then(setDevices, (caught: unknown) => setError(describeError(caught).message));
   }, []);
 
-  useEffect(load, [load]);
+  // Reloaded on return, e.g. after linking a browser.
+  useFocusEffect(load);
 
   function confirmRevoke(device: DeviceSummary): void {
     Alert.alert(
@@ -49,9 +54,15 @@ export function DevicesScreen() {
           text: 'Remove',
           style: 'destructive',
           onPress: () =>
-            void api.devices
-              .revoke(device.deviceId)
-              .then(load, (caught: unknown) => setError(describeError(caught).message)),
+            void api.devices.revoke(device.deviceId).then(
+              () => {
+                load();
+                // Stop encrypting to it now, not when the directory cache runs out.
+                if (runtime)
+                  void runtime.engine.refreshDevices(runtime.userId).catch(() => undefined);
+              },
+              (caught: unknown) => setError(describeError(caught).message),
+            ),
         },
       ],
     );
@@ -60,6 +71,9 @@ export function DevicesScreen() {
   const active = devices?.filter((device) => device.status === 'active') ?? [];
   const removed = devices?.filter((device) => device.status === 'revoked') ?? [];
   const linked = active.filter((device) => device.role === 'linked');
+  const primary = active.some(
+    (device) => device.deviceId === currentId && device.role === 'primary',
+  );
 
   return (
     <Screen offlineBanner>
@@ -83,9 +97,19 @@ export function DevicesScreen() {
           ))}
         </ListSection>
       )}
+      {devices && primary && (
+        <ListSection title="Browsers">
+          <ListRow
+            title="Link a browser"
+            subtitle="Scan the code PingDost on the web shows"
+            onPress={() => router.push('/link-browser')}
+          />
+        </ListSection>
+      )}
       {devices && linked.length === 0 && (
         <Text className="text-muted">
-          No linked browsers. Linking PingDost on the web arrives in a later update.
+          No linked browsers. A linked browser gets its own keys and can be removed here at any
+          time; tap a browser above to remove it.
         </Text>
       )}
       {removed.length > 0 && (

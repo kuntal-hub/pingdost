@@ -12,6 +12,7 @@ import {
   devicesApi,
   groupsApi,
   keysApi,
+  pairingApi,
   pushApi,
   securityApi,
 } from '@pingdost/api-client';
@@ -32,6 +33,7 @@ export const api = {
   push: pushApi(client),
   groups: groupsApi(client),
   attachments: attachmentsApi(client),
+  pairing: pairingApi(client),
 };
 
 export const authStore = createAuthStore({

@@ -233,6 +233,20 @@ export class AuthService {
     return this.#tokens(session, next);
   }
 
+  /**
+   * A new session bound to `deviceId` from the start. A browser linked by QR pairing has no
+   * password or Google sign-in of its own (REQ §13.1, ADR 0019).
+   */
+  async linkedDeviceSession(
+    userId: string,
+    deviceId: string,
+    context: RequestContext,
+  ): Promise<AuthTokens> {
+    const user = await this.#d.collections.users.findOne({ _id: userId });
+    if (user?.status !== 'active') throw new AppError('FORBIDDEN');
+    return (await this.#sessionFor(user, context, deviceId)).tokens;
+  }
+
   // Google sign-in (ADR 0008)
 
   /**
@@ -384,13 +398,17 @@ export class AuthService {
     );
   }
 
-  async #sessionFor(user: UserDoc, context: RequestContext): Promise<AuthSession> {
+  async #sessionFor(
+    user: UserDoc,
+    context: RequestContext,
+    deviceId: string | null = null,
+  ): Promise<AuthSession> {
     const now = this.#now();
     const refreshToken = randomToken();
     const session: SessionDoc = {
       _id: uuidv7(),
       userId: user._id,
-      deviceId: null,
+      deviceId,
       refreshHash: this.#d.hasher.hash('refresh', refreshToken),
       usedRefreshHashes: [],
       createdAt: now,

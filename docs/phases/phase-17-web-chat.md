@@ -64,3 +64,13 @@ History sync from the phone and attachments on web (18); calls (25).
 **From Phase 15 (ADR 0018):**
 - The store contract now also checks that attachment captions are searchable (deleted ones leave the index) and that `AttachmentInfo` keeps its optional media fields (`width`, `height`, `durationMs`, `waveform`).
 - The engine emits `content_removed` when messages leave the device or are tombstoned. The web app drops cached files then (Phase 18).
+
+**From Phase 16 (ADR 0019):**
+- `apps/web` exists:
+  - `src/db/db.ts` is the Dexie DB `pingdost` (`keys`, `records`); add the engine tables as `version(2)`;
+  - `src/db/vault.ts` (`encryptRecord`/`decryptRecord`, AAD = the record name) seals values;
+  - `src/session/session.ts` holds the sealed device record, tokens and Olm account (`loadAccount`/`saveAccount`) and the `api` client;
+  - `src/session/connection.ts` holds the Web Lock `pingdost-connection` (one gateway socket per browser) plus the BroadcastChannel `pingdost-session`. Grow it into the engine leader instead of adding a second lock.
+- Revocation and refused refreshes already wipe and return to pairing (`signOut`).
+- CSP: no inline scripts or styles. A service worker needs `worker-src 'self'` (already allowed); add the Web Push endpoint origins to `connect-src` only if fetches need them.
+- The main chunk is about 700 kB: lazy-load the chat routes and engine.

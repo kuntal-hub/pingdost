@@ -12,6 +12,7 @@ import {
   devicesApi,
   groupsApi,
   keysApi,
+  pairingApi,
   type ApiClient,
 } from '@pingdost/api-client';
 import type { CryptoProvider, OlmAccount, SigningKey } from '@pingdost/crypto';
@@ -23,8 +24,13 @@ import {
   type EngineOptions,
 } from '@pingdost/message-engine';
 import { uuidv7 } from '@pingdost/protocol/ids';
-import { deviceCertificateMessage, deviceRegistrationMessage } from '@pingdost/protocol/signing';
-import type { AuthTokens, IdentityKeys } from '@pingdost/shared-types';
+import { parsePairingQr } from '@pingdost/protocol/pairing';
+import {
+  deviceCertificateMessage,
+  deviceRegistrationMessage,
+  pairingApprovalMessage,
+} from '@pingdost/protocol/signing';
+import type { AuthTokens } from '@pingdost/shared-types';
 import { TransportRouter, WsTransport, type WebSocketFactory } from '@pingdost/transport';
 
 export interface Endpoints {
@@ -43,14 +49,6 @@ export interface SimClientOptions {
   /** E.g. to capture every WebSocket frame. */
   createSocket?: WebSocketFactory;
   log?: EngineLogger;
-}
-
-/** A device's keys before it is registered: what a linked device (Phase 16 pairing) needs. */
-export interface NewDeviceKeys {
-  deviceId: string;
-  identityKeys: IdentityKeys;
-  /** Signed by the account identity key. */
-  deviceCertificate: string;
 }
 
 async function otpFor(mailpit: string, email: string): Promise<string> {
@@ -151,22 +149,28 @@ export class SimClient {
   }
 
   /**
-   * Another device of `owner`'s account. Until QR pairing exists (Phase 16), `bind` registers
-   * the device out of band and returns tokens bound to it.
+   * Another device of `owner`'s account, linked the way a browser is (ADR 0019): a pairing
+   * request, the owner's approval (its device signature and the account certificate), then
+   * this device's proof of possession.
    */
   static async linkedDevice(
     options: SimClientOptions,
     owner: SimClient,
-    bind: (device: NewDeviceKeys) => Promise<AuthTokens>,
+    name = 'sim-browser',
   ): Promise<SimClient> {
     if (!owner.identity) throw new Error('only the primary device holds the identity key');
     const account = options.crypto.createAccount();
     const deviceId = uuidv7();
     const identityKeys = account.identityKeys();
-    const tokens = await bind({
-      deviceId,
-      identityKeys,
-      deviceCertificate: owner.identity.sign(deviceCertificateMessage(deviceId, identityKeys)),
+    const browser = pairingApi(createApiClient({ baseUrl: options.endpoints.api, retries: 0 }));
+    const request = await browser.create({ identityKeys, name });
+    const { pairingId, challenge } = request;
+    await owner.#approve(pairingId, challenge, deviceId, identityKeys);
+    const status = await browser.status(pairingId, request.pollSecret);
+    if (status.status !== 'approved' || !status.nonce) throw new Error('pairing not approved');
+    const { tokens } = await browser.complete(pairingId, {
+      pollSecret: request.pollSecret,
+      signature: account.sign(deviceRegistrationMessage(status.nonce, deviceId, identityKeys)),
     });
     const sim = new SimClient(
       options,
@@ -181,6 +185,43 @@ export class SimClient {
     );
     await sim.publishKeys(true);
     return sim;
+  }
+
+  /** As the primary phone: approves a browser for this account (ADR 0019). */
+  async #approve(
+    pairingId: string,
+    challenge: string,
+    deviceId: string,
+    keys: { curve25519: string; ed25519: string },
+  ): Promise<void> {
+    if (!this.identity) throw new Error('only the primary device can approve a browser');
+    const phone = pairingApi(this.api);
+    const details = await phone.inspect({ pairingId, challenge });
+    if (details.identityKeys.ed25519 !== keys.ed25519) {
+      throw new Error('the server shows other keys than the code');
+    }
+    await phone.approve({
+      pairingId,
+      challenge,
+      deviceId,
+      webKeys: keys,
+      signature: this.account.sign(pairingApprovalMessage(pairingId, challenge, deviceId, keys)),
+      deviceCertificate: this.identity.sign(deviceCertificateMessage(deviceId, keys)),
+    });
+  }
+
+  /**
+   * Approves the browser showing this pairing code, as the phone's scanner would. Returns the
+   * device ID it gave the browser.
+   */
+  async approveBrowser(code: string): Promise<string> {
+    const qr = parsePairingQr(code);
+    const deviceId = uuidv7();
+    await this.#approve(qr.pairingId, qr.challenge, deviceId, {
+      curve25519: qr.curve25519,
+      ed25519: qr.ed25519,
+    });
+    return deviceId;
   }
 
   /** Tops up one-time keys (and the fallback key on first setup). */

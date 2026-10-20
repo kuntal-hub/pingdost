@@ -14,7 +14,7 @@ export class Hasher {
 
   /** HMAC-SHA256(pepper, purpose ‖ 0x00 ‖ value), base64url. */
   hash(
-    purpose: 'otp' | 'refresh' | 'ip' | 'attachment-upload' | 'attachment-download',
+    purpose: 'otp' | 'refresh' | 'ip' | 'attachment-upload' | 'attachment-download' | 'pairing',
     value: string,
   ): string {
     return createHmac('sha256', this.#pepper)

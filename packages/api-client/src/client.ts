@@ -43,6 +43,8 @@ export interface RequestOptions<T> {
   response?: ZodType<T>;
   /** Send the access token; default true. */
   auth?: boolean;
+  /** Extra request headers (never put secrets in `query`: URLs end up in logs). */
+  headers?: Record<string, string>;
   signal?: AbortSignal;
   timeoutMs?: number;
 }
@@ -117,6 +119,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     const label = `${request.method} ${request.path}`;
     const headers: Record<string, string> = {
       accept: 'application/json, application/problem+json',
+      ...request.headers,
     };
     if (request.body !== undefined) headers['content-type'] = 'application/json';
     if (request.auth !== false) {

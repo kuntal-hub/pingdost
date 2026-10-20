@@ -51,6 +51,13 @@ export const DEFAULT_ROUTE_LIMITS = {
   attachmentBlob: { max: 600, timeWindow: 15 * MINUTE },
   /** WebSocket upgrades; frames on an open socket have their own per-socket limits. */
   wsConnect: { max: 60, timeWindow: 15 * MINUTE },
+  /** Web pairing (ADR 0019): a QR lives 2 minutes and is refreshed before it expires. */
+  pairingCreate: { max: 30, timeWindow: 15 * MINUTE },
+  /** About one poll every 2 s per open pairing screen. */
+  pairingPoll: { max: 900, timeWindow: 15 * MINUTE },
+  pairingComplete: { max: 30, timeWindow: 15 * MINUTE },
+  pairingInspect: { max: 60, timeWindow: 15 * MINUTE },
+  pairingApprove: { max: 30, timeWindow: 15 * MINUTE },
   metrics: { max: 120, timeWindow: 15 * MINUTE },
 } satisfies Record<string, RouteLimit>;
 

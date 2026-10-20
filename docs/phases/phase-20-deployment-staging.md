@@ -108,3 +108,5 @@ coturn (25); production launch (27, on the same VPS).
   - keep `TRUST_PROXY=true` for the per-IP limits.
 - Jobs: `attachment-janitor` runs every `ATTACHMENT_JANITOR_INTERVAL_SECONDS` (300). Alert on `pingdost_attachment_deletion_failures_total` increasing, `pingdost_attachments_oldest_age_seconds` above `ATTACHMENT_MAX_RETENTION_SECONDS`, and staged bytes near the total cap.
 - R2 (`ATTACHMENT_STORE=s3`, `ATTACHMENT_OBJECT_STORE_REGION=auto`) needs a card even on the free tier: only with the user's go-ahead.
+
+**From Phase 16 (ADR 0019):** serve the web app's CSP as a header (the same policy as `contentSecurityPolicy` in `apps/web/vite.config.ts`, without the dev nonce), plus `frame-ancestors 'none'`, HSTS and `Referrer-Policy: no-referrer`. Set `WEB_ORIGIN` to the Pages origin (CORS is limited to it), and `VITE_API_URL` / `VITE_WS_URL` at build time.

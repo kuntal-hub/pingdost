@@ -1,0 +1,49 @@
+{
+  "name": "@pingdost/web",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pingdost/api-client": "workspace:*",
+    "@pingdost/config": "workspace:*",
+    "@pingdost/crypto": "workspace:*",
+    "@pingdost/message-engine": "workspace:*",
+    "@pingdost/protocol": "workspace:*",
+    "@pingdost/shared-types": "workspace:*",
+    "@pingdost/transport": "workspace:*",
+    "@pingdost/ui-tokens": "workspace:*",
+    "@tanstack/react-query": "5.104.5",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "dexie": "4.4.6",
+    "lucide-react": "1.60.0",
+    "qrcode-generator": "2.0.4",
+    "radix-ui": "1.8.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-router": "8.5.0",
+    "tailwind-merge": "3.7.0",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "catalog:",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "fake-indexeddb": "6.2.6",
+    "tailwindcss": "4.3.3",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

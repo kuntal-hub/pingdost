@@ -16,6 +16,8 @@ export const SIGNING_CONTEXTS = {
   oneTimeKey: 'pingdost/one-time-key/v1',
   /** Signed by the device's ed25519 key for its fallback key. */
   fallbackKey: 'pingdost/fallback-key/v1',
+  /** Signed by the primary phone's device key: it approves this browser (ADR 0019). */
+  pairingApproval: 'pingdost/pairing-approval/v1',
 } as const;
 
 export const KEY_BYTES = 32;
@@ -94,6 +96,25 @@ export function deviceRegistrationMessage(
     nonceBytes,
     deviceIdBytes(deviceId),
     ...identityBytes(keys),
+  ]);
+}
+
+/**
+ * context ‖ pairingId (16) ‖ challenge (32) ‖ webDeviceId (16) ‖ curve25519 (32) ‖ ed25519 (32):
+ * the phone approves exactly this pairing request for exactly these browser keys.
+ */
+export function pairingApprovalMessage(
+  pairingId: string,
+  challenge: string,
+  webDeviceId: string,
+  webKeys: DeviceIdentityKeys,
+): Uint8Array {
+  return concat([
+    context(SIGNING_CONTEXTS.pairingApproval),
+    deviceIdBytes(pairingId),
+    exactBytes(challenge, NONCE_BYTES, 'challenge'),
+    deviceIdBytes(webDeviceId),
+    ...identityBytes(webKeys),
   ]);
 }
 

@@ -50,3 +50,5 @@ Recovery backups (19).
   - `buildManifest({ media })` for width, height, duration and waveform.
 - Send: `engine.sendAttachment(id, manifest, { held: true })` stores the message while it uploads, then `engine.releaseAttachment(messageId)` sends it. Android's runner (`apps/mobile/src/attachments/transfers.ts`) is the model: thumbnail first, recipients fixed at the first attempt, release after the file upload completes.
 - Android does not send file names for photos, videos or voice notes; only documents carry one.
+
+**From Phase 16 (ADR 0019):** after pairing, the phone refetches its own directory (`engine.refreshDevices`), so new messages reach the browser. There is no Olm session between them until the first message: the sync request can open one (it is a normal own-device Olm session). The browser's device record has `userId`, `username`, `accountIdentityKey` and `linkedAt` (`LinkedDevice`).

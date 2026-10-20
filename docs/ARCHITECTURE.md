@@ -218,6 +218,11 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - **Install and push:** vite-plugin-pwa (manifest + service worker) for install and Web Push.
 - **Crypto:** WASM crypto loaded lazily. A single-tab leader (Web Locks API) owns the WebSocket and the engine; other tabs follow via BroadcastChannel.
 - ⚠ **Web devices authenticate only through QR pairing** from the primary mobile device (REQ §13.1). There is no password or Google login on web.
+  - (ADR 0019) The browser's request is approved by the phone (device signature plus account certificate), then the browser proves its keys. Only then is it registered (`platform: web`, `role: linked`) with device-bound tokens.
+  - Storage: Dexie `pingdost`, values sealed with a non-extractable AES-GCM key.
+  - CSP: no inline code; `'wasm-unsafe-eval'` for the crypto module.
+  - One tab holds the gateway socket (Web Lock `pingdost-connection`).
+  - Versions: Vite 8.3.4, React 19.3.0, React Router 8.5.0, TanStack Query 5.104.5, Tailwind 4.3.3, Dexie 4.4.6.
 - **Hosting:** Cloudflare Pages (free), with a strict CSP.
 
 ## A8. Conventions

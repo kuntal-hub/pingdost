@@ -17,6 +17,49 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-20 — Phase 16: Web foundation + QR pairing — 🔄 partial (real-phone checks open)
+**Done (ADR 0019):**
+- **Pairing protocol** (server `modules/pairing`):
+  - `POST /v1/pairing/requests`, `GET …/:id` (header `x-pairing-secret`), `POST …/:id/complete`, `POST /v1/pairing/inspect`, `POST /v1/pairing/approve`;
+  - single use, TTL index cleanup, rate limits, audit `pairing_approve`/`device_link`;
+  - the device row is created only after the browser's proof of possession.
+  - `@fastify/cors` 11.3.1 is limited to `WEB_ORIGIN`. `AuthService.linkedDeviceSession`.
+- **Shared:** protocol `pairingApprovalMessage` (context `pingdost/pairing-approval/v1`) and `encodePairingQr`/`parsePairingQr` (also at the `@pingdost/protocol/pairing` subpath); shared-types pairing DTOs (inspect, `deviceId` on approve); api-client `pairingApi` and per-request `headers`.
+- **`apps/web`:**
+  - Vite 8 + React 19.3 + React Router 8 + TanStack Query + Zustand + Tailwind 4 (shadcn-style Button/Card/Alert on ui-tokens via CSSOM) + Dexie;
+  - strict CSP (dev nonce only in `vite dev`); lazy WASM crypto;
+  - sealed storage (`db/vault.ts`: non-extractable AES-GCM key, AAD = record name);
+  - pairing screen (QR, renewal before expiry, storage note); app shell (chats placeholder, settings with Unlink);
+  - one gateway socket per browser (Web Lock); revocation wipes every tab.
+- **Android:** Settings → Devices → **Link a browser** (scanner, inspect with a key check, approve with the device key plus account certificate, wait for the browser, refresh own directory). Removing a browser refreshes the directory too.
+- **Dev:** `pnpm --filter @pingdost/sim-client phone -- --code '…' [--revoke-after N]`. `SimClient.linkedDevice` pairs for real, and the tests' out-of-band `bindLinkedDevice` is gone.
+
+**Remaining (device checks with the real phone):**
+- [ ] The phone pairs desktop Chrome and a second browser; both show as linked under Devices; removing one wipes it (it returns to the pairing screen with the notice).
+- [ ] A screenshot of an old QR code scanned after it expired is refused ("This code expired"), and a code scanned twice is refused ("used already").
+- [ ] Settings → Unlink this browser on the web: the phone's list shows it removed.
+- Steps: `pnpm infra:up`; `pnpm --filter @pingdost/server dev`; copy `apps/web/.env.example` to `apps/web/.env` (done on this PC), then `pnpm --filter @pingdost/web dev`; open http://localhost:5173. The phone build needs `pnpm --filter @pingdost/mobile android` (the Phase 15/16 code is in it). For a phone on the LAN, the web page must use an API URL the phone can also reach, but pairing itself only needs the phone to reach the API.
+
+**Deviations / decisions:** ADR 0019. The device row is created at completion, not at approval (no orphan device for a browser that never finishes). The phone picks the browser's device ID.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 46/46 tasks (protocol 97, mobile 82, web 7, engine 95, …). `pnpm format:check` clean. `pnpm --filter @pingdost/web build` OK: the WASM is a separate 1.1 MB asset and the main chunk is 700 kB.
+- `pnpm test:int`: server 141 passed, 2 skipped (`pairing.int.test.ts` 8; the engine and groups linked-device scenarios now pair for real).
+- **Browser check** (Chrome on this PC, the phone simulated with the CLI):
+  - the pairing page rendered under the CSP and the WASM loaded;
+  - approval led to the app shell, connected;
+  - IndexedDB held only sealed records and a non-extractable key;
+  - revoking from the "phone" pushed `Revoked`, wiped the data and showed the notice with a fresh QR.
+- **Not run:** Settings → Unlink in the browser. Claude Code stopped the background API and web dev servers when the PC ran low on memory, and they were not restarted.
+
+**Known issues / tech debt:**
+- The web main chunk is about 700 kB (protocol plus engine through `publishKeys`): split it in Phase 17.
+- No Web Worker for crypto yet.
+- Two tabs: only the lock holder connects. The others show "Connecting…" until it closes (Phase 17 gives followers the leader's state).
+- `vite dev` in StrictMode creates one extra pairing request on load (harmless; it expires).
+
+**Next:** Phase 17 (web chat). Phases 10–16 have device checks open, and Phase 12 needs the Firebase setup.
+
 ## 2026-10-20 — Phase 15: Attachments UX (Android) — 🔄 partial (device checks open)
 **Done (ADR 0018):**
 - **Shared packages:**

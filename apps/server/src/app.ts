@@ -4,6 +4,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
+import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
@@ -13,7 +14,7 @@ import type { Logger } from 'pino';
 
 import type { ServerConfig } from '@pingdost/config';
 import { limitsFor } from '@pingdost/protocol';
-import type { PushProvider } from '@pingdost/shared-types';
+import { PAIRING_SECRET_HEADER, type PushProvider } from '@pingdost/shared-types';
 
 import { systemClock, type Clock } from './infra/clock';
 import { AppError, registerErrorHandling } from './infra/errors';
@@ -63,6 +64,9 @@ import { healthRoutes } from './modules/health/routes';
 import { keyIndexes, oneTimeKeys } from './modules/keys/repo';
 import { keyRoutes } from './modules/keys/routes';
 import { KeyService } from './modules/keys/service';
+import { pairingIndexes, pairingRequests } from './modules/pairing/repo';
+import { pairingRoutes } from './modules/pairing/routes';
+import { PairingService } from './modules/pairing/service';
 import { createPushSenders } from './modules/push';
 import { noopPushNotifier, type PushNotifier, type PushSender } from './modules/push/notifier';
 import { pushTokenIndexes, PushTokens } from './modules/push/repo';
@@ -111,6 +115,7 @@ export const INDEXES: readonly IndexSetup[] = [
   pushTokenIndexes,
   groupIndexes,
   attachmentIndexes,
+  pairingIndexes,
   schedulerIndexes,
 ];
 
@@ -151,6 +156,14 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     void reply.header('x-request-id', request.id);
   });
 
+  // The web app is the only browser origin allowed to call the API (ADR 0019).
+  await app.register(cors, {
+    origin: [config.WEB_ORIGIN],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: ['authorization', 'content-type', PAIRING_SECRET_HEADER],
+    exposedHeaders: ['x-request-id', 'retry-after'],
+    maxAge: 600,
+  });
   await app.register(rateLimit, {
     global: false,
     errorResponseBuilder: (_request, context) =>
@@ -306,6 +319,17 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     onPrivacyChanged: (userId) => presence.invalidate(userId),
   });
   await app.register(deviceRoutes, { service: deviceService, authenticate, limits });
+  const pairing = new PairingService({
+    requests: pairingRequests(db),
+    devices,
+    auth: collections,
+    authService,
+    events,
+    hasher,
+    clock,
+    ttlSeconds: config.WEB_PAIRING_TTL_SECONDS,
+  });
+  await app.register(pairingRoutes, { service: pairing, authenticate, limits });
   await app.register(keyRoutes, { service: keyService, authenticate, limits });
   await app.register(securityRoutes, {
     blocks,

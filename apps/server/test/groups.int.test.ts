@@ -19,19 +19,13 @@ import {
   decodeServerFrame,
   uuidv7,
 } from '@pingdost/protocol';
-import type { AuthTokens, Group } from '@pingdost/shared-types';
-import {
-  capturingSocket,
-  SimClient,
-  type NewDeviceKeys,
-  type SimClientOptions,
-} from '@pingdost/sim-client';
+import type { Group } from '@pingdost/shared-types';
+import { capturingSocket, SimClient, type SimClientOptions } from '@pingdost/sim-client';
 import type { WebSocketFactory, WebSocketLike } from '@pingdost/transport';
 
 import { cryptoProvider } from './devices';
 import { bearer, json, MAILPIT_URL, startTestServer, type TestServer } from './helpers';
 import { deviceSession, envelopePacket, TestSocket, type TestDeviceSession } from './ws';
-import type { DeviceDoc } from '../src/modules/device/repo';
 
 let crypto: CryptoProvider;
 let server: TestServer;
@@ -390,9 +384,7 @@ describe('group chats end to end', () => {
   it('reaches both devices of a member; a message that beats its key waits for it', async () => {
     const alice = await sim({ createSocket: delayingRoomKeys(capturingSocket(frames), 600) });
     const bob = await sim();
-    const bob2 = await SimClient.linkedDevice(options(), bob, (keys) =>
-      bindLinkedDevice(bob, keys),
-    );
+    const bob2 = await SimClient.linkedDevice(options(), bob);
     clients.push(bob2);
     await bob2.start();
     const carol = await sim();
@@ -413,50 +405,3 @@ describe('group chats end to end', () => {
     );
   });
 });
-
-/** A linked device for `owner`, bound out of band until QR pairing exists (Phase 16). */
-async function bindLinkedDevice(owner: SimClient, keys: NewDeviceKeys): Promise<AuthTokens> {
-  const login = await server.app.inject({
-    method: 'POST',
-    url: '/v1/auth/login',
-    payload: { identifier: owner.username, password: owner.password },
-  });
-  const { tokens } = json<{ tokens: AuthTokens }>(login);
-  const sessions = server.mongo.db.collection<{
-    _id: string;
-    userId: string;
-    deviceId: string | null;
-    createdAt: Date;
-  }>('sessions');
-  const session = await sessions.findOne(
-    { userId: owner.userId, deviceId: null },
-    { sort: { createdAt: -1 } },
-  );
-  if (!session) throw new Error('no fresh session');
-  const now = new Date();
-  await server.mongo.db.collection<DeviceDoc>('devices').insertOne({
-    _id: keys.deviceId,
-    userId: owner.userId,
-    platform: 'web',
-    role: 'linked',
-    name: 'linked sim',
-    identityKeys: keys.identityKeys,
-    deviceCertificate: keys.deviceCertificate,
-    fallbackKey: null,
-    keyVersion: 1,
-    status: 'active',
-    createdAt: now,
-    revokedAt: null,
-    lastSeenAt: now,
-  });
-  await server.mongo.db
-    .collection('users')
-    .updateOne({ _id: owner.userId as never }, { $inc: { keyVersion: 1 } });
-  await sessions.updateOne({ _id: session._id }, { $set: { deviceId: keys.deviceId } });
-  const refreshed = await server.app.inject({
-    method: 'POST',
-    url: '/v1/auth/refresh',
-    payload: { refreshToken: tokens.refreshToken },
-  });
-  return json<AuthTokens>(refreshed);
-}

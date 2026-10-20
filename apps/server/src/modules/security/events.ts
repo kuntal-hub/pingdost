@@ -24,7 +24,11 @@ export type SecurityEventType =
   | 'google_link'
   | 'device_register'
   | 'device_resume'
-  | 'device_revoke';
+  | 'device_revoke'
+  /** The primary phone approved a browser (ADR 0019). */
+  | 'pairing_approve'
+  /** The approved browser proved its keys and became a linked device. */
+  | 'device_link';
 
 export interface SecurityEventDoc {
   _id: string;
