@@ -45,6 +45,20 @@ describe('loadPublicConfig', () => {
     ).toThrow(/EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: must end with/);
   });
 
+  it('reads the optional Web Push public key', () => {
+    const webPushPublicKey = `B${'A'.repeat(86)}`;
+    const base = {
+      VITE_API_URL: 'http://localhost:3000',
+      VITE_WS_URL: 'ws://localhost:3000/v1/ws',
+    };
+    expect(
+      loadPublicConfig({ ...base, VITE_WEB_PUSH_PUBLIC_KEY: webPushPublicKey }, 'VITE_'),
+    ).toMatchObject({ webPushPublicKey });
+    expect(() => loadPublicConfig({ ...base, VITE_WEB_PUSH_PUBLIC_KEY: 'short' }, 'VITE_')).toThrow(
+      /VITE_WEB_PUSH_PUBLIC_KEY/,
+    );
+  });
+
   it('reports missing and invalid variables by their prefixed names', () => {
     let error: unknown;
     try {

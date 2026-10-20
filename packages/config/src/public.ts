@@ -50,6 +50,8 @@ export interface PublicConfig {
    * sign-in.
    */
   googleWebClientId?: string;
+  /** The server's VAPID public key (Web Push, ADR 0020); absent hides web notifications. */
+  webPushPublicKey?: string;
 }
 
 const publicEnvSchema = z.object({
@@ -58,6 +60,10 @@ const publicEnvSchema = z.object({
   GOOGLE_WEB_CLIENT_ID: z
     .string()
     .regex(/\.apps\.googleusercontent\.com$/, 'must end with .apps.googleusercontent.com')
+    .optional(),
+  WEB_PUSH_PUBLIC_KEY: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{80,100}$/, 'must be the base64url VAPID public key')
     .optional(),
 });
 
@@ -82,10 +88,11 @@ export function loadPublicConfig(
   if (!parsed.success) {
     throw new ConfigError('public', formatZodIssues(parsed.error, input, prefix));
   }
-  const { API_URL, WS_URL, GOOGLE_WEB_CLIENT_ID } = parsed.data;
+  const { API_URL, WS_URL, GOOGLE_WEB_CLIENT_ID, WEB_PUSH_PUBLIC_KEY } = parsed.data;
   return {
     apiUrl: API_URL,
     wsUrl: WS_URL,
     ...(GOOGLE_WEB_CLIENT_ID === undefined ? {} : { googleWebClientId: GOOGLE_WEB_CLIENT_ID }),
+    ...(WEB_PUSH_PUBLIC_KEY === undefined ? {} : { webPushPublicKey: WEB_PUSH_PUBLIC_KEY }),
   };
 }

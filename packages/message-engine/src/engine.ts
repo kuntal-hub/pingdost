@@ -139,6 +139,11 @@ export class MessageEngine {
     return this.#core.subscribe(conversationId, listener);
   }
 
+  /** Every conversation's events, e.g. to relay them to other browser tabs (ADR 0020). */
+  subscribeAll(listener: (conversationId: string, event: ConversationEvent) => void): () => void {
+    return this.#core.subscribeAll(listener);
+  }
+
   /** Something in the chat list changed (new message, state, unread count, a group). */
   onConversationListChanged(listener: () => void): () => void {
     return this.#core.onConversationListChanged(listener);

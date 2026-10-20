@@ -4,7 +4,7 @@
 // bound to its record name as associated data, so sealed values cannot be swapped between
 // records. Weaker than a phone keystore: anyone running script on this origin, or with access
 // to the unlocked browser profile, can use the key; the UI says so.
-import type { PingdostDb, SealedRow } from './db';
+import type { PingdostDb, SealedRow, VaultKey } from './db';
 
 const VAULT_KEY_ID = 'vault';
 const AAD_PREFIX = 'pingdost/web-record/v1\u0000';
@@ -19,7 +19,7 @@ export interface Sealed {
 }
 
 /** This browser's vault key, created on first use. */
-export async function vaultKey(db: PingdostDb): Promise<CryptoKey> {
+export async function vaultKey(db: PingdostDb): Promise<VaultKey> {
   const existing = await db.keys.get(VAULT_KEY_ID);
   if (existing) return existing.key;
   const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
@@ -36,7 +36,7 @@ export async function vaultKey(db: PingdostDb): Promise<CryptoKey> {
 const aad = (context: string) => encoder.encode(AAD_PREFIX + context);
 
 export async function encryptBytes(
-  key: CryptoKey,
+  key: VaultKey,
   plaintext: Uint8Array,
   context: string,
 ): Promise<Sealed> {
@@ -51,7 +51,7 @@ export async function encryptBytes(
 
 /** Throws (`OperationError`) if the value was altered or belongs to another record. */
 export async function decryptBytes(
-  key: CryptoKey,
+  key: VaultKey,
   sealed: Sealed,
   context: string,
 ): Promise<Uint8Array> {
@@ -64,15 +64,11 @@ export async function decryptBytes(
 }
 
 /** Seals a JSON value (bytes inside it must be base64 first). */
-export function encryptRecord(key: CryptoKey, value: unknown, context: string): Promise<Sealed> {
+export function encryptRecord(key: VaultKey, value: unknown, context: string): Promise<Sealed> {
   return encryptBytes(key, encoder.encode(JSON.stringify(value)), context);
 }
 
-export async function decryptRecord<T>(
-  key: CryptoKey,
-  sealed: Sealed,
-  context: string,
-): Promise<T> {
+export async function decryptRecord<T>(key: VaultKey, sealed: Sealed, context: string): Promise<T> {
   return JSON.parse(decoder.decode(await decryptBytes(key, sealed, context))) as T;
 }
 
@@ -80,7 +76,7 @@ export async function decryptRecord<T>(
 export class SealedRecords {
   constructor(
     private readonly db: PingdostDb,
-    private readonly key: CryptoKey,
+    private readonly key: VaultKey,
   ) {}
 
   async get<T>(id: string): Promise<T | undefined> {

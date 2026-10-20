@@ -22,6 +22,7 @@ import {
   publishKeys,
   type EngineLogger,
   type EngineOptions,
+  type EngineStore,
 } from '@pingdost/message-engine';
 import { uuidv7 } from '@pingdost/protocol/ids';
 import { parsePairingQr } from '@pingdost/protocol/pairing';
@@ -49,6 +50,8 @@ export interface SimClientOptions {
   /** E.g. to capture every WebSocket frame. */
   createSocket?: WebSocketFactory;
   log?: EngineLogger;
+  /** Another EngineStore for this device (default: in memory). */
+  store?: EngineStore;
 }
 
 async function otpFor(mailpit: string, email: string): Promise<string> {
@@ -71,6 +74,7 @@ async function otpFor(mailpit: string, email: string): Promise<string> {
 }
 
 export class SimClient {
+  /** The in-memory store, unless options.store replaces it (e.g. the web's Dexie store). */
   readonly store = new MemoryEngineStore();
   readonly pickleKey = new Uint8Array(randomBytes(32));
   readonly api: ApiClient;
@@ -230,7 +234,7 @@ export class SimClient {
       account: this.account,
       deviceId: this.deviceId,
       keys: keysApi(this.api),
-      saveAccount: () => this.store.apply({ account: this.account.pickle(this.pickleKey) }),
+      saveAccount: () => this.engineStore.apply({ account: this.account.pickle(this.pickleKey) }),
       needsFallbackKey,
     });
   }
@@ -254,6 +258,11 @@ export class SimClient {
     await this.start();
   }
 
+  /** The store the engine runs on. */
+  get engineStore(): EngineStore {
+    return this.options.store ?? this.store;
+  }
+
   #makeEngine(): [WsTransport, TransportRouter, MessageEngine] {
     const { options } = this;
     const transport = new WsTransport({
@@ -274,7 +283,7 @@ export class SimClient {
       crypto: options.crypto,
       account: this.account,
       pickleKey: this.pickleKey,
-      store: this.store,
+      store: this.engineStore,
       transport: router,
       api: { ...keys, keys, groups: groupsApi(this.api) },
       ...(options.settings ? { settings: options.settings } : {}),

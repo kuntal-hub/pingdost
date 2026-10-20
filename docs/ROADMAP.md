@@ -22,7 +22,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 14 | [Attachments core](phases/phase-14-attachments-core.md) | 09 | ✅ |
 | 15 | [Attachments UX (Android)](phases/phase-15-attachments-android-ux.md) | 10, 14 | 🔄 |
 | 16 | [Web foundation + QR pairing](phases/phase-16-web-pairing.md) | 09, 10 | 🔄 |
-| 17 | [Web chat](phases/phase-17-web-chat.md) | 13, 16 | ⬜ |
+| 17 | [Web chat](phases/phase-17-web-chat.md) | 13, 16 | 🔄 |
 | 18 | [History sync + web attachments](phases/phase-18-history-sync.md) | 15, 17 | ⬜ |
 | 19 | [Recovery & backup](phases/phase-19-recovery-backup.md) | 13, 16 | ⬜ |
 | 20 | [Deployment (staging)](phases/phase-20-deployment-staging.md) | 12, 14 | ⬜ |

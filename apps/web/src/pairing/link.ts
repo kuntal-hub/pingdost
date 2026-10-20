@@ -11,7 +11,6 @@ import {
   savePairing,
   type LinkedDevice,
 } from '@/session/session';
-import { publishKeys } from '@pingdost/message-engine';
 
 import { pairBrowser, type PairingDeps } from './pairing';
 
@@ -39,6 +38,8 @@ export async function linkThisBrowser(
       name: linked.device.name,
       linkedAt: linked.device.createdAt,
     };
+    // Loaded only now: the engine is a large part of the app.
+    const { publishKeys } = await import('@pingdost/message-engine');
     await publishKeys({
       account,
       deviceId: device.deviceId,

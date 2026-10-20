@@ -1,0 +1,173 @@
+// The tabs of one browser talk over a BroadcastChannel (ADR 0020). The leader tab answers
+// calls and announces everything that changes; followers ask and listen. Messages are
+// structured-cloned, so only plain data crosses (errors as `WireError`).
+import type { ConversationEvent, EngineEvent } from '@pingdost/message-engine';
+import type { PrivacyPrefs } from '@pingdost/shared-types';
+import type { TransportStatus } from '@pingdost/transport';
+
+import {
+  ENGINE_METHODS,
+  RemoteError,
+  type ChatClient,
+  type ChatEvents,
+  type EngineMethod,
+  type WireError,
+} from './client';
+
+export const CHANNEL = 'pingdost-chat';
+
+export type BusMessage =
+  | { type: 'hello'; tab: string }
+  | { type: 'leader'; tab: string }
+  | {
+      type: 'call';
+      id: string;
+      from: string;
+      method: EngineMethod | 'watchPresence';
+      args: unknown[];
+    }
+  | { type: 'result'; id: string; to: string; ok: true; value: unknown }
+  | { type: 'result'; id: string; to: string; ok: false; error: WireError }
+  | { type: 'conversation'; conversationId: string; event: ConversationEvent }
+  | { type: 'list' }
+  | { type: 'engine'; event: EngineEvent }
+  | { type: 'status'; status: TransportStatus }
+  | { type: 'presence'; userId: string; online: boolean }
+  | { type: 'prefs'; privacy: PrivacyPrefs | null; blocked: string[] }
+  /** A follower changed privacy settings or blocks: the leader reloads them. */
+  | { type: 'prefs_changed' }
+  | { type: 'signed_out'; notice?: string };
+
+/** A call that waits longer than this failed (the leader is gone or busy). */
+const CALL_TIMEOUT_MS = 30_000;
+
+interface Pending {
+  resolve(value: unknown): void;
+  reject(error: Error): void;
+  timer: ReturnType<typeof setTimeout>;
+}
+
+/** A follower's client: every method is a call to the leader tab. */
+export class RemoteChat {
+  readonly client: ChatClient;
+  #leader: string | undefined;
+  #ready: Promise<void>;
+  #markReady!: () => void;
+  readonly #pending = new Map<string, Pending>();
+  readonly #conversation = new Map<string, Set<(event: ConversationEvent) => void>>();
+  readonly #list = new Set<() => void>();
+  readonly #engine = new Set<(event: EngineEvent) => void>();
+
+  constructor(
+    private readonly channel: BroadcastChannel,
+    private readonly tab: string,
+  ) {
+    this.#ready = new Promise((resolve) => (this.#markReady = resolve));
+    const call =
+      (method: EngineMethod | 'watchPresence') =>
+      (...args: unknown[]) =>
+        this.#call(method, args);
+    const methods = Object.fromEntries(ENGINE_METHODS.map((name) => [name, call(name)]));
+    const events: ChatEvents = {
+      subscribe: (conversationId, listener) => {
+        let set = this.#conversation.get(conversationId);
+        if (!set) this.#conversation.set(conversationId, (set = new Set()));
+        set.add(listener);
+        return () => {
+          set.delete(listener);
+        };
+      },
+      onListChanged: (listener) => {
+        this.#list.add(listener);
+        return () => {
+          this.#list.delete(listener);
+        };
+      },
+      onEngineEvent: (listener) => {
+        this.#engine.add(listener);
+        return () => {
+          this.#engine.delete(listener);
+        };
+      },
+    };
+    // The engine methods are built from their names, so the compiler cannot check them here.
+    this.client = {
+      ...methods,
+      watchPresence: call('watchPresence'),
+      ...events,
+    } as unknown as ChatClient;
+    channel.postMessage({ type: 'hello', tab } satisfies BusMessage);
+  }
+
+  async #call(method: EngineMethod | 'watchPresence', args: unknown[]): Promise<unknown> {
+    await this.#ready;
+    const id = crypto.randomUUID();
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.#pending.delete(id);
+        reject(
+          new RemoteError({ name: 'Timeout', message: 'PingDost did not answer. Try again.' }),
+        );
+      }, CALL_TIMEOUT_MS);
+      this.#pending.set(id, { resolve, reject, timer });
+      this.channel.postMessage({
+        type: 'call',
+        id,
+        from: this.tab,
+        method,
+        args,
+      } satisfies BusMessage);
+    });
+  }
+
+  /** Handles what the leader sends. */
+  handle(message: BusMessage): void {
+    switch (message.type) {
+      case 'leader':
+        if (this.#leader !== undefined && this.#leader !== message.tab) {
+          // The old leader went away: its answers will not come.
+          for (const [id, pending] of this.#pending) {
+            clearTimeout(pending.timer);
+            pending.reject(
+              new RemoteError({
+                name: 'Moved',
+                message: 'PingDost moved to another tab. Try again.',
+              }),
+            );
+            this.#pending.delete(id);
+          }
+        }
+        this.#leader = message.tab;
+        this.#markReady();
+        for (const listener of this.#list) listener();
+        break;
+      case 'result': {
+        if (message.to !== this.tab) return;
+        const pending = this.#pending.get(message.id);
+        if (!pending) return;
+        this.#pending.delete(message.id);
+        clearTimeout(pending.timer);
+        if (message.ok) pending.resolve(message.value);
+        else pending.reject(new RemoteError(message.error));
+        break;
+      }
+      case 'conversation':
+        for (const listener of this.#conversation.get(message.conversationId) ?? [])
+          listener(message.event);
+        break;
+      case 'list':
+        for (const listener of this.#list) listener();
+        break;
+      case 'engine':
+        for (const listener of this.#engine) listener(message.event);
+        break;
+      default:
+        break;
+    }
+  }
+
+  dispose(): void {
+    for (const pending of this.#pending.values()) clearTimeout(pending.timer);
+    this.#pending.clear();
+  }
+}

@@ -52,3 +52,10 @@ Recovery backups (19).
 - Android does not send file names for photos, videos or voice notes; only documents carry one.
 
 **From Phase 16 (ADR 0019):** after pairing, the phone refetches its own directory (`engine.refreshDevices`), so new messages reach the browser. There is no Olm session between them until the first message: the sync request can open one (it is a normal own-device Olm session). The browser's device record has `userId`, `username`, `accountIdentityKey` and `linkedAt` (`LinkedDevice`).
+
+**From Phase 17 (ADR 0020):**
+- The web engine runs only in the leader tab (`apps/web/src/chat/leader.ts`). Run sync and attachment transfers there, and reach them from other tabs through the bus (`chat/bus.ts`; add message types rather than a second channel).
+- `ChatClient` already relays `attachmentRecipients`, `sendAttachment` and `releaseAttachment`.
+- `features/attachments/attachment-view.tsx` is the placeholder the bubble renders for attachments: replace it.
+- Store-wise, a `device_sync_state` equivalent belongs in `packages/web-store` (a new Dexie version), sealed like the rest.
+- Server tests can run a browser-like device on the Dexie store: `SimClient` with `store: new DexieEngineStore(...)` (see `apps/server/test/web.int.test.ts`).

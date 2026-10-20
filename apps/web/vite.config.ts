@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 /** Dev only: Vite's injected scripts and styles carry it. Never used in a build. */
 const DEV_NONCE = 'pingdost-dev-nonce';
@@ -40,7 +41,8 @@ export function contentSecurityPolicy(options: {
     "default-src 'self'",
     `script-src 'self' 'wasm-unsafe-eval'${nonce}`,
     `style-src 'self'${nonce}`,
-    "img-src 'self' data: blob:",
+    // Profile pictures are public Cloudinary URLs (ADR 0008); group pictures are `data:`.
+    "img-src 'self' data: blob: https://res.cloudinary.com",
     "media-src 'self' blob:",
     "font-src 'self'",
     `connect-src ${connect.join(' ')}`,
@@ -67,11 +69,51 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
   const dev = command === 'serve';
   return {
-    plugins: [react(), tailwindcss(), csp(env, dev)],
+    plugins: [
+      react(),
+      tailwindcss(),
+      csp(env, dev),
+      // Install, the offline shell and Web Push (ADR 0020). The service worker exists only in
+      // builds (`build` + `preview`), never in `vite dev`.
+      VitePWA({
+        strategies: 'injectManifest',
+        srcDir: 'src/sw',
+        filename: 'sw.ts',
+        injectRegister: false,
+        manifest: {
+          name: 'PingDost',
+          short_name: 'PingDost',
+          description: 'Private, end-to-end encrypted messages, linked to your phone.',
+          start_url: '/',
+          scope: '/',
+          display: 'standalone',
+          background_color: '#0B1220',
+          theme_color: '#0B7A64',
+          icons: [
+            { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+            {
+              src: '/icons/icon-maskable-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+          ],
+        },
+        injectManifest: {
+          rollupFormat: 'iife',
+          globPatterns: ['**/*.{js,css,html,svg,png,wasm}'],
+          // The crypto module is about 1.1 MB.
+          maximumFileSizeToCacheInBytes: 4 * 1_048_576,
+        },
+        devOptions: { enabled: false },
+      }),
+    ],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     html: dev ? { cspNonce: DEV_NONCE } : {},
     server: { port: 5173, strictPort: true },
-    preview: { port: 4173, strictPort: true },
+    // The same origin as `vite dev`, so the server's WEB_ORIGIN fits both.
+    preview: { port: 5173, strictPort: true },
     build: { target: 'es2022', sourcemap: true },
   };
 });

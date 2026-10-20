@@ -222,6 +222,9 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Storage: Dexie `pingdost`, values sealed with a non-extractable AES-GCM key.
   - CSP: no inline code; `'wasm-unsafe-eval'` for the crypto module.
   - One tab holds the gateway socket (Web Lock `pingdost-connection`).
+  - (ADR 0020) The lock holder also runs the engine on `DexieEngineStore` (`packages/web-store`: sealed rows, one transaction per batch, in-memory search). Other tabs call it over BroadcastChannel `pingdost-chat`.
+  - Web Push: VAPID, a service worker that shows only "New message". The PWA's offline shell is precached.
+  - Shared chat wording: `@pingdost/chat-core`.
   - Versions: Vite 8.3.4, React 19.3.0, React Router 8.5.0, TanStack Query 5.104.5, Tailwind 4.3.3, Dexie 4.4.6.
 - **Hosting:** Cloudflare Pages (free), with a strict CSP.
 

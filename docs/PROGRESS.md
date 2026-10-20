@@ -17,6 +17,46 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-20 — Phase 17: Web chat (1:1 + groups) + Web Push + PWA — 🔄 partial (browser checks open)
+**Done (ADR 0020):**
+- **`packages/web-store`** (moved from `apps/web/src/db`): `DexieEngineStore` (sealed rows, one IndexedDB transaction per batch, an IV-keyed cache, an in-memory search index) passes the full store contract. A portable `VaultKey` type lets Node programs use it.
+- **`packages/chat-core`**: the mobile labels and timeline, now shared (mobile re-exports them).
+- **Engine:** `subscribeAll`. **Sim client:** a `store` option.
+- **Web:**
+  - leader/follower tabs (Web Lock plus BroadcastChannel RPC, handoff, revocation to all tabs);
+  - chat list, virtualized chat view (react-virtuoso), bubbles (quote, reactions, edit, delete, info, retry) and composer (reply, edit, typing, ↑ to edit);
+  - new chat and group, contact page (safety number, QR, verify, block), group page (info, roles, add, remove, leave), message info, search, settings (privacy synced, notifications, shortcuts, unlink);
+  - in-page notices from the leader;
+  - service worker (injectManifest: precache, offline shell, "New message" push, click to focus) and PWA manifest with icons;
+  - code split: the first chunk is about 264 kB.
+- **Config:** optional `VITE_WEB_PUSH_PUBLIC_KEY`. **Server:** `pnpm --filter @pingdost/server vapid-keys`.
+
+**Remaining (browser checks; the dev servers were not running for them):**
+- [ ] Phone ↔ web in a real browser, 1:1 and in a group, with the real phone.
+- [ ] Two tabs open: one socket only (DevTools → Network → WS), both tabs current; close the leader tab and the other takes over.
+- [ ] Web Push with the tab closed (Chrome) shows only "New message":
+  1. `pnpm --filter @pingdost/server vapid-keys` and copy the output into `.env` and `apps/web/.env`;
+  2. restart the server;
+  3. `pnpm --filter @pingdost/web build`, then `pnpm --filter @pingdost/web preview`;
+  4. Settings → Turn notifications on; close the tab; send from the phone.
+- [ ] Offline: with the server stopped, the app opens and shows history; a message written offline sends when the server is back.
+
+**Deviations / decisions:** ADR 0020. Receipts stay with the sending device; copies from your other device show "sent from your other device". Search uses an in-memory index rebuilt from Dexie, not MiniSearch.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 52/52 tasks (web-store 21, chat-core 7, web 7, mobile 75, engine 95, …). `pnpm format:check` clean.
+- `pnpm --filter @pingdost/web build` OK: the service worker precaches 41 entries.
+- `pnpm test:int`: server 142 passed, 2 skipped. New `web.int.test.ts`: the phone and a Dexie-backed browser over the real server, with pairing, 1:1 both ways, own-device copies, delivered state, a group both ways, search, and nothing readable at rest.
+- **Not run:** anything in a real browser for Phase 17 (see Remaining).
+
+**Known issues / tech debt:**
+- Attachments on the web are a placeholder until Phase 18.
+- Follower tabs are disabled while the leader starts (a few seconds).
+- With several tabs, `watchPresence` follows the tab that called last.
+- No in-browser e2e test harness (Playwright) yet.
+
+**Next:** Phase 18 (history sync and web attachments).
+
 ## 2026-10-20 — Phase 16: Web foundation + QR pairing — 🔄 partial (real-phone checks open)
 **Done (ADR 0019):**
 - **Pairing protocol** (server `modules/pairing`):

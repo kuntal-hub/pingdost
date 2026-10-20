@@ -5,20 +5,22 @@
 import { create } from 'zustand';
 
 import { publicConfig } from '@/config';
-import { database, wipeDatabase } from '@/db/db';
-import { SealedRecords, vaultKey } from '@/db/vault';
 import {
   accountApi,
   ApiError,
   authApi,
   createApiClient,
   devicesApi,
+  groupsApi,
   keysApi,
   pairingApi,
+  pushApi,
+  securityApi,
 } from '@pingdost/api-client';
 import type { CryptoProvider, OlmAccount } from '@pingdost/crypto/core';
 import { fromBase64, toBase64 } from '@pingdost/protocol';
 import type { AuthTokens } from '@pingdost/shared-types';
+import { database, SealedRecords, vaultKey, wipeDatabase } from '@pingdost/web-store';
 
 export interface LinkedDevice {
   deviceId: string;
@@ -74,6 +76,9 @@ export const api = {
   devices: devicesApi(client),
   keys: keysApi(client),
   pairing: pairingApi(client),
+  groups: groupsApi(client),
+  security: securityApi(client),
+  push: pushApi(client),
 };
 
 export function accessToken(): string | undefined {
@@ -132,6 +137,12 @@ export async function saveAccount(account: OlmAccount): Promise<void> {
     await store.put(RECORDS.pickleKey, key);
   }
   await store.put(RECORDS.account, { pickle: account.pickle(fromBase64(key)) });
+}
+
+/** The key the Olm account and sessions are pickled with (inside the vault). */
+export async function loadPickleKey(): Promise<Uint8Array | undefined> {
+  const key = await (await sealed()).get<string>(RECORDS.pickleKey);
+  return key ? fromBase64(key) : undefined;
 }
 
 export async function loadAccount(provider: CryptoProvider): Promise<OlmAccount | undefined> {

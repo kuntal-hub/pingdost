@@ -179,6 +179,8 @@ export class EngineCore {
   readonly events = new Listeners<[EngineEvent]>();
   readonly #conversationListeners = new Map<string, Listeners<[ConversationEvent]>>();
   readonly #listListeners = new Listeners<[]>();
+  /** Every conversation's events (the web's leader tab relays them to the others). */
+  readonly #anyListeners = new Listeners<[string, ConversationEvent]>();
   #listTimer: ReturnType<typeof setTimeout> | undefined;
   /** Directory fetches in progress, so concurrent callers share one. */
   readonly #refreshing = new Map<string, Promise<DirectoryLookup>>();
@@ -233,7 +235,9 @@ export class EngineCore {
       throw error;
     }
     for (const message of batch.messages ?? []) {
-      this.#conversationListeners.get(message.conversationId)?.emit({ type: 'message', message });
+      const event: ConversationEvent = { type: 'message', message };
+      this.#conversationListeners.get(message.conversationId)?.emit(event);
+      this.#anyListeners.emit(message.conversationId, event);
     }
     if (
       batch.messages?.length ||
@@ -281,6 +285,11 @@ export class EngineCore {
 
   emitConversation(conversationId: string, event: ConversationEvent): void {
     this.#conversationListeners.get(conversationId)?.emit(event);
+    this.#anyListeners.emit(conversationId, event);
+  }
+
+  subscribeAll(listener: (conversationId: string, event: ConversationEvent) => void): () => void {
+    return this.#anyListeners.add(listener);
   }
 
   onConversationListChanged(listener: () => void): () => void {

@@ -97,6 +97,11 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - The page carries a strict CSP built in `vite.config.ts`. Dev adds a fixed nonce for Vite's own tags. Never add inline scripts or styles; set theme colours through the CSSOM (`theme.ts`).
   - Pairing without a phone: open the dev page, copy "Pairing code as text (dev)", then run `pnpm --filter @pingdost/sim-client phone -- --code '<code>' [--revoke-after 30]`. It registers a simulated primary phone and approves the browser (and revokes it after N s).
   - Web unit tests run in Node with `fake-indexeddb` and Node's Web Crypto.
+  - Chat (ADR 0020):
+    - the engine runs in the tab holding the Web Lock (`src/chat/leader.ts`); other tabs call it over BroadcastChannel (`src/chat/bus.ts`);
+    - storage is `packages/web-store` (`DexieEngineStore`, vault), shared labels are in `packages/chat-core`;
+    - the phone↔web check over the real server is `apps/server/test/web.int.test.ts`.
+  - Notifications and PWA exist only in builds. Run `pnpm --filter @pingdost/server vapid-keys`, put the keys in `.env` and `apps/web/.env` (`VITE_WEB_PUSH_PUBLIC_KEY`), then `pnpm --filter @pingdost/web build` and `preview` (also on :5173).
 - **Pairing** (server `modules/pairing`, ADR 0019): `test/pairing.int.test.ts`. `SimClient.linkedDevice(options, owner)` links a second device through the real flow.
 - **Attachments** (`packages/attachments`, server `modules/attachments`; ADR 0004, 0017):
   - `docker compose --profile s3 up -d --wait` adds SeaweedFS (local S3 on :8333, dev credentials in `docker-compose.yml`). The `s3` halves of `test/attachments.int.test.ts` run only while it is up; `fs` always runs. `pnpm infra:down` leaves it running: stop it with `docker compose --profile s3 down`.

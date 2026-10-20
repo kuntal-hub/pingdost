@@ -3,11 +3,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './app';
+import { registerServiceWorker } from './push/push';
 import { bootSession } from './session/session';
 import { installTheme } from './theme';
 import './styles.css';
 
 installTheme();
+registerServiceWorker();
 void bootSession();
 
 const queryClient = new QueryClient({
