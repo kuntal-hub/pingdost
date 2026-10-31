@@ -213,7 +213,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Phase 14 (no new native module): the Rust crate adds `chacha20poly1305` 0.11.0, `aead-stream` 0.6.0 and `sha2` 0.11.1. The server adds `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` 3.1153.0 (Apache-2.0). Tests use `@noble/ciphers` 2.4.0 (MIT, dev only) as an independent check.
   - ⚠ Phase 15 (ADR 0018): expo-file-system 58.0.10, expo-document-picker 58.0.4, expo-audio 58.0.9, expo-video 58.0.12, expo-sharing 58.0.19. Video compression, metadata and preview frames come from the local Kotlin module `modules/pingdost-media` on AndroidX Media3 Transformer 1.9.1, instead of react-native-compressor (CHANGES 2026-10-20).
   - Phase 16: QR pairing reuses expo-camera (installed in Phase 10).
-  - Phase 21: nearby Expo module in Kotlin.
+  - ⚠ Phase 21 (ADR 0023): the local module `modules/nearby` (Kotlin, Android's own BLE APIs): GATT links with framing and credit flow control, a rotating random advert token, a `connectedDevice` foreground service. **No Google Play services / Nearby Connections** (user decision; CHANGES 2026-10-31). Nearby needs Android 8.0+ (the app's minSdk stays 24).
   - Phase 26: react-native-webrtc.
 - **Background:** FCM high-priority data messages wake the app for fetch. The mesh relay runs in an Android foreground service (`connectedDevice`) while relaying is enabled.
 

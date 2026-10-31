@@ -53,4 +53,10 @@ File chunk transfer (24); iOS (30).
 - For offline first contact, use cached directories: `DirectoryRecord.devices[].fallbackKey` is signature-checked. A Hello handshake is the other option.
 - `MeshAck` should map to a `relayed` delivery row (`states.ts` already ranks it).
 
+**From Phase 21 (ADR 0023):**
+- The `connectedDevice` foreground service already exists: `NearbyService` in `modules/nearby`, started with `PingdostNearby.startForegroundService()`, `START_NOT_STICKY`, notification "Nearby is on".
+  - This phase adapts the text for relaying, keeps it running while relay *or* nearby is on, and adds the optional boot start (Android 15 allows `connectedDevice` from BOOT_COMPLETED).
+- Each link grants 8 packets of credit, and a peer that sends without credit is disconnected. That bounds what one neighbour can push at once; per-origin quotas and rate limits still sit above it.
+- At most 7 links per phone. Each link carries packets of up to 128 KiB, and the mesh header plus a 64 KiB envelope fits.
+
 **From Phase 15 (ADR 0018):** Settings → Storage has a "Nearby relay cache" row (`screens/settings/storage.tsx`) waiting for real numbers. "Clear cache" there touches only previews and temporary files; give the relay cache its own clear action.

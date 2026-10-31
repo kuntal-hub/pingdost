@@ -22,3 +22,9 @@ Nearby messaging, relaying and file chunks work on iOS within Apple's background
 - REQ §19.4 is met on iOS for the foreground.
 - The background behavior is measured and documented.
 - Android↔iOS text exchange works over BLE.
+
+## Handoff notes
+**From Phase 21 (ADR 0023):**
+- Android's GATT layout: service `5dd57eaf-834a-4b2d-96f6-b68a646c4a0b`, RX `aa6298cf-710a-43a7-a85e-42eae340dc5a` (write without response), TX `5a378fa3-6ee8-409f-bcd4-99790bc7feec` (notify). Framing (HELLO/DATA/CREDIT/TOKEN) is in `modules/nearby/android/.../Framing.kt`, with JVM tests to port.
+- Android puts the rotating token in the scan response as service data. iOS cannot advertise service data, and in the background it moves service UUIDs to its overflow area, so an iPhone's token comes only from the link HELLO. Android may not discover a backgrounded iPhone at all: measure it.
+- iOS 26 has a Wi-Fi Aware framework (iPhone 12 and later), and Phase 24 may add Android Wi-Fi Aware: check whether the two interoperate before choosing MultipeerConnectivity.

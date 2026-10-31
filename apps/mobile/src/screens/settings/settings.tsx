@@ -125,6 +125,7 @@ export function SettingsScreen() {
       {__DEV__ && (
         <ListSection title="Developer">
           <ListRow title="Crypto interop (dev)" onPress={() => router.push('/crypto')} />
+          <ListRow title="Nearby spike (dev)" onPress={() => router.push('/nearby')} />
         </ListSection>
       )}
 

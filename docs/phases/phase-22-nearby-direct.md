@@ -46,4 +46,21 @@ Multi-hop relay (23); file chunks (24).
 - The tests pass, and `pnpm lint typecheck test` passes.
 
 ## Handoff notes
+**From Phase 21 (ADR 0023):**
+- The native module `PingdostNearby` (`apps/mobile/modules/nearby`) and `createBleTransport(PingdostNearby)` (REQ §11.2 shape, `modules/nearby/src/transport.ts`, unit-tested with a fake) exist.
+  - Put the platform-neutral `NearbyTransport` interface in `packages/transport`; keep the module wrapper in `apps/mobile/src/nearby/`.
+- **Link limits:**
+  - packets up to 128 KiB (`Link.MAX_PACKET`);
+  - a GATT frame carries MTU − 3 bytes (514 at MTU 517, 20 at the default 23); framing is native;
+  - `send` resolves when the packet is in the native queue, not on delivery. `linkDown.unsent` counts packets that never went out: the router requeues them;
+  - at most 7 links per phone.
+- **Identity:** the advert token is random and rotates every 10 minutes, and the link-level HELLO token is not an identity. Send this phase's signed application HELLO as the first packet after `linkUp`.
+- **Permissions:**
+  - Android 12+: `BLUETOOTH_SCAN`/`ADVERTISE`/`CONNECT`. Android 8–11: fine location, with location services on. Below Android 8: `unsupportedReason: android_too_old`.
+  - `start` rejects with `permission`. Bluetooth off is not an error: the engine waits, and `stateChanged`/`getState().enabled` report it.
+  - Build the onboarding and degraded states on `getState()` (`missingPermissions`, `enabled`, `supported`).
+- **Background:** call `startForegroundService()` (only possible from the foreground) while "Nearby messaging" is on. Without it, nearby works only in the foreground.
+- `autoConnect: true` makes the lower-token side connect; duplicate links are resolved natively.
+- The dev screen (Settings → Developer → Nearby spike) stays for measurements. The measured numbers are in ADR 0023's matrix (check PROGRESS whether they are filled).
+
 **From Phase 9 (ADR 0011):** `TransportRouter` (`packages/transport/src/router.ts`) sends over the first online transport. Add the nearby transport, routing by recipient reachability and `waiting_for_nearby_route`. Incoming packets already fan in with a per-transport `ack`.

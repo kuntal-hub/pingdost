@@ -8,6 +8,6 @@ export default defineProject({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'modules/*/src/**/*.test.ts'],
   },
 });

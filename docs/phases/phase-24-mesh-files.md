@@ -10,12 +10,15 @@ Encrypted attachments move between devices without the Internet: direct or multi
 - ADRs: attachment AEAD, nearby transport, mesh routing
 
 ## Tasks
-- [ ] **Chunking:** split the already-encrypted attachment ciphertext into mesh chunks sized for the link (from the nearby ADR, e.g. 16–64 KiB on BLE, larger on Nearby Connections).
+- [ ] **Chunking:** split the already-encrypted attachment ciphertext into mesh chunks sized for the link: 64 KiB, the attachment format's own chunk (one BLE link packet holds up to 128 KiB, ADR 0023); larger only on a Wi-Fi path, if one is added.
   - Chunk packets carry the transfer ID, index, count and **chunk hash in the outer header**, so relays can drop corrupt chunks.
   - The manifest, with all chunk hashes, rides inside the E2EE message.
 - [ ] **Receiver assembly:** a bitmap of received chunks; per-chunk hash verification; **missing-chunk requests** (resume) after reconnecting; full-file SHA-256 + AEAD verification before marking it complete. **Only then** send the delivered ACK/receipt (REQ §19.3).
 - [ ] **Relays:** store chunks under the relay quota; forward with the Phase 23 policy; drop chunks after the mesh ACK for the transfer.
-- [ ] **Direct bulk path:** if the nearby ADR enabled Nearby Connections (Android↔Android), use it for direct transfers and fall back to BLE.
+- [ ] **Direct bulk path (optional):** Nearby Connections is out (no Play Services; CHANGES 2026-10-31).
+  - Evaluate Android's own **Wi-Fi Aware** first: platform API, and iOS 26 supports it (Phase 30).
+  - Then **Wi-Fi Direct**, with the group name and passphrase exchanged over the BLE link (API 29+, no invitation dialog).
+  - Use it between phones that both support it, fall back to BLE, and record the choice in an ADR. Check `NEARBY_WIFI_DEVICES` (Android 13+) and the license of any library.
 - [ ] **Limits and UX:**
   - the mesh max file size is configurable (default per ADR measurements; REQ allows up to 100 MB, but show a realistic time estimate for BLE);
   - progress "12 / 200 chunks received", pause/resume, cancel;
@@ -39,6 +42,11 @@ Web nearby (browsers can't do this); iOS (30).
 - `pnpm lint typecheck test` passes.
 
 ## Handoff notes
+**From Phase 21 (ADR 0023):**
+- **Realistic sizes over BLE:** at the expected 50–150 KB/s, 10 MB takes about 1–3.5 minutes and 100 MB about 11–35 minutes per hop. Set the default mesh file limit and the time estimate from the measured row in ADR 0023's matrix (pending at the end of Phase 21).
+- The link's `send` applies backpressure (512 KiB queued per link), so a chunk pump that awaits `send` never overruns memory. `linkDown.unsent` tells how many chunks to re-request or resend.
+- There is no Nearby Connections path (see the bulk task).
+
 **From Phase 14 (ADR 0004, 0017):**
 - The E2EE `AttachmentManifest` carries `chunkHashListSha256`, the SHA-256 of the list of per-64-KiB-chunk ciphertext hashes, not the list itself.
   - Send the list as the first mesh chunk (or add a manifest field with a protocol change), and check it against `chunkHashListSha256` before trusting per-chunk hashes.

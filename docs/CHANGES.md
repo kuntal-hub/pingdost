@@ -4,6 +4,18 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-10-31 — Phase 21: nearby spike (ADR 0023)
+1. **No Google Nearby Connections.** The Phase 21 plan had an optional Nearby Connections path for bulk transfer between Android phones, and Phase 24 would have used it. `play-services-nearby` is closed source under the Android SDK License, which breaks the "permissive or OSI licenses" rule, and it needs Google Play services.
+   - *Decision:* the user chose BLE only, with no Google library (2026-10-31).
+   - *Trade-off:* no ready-made Wi-Fi upgrade. Phase 24 evaluates Android's own Wi-Fi Aware (which iOS 26 also supports) and Wi-Fi Direct as an optional fast path, and otherwise moves files over BLE, where 100 MB takes many minutes.
+   - *Affects:* 21 (done in code), 24, 30.
+2. **Nearby needs Android 8.0 (API 26) or newer.** The app still installs from Android 7.0 (minSdk 24); there the nearby screen says the phone is too old. REQ names no minimum version.
+   - *Affects:* 22, 27.
+3. **BitChat-android is GPL-3.0, not public domain** (the plan said "public domain; confirm the license"). It changed from MIT to GPLv3 in 1.7.x. It is used as a design reference only; no code is copied.
+   - *Affects:* 21–24.
+4. **The BLE link itself is not paired or encrypted.** Pairing shows system dialogs and leaves a lasting bond identifier. Confidentiality and integrity come from the E2EE layer and Phase 22's signed handshake (REQ §11.3).
+   - *Affects:* 22, 23.
+
 ### 2026-10-31 — Phase 20: staging deployment (ADR 0013 verification)
 1. **Atlas Free allows 500 connections** (REQ §22 says 100), 0.5 GB, 100 ops/s and 10 GB in plus 10 GB out per 7 days (checked 2026-10-31). Nothing changes in the code; the alerts use these numbers.
    - *Affects:* 20, 27.

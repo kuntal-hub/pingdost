@@ -1,0 +1,23 @@
+// Nearby over BLE (Phase 21, ADR 0023): advertising, scanning, a GATT server and client, the link
+// framing and a connectedDevice foreground service. Platform APIs only (no Play Services).
+// Local module: autolinked from apps/mobile/modules.
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.pingdost.nearby'
+version = '0.1.0'
+
+android {
+  namespace "com.pingdost.nearby"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  // JVM tests of the framing and flow control (EPL-1.0, test only).
+  testImplementation 'junit:junit:4.13.2'
+}

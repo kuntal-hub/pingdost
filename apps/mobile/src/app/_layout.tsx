@@ -86,6 +86,10 @@ export default function RootLayout() {
             name="(dev)/crypto"
             options={{ headerShown: true, title: 'Crypto interop (dev)' }}
           />
+          <Stack.Screen
+            name="(dev)/nearby"
+            options={{ headerShown: true, title: 'Nearby spike (dev)' }}
+          />
         </Stack.Protected>
       </Stack>
     </ThemeRoot>

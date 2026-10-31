@@ -17,6 +17,55 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-31 — Phase 21: Nearby spike (Android BLE) — 🔄 partial (two-phone checks and the matrix open)
+**Done (ADR 0023):**
+- **Research (dated, ADR 0023 Evidence):**
+  - Android 14 fixes the GATT MTU at 517 for the first client.
+  - `connectedDevice` needs `FOREGROUND_SERVICE_CONNECTED_DEVICE` plus a Bluetooth runtime permission; Android 15's BOOT_COMPLETED ban does not cover it.
+  - Unfiltered scans stop with the screen off.
+  - play-services-nearby is 19.5.1 (closed source, so it was **not used**: the user chose "BLE only, no Google library").
+  - iOS 26 has Wi-Fi Aware.
+  - bitchat-android is **GPL-3.0** (not public domain): reference only.
+- **Module `apps/mobile/modules/nearby`** (Kotlin, Android's BLE APIs, no new dependencies):
+  - `BleEngine`, one handler thread. Every phone is a GATT server and a client. Legacy advert: service UUID; scan response: an 8-byte random token rotating every 10 minutes, with the set restarted; no name or TX power. Scans use a service filter.
+  - Central setup: MTU 517, then service discovery, then the CCCD subscription, with priority HIGH and 2M PHY.
+  - Up to 7 links. Peripheral links are created on the CCCD write. The lower token auto-connects, and duplicate links are resolved deterministically.
+  - Bluetooth on/off is tracked by broadcast plus a 5 s watch, and peers expire after 30 s.
+  - `Framing.kt` + `Link.kt`: HELLO/DATA/CREDIT/TOKEN frames, a 16-bit per-link sequence, packets up to 128 KiB, 8 credits returned in batches of 4, a 512 KiB outbound cap with waiting `send`s, and protocol violations fail the link.
+  - Native inbound queue with batched `receive`; credits go back only when JS takes packets. The engine survives JS reloads.
+  - `NearbyService`: `connectedDevice` foreground service with a "Nearby is on" notification.
+  - `NearbyModule` events: `peerDiscovered`, `peerLost`, `linkUp`, `linkDown` (+ `unsent`), `packet`, `stateChanged`, `log` (states only, no contents). `getState` includes power, Doze and process-importance fields for the matrix.
+  - Manifest: Android 12+ Bluetooth permissions (`neverForLocation`); legacy permissions and location capped at API 30. Nearby needs Android 8.0+.
+- **JS** (`modules/nearby/src`): types, `parseInbound`/`encodeInbound`, and `createBleTransport` (REQ §11.2 shape: drains the queue, survives reloads, isolates handler errors).
+- **Dev screen** Settings → Developer → **Nearby spike (dev)** (`src/app/(dev)/nearby.tsx`, `src/screens/dev-nearby/*`, dev builds only):
+  - permissions, start/stop, auto-connect, scan mode, 60 s rotation, foreground service, battery mark;
+  - peers and links with counters; text, ping/auto-ping, 1 MB and 10 MB runs (`bench.ts` protocol);
+  - Results, live link log, **Share report**.
+- **Docs:** ADR 0023 with the measurement matrix and steps, CHANGES (no Nearby Connections; Android 8+; bitchat license; unpaired link), A6, the decisions index, Phase 22/23/24/30 handoff notes (Phase 24's bulk task is now Wi-Fi Aware/Direct), CLAUDE.md commands.
+
+**Remaining (needs two Android phones; no device was attached this session):**
+- [ ] Build and install on both phones: `pnpm --filter @pingdost/mobile android` (new native module; a prebuild is not needed).
+- [ ] **Done-when check:** both phones in airplane mode with Bluetooth on. Settings → Developer → Nearby spike → Permissions → Start on both → peers appear → a link comes up → text and pings work both ways.
+- [ ] Fill ADR 0023's matrix (steps there). Throughput 1/10 MB in both roles, setup, MTU/PHY, RTT, range; the background rows (Home, screen off with and without the service, Doze via `adb shell dumpsys deviceidle force-idle`, saver, swiped away, Bluetooth off/on, permission revoked); 1 h idle battery. Share the reports, then copy the numbers into ADR 0023 and the Phase 24 file size defaults.
+- [ ] Check on the device: after "Rotate token", the other phone sees a new address as well as a new token.
+
+**Deviations / decisions:** ADR 0023; CHANGES 2026-10-31 (Phase 21). No Google Nearby Connections (user decision); Android 8.0+ for nearby; BitChat used as a reference only; the BLE link is unpaired (security comes from the E2EE layer).
+
+**Verification results:**
+- `:nearby:testDebugUnitTest`: 16 JVM tests pass (`FramingTest` 7: control frames, every frame size from MTU 23 to 517, 16-bit sequence wrap, gaps, repeats, malformed packets; `LinkTest` 9: HELLO, intact packets both ways at three MTUs, credit stall and resume, backpressure, close, a rogue sender cut off, version checks, token announce).
+- `:expo:compileDebugKotlin` passes, and autolinking lists `NearbyModule`. `:app:processDebugMainManifest` shows the permissions, the service type and `maxSdkVersion="30"` on the legacy permissions.
+- Metro bundled `(dev)/nearby` for Android (HTTP 200).
+- `pnpm turbo run lint typecheck test`: 55/55 tasks (mobile 87 tests, including 12 new). `pnpm format:check` is clean.
+- **Not run:** anything on a phone (see Remaining).
+
+**Known issues / tech debt:**
+- Android's GATT server callback reports disconnects per address. If two links to one phone share a connection, a drop takes both. Watch for links that keep dropping with auto-connect on.
+- `START_NOT_STICKY`: the OS does not restart the service after killing the app (Phase 23 decides on boot start and restarts).
+- The module and its permissions ship in every build (Play declarations: Phase 27). Only the screen is dev-only.
+- An iPhone in the background may be invisible to Android scans (Phase 30).
+
+**Next:** the two-phone checks above. Then Phase 22 (direct nearby messaging) or the open device checks of Phases 10–20.
+
 ## 2026-10-31 — Phase 20: Deployment (staging) on one Hostinger VPS — 🔄 partial (user steps on the VPS open)
 **Done (ADR 0013 verification; runbooks in `docs/ops/`):**
 - **Image:** `apps/server/Dockerfile` (multi-stage, `node:24.22.2-trixie-slim`, `pnpm deploy --prod`, non-root `node`, healthcheck; 420 MB, `/app` holds only `dist/`, `node_modules/`, `package.json`) and a root `.dockerignore` (no `.env`, no build output).
