@@ -10,6 +10,35 @@ import type { Scenario } from './scenarios';
 
 export const ATTACHMENT_CHUNK_SIZE = 65_536;
 
+/**
+ * Backup key derivation (ADR 0022): a known answer computed with an independent Argon2id
+ * (OpenSSL via Node's `crypto.argon2Sync`): secret = bytes 0..31, salt = 16 × 0xaa,
+ * 1024 KiB, 2 passes, 1 lane.
+ */
+const BACKUP_KDF_KNOWN_ANSWER = 'IQIAM+FWgG4cIp0E1I1PqjsXLQtFmHPtX08+7u3fp+I=';
+
+export const backupScenarios: Scenario[] = [
+  {
+    id: 'backup-kdf',
+    title: 'Argon2id backup key matches the known answer; bad parameters are refused',
+    run: (provider) => {
+      const secret = Uint8Array.from({ length: 32 }, (_, i) => i);
+      const salt = new Uint8Array(16).fill(0xaa);
+      const params = { memoryKib: 1024, iterations: 2, parallelism: 1 };
+      const key = provider.deriveBackupKey(secret, salt, params);
+      checkEqual(toBase64(key), BACKUP_KDF_KNOWN_ANSWER, 'known answer');
+      checkThrows(
+        () => provider.deriveBackupKey(secret, salt, { ...params, memoryKib: 2 ** 21 }),
+        'memory cap',
+      );
+      checkThrows(
+        () => provider.deriveBackupKey(secret, salt.subarray(0, 8), params),
+        'short salt',
+      );
+    },
+  },
+];
+
 export interface AttachmentVectors {
   scheme: 'xchacha20poly1305-stream-be32-64k/1';
   /** base64; throwaway test values. */

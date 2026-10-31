@@ -40,6 +40,19 @@ async function bootstrap(): Promise<CryptoContext> {
   return { provider, database, store, timings };
 }
 
+/**
+ * Closes the database and forgets the context, so the next `getCryptoContext` starts over
+ * (after "Remove data from this phone" deleted the database and its keys).
+ */
+export async function resetCryptoContext(): Promise<void> {
+  const current = context;
+  context = undefined;
+  const opened = await current?.catch(() => undefined);
+  if (!opened) return;
+  opened.store.account.dispose();
+  await opened.database.db.closeAsync().catch(() => undefined);
+}
+
 /** The process-wide crypto context; the first call starts it, and a failure allows a retry. */
 export function getCryptoContext(): Promise<CryptoContext> {
   context ??= bootstrap().catch((error: unknown) => {

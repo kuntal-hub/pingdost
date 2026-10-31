@@ -758,6 +758,17 @@
         }
       },
       "binary": "YhQKEAGS8aAAAHAAgAAAAAAAAGEQBA=="
+    },
+    {
+      "name": "server-frame/primary-transfer-requested",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "primaryTransferRequested": {
+          "requestId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "expiresAtMs": "1760000601000"
+        }
+      },
+      "binary": "ahkKEAGS8aAAAHAAgAAAAAAAAGEQqNfXwZwz"
     }
   ]
 }

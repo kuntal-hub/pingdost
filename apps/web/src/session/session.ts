@@ -16,6 +16,7 @@ import {
   keysApi,
   pairingApi,
   pushApi,
+  recoveryApi,
   securityApi,
 } from '@pingdost/api-client';
 import type { CryptoProvider, OlmAccount } from '@pingdost/crypto/core';
@@ -81,6 +82,7 @@ export const api = {
   groups: groupsApi(client),
   security: securityApi(client),
   push: pushApi(client),
+  recovery: recoveryApi(client),
 };
 
 export function accessToken(): string | undefined {

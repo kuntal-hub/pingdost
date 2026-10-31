@@ -19,6 +19,10 @@ function list(users: string[], who: (userId: string) => string): string {
 export function systemText(message: MessageRecord, names?: Names): string {
   const who = (userId: string) =>
     names && userId === names.selfUserId ? 'You' : (names?.name(userId) ?? 'Someone');
+  if (message.body === 'primary_device_changed') {
+    // ADR 0022: same account key on a new phone, so the safety number is the same.
+    return `${names ? who(message.senderUserId) : 'This contact'} moved to a new phone. The safety number is unchanged.`;
+  }
   const notice = parseGroupNotice(message.body);
   if (!notice) {
     return names && message.senderUserId !== names.selfUserId

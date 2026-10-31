@@ -218,6 +218,18 @@ export class Connection implements PresencePeer {
     });
   }
 
+  /** A new phone asked to replace this account's primary (ADR 0022). */
+  notifyPrimaryTransfer(requestId: string, expiresAtMs: number): void {
+    if (this.#state !== 'open') return;
+    this.#send({
+      requestId: 0,
+      body: {
+        case: 'primaryTransferRequested',
+        value: { requestId: uuidToBytes(requestId), expiresAtMs: BigInt(expiresAtMs) },
+      },
+    });
+  }
+
   /** A watched user's presence (best effort: dropped when the reader is behind). */
   notifyPresence(userId: string, online: boolean): void {
     this.#sendIfRoom({

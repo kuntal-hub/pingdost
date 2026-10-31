@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@pingdost/api-client": "workspace:*",
+    "@pingdost/backup": "workspace:*",
     "@pingdost/crypto": "workspace:*",
     "@pingdost/message-engine": "workspace:*",
     "@pingdost/sim-client": "workspace:*",

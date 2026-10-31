@@ -45,6 +45,12 @@ import {
 import { RedisMailbox } from './modules/delivery/redis-store';
 import { DeliveryService } from './modules/delivery/service';
 import { mailboxSettings, type MailboxSettings } from './modules/delivery/settings';
+import {
+  primaryTransferIndexes,
+  primaryTransfers,
+  PrimaryTransferService,
+} from './modules/device/primary-transfer';
+import { primaryTransferRoutes } from './modules/device/primary-transfer-routes';
 import { deviceCollections, deviceIndexes } from './modules/device/repo';
 import { deviceRoutes } from './modules/device/routes';
 import { DeviceService, type DeviceRevokedHook } from './modules/device/service';
@@ -116,6 +122,7 @@ export const INDEXES: readonly IndexSetup[] = [
   groupIndexes,
   attachmentIndexes,
   pairingIndexes,
+  primaryTransferIndexes,
   schedulerIndexes,
 ];
 
@@ -330,6 +337,31 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     ttlSeconds: config.WEB_PAIRING_TTL_SECONDS,
   });
   await app.register(pairingRoutes, { service: pairing, authenticate, limits });
+  const wakes = deps.push ?? pushService ?? noopPushNotifier;
+  const transfers = new PrimaryTransferService({
+    requests: primaryTransfers(db),
+    devices,
+    auth: collections,
+    authService,
+    deviceService,
+    events,
+    clock,
+    budget: throttles.phoneReplacements,
+    onRequested: (userId, requestId, expiresAt) => {
+      for (const connection of registry.forUser(userId)) {
+        connection.notifyPrimaryTransfer(requestId, expiresAt);
+      }
+      // A phone that is not connected wakes, connects and asks for the pending requests.
+      void devices.devices
+        .find({ userId, status: 'active', platform: { $ne: 'web' } }, { projection: { _id: 1 } })
+        .toArray()
+        .then((phones) => {
+          for (const phone of phones) wakes.wake(phone._id, true);
+        })
+        .catch((error: unknown) => deps.logger.warn({ err: error }, 'transfer wake failed'));
+    },
+  });
+  await app.register(primaryTransferRoutes, { service: transfers, authenticate, limits });
   await app.register(keyRoutes, { service: keyService, authenticate, limits });
   await app.register(securityRoutes, {
     blocks,
@@ -370,7 +402,7 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
       devices: devices.devices,
       oneTimeKeys: otks,
       delivery,
-      push: deps.push ?? pushService ?? noopPushNotifier,
+      push: wakes,
       registry,
       presence,
       blocks,

@@ -456,6 +456,9 @@ function checkServerFrame(frame: ServerFrame, options: CodecOptions): void {
     case 'groupChanged':
       checkId(body.value.groupId, 'group_changed.group_id');
       break;
+    case 'primaryTransferRequested':
+      checkId(body.value.requestId, 'primary_transfer_requested.request_id');
+      break;
     case 'otkLow':
     case 'revoked':
     case 'pong':

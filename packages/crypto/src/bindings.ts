@@ -26,6 +26,7 @@ export type UniffiBindings = Pick<
   | 'attachmentDecryptChunk'
   | 'sha256'
   | 'Sha256Hasher'
+  | 'backupDeriveKey'
 >;
 
 const toBuffer = (data: Uint8Array): ArrayBuffer => data.slice().buffer;
@@ -288,5 +289,18 @@ export function createBindingsProvider(
       ),
     sha256: (data) => fromBuffer(call(() => bindings.sha256(toBuffer(data)))),
     createSha256: () => new Sha256Hasher(call(() => new bindings.Sha256Hasher())),
+
+    deriveBackupKey: (secret, salt, params) =>
+      fromBuffer(
+        call(() =>
+          bindings.backupDeriveKey(
+            toBuffer(secret),
+            toBuffer(salt),
+            params.memoryKib,
+            params.iterations,
+            params.parallelism,
+          ),
+        ),
+      ),
   };
 }

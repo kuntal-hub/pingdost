@@ -105,6 +105,10 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - History sync and files (ADR 0021): the leader runs the sync (`historySync` engine option; window in Settings) and attachment transfers (`src/attachments/transfers.ts`); the cache is `FileCache` in `packages/web-store` (Dexie version 3). Files sent before pairing come from the phone (`fetchFromPhone`), so the phone app must be open.
   - Notifications and PWA exist only in builds. Run `pnpm --filter @pingdost/server vapid-keys`, put the keys in `.env` and `apps/web/.env` (`VITE_WEB_PUSH_PUBLIC_KEY`), then `pnpm --filter @pingdost/web build` and `preview` (also on :5173).
 - **Pairing** (server `modules/pairing`, ADR 0019): `test/pairing.int.test.ts`. `SimClient.linkedDevice(options, owner)` links a second device through the real flow.
+- **Backup and phone replacement** (`packages/backup`, server `modules/device/primary-transfer.ts`; ADR 0022):
+  - `pnpm --filter @pingdost/backup test`: the `.pdbk` format, phrase, export/restore over `EngineStore`, and a restore → `SessionReset` → resend scenario on the engine's fake server.
+  - `test/recovery.int.test.ts`: the three ways to replace the primary (old phone approves, backup + email code, start fresh) with sim clients. `SimClient.newPhone(options, old, { mode })` drives them.
+  - Android: `src/backup/*` (create, restore, phrase in SecureStore, reminder), `src/recovery/*` (new-phone flows, approvals, Remove data). Argon2id runs in the Rust crate: after changing it, rebuild WASM and `build:android`.
 - **Attachments** (`packages/attachments`, server `modules/attachments`; ADR 0004, 0017):
   - `docker compose --profile s3 up -d --wait` adds SeaweedFS (local S3 on :8333, dev credentials in `docker-compose.yml`). The `s3` halves of `test/attachments.int.test.ts` run only while it is up; `fs` always runs. `pnpm infra:down` leaves it running: stop it with `docker compose --profile s3 down`.
   - The 100 MiB spike is tagged slow: `$env:PINGDOST_SLOW='1'; pnpm --filter @pingdost/server exec vitest run --config vitest.int.config.ts test/attachments-100mb --silent=false`. It prints `ATTACHMENT_SPIKE {...}` (about 45 s for both stores).

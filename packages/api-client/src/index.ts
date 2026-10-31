@@ -15,6 +15,8 @@ export type { GroupsApi } from './groups';
 export { pairingApi } from './pairing';
 export type { PairingApi } from './pairing';
 export { pushApi } from './push';
+export { recoveryApi } from './recovery';
+export type { RecoveryApi } from './recovery';
 export type { PushApi } from './push';
 export { securityApi } from './security';
 export type { SecurityApi } from './security';

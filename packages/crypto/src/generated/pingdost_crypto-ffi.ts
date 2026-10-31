@@ -346,6 +346,17 @@ const DEFINITIONS = {
       ret: FfiType.RustBuffer,
       hasRustCallStatus: true,
     },
+    uniffi_pingdost_crypto_fn_func_backup_derive_key: {
+      args: [
+        FfiType.RustBuffer,
+        FfiType.RustBuffer,
+        FfiType.UInt32,
+        FfiType.UInt32,
+        FfiType.UInt32,
+      ],
+      ret: FfiType.RustBuffer,
+      hasRustCallStatus: true,
+    },
     uniffi_pingdost_crypto_fn_func_ed25519_verify: {
       args: [FfiType.RustBuffer, FfiType.RustBuffer, FfiType.RustBuffer],
       ret: FfiType.Void,
@@ -597,6 +608,11 @@ const DEFINITIONS = {
       hasRustCallStatus: false,
     },
     uniffi_pingdost_crypto_checksum_func_attachment_decrypt_chunk: {
+      args: [],
+      ret: FfiType.UInt16,
+      hasRustCallStatus: false,
+    },
+    uniffi_pingdost_crypto_checksum_func_backup_derive_key: {
       args: [],
       ret: FfiType.UInt16,
       hasRustCallStatus: false,
@@ -1058,6 +1074,14 @@ interface NativeModuleInterface {
     ciphertext: Uint8Array,
     uniffi_out_err: UniffiRustCallStatus,
   ): Uint8Array;
+  uniffi_pingdost_crypto_fn_func_backup_derive_key(
+    secret: Uint8Array,
+    salt: Uint8Array,
+    memoryKib: number,
+    iterations: number,
+    parallelism: number,
+    uniffi_out_err: UniffiRustCallStatus,
+  ): Uint8Array;
   uniffi_pingdost_crypto_fn_func_ed25519_verify(
     publicKey: Uint8Array,
     message: Uint8Array,
@@ -1276,6 +1300,7 @@ interface NativeModuleInterface {
   ): Uint8Array;
   ffi_pingdost_crypto_uniffi_contract_version(): number;
   uniffi_pingdost_crypto_checksum_func_attachment_decrypt_chunk(): number;
+  uniffi_pingdost_crypto_checksum_func_backup_derive_key(): number;
   uniffi_pingdost_crypto_checksum_func_ed25519_verify(): number;
   uniffi_pingdost_crypto_checksum_func_prekey_message_session_id(): number;
   uniffi_pingdost_crypto_checksum_func_sha256(): number;

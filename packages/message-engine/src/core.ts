@@ -13,7 +13,13 @@ import { directConversationIdFor, uuidv7 } from '@pingdost/protocol';
 import type { Group, MessageState } from '@pingdost/shared-types';
 import { Listeners, type BackoffOptions, type Transport } from '@pingdost/transport';
 
-import { diffDirectory, isNotFound, verifyDirectory, type DirectoryApi } from './directory';
+import {
+  diffDirectory,
+  isNotFound,
+  verifyDirectory,
+  type DirectoryApi,
+  type DirectoryChange,
+} from './directory';
 import { GroupSessionManager } from './groups/megolm';
 import type { PublishKeysDeps } from './keys';
 import { Mutex } from './mutex';
@@ -26,9 +32,18 @@ import type {
   DirectoryRecord,
   EngineStore,
   MessageRecord,
+  SystemNotice,
   WriteBatch,
 } from './store';
 import type { HistorySyncOptions } from './sync';
+
+/** A primary phone left the directory and another arrived (under the same account key). */
+function primaryReplaced(change: DirectoryChange): boolean {
+  return (
+    change.removed.some((d) => d.role === 'primary') &&
+    change.added.some((d) => d.role === 'primary')
+  );
+}
 
 export type EngineTransport = Pick<
   Transport,
@@ -407,6 +422,11 @@ export class EngineCore {
       if (change.identityChanged && userId !== this.self.userId) {
         await this.#addNotice(batch, userId);
         notices.push({ userId });
+      } else if (userId !== this.self.userId && previous && primaryReplaced(change)) {
+        // Same account key, new phone (approved, or restored from a backup; ADR 0022): the
+        // safety number and the verification stay, but the user is told.
+        const direct = await this.store.getConversation(this.directConversationId(userId));
+        if (direct) this.#addNoticeTo(batch, direct, userId, 'primary_device_changed');
       }
       if (change.removed.length > 0) await this.#dropDevices(batch, change.removed);
       await this.commit(batch);
@@ -432,7 +452,12 @@ export class EngineCore {
     for (const conversation of conversations) this.#addNoticeTo(batch, conversation, userId);
   }
 
-  #addNoticeTo(batch: WriteBatch, conversation: ConversationRecord, userId: string): void {
+  #addNoticeTo(
+    batch: WriteBatch,
+    conversation: ConversationRecord,
+    userId: string,
+    body: SystemNotice = 'safety_number_changed',
+  ): void {
     const now = this.now();
     const notice: MessageRecord = {
       messageId: uuidv7(),
@@ -441,7 +466,7 @@ export class EngineCore {
       senderDeviceId: '',
       direction: 'in',
       kind: 'system',
-      body: 'safety_number_changed',
+      body,
       attachment: null,
       replyTo: null,
       sentAt: now,

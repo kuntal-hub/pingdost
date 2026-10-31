@@ -2,7 +2,7 @@
  * The full CryptoProvider conformance suite (`runCryptoConformance`) on the WASM provider.
  * The phone runs the same suite on the native provider.
  */
-import { createHash } from 'node:crypto';
+import { argon2Sync, createHash, randomBytes } from 'node:crypto';
 
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -45,6 +45,33 @@ describe('runCryptoConformance (WASM)', () => {
     expect(report.steps.filter((step) => !step.ok).map((step) => step.id)).toContain(
       'vector-signing',
     );
+  });
+});
+
+describe('backup key derivation against an independent Argon2id (OpenSSL)', () => {
+  it('matches node:crypto for random secrets, salts and costs', () => {
+    for (const [memory, passes] of [
+      [64, 1],
+      [512, 3],
+      [2048, 2],
+    ] as const) {
+      const secret = randomBytes(32);
+      const salt = randomBytes(16 + passes * 8);
+      const ours = provider.deriveBackupKey(secret, salt, {
+        memoryKib: memory,
+        iterations: passes,
+        parallelism: 1,
+      });
+      const theirs = argon2Sync('argon2id', {
+        message: secret,
+        nonce: salt,
+        parallelism: 1,
+        tagLength: 32,
+        memory,
+        passes,
+      });
+      expect(Buffer.from(ours).toString('hex')).toBe(theirs.toString('hex'));
+    }
   });
 });
 

@@ -178,4 +178,18 @@ export interface CryptoProvider {
   ): Uint8Array;
   sha256(data: Uint8Array): Uint8Array;
   createSha256(): Sha256Hasher;
+
+  /**
+   * Backups (Phase 19, ADR 0022): Argon2id (v0x13) of `secret` (the recovery phrase's
+   * entropy) with `salt`, 32 bytes out. Throws for out-of-range parameters (memory at most
+   * 1 GiB, 1–16 passes, 1–8 lanes, a salt of 16–64 bytes). Slow by design: seconds on a phone.
+   */
+  deriveBackupKey(secret: Uint8Array, salt: Uint8Array, params: BackupKdfParams): Uint8Array;
+}
+
+/** Argon2id cost parameters, as a backup header stores them. */
+export interface BackupKdfParams {
+  memoryKib: number;
+  iterations: number;
+  parallelism: number;
 }

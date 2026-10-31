@@ -26,6 +26,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0019](0019-web-pairing.md) | Web foundation and QR pairing | 16 | Accepted |
 | [0020](0020-web-chat.md) | Web chat: Dexie engine store, tab leadership, Web Push, PWA | 17 | Accepted |
 | [0021](0021-history-sync-web-attachments.md) | History sync (phone → web) and attachments on the web | 18 | Accepted |
+| [0022](0022-backup-recovery-primary-replacement.md) | Backup format, recovery phrase and replacing the primary phone | 19 | Accepted |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 
@@ -40,7 +41,7 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ �
 | Attachment staging store (fs vs s3/R2), 100 MB proof | 14 | No (done: 0017) |
 | Web pairing protocol | 16 | No (done: 0019) |
 | History sync protocol | 18 | No (done: 0021) |
-| Backup format & recovery flows | 19 | No |
+| Backup format & recovery flows | 19 | No (done: 0022) |
 | Hosting choice & production topology | change 2026-10-19 (20 verifies) | **Yes** (done: 0013) |
 | Nearby transport (BLE / Nearby Connections / Wi-Fi Direct) | 21 | No |
 | Mesh routing, relay policy & routing tokens | 23 | No |

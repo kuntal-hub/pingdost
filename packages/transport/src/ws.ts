@@ -82,7 +82,9 @@ export type WsEvent =
   /** A watched user's presence changed (see watchPresence). */
   | { type: 'presence'; userId: string; online: boolean }
   /** A group's membership changed on the server (ADR 0016): refetch it. */
-  | { type: 'group_changed'; groupId: string; version: number };
+  | { type: 'group_changed'; groupId: string; version: number }
+  /** A new phone asked to replace this account's primary (ADR 0022): show the request. */
+  | { type: 'primary_transfer'; requestId: string; expiresAt: number };
 
 export interface WsTransportOptions {
   /** `ws(s)://<host>/v1/ws`. */
@@ -394,6 +396,13 @@ export class WsTransport implements Transport {
           type: 'group_changed',
           groupId: bytesToUuid(body.value.groupId),
           version: Number(body.value.version),
+        });
+        break;
+      case 'primaryTransferRequested':
+        this.#events.emit({
+          type: 'primary_transfer',
+          requestId: bytesToUuid(body.value.requestId),
+          expiresAt: Number(body.value.expiresAtMs),
         });
         break;
       case 'ephemeral':

@@ -10,6 +10,7 @@
 extern crate uniffi_runtime_wasm as _;
 
 mod attachment;
+mod backup;
 mod error;
 mod megolm;
 mod olm;
@@ -19,6 +20,7 @@ pub use attachment::{
     AttachmentDigests, AttachmentEncryptor, EncryptedChunk, Sha256Hasher, attachment_decrypt_chunk,
     sha256,
 };
+pub use backup::{BACKUP_KEY_LEN, backup_derive_key};
 pub use error::CryptoError;
 pub use megolm::{GroupDecryptResult, GroupSession, InboundGroupSession};
 pub use olm::{

@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@pingdost/api-client": "workspace:*",
+    "@pingdost/backup": "workspace:*",
     "@pingdost/crypto": "workspace:*",
     "@pingdost/message-engine": "workspace:*",
     "@pingdost/protocol": "workspace:*",

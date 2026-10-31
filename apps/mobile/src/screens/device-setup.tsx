@@ -9,6 +9,7 @@ import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
 import { setUpThisDevice } from '@/device';
 import { DeviceSetupError, type DeviceSetupProblem } from '@/device/setup';
+import { NewPhoneScreen } from '@/screens/recovery/new-phone';
 import { usePalette } from '@/theme/theme-root';
 import { ApiError } from '@pingdost/api-client';
 
@@ -18,13 +19,8 @@ type SetupState =
   | { status: 'error'; message: string };
 
 const problems: Record<DeviceSetupProblem, { title: string; body: string }> = {
-  primary_exists: {
-    title: 'This account is active on another phone',
-    body:
-      'PingDost runs on one phone per account. Moving your account to this phone needs ' +
-      'account recovery, which arrives in a later update. Until then, keep using your other ' +
-      'phone, or log out and use a different account here.',
-  },
+  // Shown as the recovery choices instead (`NewPhoneScreen`).
+  primary_exists: { title: '', body: '' },
   other_account: {
     title: 'This phone is set up for another account',
     body:
@@ -69,6 +65,10 @@ export function DeviceSetupScreen() {
   }, [attempt]);
 
   const logout = () => void authStore.getState().logout();
+
+  if (state.status === 'problem' && state.problem === 'primary_exists') {
+    return <NewPhoneScreen onLogout={logout} />;
+  }
 
   if (state.status === 'problem') {
     const problem = problems[state.problem];

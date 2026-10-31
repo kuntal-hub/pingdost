@@ -378,6 +378,41 @@ export class AuthService {
     await this.#d.events.record('password_change', context, userId);
   }
 
+  // Phone replacement (Phase 19, ADR 0022)
+
+  /**
+   * Throws `RECENT_LOGIN_REQUIRED` unless this session's login (the refresh family's start)
+   * is newer than `RECENT_LOGIN_SECONDS`. Refreshing never makes a login recent again.
+   */
+  async requireRecentLogin(sessionId: string, maxAgeSeconds: number): Promise<void> {
+    const session = await this.#d.collections.sessions.findOne(
+      { _id: sessionId, revokedAt: null },
+      { projection: { createdAt: 1 } },
+    );
+    if (!session || this.#d.clock.now() - session.createdAt.getTime() > maxAgeSeconds * 1000) {
+      throw new AppError('RECENT_LOGIN_REQUIRED');
+    }
+  }
+
+  /** Emails a code for `purpose` to the account's verified address. */
+  async sendAccountOtp(userId: string, purpose: OtpPurpose): Promise<void> {
+    const user = await this.#d.collections.users.findOne({ _id: userId, status: 'active' });
+    if (!user) throw new AppError('FORBIDDEN');
+    await this.#sendOtp(purpose, user.email);
+  }
+
+  /** Checks and consumes a code sent by `sendAccountOtp`. */
+  async checkAccountOtp(
+    userId: string,
+    purpose: OtpPurpose,
+    code: string,
+    context: RequestContext,
+  ): Promise<void> {
+    const user = await this.#d.collections.users.findOne({ _id: userId, status: 'active' });
+    if (!user) throw new AppError('FORBIDDEN');
+    await this.#checkOtp(purpose, user.email, code, context);
+  }
+
   // Helpers
 
   #now(): Date {

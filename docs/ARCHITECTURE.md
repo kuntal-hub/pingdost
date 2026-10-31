@@ -176,6 +176,8 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - **Backup rule (ADR 0003):**
   - Back up only the account identity key and Megolm inbound sessions.
   - Never restore a device Olm account, Olm sessions or outbound Megolm sessions. A restored device is a new device certified by the identity key.
+  - (ADR 0022) The user-held `.pdbk` file: Argon2id (in the Rust crate) of a 24-word BIP39 phrase keys the attachment STREAM; the body holds the history, contacts' verified keys, the account key and Megolm inbound sessions (exported), never device state. Nothing is uploaded.
+  - (ADR 0022) Replacing the primary: the old phone approves (a check code, then the account key sealed over a one-off Olm session), or a backup plus an email code, or a fresh account key plus an email code (every device revoked). A recent login, audit events and budgets on every path. A same-key phone change shows "moved to a new phone" and keeps verification.
 - **Mesh first contact:** clients cache contacts' device identity and fallback keys while online, so Olm prekey messages can be created offline. A direct nearby handshake is the other option.
 - **Local at rest:**
   - **Mobile:** SQLCipher DB key, Olm pickle key, the account identity key secret and the session tokens in `expo-secure-store` (Android Keystore; ADR 0009).

@@ -1,8 +1,9 @@
 import * as Notifications from 'expo-notifications';
 import { Stack, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { conversationOf } from '@/push/notifications';
+import { usePhoneRequests } from '@/recovery/approvals';
 
 // Deep links into a chat still have the tabs underneath to go back to.
 export const unstable_settings = { anchor: '(tabs)' };
@@ -19,9 +20,24 @@ function useNotificationTaps(): void {
   }, [response, router]);
 }
 
+/** A new phone asked for this account (ADR 0022): the approval screen opens once per request. */
+function usePhoneRequestPrompt(): void {
+  const router = useRouter();
+  const next = usePhoneRequests(
+    (state) => state.requests.find((r) => !state.dismissed.includes(r.requestId))?.requestId,
+  );
+  const shown = useRef(new Set<string>());
+  useEffect(() => {
+    if (!next || shown.current.has(next)) return;
+    shown.current.add(next);
+    router.push('/approve-phone');
+  }, [next, router]);
+}
+
 /** The signed-in app: the tabs, with chats and contacts pushed over them (no tab bar there). */
 export default function AppStack() {
   useNotificationTaps();
+  usePhoneRequestPrompt();
   return (
     <Stack screenOptions={{ headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -41,6 +57,7 @@ export default function AppStack() {
       />
       <Stack.Screen name="send-attachment" options={{ title: 'Send', presentation: 'modal' }} />
       <Stack.Screen name="media/[messageId]" options={{ title: '' }} />
+      <Stack.Screen name="approve-phone" options={{ title: 'New phone', presentation: 'modal' }} />
     </Stack>
   );
 }

@@ -17,6 +17,41 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-31 — Phase 19: Recovery, encrypted backup & primary replacement — 🔄 partial (device checks open)
+**Done (ADR 0022):**
+- **Crypto crate:** `backup_derive_key` (Argon2id v0x13, RustCrypto `argon2` 0.6.0, bounded parameters); `CryptoProvider.deriveBackupKey`; conformance scenario `backup-kdf`. WASM and Android (`build:android`, NDK 27.1) bindings regenerated.
+- **`packages/backup`:** the `.pdbk` format (69-byte header, attachment STREAM body, JSON/file frames, manifest with header hash, `end` hash); BIP39 phrase (`@scure/bip39` 2.4.0); `exportToBackup`/`restoreFromBackup` over `EngineStore` (never device state; unsent messages → failed; seen IDs; Megolm sessions re-pickled); the phone-change crypto (`transferCode`, `approveTransfer`, `openTransferApproval`).
+- **Engine:** `listInboundGroupSessions` (store contract; memory, Dexie, SQLCipher); `announceNewDevice` (SessionReset to every peer device); `resendTo` also sends a replacement device the recent unconfirmed direct messages; `primary_device_changed` notice (same key, verification kept). chat-core label.
+- **Protocol:** `ServerFrame.primary_transfer_requested` (add-only, new vector), transfer code and payload helpers. **Transport:** `primary_transfer` event.
+- **Server:** `primary_transfer_requests` (TTL) and `/v1/devices/primary-transfer*` (start, list, status, approve, deny, complete) and `/v1/devices/primary-replace*` (email code; `restore` or `fresh`); recent login (15 min), budget (10/hour/account), route limits, audit events; WS prompt plus push wake. `DeviceService.revokeDevice`/`insertPrimary`. OTP purpose `primary_replace`. New error codes.
+- **Android:** Settings → Backup (phrase shown once and quizzed, entropy in SecureStore, include files with size, monthly reminder, save to a folder (SAF) or share); device setup's "account is on another phone" now offers approve on the old phone (code + polling), restore from a backup (file, phrase, full check, email code, restore, announce), start fresh; the old phone's approval screen (opens on the WS frame or at foreground); Settings → Log out → Remove data from this phone; a revoked phone also deletes the account key and phrase.
+- **Web:** a banner lists phone-change requests with Deny (browsers cannot approve).
+- **Sim client:** `SimClient.newPhone(options, old, { mode })` and `approveTransfer`.
+
+**Remaining (device checks; no phone was attached this session):**
+- [ ] On a phone: Settings → Backup → set up (phrase, quiz) → save to a folder and via Share. Then Settings → Apps → PingDost → Clear storage, log in → "Restore from a backup" → pick the file, type the phrase, email code → history and identity are back; a contact's chat shows "moved to a new phone", and chatting resumes (the sim peer works as the contact: `pnpm --filter @pingdost/sim-client peer`).
+- [ ] Path (a) with two devices (phone + emulator): log in on the second → "Approve on my other phone" → the first shows the request with the same code → approve → the second becomes the phone, the first is signed out and wiped.
+- [ ] Start fresh on a device: contacts see "safety number changed".
+- [ ] Remove data from this phone: the account's Devices list shows it removed; another account can then set up on the phone.
+- [ ] The monthly reminder notification appears (set the phone's date forward), and "Include photos and files" restores viewable files.
+- Steps: `pnpm infra:up`; `pnpm --filter @pingdost/server dev`; `pnpm --filter @pingdost/mobile android` (new native lib from `build:android`; a prebuild is not needed, no new native modules).
+
+**Deviations / decisions:** ADR 0022; CHANGES 2026-10-31 (Phase 19). Phrase entropy kept in SecureStore; no stale Olm sessions (a restored phone is a new device); same-key phone change keeps verification; only the primary approves; approval moves no history.
+
+**Verification results:**
+- `cargo test --workspace` (13), clippy (host, wasm32, aarch64-android) clean, `cargo fmt` clean.
+- `pnpm turbo run lint typecheck test`: 55/55 tasks (backup 13, crypto 25, engine 108, protocol 99, chat-core 8, web-store 24, mobile 75, …). `pnpm format:check` clean. `pnpm --filter @pingdost/web build` OK.
+- `pnpm test:int`: 150 passed, 2 skipped. New `recovery.int.test.ts` (7): all three paths over the real server with sim clients, refusals, denial, expiry, recent login, budget.
+- Metro compiled the new Android routes (`setup`, `backup`, `approve-phone`) for `platform=android`.
+- **Not run:** anything on a phone or emulator (see Remaining).
+
+**Known issues / tech debt:**
+- No screenshot blocking on the phrase screen yet (Phase 27).
+- A restore interrupted after the server accepted the phone resumes with partial history.
+- The old phone gets the prompt live only while connected or when opened; a push wake starts no prompt by itself unless the app runs (a local notification then says to open it).
+- Saving to a folder uses the SAF `createFile` + file handle path: untested on a device (Share is the fallback).
+
+**Next:** Phase 20 (deployment, staging).
 ## 2026-10-31 — Phase 18: History sync (phone → web) + web attachments — 🔄 partial (browser checks open)
 **Done (ADR 0021):**
 - **Protocol:** `SyncChunk` ops (request, ack, manifest, stop, file request/part) and `SyncBatch` records, add-only; codec checks; `encodeSyncBatch`/`decodeSyncBatch`; new vectors (`content/sync-chunk`, `content/sync-request`).

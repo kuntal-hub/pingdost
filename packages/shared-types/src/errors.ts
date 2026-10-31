@@ -69,6 +69,13 @@ export const ErrorCodeSchema = z.enum([
   'PAIRING_NOT_FOUND',
   'PAIRING_EXPIRED',
   'PAIRING_ALREADY_USED',
+  // Replacing the primary phone (Phase 19)
+  /** Log in again first: this needs a login from the last 15 minutes. */
+  'RECENT_LOGIN_REQUIRED',
+  'TRANSFER_NOT_FOUND',
+  'TRANSFER_EXPIRED',
+  /** Approved, denied or completed already: each request works once. */
+  'TRANSFER_ALREADY_USED',
   // Blocks and reports (Phase 11)
   /** The account already blocks `MAX_BLOCKS` users. */
   'BLOCK_LIMIT_REACHED',
@@ -131,6 +138,10 @@ export const ERROR_STATUS: Readonly<Record<ErrorCode, number>> = {
   PAIRING_NOT_FOUND: 404,
   PAIRING_EXPIRED: 410,
   PAIRING_ALREADY_USED: 409,
+  RECENT_LOGIN_REQUIRED: 403,
+  TRANSFER_NOT_FOUND: 404,
+  TRANSFER_EXPIRED: 410,
+  TRANSFER_ALREADY_USED: 409,
   BLOCK_LIMIT_REACHED: 409,
 };
 

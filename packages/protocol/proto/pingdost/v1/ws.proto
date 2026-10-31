@@ -40,6 +40,7 @@ message ServerFrame {
     ServerError error = 10;
     Pong pong = 11;
     GroupChanged group_changed = 12;
+    PrimaryTransferRequested primary_transfer_requested = 13;
   }
 }
 
@@ -48,6 +49,14 @@ message ServerFrame {
 message GroupChanged {
   bytes group_id = 1;
   uint64 version = 2;
+}
+
+// A new phone asked to become this account's primary (ADR 0022): the primary shows the
+// request to approve or deny, linked devices show it to deny. Sent to the account's online
+// devices; the details come from GET /v1/devices/primary-transfer.
+message PrimaryTransferRequested {
+  bytes request_id = 1;
+  int64 expires_at_ms = 2;
 }
 
 // The first frame on a connection.

@@ -595,6 +595,12 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
         claimed,
       );
       expect(await store.getInboundGroupSession(testId(), 'session-in')).toBeUndefined();
+      const bySender = (list: InboundGroupSessionRecord[]) =>
+        [...list].sort((a, b) => (a.senderDeviceId < b.senderDeviceId ? -1 : 1));
+      expect(bySender(await store.listInboundGroupSessions(groupId))).toEqual(
+        bySender([inbound, claimed]),
+      );
+      expect(await store.listInboundGroupSessions(older.groupId)).toEqual([]);
       expect(await store.listHeld(groupId)).toEqual([early, late]);
 
       // One current outbound session per group; held records go by ID or age.
@@ -615,6 +621,7 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
       expect(await store.getGroup(groupId)).toBeUndefined();
       expect(await store.getOutboundGroupSession(groupId)).toBeUndefined();
       expect(await store.getInboundGroupSession(senderDeviceId, 'session-in')).toBeUndefined();
+      expect(await store.listInboundGroupSessions(groupId)).toEqual([]);
       expect(await store.listHeld(groupId)).toEqual([]);
       expect(await store.listGroups()).toEqual([older]);
       expect(await store.getConversation(groupId)).toEqual(conversation);

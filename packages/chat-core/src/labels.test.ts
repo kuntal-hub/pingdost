@@ -92,6 +92,20 @@ describe('systemText', () => {
     expect(systemText(changed, names)).toBe('Safety number changed for Bilal');
     expect(previewText(changed)).toBe('Safety number changed');
   });
+
+  it('says when a contact moved to a new phone with the same safety number', () => {
+    const moved = messageRecord({
+      kind: 'system',
+      senderUserId: 'b',
+      body: 'primary_device_changed',
+    });
+    expect(systemText(moved, names)).toBe(
+      'Bilal moved to a new phone. The safety number is unchanged.',
+    );
+    expect(previewText(moved)).toBe(
+      'This contact moved to a new phone. The safety number is unchanged.',
+    );
+  });
 });
 
 describe('buildTimeline', () => {

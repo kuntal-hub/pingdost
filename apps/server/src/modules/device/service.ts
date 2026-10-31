@@ -222,21 +222,112 @@ export class DeviceService {
       (caller._id === target._id || (caller.role === 'primary' && target.role === 'linked'));
     if (!allowed) throw new AppError('FORBIDDEN');
     if (target.status === 'revoked') return;
+    await this.revokeDevice(target, context);
+  }
 
+  /**
+   * The effects of a revocation, for any active device (the caller has checked who may):
+   * status, keys, sessions, `keyVersion`, the audit event and the hooks (a live socket gets
+   * `Revoked`). False if it was not active any more.
+   */
+  async revokeDevice(target: DeviceDoc, context: RequestContext): Promise<boolean> {
     const now = new Date(this.d.clock.now());
-    const revoked = await devices.updateOne(
+    const revoked = await this.d.devices.devices.updateOne(
       { _id: target._id, status: 'active' },
       { $set: { status: 'revoked', revokedAt: now, fallbackKey: null } },
     );
-    if (revoked.modifiedCount === 0) return;
+    if (revoked.modifiedCount === 0) return false;
     await this.d.oneTimeKeys.deleteMany({ deviceId: target._id });
     await this.d.auth.sessions.updateMany(
       { deviceId: target._id, revokedAt: null },
       { $set: { revokedAt: now, revokedReason: 'device_revoked' } },
     );
-    await this.d.auth.users.updateOne({ _id: auth.userId }, { $inc: { keyVersion: 1 } });
-    await this.d.events.record('device_revoke', context, auth.userId);
+    await this.d.auth.users.updateOne({ _id: target.userId }, { $inc: { keyVersion: 1 } });
+    await this.d.events.record('device_revoke', context, target.userId);
     for (const hook of this.d.onRevoked ?? []) hook(target._id);
+    return true;
+  }
+
+  /**
+   * Inserts a new active primary for a phone replacement (ADR 0022) and binds the session.
+   * The caller has checked the keys and revoked the previous primary.
+   */
+  async insertPrimary(
+    auth: AuthContext,
+    input: Pick<RegisterDeviceRequest, 'deviceId' | 'platform' | 'name' | 'identityKeys'> & {
+      deviceCertificate: string;
+    },
+  ): Promise<RegisterDeviceResponse> {
+    const now = this.d.clock.now();
+    const device: DeviceDoc = {
+      _id: input.deviceId,
+      userId: auth.userId,
+      platform: input.platform,
+      role: 'primary',
+      name: input.name,
+      identityKeys: {
+        curve25519: input.identityKeys.curve25519,
+        ed25519: input.identityKeys.ed25519,
+      },
+      deviceCertificate: input.deviceCertificate,
+      fallbackKey: null,
+      keyVersion: 1,
+      status: 'active',
+      createdAt: new Date(now),
+      revokedAt: null,
+      lastSeenAt: startOfDay(now),
+    };
+    try {
+      await this.d.devices.devices.insertOne(device);
+    } catch (error) {
+      const field = duplicateKeyField(error);
+      if (field === 'userId') throw new AppError('PRIMARY_EXISTS');
+      if (field === '_id') throw new AppError('CONFLICT', { detail: 'Device ID already in use.' });
+      throw error;
+    }
+    await this.d.auth.users.updateOne({ _id: auth.userId }, { $inc: { keyVersion: 1 } });
+    const tokens = await this.d.authService.bindDevice(auth.sessionId, device._id);
+    return { device: toSummary(device), tokens };
+  }
+
+  /** Whether the device certificate and proof of possession check out (ADR 0008). */
+  static registrationValid(
+    input: Pick<
+      RegisterDeviceRequest,
+      'nonce' | 'deviceId' | 'identityKeys' | 'signature' | 'deviceCertificate'
+    >,
+    accountKey: string,
+  ): 'ok' | 'proof' | 'certificate' {
+    const keys = input.identityKeys;
+    if (
+      !signatureOk(
+        keys.ed25519,
+        () => deviceRegistrationMessage(input.nonce, input.deviceId, keys),
+        input.signature,
+      )
+    ) {
+      return 'proof';
+    }
+    if (
+      !signatureOk(
+        accountKey,
+        () => deviceCertificateMessage(input.deviceId, keys),
+        input.deviceCertificate,
+      )
+    ) {
+      return 'certificate';
+    }
+    return 'ok';
+  }
+
+  /** Consumes a registration nonce of this user (single use, 5 minutes). */
+  async consumeChallenge(userId: string, nonce: string): Promise<void> {
+    const challenge = await this.d.devices.challenges.findOneAndDelete({
+      _id: nonce,
+      userId,
+      expiresAt: { $gt: new Date(this.d.clock.now()) },
+    });
+    if (!challenge) throw new AppError('CHALLENGE_EXPIRED');
   }
 
   /** Records coarse last-seen (one write per device per UTC day at most). */

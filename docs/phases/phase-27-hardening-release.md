@@ -62,3 +62,9 @@ Make the product release-worthy: security and privacy audits, full acceptance tr
   - the phone serves history and files only while PingDost is open (no push wake for a sync);
   - the web has no video compression, and viewing a file holds it whole in memory (up to 100 MB);
   - no Playwright e2e for the web UI yet.
+**From Phase 19 (ADR 0022):**
+- Block screenshots on the recovery-phrase screens (`FLAG_SECURE`, e.g. expo-screen-capture; check its license and version).
+- A restore that dies after the server accepted the new phone resumes with a partial history: record a "restore pending" marker and offer to re-run it.
+- Approving from the old phone moves no history: consider an online hand-over over the Phase 18 sync channel.
+- Keep old `.pdbk` files readable: a fixture backup from this version restored by every later build.
+- Device checks of the phone-change flows on two real phones (see the Phase 19 PROGRESS entry).

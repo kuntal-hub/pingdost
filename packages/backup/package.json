@@ -1,0 +1,28 @@
+{
+  "name": "@pingdost/backup",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pingdost/crypto": "workspace:*",
+    "@pingdost/message-engine": "workspace:*",
+    "@pingdost/protocol": "workspace:*",
+    "@pingdost/shared-types": "workspace:*",
+    "@scure/bip39": "2.4.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

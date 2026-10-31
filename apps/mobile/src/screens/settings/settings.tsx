@@ -6,6 +6,7 @@ import { authStore } from '@/api';
 import { useAuth } from '@/auth/use-auth';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Screen } from '@/components/screen';
+import { removeDataFromThisPhone } from '@/recovery/remove-data';
 import { useAccount } from '@/settings/account';
 
 export function SettingsScreen() {
@@ -26,10 +27,34 @@ export function SettingsScreen() {
       'Your encryption keys stay on this phone, so logging back in brings it back as the same device.',
       [
         { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove data…', style: 'destructive', onPress: confirmRemoveData },
         {
           text: 'Log out',
           style: 'destructive',
           onPress: () => void authStore.getState().logout(),
+        },
+      ],
+    );
+  }
+
+  function confirmRemoveData(): void {
+    Alert.alert(
+      'Remove data from this phone?',
+      'This phone is signed out of your account for good, and its chats, files and keys are ' +
+        'deleted. Without a backup, this history is gone. To use your account on another ' +
+        "phone you will then need a backup (or start fresh). This can't be undone.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove data',
+          style: 'destructive',
+          onPress: () =>
+            void removeDataFromThisPhone().catch(() =>
+              Alert.alert(
+                'Not removed',
+                'PingDost could not reach the server, so nothing was deleted. Connect to the internet and try again.',
+              ),
+            ),
         },
       ],
     );
@@ -85,6 +110,11 @@ export function SettingsScreen() {
           title="Storage"
           subtitle="Space used, automatic downloads, clear cache"
           onPress={() => router.push('/storage')}
+        />
+        <ListRow
+          title="Backup"
+          subtitle="An encrypted copy you keep, to move to a new phone"
+          onPress={() => router.push('/backup')}
         />
       </ListSection>
 

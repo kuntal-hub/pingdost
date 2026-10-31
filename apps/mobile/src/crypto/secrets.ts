@@ -12,6 +12,11 @@ export const SECRET_ITEMS = {
   accountIdentityKey: 'pingdost.account-identity-key.v1',
   /** The signed-in session (token pair, account summary, bound device ID). */
   session: 'pingdost.session.v1',
+  /**
+   * The recovery phrase's 32 bytes (hex), kept so later backups reuse it (REQ §7.5: recovery
+   * keys in OS secure storage). Shown once; never sent, logged or put in analytics.
+   */
+  backupPhrase: 'pingdost.backup-phrase.v1',
 } as const;
 
 export const SECURE_STORE_OPTIONS: SecureStore.SecureStoreOptions = {

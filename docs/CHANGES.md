@@ -4,6 +4,19 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-10-31 — Phase 19: backup, recovery and replacing the primary phone (ADR 0022)
+1. **The recovery phrase's entropy is kept in the phone's secure storage** after it is shown once, so later backups reuse it. REQ §6.3 says the key must never reach the server, analytics or logs (it does not); REQ §7.5 asks for recovery keys in OS secure storage where practical.
+   - *Trade-off:* someone with the unlocked phone can make a new backup, but cannot see the phrase that opens it.
+   - *Affects:* 19 (done), 27.
+2. **A restored phone is a new device**, so no 1:1 Olm session is restored or "marked stale": there are none. Contacts are asked for new sessions (`SessionReset`) and resend what the lost phone missed. This replaces the plan's "sessions marked stale, then reset".
+   - *Affects:* 19 (done).
+3. **Key-change notices:** only a changed account key shows "safety number changed" and resets verification. A new phone under the **same** account key (approved, or restored) shows "moved to a new phone; the safety number is unchanged" in the direct chat and **keeps** verification. Linked browsers add no notice. The Phase 19 plan said every `keyVersion` change resets verification.
+   - *Reason:* only the account key's holder can certify a phone (ADR 0008), and the number the user compared did not change.
+   - *Affects:* 19 (done).
+4. **Only the active primary phone approves a new phone** (it alone holds the account key); a linked browser can only deny. The plan allowed a linked web device "if the policy allows".
+   - *Affects:* 19 (done), 27.
+5. **Approving from the old phone moves no history**; the app says to back up first and restore instead.
+   - *Affects:* 19 (done), 27 (an online hand-over).
 ### 2026-10-31 — Phase 18: history sync and web attachments (ADR 0021)
 1. **The server never holds sync data, not even briefly.** REQ §13.2 allows a relay to hold encrypted sync chunks "temporarily, with strict short expiry". PingDost relays them only to the online device, in memory, and otherwise answers `RECIPIENT_OFFLINE`.
    - *Reason:* nothing to expire or delete, and a test can prove no writes. Both devices are online during a sync anyway.

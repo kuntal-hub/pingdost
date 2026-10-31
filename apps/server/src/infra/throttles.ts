@@ -21,6 +21,8 @@ export interface ThrottleSettings {
   usernameLookups: Budget;
   /** One-time keys claimed per account (one per device in each claim). */
   keyClaims: Budget;
+  /** Phone replacement attempts per account: requests, codes and replacements (ADR 0022). */
+  phoneReplacements: Budget;
 }
 
 export const DEFAULT_THROTTLES: ThrottleSettings = {
@@ -29,4 +31,5 @@ export const DEFAULT_THROTTLES: ThrottleSettings = {
   otpChecks: { limit: 15, windowMs: HOUR_MS },
   usernameLookups: { limit: 30, windowMs: 15 * MINUTE_MS },
   keyClaims: { limit: 500, windowMs: HOUR_MS },
+  phoneReplacements: { limit: 10, windowMs: HOUR_MS },
 };

@@ -81,6 +81,37 @@ export function attachmentDecryptChunk(
 }
 
 /**
+ * Argon2id (version 0x13) of `secret` with `salt`; 32 bytes out.
+ */
+export function backupDeriveKey(
+  secret: ArrayBuffer,
+  salt: ArrayBuffer,
+  memoryKib: number,
+  iterations: number,
+  parallelism: number,
+): ArrayBuffer /*throws*/ {
+  const __rb: Uint8Array = uniffiCaller.rustCallWithError(
+    /*liftError:*/ FfiConverterTypeCryptoError.lift.bind(FfiConverterTypeCryptoError),
+    /*caller:*/ (callStatus) => {
+      return nativeModule().uniffi_pingdost_crypto_fn_func_backup_derive_key(
+        FfiConverterArrayBuffer.lower(secret, nativeModule().rustbuffer_alloc),
+        FfiConverterArrayBuffer.lower(salt, nativeModule().rustbuffer_alloc),
+        FfiConverterUInt32.lower(memoryKib, nativeModule().rustbuffer_alloc),
+        FfiConverterUInt32.lower(iterations, nativeModule().rustbuffer_alloc),
+        FfiConverterUInt32.lower(parallelism, nativeModule().rustbuffer_alloc),
+        callStatus,
+      );
+    },
+    /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+  );
+  try {
+    return FfiConverterArrayBuffer.lift(__rb);
+  } finally {
+    nativeModule().rustbuffer_free(__rb);
+  }
+}
+
+/**
  * Verifies an Ed25519 signature (strict verification). Key and signature are base64.
  */
 export function ed25519Verify(
@@ -2538,6 +2569,11 @@ function uniffiEnsureInitialized() {
   if (nativeModule().uniffi_pingdost_crypto_checksum_func_attachment_decrypt_chunk() !== 41938) {
     throw new UniffiInternalError.ApiChecksumMismatch(
       'uniffi_pingdost_crypto_checksum_func_attachment_decrypt_chunk',
+    );
+  }
+  if (nativeModule().uniffi_pingdost_crypto_checksum_func_backup_derive_key() !== 17640) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_pingdost_crypto_checksum_func_backup_derive_key',
     );
   }
   if (nativeModule().uniffi_pingdost_crypto_checksum_func_ed25519_verify() !== 38195) {

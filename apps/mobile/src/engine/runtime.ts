@@ -12,6 +12,7 @@
 import * as Network from 'expo-network';
 import * as SecureStore from 'expo-secure-store';
 import { AppState } from 'react-native';
+import { z } from 'zod';
 import { create } from 'zustand';
 
 import { api, authStore } from '@/api';
@@ -23,7 +24,9 @@ import { clearPlaintext, watchPlaintext } from '@/attachments/view';
 import { publicConfig } from '@/config';
 import { getCryptoContext } from '@/crypto/bootstrap';
 import { getOrCreateSecret, SECRET_ITEMS, SECURE_STORE_OPTIONS } from '@/crypto/secrets';
+import { readSetting, SETTING_KEYS, writeSetting } from '@/db/settings';
 import { installNotifier } from '@/push/notifications';
+import { onPhoneRequested, refreshPhoneRequests } from '@/recovery/approvals';
 import { cachedPrivacy, useAccount } from '@/settings/account';
 import { vaultSyncFiles } from '@/sync/files';
 import type { CryptoProvider } from '@pingdost/crypto/core';
@@ -104,6 +107,17 @@ async function ownIdentityKey(provider: CryptoProvider): Promise<string | undefi
   }
 }
 
+/** The contacts a restore left to tell (ackup/restore.ts), asked once. */
+async function announceRestore(
+  db: Parameters<typeof readSetting>[0],
+  engine: MessageEngine,
+): Promise<void> {
+  const peers = await readSetting(db, SETTING_KEYS.announce, z.array(z.string()));
+  if (!peers?.length) return;
+  await engine.announceNewDevice(peers);
+  await writeSetting(db, SETTING_KEYS.announce, []);
+}
+
 async function boot(): Promise<ChatRuntime> {
   const session = authStore.getState().session;
   if (!session?.deviceId || !publicConfig) throw new Error('chat needs a registered device');
@@ -156,6 +170,7 @@ async function boot(): Promise<ChatRuntime> {
     transport.start();
     transport.reconnectNow();
     transport.setPresence(true);
+    void refreshPhoneRequests().catch(() => undefined);
   };
   const background = () => {
     transport.setPresence(false);
@@ -184,6 +199,10 @@ async function boot(): Promise<ChatRuntime> {
           // Membership changed on the server: apply its removals now (ADR 0016).
           void engine.syncGroup(event.groupId).catch(() => undefined);
           break;
+        case 'primary_transfer':
+          // A new phone wants this account (ADR 0022): ask the user here.
+          void onPhoneRequested().catch(() => undefined);
+          break;
         case 'revoked':
           void revoked();
           break;
@@ -202,11 +221,17 @@ async function boot(): Promise<ChatRuntime> {
   });
   cleanup.push(() => network.remove());
 
-  /** This device was revoked: its identity is burned, so its chats and sessions go too. */
+  /**
+   * This device was revoked: its identity is burned, so its chats and sessions go too, and the
+   * account key and recovery phrase leave this phone (a new phone holds them now; ADR 0022).
+   */
   async function revoked() {
     await stopChat();
     await wipeChatData(db).catch(() => undefined);
     wipeAttachmentFiles();
+    for (const item of [SECRET_ITEMS.accountIdentityKey, SECRET_ITEMS.backupPhrase]) {
+      await SecureStore.deleteItemAsync(item, SECURE_STORE_OPTIONS).catch(() => undefined);
+    }
     await authStore.getState().logout();
   }
 
@@ -251,7 +276,12 @@ async function boot(): Promise<ChatRuntime> {
   );
   if (AppState.currentState === 'active') foreground();
   // Heals an interrupted first key upload and tops up one-time keys (ADR 0011).
-  void engine.replenishKeys({ ensureFallback: true }).catch(() => undefined);
+  void engine
+    .replenishKeys({ ensureFallback: true })
+    // After a restore: contacts' devices learn about this phone and resend what the old one
+    // missed (ADR 0022). Done once the keys they need are published.
+    .then(() => announceRestore(db, engine))
+    .catch(() => undefined);
 
   const runtime: ChatRuntime = { engine, transport, userId, deviceId, accountIdentityKey };
   useChatStore.setState({ runtime });

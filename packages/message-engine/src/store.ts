@@ -47,7 +47,8 @@ export type MessageKind =
   | 'deleted';
 
 /**
- * `safety_number_changed` (the sender's account key changed), or a group event as `group:`
+ * `safety_number_changed` (the sender's account key changed), `primary_device_changed` (the
+ * sender moved to a new phone under the same key; ADR 0022), or a group event as `group:`
  * plus JSON (`groups/notices.ts`).
  */
 export type SystemNotice = string;
@@ -454,6 +455,8 @@ export interface EngineStore {
     senderDeviceId: string,
     sessionId: string,
   ): Promise<InboundGroupSessionRecord | undefined>;
+  /** Every inbound session of a group, oldest first (backups, ADR 0022). */
+  listInboundGroupSessions(groupId: string): Promise<InboundGroupSessionRecord[]>;
   /** Held records of a group, oldest first. */
   listHeld(groupId: string): Promise<HeldGroupRecord[]>;
 }

@@ -13,6 +13,7 @@ export default function SettingsStack() {
       <Stack.Screen name="devices" options={{ title: 'Devices' }} />
       <Stack.Screen name="link-browser" options={{ title: 'Link a browser' }} />
       <Stack.Screen name="storage" options={{ title: 'Storage' }} />
+      <Stack.Screen name="backup" options={{ title: 'Backup' }} />
       <Stack.Screen name="storage-chat" options={{ title: 'Chat files' }} />
       <Stack.Screen name="about-privacy" options={{ title: 'About privacy' }} />
     </Stack>

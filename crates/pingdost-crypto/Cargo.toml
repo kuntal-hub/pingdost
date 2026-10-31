@@ -20,6 +20,9 @@ thiserror = "2"
 chacha20poly1305 = "=0.11.0"
 aead-stream = "=0.6.0"
 sha2 = "=0.11.1"
+# Backups (ADR 0022): Argon2id over the recovery phrase. No password-hash/getrandom: the salt
+# comes from the caller, and only the raw KDF is used.
+argon2 = { version = "=0.6.0", default-features = false, features = ["alloc", "zeroize"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # Randomness from Web Crypto (crypto.getRandomValues) in browsers and Node.

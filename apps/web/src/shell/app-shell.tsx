@@ -11,6 +11,8 @@ import { cn } from '@/lib/cn';
 import { useSession } from '@/session/session';
 import type { TransportStatus } from '@pingdost/transport';
 
+import { PhoneRequests } from './phone-requests';
+
 const STATUS_TEXT: Record<TransportStatus, string> = {
   online: 'Connected',
   connecting: 'Connecting…',
@@ -90,6 +92,7 @@ export function AppShell() {
         </p>
       </nav>
       <main className="min-h-0 min-w-0 flex-1">
+        <PhoneRequests />
         {error && (
           <p role="alert" className="border-b border-danger px-4 py-2 text-danger">
             {error}. Reload the page; if it keeps happening, unlink this browser and link it again.

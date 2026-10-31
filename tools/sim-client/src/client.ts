@@ -13,8 +13,15 @@ import {
   groupsApi,
   keysApi,
   pairingApi,
+  recoveryApi,
   type ApiClient,
 } from '@pingdost/api-client';
+import {
+  approveTransfer,
+  openTransferApproval,
+  transferCode,
+  transferOneTimeKey,
+} from '@pingdost/backup';
 import type { CryptoProvider, OlmAccount, SigningKey } from '@pingdost/crypto';
 import {
   MemoryEngineStore,
@@ -193,6 +200,113 @@ export class SimClient {
     return sim;
   }
 
+  /**
+   * A new phone for `old`'s account (ADR 0022), logged in with the same password:
+   * - `transfer`: `old` (the active primary, still running) approves it after the codes match;
+   * - `restore`: an email code, and the account identity key from a backup;
+   * - `fresh`: an email code and a new account identity key (every old device is revoked).
+   */
+  static async newPhone(
+    options: SimClientOptions,
+    old: SimClient,
+    how: { mode: 'transfer' } | { mode: 'restore'; identitySecret: string } | { mode: 'fresh' },
+  ): Promise<SimClient> {
+    const { endpoints, crypto } = options;
+    const bearer: { token?: string } = {};
+    const client = createApiClient({
+      baseUrl: endpoints.api,
+      getAccessToken: () => bearer.token,
+      retries: 0,
+    });
+    const session = await authApi(client).login({
+      identifier: old.username,
+      password: old.password,
+    });
+    bearer.token = session.tokens.accessToken;
+    const recovery = recoveryApi(client);
+    const account = crypto.createAccount();
+    const deviceId = uuidv7();
+    const keys = account.identityKeys();
+    let identity: SigningKey;
+    let tokens: AuthTokens;
+    if (how.mode === 'transfer') {
+      const { requestId } = await recovery.start({
+        deviceId,
+        platform: 'android',
+        name: 'sim-client (new phone)',
+        identityKeys: keys,
+        oneTimeKey: transferOneTimeKey(account, deviceId),
+      });
+      const shown = transferCode(crypto, requestId, deviceId, keys);
+      await old.approveTransfer(requestId, shown);
+      const status = await recovery.status(requestId);
+      if (status.status !== 'approved' || !status.approval) throw new Error('not approved');
+      identity = openTransferApproval(crypto, account, status.approval, {
+        requestId,
+        userId: old.userId,
+        deviceId,
+        accountIdentityKey: old.accountIdentityKey,
+      });
+      ({ tokens } = await recovery.complete(requestId, {
+        signature: account.sign(deviceRegistrationMessage(status.approval.nonce, deviceId, keys)),
+      }));
+    } else {
+      identity =
+        how.mode === 'restore'
+          ? crypto.restoreSigningKey(how.identitySecret)
+          : crypto.createSigningKey();
+      await recovery.sendReplaceCode();
+      const otp = await otpFor(endpoints.mailpit, `${old.username}@sim.pingdost.localhost`);
+      const { nonce } = await devicesApi(client).challenge();
+      ({ tokens } = await recovery.replace({
+        mode: how.mode,
+        otp,
+        deviceId,
+        platform: 'android',
+        name: 'sim-client (new phone)',
+        identityKeys: keys,
+        nonce,
+        signature: account.sign(deviceRegistrationMessage(nonce, deviceId, keys)),
+        deviceCertificate: identity.sign(deviceCertificateMessage(deviceId, keys)),
+        accountIdentityKey: identity.publicKey(),
+      }));
+    }
+    const sim = new SimClient(
+      options,
+      old.username,
+      old.password,
+      old.userId,
+      deviceId,
+      account,
+      identity,
+      identity.publicKey(),
+      tokens,
+    );
+    await sim.publishKeys(true);
+    return sim;
+  }
+
+  /**
+   * As the primary phone: approves the pending phone-change request `requestId`, if the code
+   * this phone computes matches `expectedCode` (what the new phone shows).
+   */
+  async approveTransfer(requestId: string, expectedCode: string): Promise<void> {
+    if (!this.identity) throw new Error('only the primary phone can approve a new phone');
+    const recovery = recoveryApi(this.api);
+    const request = (await recovery.pending()).requests.find((r) => r.requestId === requestId);
+    if (!request) throw new Error('no such pending request');
+    const code = transferCode(
+      this.options.crypto,
+      requestId,
+      request.deviceId,
+      request.identityKeys,
+    );
+    if (code !== expectedCode) throw new Error('the codes differ: refusing');
+    await recovery.approve(
+      requestId,
+      approveTransfer(this.options.crypto, this.account, this.identity, this.userId, request),
+    );
+  }
   /** As the primary phone: approves a browser for this account (ADR 0019). */
   async #approve(
     pairingId: string,

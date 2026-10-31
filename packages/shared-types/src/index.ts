@@ -15,4 +15,5 @@ export * from './pairing';
 export * from './problem';
 export * from './profile';
 export * from './push';
+export * from './recovery';
 export * from './security';

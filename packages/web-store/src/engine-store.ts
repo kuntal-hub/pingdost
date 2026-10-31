@@ -539,6 +539,16 @@ export class DexieEngineStore implements EngineStore {
       .then((row) => this.#open<InboundGroupSessionRecord>('groupSessionsIn', key, row));
   }
 
+  async listInboundGroupSessions(groupId: string): Promise<InboundGroupSessionRecord[]> {
+    const rows = await this.db.groupSessionsIn.where('groupId').equals(groupId).toArray();
+    const all = await this.#openAll<InboundGroupSessionRecord>(
+      'groupSessionsIn',
+      (r) => r.key as string,
+      rows,
+    );
+    return all.sort((a, b) => a.createdAt - b.createdAt || (a.sessionId < b.sessionId ? -1 : 1));
+  }
+
   async listHeld(groupId: string): Promise<HeldGroupRecord[]> {
     const rows = await this.db.held.where('groupId').equals(groupId).toArray();
     const all = await this.#openAll<HeldGroupRecord>('held', (r) => r.id as string, rows);

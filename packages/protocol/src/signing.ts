@@ -18,6 +18,10 @@ export const SIGNING_CONTEXTS = {
   fallbackKey: 'pingdost/fallback-key/v1',
   /** Signed by the primary phone's device key: it approves this browser (ADR 0019). */
   pairingApproval: 'pingdost/pairing-approval/v1',
+  /** Hashed (not signed) into the check code both phones show for a phone change (ADR 0022). */
+  primaryTransferCode: 'pingdost/primary-transfer-code/v1',
+  /** The approving phone's Olm message to the new phone: the account identity key (ADR 0022). */
+  primaryTransferPayload: 'pingdost/primary-transfer-payload/v1',
 } as const;
 
 export const KEY_BYTES = 32;
@@ -140,4 +144,71 @@ export function signedKeyMessage(
     id,
     exactBytes(publicKey, KEY_BYTES, 'public_key'),
   ]);
+}
+
+/**
+ * context ‖ requestId (16) ‖ deviceId (16) ‖ curve25519 (32) ‖ ed25519 (32). Both phones hash
+ * this (SHA-256) and show `primaryTransferCode(digest)`: equal codes mean the old phone is
+ * about to certify exactly the keys the new phone made (ADR 0022).
+ */
+export function primaryTransferCodeMessage(
+  requestId: string,
+  deviceId: string,
+  keys: DeviceIdentityKeys,
+): Uint8Array {
+  return concat([
+    context(SIGNING_CONTEXTS.primaryTransferCode),
+    deviceIdBytes(requestId),
+    deviceIdBytes(deviceId),
+    ...identityBytes(keys),
+  ]);
+}
+
+/** Six digits from a SHA-256 digest, shown as "123 456". */
+export function primaryTransferCode(digest: Uint8Array): string {
+  if (digest.length < 4) throw new ProtocolError('INVALID_FIELD', 'digest too short', 'digest');
+  const value = new DataView(digest.buffer, digest.byteOffset, 4).getUint32(0) % 1_000_000;
+  const digits = String(value).padStart(6, '0');
+  return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+}
+
+/** What the old phone seals to the new phone over Olm (JSON inside the context prefix). */
+export interface PrimaryTransferPayload {
+  requestId: string;
+  userId: string;
+  /** `SigningKey.exportSecret()`. Secret. */
+  accountIdentityKeySecret: string;
+}
+
+export function encodePrimaryTransferPayload(payload: PrimaryTransferPayload): Uint8Array {
+  return concat([
+    context(SIGNING_CONTEXTS.primaryTransferPayload),
+    encoder.encode(JSON.stringify(payload)),
+  ]);
+}
+
+export function decodePrimaryTransferPayload(bytes: Uint8Array): PrimaryTransferPayload {
+  const prefix = context(SIGNING_CONTEXTS.primaryTransferPayload);
+  if (bytes.length <= prefix.length || !prefix.every((b, i) => bytes[i] === b)) {
+    throw new ProtocolError('INVALID_FIELD', 'not a transfer payload', 'payload');
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(new TextDecoder().decode(bytes.subarray(prefix.length)));
+  } catch {
+    throw new ProtocolError('INVALID_FIELD', 'malformed transfer payload', 'payload');
+  }
+  const v = value as Partial<PrimaryTransferPayload> | null;
+  if (
+    typeof v?.requestId !== 'string' ||
+    typeof v.userId !== 'string' ||
+    typeof v.accountIdentityKeySecret !== 'string'
+  ) {
+    throw new ProtocolError('INVALID_FIELD', 'malformed transfer payload', 'payload');
+  }
+  return {
+    requestId: v.requestId,
+    userId: v.userId,
+    accountIdentityKeySecret: v.accountIdentityKeySecret,
+  };
 }

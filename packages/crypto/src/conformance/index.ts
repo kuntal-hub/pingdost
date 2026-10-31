@@ -1,7 +1,12 @@
 // @pingdost/crypto/conformance: provider-independent conformance scenarios, deterministic
 // vectors and the phone ↔ Node interop protocol (Phase 3). Test and dev-screen code only.
 import type { CryptoProvider } from '../types';
-import { attachmentScenarios, verifyAttachmentVectors, type AttachmentVectors } from './attachment';
+import {
+  attachmentScenarios,
+  backupScenarios,
+  verifyAttachmentVectors,
+  type AttachmentVectors,
+} from './attachment';
 import { describeError, type StepResult } from './check';
 import { scenarios } from './scenarios';
 import { verifyVectors, type CryptoVectors } from './vectors';
@@ -9,6 +14,7 @@ import { verifyVectors, type CryptoVectors } from './vectors';
 export {
   attachmentScenarios,
   attachmentVectorPlaintext,
+  backupScenarios,
   createAttachmentVectors,
   plaintextChunks,
   verifyAttachmentVectors,
@@ -23,8 +29,11 @@ export type { Scenario } from './scenarios';
 export { createVectors, verifyVectors } from './vectors';
 export type { CryptoVectors } from './vectors';
 
-/** Every scenario: the Phase 2 Olm, Megolm and signing ones, then attachments (Phase 14). */
-export const allScenarios = [...scenarios, ...attachmentScenarios];
+/**
+ * Every scenario: the Phase 2 Olm, Megolm and signing ones, then attachments (Phase 14) and the
+ * backup key derivation (Phase 19).
+ */
+export const allScenarios = [...scenarios, ...attachmentScenarios, ...backupScenarios];
 
 /** Runs every scenario against `provider`, reporting each as a step. */
 export function runScenarios(provider: CryptoProvider): StepResult[] {

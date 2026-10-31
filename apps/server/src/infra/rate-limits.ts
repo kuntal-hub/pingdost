@@ -58,6 +58,14 @@ export const DEFAULT_ROUTE_LIMITS = {
   pairingComplete: { max: 30, timeWindow: 15 * MINUTE },
   pairingInspect: { max: 60, timeWindow: 15 * MINUTE },
   pairingApprove: { max: 30, timeWindow: 15 * MINUTE },
+  /** Replacing the primary phone (ADR 0022). The new phone polls about every 2 s. */
+  transferStart: { max: 10, timeWindow: HOUR },
+  transferPoll: { max: 900, timeWindow: 15 * MINUTE },
+  transferList: { max: 120, timeWindow: 15 * MINUTE },
+  transferDecide: { max: 30, timeWindow: 15 * MINUTE },
+  transferComplete: { max: 30, timeWindow: 15 * MINUTE },
+  replaceOtp: { max: 10, timeWindow: HOUR },
+  replace: { max: 20, timeWindow: HOUR },
   metrics: { max: 120, timeWindow: 15 * MINUTE },
 } satisfies Record<string, RouteLimit>;
 

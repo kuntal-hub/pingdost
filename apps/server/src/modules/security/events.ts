@@ -28,7 +28,16 @@ export type SecurityEventType =
   /** The primary phone approved a browser (ADR 0019). */
   | 'pairing_approve'
   /** The approved browser proved its keys and became a linked device. */
-  | 'device_link';
+  | 'device_link'
+  /** Replacing the primary phone (ADR 0022): a new phone asked, the old one decided. */
+  | 'primary_transfer_request'
+  | 'primary_transfer_approve'
+  | 'primary_transfer_deny'
+  | 'primary_transfer_complete'
+  /** A new phone with the backup's account key and an email code replaced the primary. */
+  | 'primary_replace'
+  /** A new phone started fresh with a new account key: every device was revoked. */
+  | 'identity_reset';
 
 export interface SecurityEventDoc {
   _id: string;

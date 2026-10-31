@@ -14,6 +14,10 @@ export const SETTING_KEYS = {
   notifications: 'notifications',
   /** `AttachmentPrefs` (Settings → Storage): automatic downloads; local to this phone. */
   attachments: 'attachments',
+  /** `BackupPrefs` (Settings → Backup): last backup time and the reminder (ADR 0022). */
+  backup: 'backup',
+  /** Contacts to tell about this new phone once the chat engine runs (after a restore). */
+  announce: 'announce',
 } as const;
 
 export async function readSetting<T>(

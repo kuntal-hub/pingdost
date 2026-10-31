@@ -832,6 +832,27 @@ export class MessageEngine {
     return lookup.status === 'ok' ? lookup.record : undefined;
   }
 
+  /**
+   * After a restore or a phone change (ADR 0022): asks every device of each user for a new
+   * Olm session (`SessionReset`). Each device then learns about this one, shows "moved to a
+   * new phone" where the safety number stayed, and resends what the old phone never
+   * confirmed. Returns how many devices were asked; users who cannot be looked up now are
+   * skipped (they find this device when they next write).
+   */
+  async announceNewDevice(userIds: readonly string[]): Promise<number> {
+    let asked = 0;
+    for (const userId of new Set(userIds)) {
+      if (userId === this.#core.self.userId) continue;
+      const lookup = await this.#core.refreshDirectory(userId);
+      if (lookup.status !== 'ok') continue;
+      for (const device of lookup.record.devices) {
+        await this.#outbox.requestReset(userId, device.deviceId);
+        asked++;
+      }
+    }
+    return asked;
+  }
+
   async contact(userId: string): Promise<ContactInfo> {
     const directory = await this.#core.store.getDirectory(userId);
     return {

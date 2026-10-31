@@ -24,7 +24,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 16 | [Web foundation + QR pairing](phases/phase-16-web-pairing.md) | 09, 10 | 🔄 |
 | 17 | [Web chat](phases/phase-17-web-chat.md) | 13, 16 | 🔄 |
 | 18 | [History sync + web attachments](phases/phase-18-history-sync.md) | 15, 17 | 🔄 |
-| 19 | [Recovery & backup](phases/phase-19-recovery-backup.md) | 13, 16 | ⬜ |
+| 19 | [Recovery & backup](phases/phase-19-recovery-backup.md) | 13, 16 | 🔄 |
 | 20 | [Deployment (staging)](phases/phase-20-deployment-staging.md) | 12, 14 | ⬜ |
 | 21 | [Nearby spike (Android BLE / Nearby Connections)](phases/phase-21-nearby-spike.md) | 03 | ⬜ |
 | 22 | [Direct nearby messaging](phases/phase-22-nearby-direct.md) | 10, 21 | ⬜ |

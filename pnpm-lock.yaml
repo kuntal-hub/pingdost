@@ -68,6 +68,9 @@ importers:
       '@pingdost/attachments':
         specifier: workspace:*
         version: link:../../packages/attachments
+      '@pingdost/backup':
+        specifier: workspace:*
+        version: link:../../packages/backup
       '@pingdost/chat-core':
         specifier: workspace:*
         version: link:../../packages/chat-core
@@ -304,6 +307,9 @@ importers:
       '@pingdost/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@pingdost/backup':
+        specifier: workspace:*
+        version: link:../../packages/backup
       '@pingdost/crypto':
         specifier: workspace:*
         version: link:../../packages/crypto
@@ -520,6 +526,37 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+
+  packages/backup:
+    dependencies:
+      '@pingdost/crypto':
+        specifier: workspace:*
+        version: link:../crypto
+      '@pingdost/message-engine':
+        specifier: workspace:*
+        version: link:../message-engine
+      '@pingdost/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@pingdost/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+      '@scure/bip39':
+        specifier: 2.4.0
+        version: 2.4.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/chat-core:
     dependencies:
@@ -748,6 +785,9 @@ importers:
       '@pingdost/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@pingdost/backup':
+        specifier: workspace:*
+        version: link:../../packages/backup
       '@pingdost/crypto':
         specifier: workspace:*
         version: link:../../packages/crypto
@@ -3455,6 +3495,9 @@ packages:
     resolution: {integrity: sha512-vrvuasIpm/xf+BpZbzgirku0WnrQZMAc+H2Ai26jzqBxYEmQQE4DdJb7h8erkJMfRRipx0ma2Cty8jJwUm9ocQ==}
     cpu: [x64]
     os: [win32]
+
+  '@scure/bip39@2.4.0':
+    resolution: {integrity: sha512-82dxFbZUYboyOf0AXiydsQrFQ5Q4h9mX+O2UkE91ROYmsc0BKMGZLwDmy96Jpa2+vrtoxomjUhy1RPIgH/r2nA==}
 
   '@shopify/flash-list@2.3.2':
     resolution: {integrity: sha512-vQnd0y0Ag11yzS30llaeCrtIU3xYTMe7KEOP3dveLImnVjQEUw6BEg1+Ztja6aODlVNz1BpvxtlQ5eZGxiLwKw==}
@@ -10476,6 +10519,10 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.64.10':
     optional: true
+
+  '@scure/bip39@2.4.0':
+    dependencies:
+      '@noble/hashes': 2.4.0
 
   '@shopify/flash-list@2.3.2(@babel/runtime@7.29.10)(react-native@0.88.0(@babel/core@7.29.7)(@react-native/metro-config@0.88.0(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)':
     dependencies:

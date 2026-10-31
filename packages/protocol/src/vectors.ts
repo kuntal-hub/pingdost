@@ -527,6 +527,14 @@ export function createVectors(): ProtocolVectors {
       ServerFrameSchema,
       serverFrame({ case: 'groupChanged', value: { groupId: GROUP, version: 4n } }),
     ),
+    vector(
+      'server-frame/primary-transfer-requested',
+      ServerFrameSchema,
+      serverFrame({
+        case: 'primaryTransferRequested',
+        value: { requestId: GROUP, expiresAtMs: BigInt(NOW_MS + 600_000) },
+      }),
+    ),
   ];
 
   return { protocolVersion: PROTOCOL_VERSION, nowMs: NOW_MS, vectors };

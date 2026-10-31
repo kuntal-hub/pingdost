@@ -1,8 +1,13 @@
 import type { EmailContent } from './provider';
 
-export type OtpPurpose = 'verify_email' | 'password_reset';
+export type OtpPurpose = 'verify_email' | 'password_reset' | 'primary_replace';
 
-const COPY: Record<OtpPurpose, { subject: string; lead: string }> = {
+const COPY: Record<OtpPurpose, { subject: string; lead: string; ignore?: string }> = {
+  primary_replace: {
+    subject: 'Your PingDost code to move to a new phone',
+    lead: 'Use this code to make a new phone your PingDost phone. Your current phone will be signed out:',
+    ignore: "If you didn't ask for this, someone may know your password: change it now.",
+  },
   verify_email: {
     subject: 'Your PingDost verification code',
     lead: 'Use this code to verify your email address for PingDost:',
@@ -15,9 +20,9 @@ const COPY: Record<OtpPurpose, { subject: string; lead: string }> = {
 
 /** The OTP email. The code is the only variable part, so nothing user-supplied is rendered. */
 export function otpEmail(purpose: OtpPurpose, code: string, ttlSeconds: number): EmailContent {
-  const { subject, lead } = COPY[purpose];
+  const { subject, lead, ignore: warning } = COPY[purpose];
   const minutes = Math.max(1, Math.round(ttlSeconds / 60));
-  const ignore = "If you didn't ask for this, you can ignore this email.";
+  const ignore = warning ?? "If you didn't ask for this, you can ignore this email.";
   const text = [
     lead,
     '',

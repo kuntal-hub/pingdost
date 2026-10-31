@@ -142,6 +142,16 @@ export class MemoryEngineStore implements EngineStore {
     return Promise.resolve(copy(this.#inboundGroup.get(`${senderDeviceId}:${sessionId}`)));
   }
 
+  listInboundGroupSessions(groupId: string): Promise<InboundGroupSessionRecord[]> {
+    return Promise.resolve(
+      copy(
+        [...this.#inboundGroup.values()]
+          .filter((s) => s.groupId === groupId)
+          .sort((a, b) => a.createdAt - b.createdAt || (a.sessionId < b.sessionId ? -1 : 1)),
+      ),
+    );
+  }
+
   listHeld(groupId: string): Promise<HeldGroupRecord[]> {
     return Promise.resolve(
       copy(

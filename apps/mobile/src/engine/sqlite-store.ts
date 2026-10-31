@@ -786,6 +786,14 @@ export class SqliteEngineStore implements EngineStore {
     return row ? toInboundGroupSession(row) : undefined;
   }
 
+  async listInboundGroupSessions(groupId: string): Promise<InboundGroupSessionRecord[]> {
+    const rows = await this.db.getAllAsync<InboundGroupSessionRow>(
+      'SELECT * FROM group_sessions_in WHERE group_id = ? ORDER BY created_at, session_id',
+      [groupId],
+    );
+    return rows.map(toInboundGroupSession);
+  }
+
   async listHeld(groupId: string): Promise<HeldGroupRecord[]> {
     const rows = await this.db.getAllAsync<HeldRow>(
       'SELECT * FROM group_held WHERE group_id = ? ORDER BY received_at, id',

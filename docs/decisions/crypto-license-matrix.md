@@ -26,6 +26,13 @@ Checked 2026-10-18 against npm, crates.io, GitHub READMEs and project blogs (sou
 | Matrix attachment format (AES-256-CTR + SHA-256 of the whole file) | Apache-2.0 (matrix-sdk-crypto) | Part of Matrix SDK | Via full Matrix SDK | WebCrypto | Not an AEAD; integrity only after the whole file, unless chunk hashes are added |
 | Per-platform AES-GCM with our own chunk-nonce scheme | — | — | — | — | **Rejected:** a custom construction (REQ §7.2) |
 
+## 4. Backups (Phase 19, ADR 0022)
+| Dependency | Version | License | Audited | Where | Notes |
+|---|---|---|---|---|---|
+| RustCrypto `argon2` (default features off; `alloc`, `zeroize`) | 0.6.0 | MIT OR Apache-2.0 | No independent audit stated in its README (checked 2026-10-31) | `crates/pingdost-crypto` (native + WASM) | Argon2id v0x13 only; parameters bounded in our wrapper; output cross-checked against OpenSSL 3's Argon2id (`node:crypto.argon2Sync`) in `packages/crypto/test/conformance.test.ts` |
+| `blake2` (dependency of `argon2`) | 0.11.0 | MIT OR Apache-2.0 | — | same | |
+| `@scure/bip39` | 2.4.0 | MIT | Cure53 audit of 1.0.0 (Jan 2022); self-audit of 2.2.0 (Apr 2026), per its README | `packages/backup` | Word list and checksum only (`entropyToMnemonic`, `mnemonicToEntropy`); the entropy comes from the platform CSPRNG; BIP39 seed derivation unused |
+| `@noble/hashes` (dependency of `@scure/bip39`) | 2.4.0 | MIT | Audited with `@scure/bip39` (same author) | same | SHA-256 for the BIP39 checksum |
 ## 3. Toolchain used (Phase 2)
 
 | Tool | Version | License |

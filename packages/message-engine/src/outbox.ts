@@ -49,6 +49,7 @@ import type {
   DirectoryDeviceRecord,
   FanoutItem,
   InboundGroupSessionRecord,
+  MessageCursor,
   MessageRecord,
   OutboundGroupSessionRecord,
   OutboxItem,
@@ -855,12 +856,16 @@ export class Outbox {
   /**
    * After a peer device asked for a session reset: everything it has not confirmed goes out
    * again on the new session (the same envelope IDs, so the server and the device dedupe).
+   *
+   * A replacement phone (ADR 0022) also gets the recent direct messages that none of the
+   * user's devices confirmed: they went to the lost phone, which will never read them.
    */
   async resendTo(userId: string, deviceId: string): Promise<void> {
     const { core } = this;
     await core.mutex.run(async () => {
       const now = core.now();
       const outbox: OutboxItem[] = [];
+      const deliveries: DeliveryRecord[] = [];
       const queued = new Map<string, DeviceItem>();
       for (const item of await core.store.listOutbox()) {
         if (item.type === 'device' && item.recipientDeviceId === deviceId)
@@ -884,28 +889,78 @@ export class Outbox {
         if (message.expiresAt === null || message.expiresAt <= now) continue;
         // Group messages are Megolm: a device that lost one asks for the key instead.
         if ((await core.store.getConversation(message.conversationId))?.kind === 'group') continue;
-        outbox.push({
-          type: 'device',
-          purpose: 'message',
-          id,
-          messageId: message.messageId,
-          recipientUserId: userId,
-          recipientDeviceId: deviceId,
-          content:
-            message.kind === 'attachment'
-              ? attachmentContentFor(message, userId, core.settings.envelopeMaxBytes)
-              : textContentFor(message, userId, core.settings.envelopeMaxBytes),
-          packet: null,
-          newSession: false,
-          createdAt: message.createdAt,
-          expiresAt: message.expiresAt,
-          attempts: 0,
-          nextAttemptAt: now,
-        });
+        outbox.push(this.#resendItem(message, userId, deviceId, now));
       }
-      if (outbox.length > 0) await core.commit({ outbox });
+      if (userId !== core.self.userId) {
+        const sent = new Set([...queued.keys(), ...outbox.map((item) => item.id)]);
+        for (const message of await this.#unconfirmed(userId, now)) {
+          const item = this.#resendItem(message, userId, deviceId, now);
+          if (sent.has(item.id)) continue;
+          const rows = await core.store.listDeliveries(message.messageId);
+          if (rows.some((row) => row.deviceId === deviceId)) continue;
+          outbox.push(item);
+          deliveries.push({
+            messageId: message.messageId,
+            deviceId,
+            userId,
+            own: false,
+            state: 'local_queued',
+            updatedAt: now,
+          });
+        }
+      }
+      if (outbox.length > 0) await core.commit({ outbox, deliveries });
     });
     this.kick();
+  }
+
+  #resendItem(message: MessageRecord, userId: string, deviceId: string, now: number): DeviceItem {
+    const { core } = this;
+    return {
+      type: 'device',
+      purpose: 'message',
+      id: bytesToUuid(envelopeIdFor(message.messageId, deviceId)),
+      messageId: message.messageId,
+      recipientUserId: userId,
+      recipientDeviceId: deviceId,
+      content:
+        message.kind === 'attachment'
+          ? attachmentContentFor(message, userId, core.settings.envelopeMaxBytes)
+          : textContentFor(message, userId, core.settings.envelopeMaxBytes),
+      packet: null,
+      newSession: false,
+      createdAt: message.createdAt,
+      expiresAt: message.expiresAt ?? now + core.settings.maxRetentionMs,
+      attempts: 0,
+      nextAttemptAt: now,
+    };
+  }
+
+  /**
+   * Outgoing direct messages to `userId` still within the retention window that reached the
+   * server but no device of theirs confirmed (newest first).
+   */
+  async #unconfirmed(userId: string, now: number): Promise<MessageRecord[]> {
+    const { core } = this;
+    const conversationId = core.directConversationId(userId);
+    if (!(await core.store.getConversation(conversationId))) return [];
+    const oldest = now - core.settings.maxRetentionMs;
+    const out: MessageRecord[] = [];
+    let before: MessageCursor | undefined;
+    for (;;) {
+      const page = await core.store.listMessages(conversationId, { before, limit: 200 });
+      for (const message of page) {
+        if (message.sortAt < oldest) return out;
+        if (message.direction !== 'out') continue;
+        if (message.kind !== 'text' && message.kind !== 'attachment') continue;
+        if (message.state !== 'sent_to_server' && message.state !== 'relayed') continue;
+        if (message.expiresAt === null || message.expiresAt <= now) continue;
+        out.push(message);
+      }
+      if (page.length < 200) return out;
+      const last = page.at(-1)!;
+      before = { sortAt: last.sortAt, messageId: last.messageId };
+    }
   }
 
   /** Asks `device` for a new session: a `SessionReset` on a freshly claimed session. */
