@@ -17,21 +17,38 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
-## 2026-10-31 — Phase 20: Deployment (staging) — 🔄 partial (stopped at the usage limit)
-**Done (not yet verified end to end):**
-- `apps/server/Dockerfile` (node:24.22.2-trixie-slim, non-root, `pnpm deploy --prod`; built locally, 422 MB, runs as `node`) and a root `.dockerignore` (no `.env`, no build output).
-- `deploy/compose.staging.yml` (server, Valkey 8.1.10 with AOF/noeviction/256 MB/password, Caddy 2.11.7 the only published service, memory limits, internal network), `deploy/Caddyfile` (TLS, WS proxy, no access log, /metrics hidden, 4 MB bodies), `deploy/env.staging.example`.
-- `deploy/scripts/`: `vps-setup.sh` (deploy user, SSH keys only, unattended upgrades, swap, Docker, cron), `monitor.sh` (thresholds → healthchecks.io), `mongo-backup.sh` (nightly, 7 days, mailbox excluded).
-- `.github/workflows/deploy.yml` (tag → GHCR amd64 image → SSH deploy → /readyz).
-- Server: optional `HEARTBEAT_URL` job (5 min) + unit test. Web: the build emits Cloudflare Pages `_headers` (CSP + frame-ancestors, HSTS, COOP, Permissions-Policy).
-- Provider re-check 2026-10-31 (for ADR 0013): Atlas Free 0.5 GB / 500 connections / 100 ops/s / 10 GB in+out per 7 days / optional daily snapshots / paused after 30 idle days; GHCR free for public images; Actions free for public repos; Hostinger panel firewall drops all by default; KVM 1 $6.49 → $11.99 renewal, KVM 2 $8.99 → $14.99 (third-party, confirm at checkout); Hostinger backup terms not confirmed first-party; Brevo 300/day; ZeptoMail first 10K credit (third-party); UptimeRobot 50 monitors / 5 min (non-commercial); healthchecks.io 20 checks.
+## 2026-10-31 — Phase 20: Deployment (staging) on one Hostinger VPS — 🔄 partial (user steps on the VPS open)
+**Done (ADR 0013 verification; runbooks in `docs/ops/`):**
+- **Image:** `apps/server/Dockerfile` (multi-stage, `node:24.22.2-trixie-slim`, `pnpm deploy --prod`, non-root `node`, healthcheck; 420 MB, `/app` holds only `dist/`, `node_modules/`, `package.json`) and a root `.dockerignore` (no `.env`, no build output).
+- **Stack:** `deploy/compose.staging.yml` (server with `RUN_WORKER_IN_PROCESS`/`TRUST_PROXY`/`fs` staging volume, read-only, `cap_drop: ALL`; Valkey 8.1.10 with AOF everysec, 256 MB, `noeviction`, password, on an internal network with no route out; Caddy 2.11.7 as the only published service; memory limits; size-rotated logs), `deploy/Caddyfile` (TLS, WS proxy, `flush_interval -1`, 4 MB bodies, security headers, `/metrics` 404, no access log), `deploy/env.staging.example`.
+- **Scripts:** `vps-setup.sh` (deploy user, SSH keys only, no root login, unattended upgrades, 2 GB swap, Docker + Compose, cron), `monitor.sh` (REQ §18 metrics, Valkey memory, disk, RAM, containers → healthchecks.io ping or `/fail`), `mongo-backup.sh` (nightly, 7 days, leaves out the mailbox and short-lived request collections).
+- **CI/CD:** `.github/workflows/deploy.yml` (a `v*` tag → amd64 image to GHCR → copy stack files and update the VPS over SSH → wait for `/readyz`).
+- **Server:** optional `HEARTBEAT_URL` job (every 5 minutes, URL never logged) + test. **Web:** the build writes Cloudflare Pages `_headers` (the page's CSP + `frame-ancestors 'none'`, HSTS, no referrer, COOP, Permissions-Policy, caching). **Mobile:** release signing plugin (upload key from user Gradle properties), `env.production.example` for staging URLs.
+- **Docs:** `docs/ops/vps-setup.md` (numbered steps: hPanel firewall and backups, Atlas, Cloudflare DNS/Pages, ZeptoMail or Brevo with SPF/DKIM/DMARC, healthchecks.io, UptimeRobot, usage alerts, GitHub `staging` environment, GHCR visibility; card call-outs), `deploy.md` (deploy, rollback, logs, secret rotation, rebuild on a new VPS, backups and privacy wording), `alerts.md`, `mobile-release.md`. ADR 0013 verification section; CHANGES; A9.
 
-**Remaining, in order:**
-- [ ] Local rehearsal: rebuild the image (Dockerfile fix), run the stack with the override in the session scratchpad (`compose.local.yml`, `server.env`, `compose.env`: Caddy on :8088, dev Mongo + Mailpit), run the sim-client through it, measure RAM idle and under load (`docker stats`), shellcheck the scripts, run `monitor.sh` against it.
-- [ ] `docs/ops/vps-setup.md`, `docs/ops/deploy.md` (deploy, rollback, rotate secrets, rebuild on a new VPS), `docs/ops/alerts.md`; numbered manual steps (hPanel firewall, Atlas, Cloudflare DNS/Pages, email SPF/DKIM, healthchecks.io/UptimeRobot, GitHub `staging` environment, GHCR package public); call out card steps.
-- [ ] Mobile staging profile (`.env.production` with staging URLs) and release keystore signing (config plugin), release APK.
-- [ ] ADR 0013 update (verified plan, limits, measured RAM), CHANGES, ARCHITECTURE A9, phase file, then `pnpm lint typecheck test`, `format:check`, commit.
-- [ ] User: buy/confirm the VPS plan, then every "Done when" check on the real VPS.
+**Remaining (user steps; they need the bought VPS and accounts):**
+- [ ] `docs/ops/vps-setup.md` parts 1–7 (VPS, hardening, Atlas, Cloudflare, email, monitoring, `.env` + GitHub environment + first tag `v0.20.0`).
+- [ ] Two phones on **mobile data** register, chat and send an attachment through staging (release APK per `docs/ops/mobile-release.md`, or dev builds with `.env` pointing at `https://api.pingdost.com`).
+- [ ] The web at `https://app.pingdost.com` pairs and chats (first Pages build is also the check that the monorepo builds on Pages).
+- [ ] Alerts fire in a test: `dc stop server` → healthchecks (jobs late, thresholds failed) and UptimeRobot; `dc start server` → recovery (`docs/ops/alerts.md`).
+- [ ] From outside only 22, 80, 443 answer (`Test-NetConnection api.pingdost.com -Port 3000` and `-Port 6379` fail).
+- [ ] Confirm the plan, its backups and the measured RAM on the VPS (`docker stats --no-stream`) in ADR 0013.
+
+**Deviations / decisions:** CHANGES 2026-10-31 (Phase 20): Atlas Free now 500 connections; healthchecks.io + UptimeRobot instead of Grafana; `/metrics` internal only and no Caddy access log; size-based log rotation; no COEP.
+
+**Verification results:**
+- Local rehearsal of the exact stack (Docker Desktop, project `pingdost-stage`, the local image, Caddy on :8088, dev Mongo and Mailpit): all services healthy; only Caddy publishes a port (3000 and 6379 unreachable from the host); `/readyz` ok; security headers present; `/metrics` 404 through Caddy; sim-client 100-message run through Caddy and the WS proxy passed (offline delivery, receipts, no plaintext in 626 frames); 3 concurrent pairs, 1,800 messages: server peak 135 MiB, Valkey 9.5 MiB, Caddy 18 MiB (idle 104 / 8 / 14); the per-IP registration limit refused the 4th and 5th pair (working as designed).
+- `monitor.sh` against the stack: "all clear" → success ping; server stopped → `/fail` with `metrics: …` and `container server is not running`. `mongo-backup.sh`'s `mongodump` flags against the dev Mongo: 12 collections written, the 4 excluded ones absent. shellcheck 0.11.0 (warning level): clean.
+- Release signing: `prebuild` applied the plugin; `gradlew :app:signingReport` with a throwaway keystore → `Variant: release`, `Config: release`, the given store; debug unchanged.
+- Web build emits `_headers`. Server heartbeat unit test passes. Lint/typecheck/test/format: see the commit.
+- **Not run:** anything on a real VPS, Cloudflare Pages, Atlas or a phone on mobile data (see Remaining).
+
+**Known issues / tech debt:**
+- Rate limits and the connection registry are in memory: keep exactly one server instance.
+- The Docker build reinstalls dependencies on any source change (no manifest-only layer); CI uses the GitHub Actions cache.
+- `expo` reading `.env.production` for release bundles is from Expo's env rules; check the first release APK actually talks to staging.
+
+**Next:** the user's VPS steps above, then Phase 21 (nearby spike) or the open device checks of 10–19.
 ## 2026-10-31 — Phase 19: Recovery, encrypted backup & primary replacement — 🔄 partial (device checks open)
 **Done (ADR 0022):**
 - **Crypto crate:** `backup_derive_key` (Argon2id v0x13, RustCrypto `argon2` 0.6.0, bounded parameters); `CryptoProvider.deriveBackupKey`; conformance scenario `backup-kdf`. WASM and Android (`build:android`, NDK 27.1) bindings regenerated.

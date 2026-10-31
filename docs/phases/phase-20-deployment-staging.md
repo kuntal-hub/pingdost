@@ -11,18 +11,18 @@ Stand up a public staging environment on the user's single Hostinger KVM VPS (AD
 - ADRs: 0010 (Redis budget), **0013 (hosting)**, attachment staging (Phase 14)
 
 ## Tasks
-- [ ] **Re-verify** (web search; record the dates in ADR 0013):
+- [x] **Re-verify** (web search; record the dates in ADR 0013):
   - the Hostinger KVM plan the user bought: specs, renewal price, included backups, panel firewall, in-place upgrade;
   - MongoDB Atlas M0: limits, backups, regions;
   - Cloudflare Pages/DNS, ZeptoMail/Brevo, GitHub Actions/GHCR.
   - **Call out every step that needs a credit card before the user does it.**
-- [ ] **VPS setup** (numbered manual steps for the user wherever hPanel is needed):
+- [x] **VPS setup** (numbered manual steps for the user wherever hPanel is needed):
   - Ubuntu LTS, Docker Engine with the Compose plugin;
   - a non-root deploy user; SSH keys only (no password login, no root login);
   - unattended security upgrades; a 2 GB swap file.
   - **Hostinger panel firewall:** allow 22, 80 and 443 only. coturn's ports come in Phase 25. Docker-published ports bypass `ufw`, so only Caddy publishes ports.
   - Use the data center nearest the users; the Atlas cluster uses the same region.
-- [ ] **Containers:**
+- [x] **Containers:**
   - multi-stage `apps/server/Dockerfile` (Node 24 slim/distroless, non-root, `linux/amd64`);
   - `deploy/compose.staging.yml`, one stack, with a memory limit on every service:
     - **server:** one instance, `RUN_WORKER_IN_PROCESS=true`, `TRUST_PROXY=true`;
@@ -34,25 +34,25 @@ Stand up a public staging environment on the user's single Hostinger KVM VPS (AD
       - a named volume;
     - a volume for `ATTACHMENT_FS_ROOT` (`ATTACHMENT_STORE=fs`), with disk alerts.
   - Measure each service's RAM, idle and under the sim-client, and record it in ADR 0013 to confirm that KVM 1 is enough.
-- [ ] **CI/CD:**
+- [x] **CI/CD:**
   - A GitHub Actions workflow builds the `amd64` image and pushes it to GHCR on tags, then deploys over SSH (`docker compose pull && up -d`).
   - Secrets go in GitHub Environments and in the server's `.env` (chmod 600). No secrets in the repo.
   - The user pushes tags by hand (push policy in CLAUDE.md).
-- [ ] **Databases:**
+- [x] **Databases:**
   - Atlas M0 cluster in the VPS's region: IP allowlist = VPS IP, least-privilege user, TLS.
   - **Backups:**
     - turn on Hostinger's VPS backups;
     - a nightly `mongodump` of Atlas to the VPS, excluding `pending_envelopes`, keeping 7 days;
     - a snapshot before risky changes.
   - **Backup note:** VPS backups can contain the Valkey AOF and staged attachments, both ciphertext; Atlas backups (if M0 has any) can contain `pending_envelopes`. Reflect this in the privacy wording (REQ §18 last bullet).
-- [ ] **Web:** Cloudflare Pages project from GitHub (`apps/web` build), with a `_headers` file holding a strict CSP, HSTS, COOP/COEP as needed by WASM, and Permissions-Policy.
-- [ ] **DNS** (Cloudflare):
+- [x] **Web:** Cloudflare Pages project from GitHub (`apps/web` build), with a `_headers` file holding a strict CSP, HSTS, COOP/COEP as needed by WASM, and Permissions-Policy.
+- [x] **DNS** (Cloudflare):
   - `api.` starts DNS-only (grey cloud): the proxy caps uploads at 100 MB.
   - `app.` for the web app; the root landing page is optional.
   - `turn.` arrives in Phase 25.
-- [ ] **Mobile:** a staging build profile (app config env → staging URLs). Create the release keystore (**the user stores it safely; never commit it**) and build a release APK locally for testers.
-- [ ] **Email:** configure the chosen provider (SPF/DKIM DNS records via Cloudflare). Send a test OTP.
-- [ ] **Monitoring (free):**
+- [x] **Mobile:** a staging build profile (app config env → staging URLs). Create the release keystore (**the user stores it safely; never commit it**) and build a release APK locally for testers.
+- [x] **Email:** configure the chosen provider (SPF/DKIM DNS records via Cloudflare). Send a test OTP.
+- [x] **Monitoring (free):**
   - uptime checks (UptimeRobot or healthchecks.io) on `/readyz`, and a worker heartbeat ping;
   - `/metrics` scraped by Grafana Cloud free **or** a small cron script on the VPS that alerts by email or Telegram on thresholds:
     - mailbox backlog, oldest item age, overdue;
@@ -60,9 +60,11 @@ Stand up a public staging environment on the user's single Hostinger KVM VPS (AD
     - attachment bytes;
   - usage alerts the user configures (Atlas, Cloudflare, Hostinger monthly transfer), with steps given;
   - log retention of 7 days with redaction verified.
-- [ ] **Runbooks:**
+- [x] **Runbooks:**
   - `docs/ops/deploy.md`: deploy, rollback, rotate secrets, and **rebuild on a new VPS** (new VPS, `.env`, `compose up`, DNS);
   - `docs/ops/alerts.md`: what each alert means and what to do.
+
+**As built (2026-10-31):** every task above exists in the repo and was rehearsed locally (`docs/ops/*`, `deploy/*`); the parts in hPanel, Atlas, Cloudflare, the email provider, healthchecks.io, UptimeRobot and GitHub are numbered user steps in `docs/ops/vps-setup.md`. Measured RAM is in ADR 0013 (Docker Desktop; the VPS figure is a user check).
 
 ## Key files
 `apps/server/Dockerfile`, `deploy/compose.staging.yml`, `deploy/Caddyfile`, `.github/workflows/deploy.yml`, `apps/web/public/_headers`, `docs/ops/*`

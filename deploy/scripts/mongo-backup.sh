@@ -5,7 +5,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-uri=$(grep -E '^MONGODB_URI=' .env | tail -n 1 | cut -d= -f2-)
+uri=$(grep -E '^MONGODB_URI=' .env | tail -n 1 | cut -d= -f2- | tr -d '\r')
 db=${MONGO_BACKUP_DB:-pingdost}
 dir=/srv/pingdost/backups
 mkdir -p "$dir"

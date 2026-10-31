@@ -39,9 +39,10 @@ export default defineConfig(
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
   },
-  // Babel, Metro and Tailwind load the Expo app's config files as CommonJS.
+  // Babel, Metro and Tailwind load the Expo app's config files as CommonJS; so does Expo its
+  // local config plugins.
   {
-    files: ['apps/mobile/*.config.js'],
+    files: ['apps/mobile/*.config.js', 'apps/mobile/plugins/*.js'],
     languageOptions: { sourceType: 'commonjs' },
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },

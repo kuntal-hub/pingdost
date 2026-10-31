@@ -1,6 +1,6 @@
 # 0013 — Hosting: one Hostinger KVM VPS, self-hosted Valkey, no Upstash
 
-- **Status:** Accepted (Phase 20 implements it and records the verified plan and measurements)
+- **Status:** Accepted. Phase 20 built the stack and recorded the checks and measurements below; the user still confirms the plan on the bought VPS.
 - **Date:** 2026-10-19
 - **Phase:** change (before 20)
 - **Approved by user:** yes (2026-10-19: one Hostinger KVM 1 or 2 VPS, no other paid service; drop Upstash)
@@ -45,6 +45,30 @@ The user has one paid VPS, Hostinger KVM 1 or KVM 2, and will not buy any other 
    - A nightly `mongodump` of Atlas to the VPS, excluding `pending_envelopes`, keeping 7 days.
    - Atlas and the VPS then back each other up.
 8. **Staging and production share the VPS.** Phase 27 promotes the staging stack to production. There is no second stack on KVM 1.
+
+## Phase 20 verification (2026-10-31)
+**Provider checks** (first-party pages unless noted):
+| Provider | What we rely on | Checked |
+|---|---|---|
+| Hostinger KVM | KVM 1: 1 vCPU / 4 GB / 50 GB NVMe / 4 TB; KVM 2: 2 / 8 GB / 100 GB / 8 TB. Prices (third-party reviews, Aug–Oct 2026): KVM 1 $6.49 → renews $11.99/month, KVM 2 $8.99 → $14.99 (24-month terms); confirm at checkout | Reviews (hostadvice.com, tradingvpshub.com); not on Hostinger's own page |
+| Hostinger firewall | hPanel → Security → Firewall: groups of accept/drop rules by protocol and port; **drops all traffic by default**; IPv4 and IPv6; changes apply within 2 minutes | hostinger.com/support/8172641 |
+| Hostinger backups | Weekly backups and a snapshot are commonly listed for KVM plans | **Not confirmed first-party**: the user checks hPanel |
+| MongoDB Atlas Free | 0.5 GB data (BSON + indexes), **500 connections** (REQ §22 said 100), 100 ops/s (throttled, not refused), 10 GB in + 10 GB out per rolling 7 days, optional daily snapshots (4 kept), one Free cluster per project, paused after 30 days with no connections | mongodb.com/docs/atlas/reference/free-shared-limitations |
+| GitHub | Standard hosted runners free for public repos; GHCR storage and bandwidth free for public packages | docs.github.com (billing: Actions, Packages) |
+| Cloudflare Pages | 500 builds/month, 20-minute build timeout, 20,000 files, 25 MiB per file, `_headers` up to 100 rules | developers.cloudflare.com/pages/platform/limits |
+| Email | Brevo: 300 emails/day free. ZeptoMail: credits of 10,000 emails, valid 6 months; the first free per third-party sources; more credits need a card | brevo help center; third-party for ZeptoMail |
+| Monitoring | healthchecks.io free: 20 checks (third-party); UptimeRobot free: 50 monitors at 5 minutes, **non-commercial use only** | uptimerobot.com/pricing; third-party for healthchecks.io |
+
+**Stack as built** (`deploy/`, `apps/server/Dockerfile`): image `node:24.22.2-trixie-slim`, 420 MB, runs as `node`; Valkey `8.1.10-alpine`; Caddy `2.11.7-alpine` (the only published ports: 80, 443, 443/udp); an `internal` network with no route out for Valkey; the server read-only with `cap_drop: ALL`; memory limits server 640 MiB, Valkey 320 MiB, Caddy 128 MiB.
+
+**Measured** (the same images and Compose file on Docker Desktop's Linux VM, 2026-10-31; the VPS numbers are a user check):
+| Service | Idle | Peak under load* |
+|---|---|---|
+| server | 104 MiB | 135 MiB (CPU peak 118% of one core, briefly) |
+| Valkey | 8 MiB | 9.5 MiB |
+| Caddy | 14 MiB | 18 MiB |
+
+\* Three sim-client pairs at once through Caddy and the WebSocket gateway: 1,800 E2EE messages with offline delivery and receipts in about 30 s. Containers together stay under 0.2 GB; with the OS and Docker (≈ 0.4 GB) about 0.6 GB of KVM 1's 4 GB. **KVM 1 is enough** for staging; the limits leave room for coturn (Phase 25).
 
 ## Consequences
 - The thing to watch is Valkey memory, VPS RAM, disk and monthly transfer, not a command quota. The command counter and `test/redis-budget.int.test.ts` stay as efficiency guards.

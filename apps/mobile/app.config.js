@@ -10,5 +10,7 @@ module.exports = ({ config }) => {
   return {
     ...config,
     android: { ...config.android, ...(present ? { googleServicesFile } : {}) },
+    // Release builds signed with the upload key from ~/.gradle/gradle.properties (Phase 20).
+    plugins: [...(config.plugins ?? []), './plugins/with-release-signing'],
   };
 };

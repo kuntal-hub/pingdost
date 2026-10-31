@@ -245,7 +245,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Every REQ §19 criterion gets a test or a documented manual check (traceability is finished in Phase 27).
 - **Commits:** at the end of each phase, `phase NN: <title>`. Conventional commits inside a phase are optional.
 
-## A9. Providers & cost (re-verify limits in Phase 20)
+## A9. Providers & cost (verified 2026-10-31, ADR 0013)
 
 | Need | Choice | Cost |
 |---|---|---|
@@ -258,6 +258,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 | Push | FCM, Web Push (VAPID) | Free |
 | TURN / STUN | Self-hosted coturn | Free (VPS bandwidth) |
 | Avatars | Cloudinary free | Free |
+| Monitoring (Phase 20) | healthchecks.io (job heartbeat + the VPS threshold script), UptimeRobot (`/readyz`; free plan is non-commercial) | Free |
 | Store accounts | Google Play $25 one-time (Phase 27); Apple $99/yr (iOS track only) | Paid, unavoidable |
 
 **Rule:** before any step that costs money or needs a credit card, stop and tell the user.

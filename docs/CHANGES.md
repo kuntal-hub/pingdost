@@ -4,6 +4,18 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-10-31 — Phase 20: staging deployment (ADR 0013 verification)
+1. **Atlas Free allows 500 connections** (REQ §22 says 100), 0.5 GB, 100 ops/s and 10 GB in plus 10 GB out per 7 days (checked 2026-10-31). Nothing changes in the code; the alerts use these numbers.
+   - *Affects:* 20, 27.
+2. **Monitoring is healthchecks.io plus UptimeRobot, without Grafana.** The server pings a heartbeat (`HEARTBEAT_URL`, new optional variable) from its job loop, and `deploy/scripts/monitor.sh` checks the REQ §18 metrics, Valkey, disk and RAM every 5 minutes and reports problems as a failed ping (one email path for everything).
+   - *Trade-off:* no dashboards or history; UptimeRobot's free plan is non-commercial only, so production (Phase 27) needs another outside checker or a paid plan.
+   - *Affects:* 20, 27.
+3. **`/metrics` is not reachable from the internet** (Caddy answers 404); the monitor reads it inside the VPS. **Caddy keeps no access log** (attachment URLs carry their signature in the query string).
+   - *Affects:* 20.
+4. **Logs rotate by size** (5 × 10 MB per container), about a week at staging volume, instead of a strict 7 days.
+   - *Affects:* 20, 27.
+5. **No COEP header** on the web app: the WASM needs no shared memory, and COEP would block Cloudinary avatars. COOP is `same-origin`.
+   - *Affects:* 20, 25 (recheck if calls need isolation).
 ### 2026-10-31 — Phase 19: backup, recovery and replacing the primary phone (ADR 0022)
 1. **The recovery phrase's entropy is kept in the phone's secure storage** after it is shown once, so later backups reuse it. REQ §6.3 says the key must never reach the server, analytics or logs (it does not); REQ §7.5 asks for recovery keys in OS secure storage where practical.
    - *Trade-off:* someone with the unlocked phone can make a new backup, but cannot see the phrase that opens it.

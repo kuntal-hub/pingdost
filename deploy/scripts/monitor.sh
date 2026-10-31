@@ -13,7 +13,7 @@ compose=(docker compose -f compose.staging.yml)
 state=/var/tmp/pingdost-monitor.state
 
 # `.env` holds values with spaces and angle brackets, so it is read key by key, never sourced.
-env_value() { grep -E "^$1=" .env | tail -n 1 | cut -d= -f2-; }
+env_value() { grep -E "^$1=" .env | tail -n 1 | cut -d= -f2- | tr -d '\r'; }
 METRICS_TOKEN=$(env_value METRICS_TOKEN)
 MONITOR_PING_URL=$(env_value MONITOR_PING_URL)
 # 80% of ATTACHMENT_TOTAL_QUOTA_BYTES (30 GiB by default).

@@ -116,7 +116,12 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - Android (ADR 0018):
     - `apps/mobile/src/attachments/*` holds the vault, transfers and storage controls. Each local copy is the STREAM ciphertext at `<documents>/attachments/<id>`.
     - Video compression is the local Kotlin module `apps/mobile/modules/pingdost-media` (Media3, autolinked). To compile just it, run `.\gradlew.bat :pingdost-media:compileDebugKotlin` in `apps/mobile/android` after a prebuild.
-- **Message engine** (`packages/message-engine`, `packages/transport`; ADR 0011): `pnpm --filter @pingdost/message-engine test` runs the engine over an in-memory fake server with real vodozemac. `@pingdost/message-engine/testing` exports `runEngineStoreContract` (every `EngineStore` must pass it) and `FakeServer`.
+- **Staging deployment** (ADR 0013; runbooks in `docs/ops/`: `vps-setup.md`, `deploy.md`, `alerts.md`, `mobile-release.md`):
+  - Image: `docker build -f apps/server/Dockerfile --platform linux/amd64 -t pingdost-server:local .` from the repo root (about 6 minutes; `.dockerignore` keeps `.env` and build output out).
+  - Stack: `deploy/compose.staging.yml` + `deploy/Caddyfile` + a `.env` from `deploy/env.staging.example`. To rehearse locally, use another project name (`-p pingdost-stage`; the dev stack is also `pingdost`), an override that swaps in the local image and maps Caddy to `8088:80`, `API_DOMAIN=http://localhost`, and send `Host: localhost` (Caddy answers other hosts with an empty 200).
+  - Scripts (`deploy/scripts/`: `vps-setup.sh`, `monitor.sh`, `mongo-backup.sh`): lint with `docker run --rm -v "${PWD}/deploy/scripts:/mnt:ro" koalaman/shellcheck:stable -S warning /mnt/*.sh`.
+  - Deploys: pushing a `v*` tag runs `.github/workflows/deploy.yml` (GHCR image, SSH to the VPS). The `staging` GitHub environment holds the SSH variables and secrets.
+  - Android release signing: `apps/mobile/plugins/with-release-signing.js` reads `PINGDOST_UPLOAD_*` Gradle properties from `%USERPROFILE%\.gradle\gradle.properties`; staging URLs go in `apps/mobile/.env.production`.- **Message engine** (`packages/message-engine`, `packages/transport`; ADR 0011): `pnpm --filter @pingdost/message-engine test` runs the engine over an in-memory fake server with real vodozemac. `@pingdost/message-engine/testing` exports `runEngineStoreContract` (every `EngineStore` must pass it) and `FakeServer`.
 - **Protocol** (`packages/protocol`, ADR 0006):
   - `pnpm --filter @pingdost/protocol gen` regenerates `src/gen/` from `proto/` (committed; never hand-edit). CI fails if the committed code differs.
   - The package's `lint` also runs `buf lint`.
