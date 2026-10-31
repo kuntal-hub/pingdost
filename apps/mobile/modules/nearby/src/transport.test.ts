@@ -90,6 +90,16 @@ describe('createBleTransport', () => {
     expect(got).toEqual(['CC:DD:42']);
   });
 
+  it('reports links that were up before it existed as new, so they handshake again', async () => {
+    const fake = fakeNative([link(9, 'CC:DD')]);
+    const transport = createBleTransport(fake.native);
+    const seen: number[] = [];
+    transport.onConnection((connection) => seen.push(connection.linkId));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(seen).toEqual([9]);
+  });
+
   it('keeps draining when a handler throws', async () => {
     const fake = fakeNative();
     const transport = createBleTransport(fake.native);

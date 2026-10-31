@@ -15,6 +15,8 @@ export default function SettingsStack() {
       <Stack.Screen name="storage" options={{ title: 'Storage' }} />
       <Stack.Screen name="backup" options={{ title: 'Backup' }} />
       <Stack.Screen name="storage-chat" options={{ title: 'Chat files' }} />
+      <Stack.Screen name="nearby-messaging" options={{ title: 'Nearby messaging' }} />
+      <Stack.Screen name="nearby-setup" options={{ title: 'Turn on nearby messaging' }} />
       <Stack.Screen name="about-privacy" options={{ title: 'About privacy' }} />
     </Stack>
   );

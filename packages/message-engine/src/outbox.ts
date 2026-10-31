@@ -9,6 +9,11 @@
  *    its packet stored with the advanced session, so retransmits resend the same bytes.
  * 3. `Accepted` deletes the item: the device is `sent_to_server`. Retryable failures back off
  *    with jitter; `RECIPIENT_UNKNOWN` (a revoked device) drops it and refreshes the directory.
+ * 4. Routing (ADR 0024): the transport says how each device is reached now. Over the Internet
+ *    as above; nearby (the recipient device's own ACK) it is `sent_to_server` too, with the
+ *    delivery row naming the path. With no route the item is not encrypted yet and waits
+ *    (`waiting_for_nearby_route`, no attempt counted) until `routesChanged`. Nearby with no
+ *    session, the device's cached, signature-checked fallback key starts one offline.
  * Queued receipts are coalesced: one Content acknowledges a burst of messages. Control
  * Contents (edits, deletes, reactions) fan out the same way but carry no delivery state, so
  * they are not resent after a session repair once the server has accepted them.
@@ -32,7 +37,7 @@ import {
   type TransportPacket,
 } from '@pingdost/protocol';
 import { MAX_CLAIM_DEVICES, type MessageState } from '@pingdost/shared-types';
-import { backoffDelay, type SendResult } from '@pingdost/transport';
+import { backoffDelay, type Route, type SendResult } from '@pingdost/transport';
 
 import { attachmentContentFor } from './attachments';
 import { buildContent, receiptBody, textContentFor } from './content';
@@ -80,8 +85,19 @@ export class Outbox {
   #timer: ReturnType<typeof setTimeout> | undefined;
   /** In-flight work, so `stop()` can wait for it. */
   #current: Promise<void> = Promise.resolve();
+  /**
+   * Device items no transport reached when last tried. They wait for `routesChanged` (in
+   * memory only: after a restart each is tried once more).
+   */
+  readonly #parked = new Set<string>();
 
   constructor(private readonly core: EngineCore) {}
+
+  /** A route may have appeared (Internet back, a nearby peer proved its key): flush. */
+  routesChanged(): void {
+    this.#parked.clear();
+    this.kick();
+  }
 
   start(): void {
     this.#stopped = false;
@@ -136,11 +152,25 @@ export class Outbox {
       (item): item is DeviceItem => item.type === 'device' && this.#due(item),
     );
     if (due.length === 0 || this.#stopped) return;
-    const keys = await this.#claimKeys(due);
-    await pool(due, core.settings.maxInflight, async (item) => {
+    const routes = new Map<string, Route>();
+    const ready: DeviceItem[] = [];
+    for (const item of due) {
+      const route = core.options.transport.route?.(item.recipientDeviceId) ?? 'internet';
+      if (route === 'offline') continue; // everything went down meanwhile
+      if (route === 'unreachable') {
+        await core.mutex.run(() => this.#wait(item));
+        continue;
+      }
+      routes.set(item.id, route);
+      ready.push(item);
+    }
+    if (ready.length === 0 || this.#stopped) return;
+    // Nearby means no Internet: no key claim, the cached fallback key instead.
+    const keys = await this.#claimKeys(ready.filter((item) => routes.get(item.id) !== 'nearby'));
+    await pool(ready, core.settings.maxInflight, async (item) => {
       if (this.#stopped) return;
       try {
-        await this.#send(item, keys);
+        await this.#send(item, keys, routes.get(item.id) === 'nearby');
       } catch (error) {
         core.log('error', 'outbox item failed', { error: String(error) });
       }
@@ -149,7 +179,17 @@ export class Outbox {
 
   #due(item: OutboxItem): boolean {
     const now = this.core.now();
-    return item.nextAttemptAt <= now && item.expiresAt > now;
+    return item.nextAttemptAt <= now && item.expiresAt > now && !this.#parked.has(item.id);
+  }
+
+  /** No transport reaches the device now: wait for a route (not an attempt). */
+  async #wait(item: DeviceItem): Promise<void> {
+    this.#parked.add(item.id);
+    const stored = await this.core.store.getOutboxItem(item.id);
+    if (stored?.type !== 'device') return;
+    const batch: WriteBatch = {};
+    await this.#moveDelivery(batch, stored, 'waiting_for_nearby_route', this.core.now());
+    if (batch.deliveries?.length) await this.core.commit(batch);
   }
 
   /** Wakes up for the next due item (while online) or the next receipt batch. */
@@ -162,7 +202,8 @@ export class Outbox {
     for (const item of await core.store.listOutbox()) {
       if (item.type === 'receipt')
         next = Math.min(next, item.createdAt + core.settings.receiptDelayMs);
-      else if (online && item.expiresAt > core.now()) next = Math.min(next, item.nextAttemptAt);
+      else if (online && item.expiresAt > core.now() && !this.#parked.has(item.id))
+        next = Math.min(next, item.nextAttemptAt);
     }
     if (next === Infinity) return;
     const delay = Math.max(MIN_WAKE_MS, next - core.now());
@@ -232,13 +273,15 @@ export class Outbox {
   async #fanOut(item: FanoutItem): Promise<void> {
     const { core } = this;
     const recipients: { userId: string; device: DirectoryDeviceRecord; own: boolean }[] = [];
-    let unavailable = false;
+    // Users whose directory is neither cached nor fetchable now (offline): they get their
+    // copies later, from what stays of this item (ADR 0024).
+    const pending: string[] = [];
     let gone = 0;
     for (const userId of item.recipientUserIds) {
       const lookup = await core.directoryFor(userId, core.settings.directoryMaxAgeMs);
       if (lookup.status === 'unavailable') {
-        unavailable = true;
-        break;
+        pending.push(userId);
+        continue;
       }
       if (lookup.status === 'not_found') {
         if (userId !== core.self.userId) gone++;
@@ -252,6 +295,9 @@ export class Outbox {
     // Every other recipient's account is gone (a group control still reaches the rest).
     const others = item.recipientUserIds.filter((u) => u !== core.self.userId).length;
     const peerGone = others > 0 && gone === others;
+    // What stays of a partial fan-out names only this user: its own devices are enough then.
+    const needsPeer = others > 0;
+    const unavailable = pending.length > 0 && (!needsPeer || !recipients.some((r) => !r.own));
 
     await core.mutex.run(async () => {
       const stored = await core.store.getOutboxItem(item.id);
@@ -268,13 +314,18 @@ export class Outbox {
         if (message?.state) {
           batch.messages = [{ ...message, state: advance(message.state, 'failed') }];
         }
-      } else if (unavailable || !recipients.some((r) => !r.own)) {
+      } else if (unavailable || (needsPeer && !recipients.some((r) => !r.own))) {
         if (!unavailable) core.log('info', 'recipient has no devices yet');
         batch.outbox = [this.#retryLater(stored, now)];
       } else {
-        batch.deleteOutbox = [item.id];
         batch.outbox = [];
         batch.deliveries = [];
+        if (pending.length > 0) {
+          // The peer's devices go now; the rest (e.g. this user's own, uncached offline) later.
+          batch.outbox.push({ ...this.#retryLater(stored, now), recipientUserIds: pending });
+        } else {
+          batch.deleteOutbox = [item.id];
+        }
         for (const { userId, device, own } of recipients) {
           batch.outbox.push({
             type: 'device',
@@ -673,9 +724,9 @@ export class Outbox {
     return keys;
   }
 
-  async #send(item: DeviceItem, keys: Map<string, string>): Promise<void> {
+  async #send(item: DeviceItem, keys: Map<string, string>, nearby: boolean): Promise<void> {
     const { core } = this;
-    const ready = await core.mutex.run(() => this.#prepare(item, keys));
+    const ready = await core.mutex.run(() => this.#prepare(item, keys, nearby));
     if (!ready) return;
     let packet: TransportPacket;
     try {
@@ -693,8 +744,16 @@ export class Outbox {
     await core.mutex.run(() => this.#settle(ready, result));
   }
 
-  /** Encrypts the item if it has no packet yet, and marks its delivery `sending`. */
-  async #prepare(item: DeviceItem, keys: Map<string, string>): Promise<DeviceItem | undefined> {
+  /**
+   * Encrypts the item if it has no packet yet, and marks its delivery `sending`. `nearby`: no
+   * Internet, so a new session starts from the device's cached fallback key (mesh first
+   * contact, ARCHITECTURE A5).
+   */
+  async #prepare(
+    item: DeviceItem,
+    keys: Map<string, string>,
+    nearby: boolean,
+  ): Promise<DeviceItem | undefined> {
     const { core } = this;
     const stored = await core.store.getOutboxItem(item.id);
     if (stored?.type !== 'device') return undefined; // settled meanwhile (receipt, revocation)
@@ -711,13 +770,16 @@ export class Outbox {
       const remote: RemoteDevice = { ...device, userId: current.recipientUserId };
       let session = current.newSession ? undefined : await core.sessions.preferred(remote);
       if (!session) {
-        const key = keys.get(device.deviceId);
+        const claimed = keys.get(device.deviceId);
+        // Verified with the directory: the device's own signature (directory.ts).
+        const key = claimed ?? (nearby ? device.fallbackKey?.publicKey : undefined);
         if (!key) {
-          // No key to start a session (none left on the server, or the claim failed).
+          // No key to start a session (none left on the server, the claim failed, or offline
+          // with no cached fallback key).
           await core.commit({ outbox: [this.#retryLater(current, now)] });
           return undefined;
         }
-        keys.delete(device.deviceId); // one claimed key makes one session
+        if (claimed) keys.delete(device.deviceId); // one claimed key makes one session
         session = core.sessions.createOutbound(remote, key, now);
       }
       let encrypted: ReturnType<typeof core.sessions.encrypt>;
@@ -786,9 +848,16 @@ export class Outbox {
     const now = core.now();
     const batch: WriteBatch = {};
     let state: MessageState;
+    let via: 'internet' | 'nearby' | undefined;
     if (result.ok) {
+      // The server's Accepted, or the recipient device's nearby ACK: the next hop holds it.
       batch.deleteOutbox = [item.id];
       state = 'sent_to_server';
+      via = result.via;
+    } else if (result.code === 'NO_ROUTE') {
+      // The route went away before it was sent: wait for the next one (not an attempt).
+      this.#parked.add(item.id);
+      state = 'waiting_for_nearby_route';
     } else if (result.code === 'OFFLINE') {
       // Not an attempt: the status turning online resends it.
       state = 'local_queued';
@@ -813,20 +882,27 @@ export class Outbox {
       batch.deleteOutbox = [item.id];
       state = 'failed';
     }
-    await this.#moveDelivery(batch, stored, state, now);
+    await this.#moveDelivery(batch, stored, state, now, via);
     await core.commit(batch);
   }
 
   /** Moves the item's delivery row (message items only) and restates its message. */
-  async #moveDelivery(batch: WriteBatch, item: DeviceItem, state: MessageState, now: number) {
+  async #moveDelivery(
+    batch: WriteBatch,
+    item: DeviceItem,
+    state: MessageState,
+    now: number,
+    via?: 'internet' | 'nearby',
+  ) {
     if (item.purpose !== 'message') return;
     const { core } = this;
     const row = (await core.store.listDeliveries(item.messageId)).find(
       (d) => d.deviceId === item.recipientDeviceId,
     );
     if (!row) return;
-    const moved = EngineCore.moved(row, state, now);
-    if (!moved) return;
+    const next = EngineCore.moved(row, state, now);
+    if (!next) return;
+    const moved = via ? { ...next, via } : next;
     batch.deliveries = [...(batch.deliveries ?? []), moved];
     const message = await core.restate(item.messageId, [moved]);
     if (message) batch.messages = [...(batch.messages ?? []), message];

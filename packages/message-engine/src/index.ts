@@ -54,6 +54,8 @@ export {
 } from './keys';
 export type { PublishKeysDeps, PublishKeysResult, SyncKeysDeps } from './keys';
 export { compareMessages, MemoryEngineStore } from './memoryStore';
+export { createNearbyIdentity } from './routing/identity';
+export type { NearbyIdentityOptions } from './routing/identity';
 export {
   advance,
   aggregateGroupState,

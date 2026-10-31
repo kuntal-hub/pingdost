@@ -122,6 +122,8 @@ interface DeliveryRow {
   own: number;
   state: string;
   updated_at: number;
+  /** Migration 007: `internet` | `nearby`, once a next hop accepted it. */
+  via: string | null;
 }
 
 interface OutboxRow {
@@ -261,6 +263,7 @@ const toDelivery = (r: DeliveryRow): DeliveryRecord => ({
   own: r.own === 1,
   state: r.state as MessageState,
   updatedAt: r.updated_at,
+  ...(r.via === 'internet' || r.via === 'nearby' ? { via: r.via } : {}),
 });
 
 /** Blobs may come back as other views; the engine compares and re-encodes them as bytes. */
@@ -579,9 +582,10 @@ export class SqliteEngineStore implements EngineStore {
       }
       for (const d of b.deliveries ?? []) {
         await db.runAsync(
-          `INSERT OR REPLACE INTO delivery_state (message_id, device_id, user_id, own, state, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [d.messageId, d.deviceId, d.userId, d.own ? 1 : 0, d.state, d.updatedAt],
+          `INSERT OR REPLACE INTO delivery_state
+             (message_id, device_id, user_id, own, state, updated_at, via)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [d.messageId, d.deviceId, d.userId, d.own ? 1 : 0, d.state, d.updatedAt, d.via ?? null],
         );
       }
       for (const id of b.deleteOutbox ?? []) {
@@ -935,6 +939,11 @@ export class SqliteEngineStore implements EngineStore {
       [userId],
     );
     return row ? toDirectory(row) : undefined;
+  }
+
+  async listDirectories(): Promise<DirectoryRecord[]> {
+    const rows = await this.db.getAllAsync<DirectoryRow>('SELECT * FROM device_directory', []);
+    return rows.map(toDirectory);
   }
 
   async findDeviceOwner(deviceId: string): Promise<string | undefined> {

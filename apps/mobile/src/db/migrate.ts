@@ -2,7 +2,8 @@
 // own transaction together with the version bump, so a failure leaves the database at the
 // previous version. Migration 002 adds the chat tables (Phase 10), 003 the chat features and
 // the search index (Phase 11), 004 the group tables (Phase 13), 005 attachment messages
-// (Phase 14), 006 local attachment files and searchable captions (Phase 15).
+// (Phase 14), 006 local attachment files and searchable captions (Phase 15), 007 the path of
+// each delivery (Phase 22).
 //
 // The transaction is `BEGIN IMMEDIATE` on the same connection, never expo-sqlite's
 // `withExclusiveTransactionAsync`: that opens a second connection which has no SQLCipher
@@ -13,6 +14,7 @@ import { CHAT_FEATURES_SCHEMA } from './migrations/003-chat-features';
 import { GROUPS_SCHEMA } from './migrations/004-groups';
 import { ATTACHMENTS_SCHEMA } from './migrations/005-attachments';
 import { ATTACHMENT_FILES_SCHEMA } from './migrations/006-attachment-files';
+import { NEARBY_SCHEMA } from './migrations/007-nearby';
 
 export interface Migration {
   version: number;
@@ -42,6 +44,7 @@ export const migrations: readonly Migration[] = [
   { version: 4, name: '004_groups', sql: GROUPS_SCHEMA },
   { version: 5, name: '005_attachments', sql: ATTACHMENTS_SCHEMA },
   { version: 6, name: '006_attachment_files', sql: ATTACHMENT_FILES_SCHEMA },
+  { version: 7, name: '007_nearby', sql: NEARBY_SCHEMA },
 ];
 
 /** The subset of `SQLiteDatabase` the runner needs (keeps it testable without native code). */

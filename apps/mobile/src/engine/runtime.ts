@@ -8,7 +8,9 @@
 // - 4001: token refresh through the auth store; revoked: chat data wiped and signed out.
 // While the engine runs, every change to the Olm account goes through it. Receipts, typing
 // and blocks follow the account's privacy settings and block list (Phase 11). It also serves
-// linked browsers their history and, from the vault, files they ask for (ADR 0021).
+// linked browsers their history and, from the vault, files they ask for (ADR 0021). With
+// "Nearby messaging" on, the router also reaches contacts' phones in Bluetooth range when the
+// Internet is down (ADR 0024; `nearby/service.ts`).
 import * as Network from 'expo-network';
 import * as SecureStore from 'expo-secure-store';
 import { AppState } from 'react-native';
@@ -25,12 +27,13 @@ import { publicConfig } from '@/config';
 import { getCryptoContext } from '@/crypto/bootstrap';
 import { getOrCreateSecret, SECRET_ITEMS, SECURE_STORE_OPTIONS } from '@/crypto/secrets';
 import { readSetting, SETTING_KEYS, writeSetting } from '@/db/settings';
+import { createNearby, disposeNearby, startNearby } from '@/nearby/service';
 import { installNotifier } from '@/push/notifications';
 import { onPhoneRequested, refreshPhoneRequests } from '@/recovery/approvals';
 import { cachedPrivacy, useAccount } from '@/settings/account';
 import { vaultSyncFiles } from '@/sync/files';
 import type { CryptoProvider } from '@pingdost/crypto/core';
-import { MessageEngine } from '@pingdost/message-engine';
+import { createNearbyIdentity, MessageEngine } from '@pingdost/message-engine';
 import { TransportRouter, WsTransport, type TransportStatus } from '@pingdost/transport';
 
 import { isBlocked, useBlocks } from './blocks';
@@ -50,6 +53,7 @@ export interface ChatRuntime {
 
 interface ChatState {
   runtime: ChatRuntime | null;
+  /** The Internet (gateway socket) only; nearby has its own state (`useNearby`). */
   status: TransportStatus;
   /** Watched users' presence (the open chat's peer), when they share it. */
   presence: Record<string, boolean>;
@@ -133,8 +137,18 @@ async function boot(): Promise<ChatRuntime> {
     getAccessToken: () => authStore.getState().accessToken(),
     refreshToken: () => authStore.getState().refresh(),
   });
-  const router = new TransportRouter([transport]);
   const store = new SqliteEngineStore(db);
+  // The Internet first; nearby reaches contacts' phones in range (null without the module).
+  const nearby = createNearby(
+    createNearbyIdentity({
+      self: { userId, deviceId },
+      crypto: context.provider,
+      account: context.store.account,
+      store,
+      blocked: isBlocked,
+    }),
+  );
+  const router = new TransportRouter(nearby ? [transport, nearby] : [transport]);
   const repo = new AttachmentRepo(db, (work) => store.exclusive(work));
   const engine = new MessageEngine({
     self: { userId, deviceId, ...(accountIdentityKey ? { accountIdentityKey } : {}) },
@@ -171,6 +185,9 @@ async function boot(): Promise<ChatRuntime> {
     transport.reconnectNow();
     transport.setPresence(true);
     void refreshPhoneRequests().catch(() => undefined);
+    // Permissions or Bluetooth may have changed meanwhile; the foreground service starts only
+    // from here.
+    void startNearby().catch(() => undefined);
   };
   const background = () => {
     transport.setPresence(false);
@@ -181,7 +198,9 @@ async function boot(): Promise<ChatRuntime> {
   cleanup.push(
     // Local notifications for messages that arrive while the app is not on screen (Phase 12).
     installNotifier(engine),
-    router.status$.subscribe((status) => useChatStore.setState({ status }), { emitCurrent: true }),
+    transport.status$.subscribe((status) => useChatStore.setState({ status }), {
+      emitCurrent: true,
+    }),
     transport.onEvent((event) => {
       switch (event.type) {
         case 'otk_low':
@@ -239,6 +258,7 @@ async function boot(): Promise<ChatRuntime> {
     clearTimeout(backgroundTimer);
     for (const remove of cleanup.splice(0)) remove();
     transport.stop();
+    await disposeNearby();
     await engine.stop();
     router.dispose();
   };
@@ -274,6 +294,8 @@ async function boot(): Promise<ChatRuntime> {
       deviceId,
     }),
   );
+  // Nearby starts with the app on screen (`foreground`), not in a push wake: the foreground
+  // service it needs can only start from there.
   if (AppState.currentState === 'active') foreground();
   // Heals an interrupted first key upload and tops up one-time keys (ADR 0011).
   void engine

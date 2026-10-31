@@ -16,7 +16,7 @@ export * from './types';
 export { encodeInbound, parseInbound, type InboundPacket } from './inbound';
 export {
   createBleTransport,
-  type NearbyTransport,
+  type BleTransport,
   type PeerConnection,
   type PeerDescriptor,
   type Unsubscribe,

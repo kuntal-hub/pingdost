@@ -129,6 +129,10 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - `Content` (**inside** the E2EE ciphertext): header (`message_id`, `conversation_id`, `sender_user_id`, `sent_at_ms`, optional `reply_to`, optional `recipient_user_id` for direct messages (ADR 0011), protocol version), a oneof body {Text, Reaction, Edit, Delete, Receipt, AttachmentManifest, GroupControl, RoomKey, SyncChunk, CallSignal, SessionReset, KeyChange}, and `padding`.
   - WS frames: `ClientFrame` / `ServerFrame` oneofs (Auth, AuthOk, Send, Accepted, Deliver, Ack, Presence, Typing, Ephemeral, OtkLow, Revoked, ServerError, Ping/Pong).
 - **Message engine (ADR 0011):** `@pingdost/message-engine` (outbox, states, sessions, repair, receipts) over an `EngineStore` (one atomic `apply(batch)`) and `@pingdost/transport` (`WsTransport`, `TransportRouter`). A receiver resolves an unknown sending device with `GET /v1/keys/devices/:id`, then verifies that user's directory.
+- **Nearby routing (ADR 0024):**
+  - Each device's packet goes over the Internet if it is up. Otherwise it goes over nearby if that device proved its key on a link; otherwise it waits as `waiting_for_nearby_route` until a route appears.
+  - `NearbyPeerTransport` handshake: two `Hello`s per side, the second signing both link tokens with the device's Ed25519 key (`nearbyHelloMessage`). Peers are recognised only from cached, certified directories; strangers learn the public key, never the device ID.
+  - A nearby `Ack` from the recipient's phone makes the delivery `sent_to_server` with `via: nearby`; only the E2EE receipt delivers it. Duplicates across paths are dropped by envelope and message ID.
 - **Edits, deletes, reactions (ADR 0014):** E2EE ops applied with the same rules on every device:
   - last-write-wins on (header time, op ID);
   - edit and delete for everyone only by the sender, inside the 24 h windows in `DEFAULT_LIMITS`;
@@ -178,7 +182,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Never restore a device Olm account, Olm sessions or outbound Megolm sessions. A restored device is a new device certified by the identity key.
   - (ADR 0022) The user-held `.pdbk` file: Argon2id (in the Rust crate) of a 24-word BIP39 phrase keys the attachment STREAM; the body holds the history, contacts' verified keys, the account key and Megolm inbound sessions (exported), never device state. Nothing is uploaded.
   - (ADR 0022) Replacing the primary: the old phone approves (a check code, then the account key sealed over a one-off Olm session), or a backup plus an email code, or a fresh account key plus an email code (every device revoked). A recent login, audit events and budgets on every path. A same-key phone change shows "moved to a new phone" and keeps verification.
-- **Mesh first contact:** clients cache contacts' device identity and fallback keys while online, so Olm prekey messages can be created offline. A direct nearby handshake is the other option.
+- **Mesh first contact:** clients cache contacts' device identity and fallback keys while online, so Olm prekey messages can be created offline (done in Phase 22: a nearby route with no session uses the cached, signature-checked fallback key; ADR 0024). A contact never seen online cannot be reached offline, and the app says so.
 - **Local at rest:**
   - **Mobile:** SQLCipher DB key, Olm pickle key, the account identity key secret and the session tokens in `expo-secure-store` (Android Keystore; ADR 0009).
   - **Web:** a non-extractable AES-GCM `CryptoKey` stored in IndexedDB encrypts sensitive records and pickles. The docs must state that browser protection is weaker than native.

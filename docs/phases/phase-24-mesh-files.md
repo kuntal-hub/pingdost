@@ -42,6 +42,10 @@ Web nearby (browsers can't do this); iOS (30).
 - `pnpm lint typecheck test` passes.
 
 ## Handoff notes
+**From Phase 22 (ADR 0024):**
+- `NearbyPeerTransport.send` takes only `ENVELOPE` packets. Each one waits for the recipient's `Ack`, up to 256 envelope IDs per ACK and a 15 s timeout. For chunks, add a chunk path with its own ACK (by transfer ID and index) rather than one envelope ACK per chunk.
+- `TransportRouter.route(deviceId)` says which path reaches a device now. Use it to choose between staged upload (Internet) and a direct transfer.
+
 **From Phase 21 (ADR 0023):**
 - **Realistic sizes over BLE:** at the expected 50–150 KB/s, 10 MB takes about 1–3.5 minutes and 100 MB about 11–35 minutes per hop. Set the default mesh file limit and the time estimate from the measured row in ADR 0023's matrix (pending at the end of Phase 21).
 - The link's `send` applies backpressure (512 KiB queued per link), so a chunk pump that awaits `send` never overruns memory. `linkDown.unsent` tells how many chunks to re-request or resend.

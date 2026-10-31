@@ -7,15 +7,15 @@
 // @generated from file pingdost/v1/mesh.proto (package pingdost.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file pingdost/v1/mesh.proto.
  */
 export const file_pingdost_v1_mesh: GenFile = /*@__PURE__*/
-  fileDesc("ChZwaW5nZG9zdC92MS9tZXNoLnByb3RvEgtwaW5nZG9zdC52MSLAAQoKTWVzaEhlYWRlchIRCglwYWNrZXRfaWQYASABKAwSFQoNY3JlYXRlZF9hdF9tcxgCIAEoAxIVCg1leHBpcmVzX2F0X21zGAMgASgDEhkKEWRzdF9yb3V0aW5nX3Rva2VuGAQgASgMEhIKCmhvcF9idWRnZXQYBSABKA0SFAoMb3JpZ2luX3Rva2VuGAYgASgMEiwKCWNodW5rX3JlZhgHIAEoCzIZLnBpbmdkb3N0LnYxLk1lc2hDaHVua1JlZiJXCgxNZXNoQ2h1bmtSZWYSEwoLdHJhbnNmZXJfaWQYASABKAwSDQoFaW5kZXgYAiABKA0SDQoFY291bnQYAyABKA0SFAoMY2h1bmtfc2hhMjU2GAQgASgMIkEKCU1lc2hDaHVuaxImCgNyZWYYASABKAsyGS5waW5nZG9zdC52MS5NZXNoQ2h1bmtSZWYSDAoEZGF0YRgCIAEoDCIcCgdNZXNoQWNrEhEKCXBhY2tldF9pZBgBIAEoDCI1CgVIZWxsbxIYChBwcm90b2NvbF92ZXJzaW9uGAEgASgNEhIKCnBlZXJfdG9rZW4YAiABKAxiBnByb3RvMw");
+  fileDesc("ChZwaW5nZG9zdC92MS9tZXNoLnByb3RvEgtwaW5nZG9zdC52MSLAAQoKTWVzaEhlYWRlchIRCglwYWNrZXRfaWQYASABKAwSFQoNY3JlYXRlZF9hdF9tcxgCIAEoAxIVCg1leHBpcmVzX2F0X21zGAMgASgDEhkKEWRzdF9yb3V0aW5nX3Rva2VuGAQgASgMEhIKCmhvcF9idWRnZXQYBSABKA0SFAoMb3JpZ2luX3Rva2VuGAYgASgMEiwKCWNodW5rX3JlZhgHIAEoCzIZLnBpbmdkb3N0LnYxLk1lc2hDaHVua1JlZiJXCgxNZXNoQ2h1bmtSZWYSEwoLdHJhbnNmZXJfaWQYASABKAwSDQoFaW5kZXgYAiABKA0SDQoFY291bnQYAyABKA0SFAoMY2h1bmtfc2hhMjU2GAQgASgMIkEKCU1lc2hDaHVuaxImCgNyZWYYASABKAsyGS5waW5nZG9zdC52MS5NZXNoQ2h1bmtSZWYSDAoEZGF0YRgCIAEoDCIcCgdNZXNoQWNrEhEKCXBhY2tldF9pZBgBIAEoDCJzCgVIZWxsbxIYChBwcm90b2NvbF92ZXJzaW9uGAEgASgNEhIKCnBlZXJfdG9rZW4YAiABKAwSFAoMY2FwYWJpbGl0aWVzGAMgASgNEiYKBXByb29mGAQgASgLMhcucGluZ2Rvc3QudjEuSGVsbG9Qcm9vZiI1CgpIZWxsb1Byb29mEhQKDGlkZW50aXR5X2tleRgBIAEoDBIRCglzaWduYXR1cmUYAiABKAwqbAoPSGVsbG9DYXBhYmlsaXR5EiAKHEhFTExPX0NBUEFCSUxJVFlfVU5TUEVDSUZJRUQQABIbChdIRUxMT19DQVBBQklMSVRZX0RJUkVDVBABEhoKFkhFTExPX0NBUEFCSUxJVFlfUkVMQVkQAmIGcHJvdG8z");
 
 /**
  * What a relay sees and checks before storing or forwarding a packet.
@@ -154,7 +154,10 @@ export const MeshAckSchema: GenMessage<MeshAck> = /*@__PURE__*/
   messageDesc(file_pingdost_v1_mesh, 3);
 
 /**
- * Payload of PACKET_KIND_HELLO: the first packet between two nearby peers.
+ * Payload of PACKET_KIND_HELLO: the nearby peer handshake (ADR 0024). Each side sends two:
+ * first without `proof` (its fresh token), then, once it has the other side's token, the
+ * same token with `proof`. A proof is bound to both tokens, so it cannot be replayed on
+ * another link.
  *
  * @generated from message pingdost.v1.Hello
  */
@@ -167,11 +170,25 @@ export type Hello = Message<"pingdost.v1.Hello"> & {
   protocolVersion: number;
 
   /**
-   * An opaque, rotating token for this peer (Phase 22 defines it).
+   * 16 random bytes, new for every link: the challenge the other side signs.
    *
    * @generated from field: bytes peer_token = 2;
    */
   peerToken: Uint8Array;
+
+  /**
+   * HelloCapability bits.
+   *
+   * @generated from field: uint32 capabilities = 3;
+   */
+  capabilities: number;
+
+  /**
+   * Set in the second Hello.
+   *
+   * @generated from field: pingdost.v1.HelloProof proof = 4;
+   */
+  proof?: HelloProof | undefined;
 };
 
 /**
@@ -180,4 +197,66 @@ export type Hello = Message<"pingdost.v1.Hello"> & {
  */
 export const HelloSchema: GenMessage<Hello> = /*@__PURE__*/
   messageDesc(file_pingdost_v1_mesh, 4);
+
+/**
+ * The sender holds a device identity key. It names the key, not the device or the account:
+ * only a peer that already has this key in its verified directory learns who it is.
+ *
+ * @generated from message pingdost.v1.HelloProof
+ */
+export type HelloProof = Message<"pingdost.v1.HelloProof"> & {
+  /**
+   * The device's Ed25519 identity key, 32 bytes.
+   *
+   * @generated from field: bytes identity_key = 1;
+   */
+  identityKey: Uint8Array;
+
+  /**
+   * Ed25519 over nearbyHelloMessage(own token, other side's token, identity key,
+   * capabilities), 64 bytes.
+   *
+   * @generated from field: bytes signature = 2;
+   */
+  signature: Uint8Array;
+};
+
+/**
+ * Describes the message pingdost.v1.HelloProof.
+ * Use `create(HelloProofSchema)` to create a new message.
+ */
+export const HelloProofSchema: GenMessage<HelloProof> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_mesh, 5);
+
+/**
+ * Bit values for Hello.capabilities. Receivers ignore bits they do not know.
+ *
+ * @generated from enum pingdost.v1.HelloCapability
+ */
+export enum HelloCapability {
+  /**
+   * @generated from enum value: HELLO_CAPABILITY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Takes envelopes addressed to its own device (direct nearby messaging, Phase 22).
+   *
+   * @generated from enum value: HELLO_CAPABILITY_DIRECT = 1;
+   */
+  DIRECT = 1,
+
+  /**
+   * Stores and forwards packets for other devices (mesh relay, Phase 23).
+   *
+   * @generated from enum value: HELLO_CAPABILITY_RELAY = 2;
+   */
+  RELAY = 2,
+}
+
+/**
+ * Describes the enum pingdost.v1.HelloCapability.
+ */
+export const HelloCapabilitySchema: GenEnum<HelloCapability> = /*@__PURE__*/
+  enumDesc(file_pingdost_v1_mesh, 0);
 

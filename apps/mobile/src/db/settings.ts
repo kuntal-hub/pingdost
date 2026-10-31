@@ -18,6 +18,8 @@ export const SETTING_KEYS = {
   backup: 'backup',
   /** Contacts to tell about this new phone once the chat engine runs (after a restore). */
   announce: 'announce',
+  /** `NearbyPrefs` (Settings → Nearby messaging): local to this phone (ADR 0024). */
+  nearby: 'nearby',
 } as const;
 
 export async function readSetting<T>(

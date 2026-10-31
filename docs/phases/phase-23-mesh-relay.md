@@ -59,4 +59,16 @@ File chunk transfer (24); iOS (30).
 - Each link grants 8 packets of credit, and a peer that sends without credit is disconnected. That bounds what one neighbour can push at once; per-origin quotas and rate limits still sit above it.
 - At most 7 links per phone. Each link carries packets of up to 128 KiB, and the mesh header plus a 64 KiB envelope fits.
 
+**From Phase 22 (ADR 0024):**
+- **Peers:** `NearbyPeerTransport` (`packages/transport/src/nearby.ts`) runs the handshake. Links end up `known` (a contact device, direct delivery) or `unknown` (a valid key with no directory entry): the unknown links are the relay candidates.
+  - Peers announce `HELLO_CAPABILITY_RELAY` (2) in `Hello.capabilities` when relaying is on.
+  - Relay packets need their own `PacketKind`s (`MESH_ACK`, `MESH_CHUNK` are reserved) and should be dispatched in `#onPacket`, where they are ignored today.
+  - Only envelopes whose `dst` is this device are accepted now.
+- **Slots:** unknown links keep one of the 7 slots and auto-connect may reconnect them. Decide a slot and reconnect policy together with relaying.
+- **Recognition:** the handshake shows strangers this phone's stable Ed25519 key (CHANGES 2026-11-01). Before relaying makes many strangers connect, weigh contact-only recognition (an ADR, no custom crypto).
+- **Routing:** `TransportRouter.route()` is per device. Add relay routes there, as a transport whose `reaches` answers for routing tokens; the outbox already parks `unreachable` items and flushes on `onRoutesChanged`. A relay's `MeshAck` maps to `relayed`. Record `via` (a new value) if message info should name the relay path.
+- **Groups:** fan-out still needs every member's directory, and groups over nearby were not tested.
+- **Nearby resend:** a nearby ACK is not tied to the handshake key. A peer that proved a contact's key could ACK and drop envelopes, and the Internet would not resend them (the outbox item is gone). Consider keeping unconfirmed nearby messages to resend over the Internet after a delay.
+- **Background:** the foreground service starts only from the foreground (`apps/mobile/src/nearby/service.ts`). A push wake does not start nearby.
+
 **From Phase 15 (ADR 0018):** Settings → Storage has a "Nearby relay cache" row (`screens/settings/storage.tsx`) waiting for real numbers. "Clear cache" there touches only previews and temporary files; give the relay cache its own clear action.

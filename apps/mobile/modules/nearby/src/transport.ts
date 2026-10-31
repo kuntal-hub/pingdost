@@ -1,30 +1,21 @@
-// REQ §11.2's `NearbyTransport` over the BLE module. Phase 22 puts the message engine on it;
-// packets are already E2EE envelopes then, so this layer never looks inside them.
+// REQ §11.2's `NearbyTransport` (`@pingdost/transport`) over the BLE module. The message
+// engine's `NearbyPeerTransport` runs on it (ADR 0024); packets are already E2EE envelopes
+// then, so this layer never looks inside them.
+import type {
+  NearbyTransport,
+  PeerConnection,
+  PeerDescriptor,
+  Unsubscribe,
+} from '@pingdost/transport';
+
 import { parseInbound } from './inbound';
 import type { LinkDownEvent, LinkInfo, NearbyNative, PeerInfo, StartOptions } from './types';
 
-export type Unsubscribe = () => void;
+export type { PeerConnection, PeerDescriptor, Unsubscribe };
 
-export interface PeerDescriptor {
-  address: string;
-  token: string | null;
-}
-
-export interface PeerConnection {
-  linkId: number;
-  peer: PeerDescriptor;
-  mtu: number;
-}
-
-export interface NearbyTransport {
+export interface BleTransport extends NearbyTransport {
   startDiscovery(options?: StartOptions): Promise<void>;
-  stopDiscovery(): Promise<void>;
-  connect(peer: PeerDescriptor): Promise<PeerConnection>;
-  disconnect(connection: PeerConnection): Promise<void>;
-  send(connection: PeerConnection, packet: Uint8Array): Promise<void>;
-  onPacket(handler: (packet: Uint8Array, from: PeerConnection) => void): Unsubscribe;
   onPeer(handler: (peer: PeerDescriptor & { rssi: number }) => void): Unsubscribe;
-  onConnection(handler: (connection: PeerConnection) => void): Unsubscribe;
   onDisconnect(handler: (event: LinkDownEvent) => void): Unsubscribe;
   /** Stops listening (the native engine keeps running until `stopDiscovery`). */
   dispose(): void;
@@ -37,7 +28,7 @@ function connectionOf(link: LinkInfo): PeerConnection {
   return { linkId: link.id, peer: { address: link.address, token: link.peerToken }, mtu: link.mtu };
 }
 
-export function createBleTransport(native: NearbyNative): NearbyTransport {
+export function createBleTransport(native: NearbyNative): BleTransport {
   const packetHandlers = new Set<(packet: Uint8Array, from: PeerConnection) => void>();
   const peerHandlers = new Set<(peer: PeerDescriptor & { rssi: number }) => void>();
   const connectionHandlers = new Set<(connection: PeerConnection) => void>();
@@ -93,10 +84,14 @@ export function createBleTransport(native: NearbyNative): NearbyTransport {
     }),
   ];
 
-  // Links that came up before this transport existed (a JS reload keeps native links).
+  // Links that came up before this transport existed (a JS reload keeps native links): they
+  // are reported as new, so the layer above handshakes on them again.
   void native.getState().then((state) => {
     for (const link of state.links) {
-      if (link.up && !connections.has(link.id)) connections.set(link.id, connectionOf(link));
+      if (!link.up || connections.has(link.id)) continue;
+      const connection = connectionOf(link);
+      connections.set(link.id, connection);
+      connectionHandlers.forEach((handler) => handler(connection));
     }
     drain();
   });

@@ -17,6 +17,69 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-01 — Phase 22: Direct nearby messaging — 🔄 partial (device checks open)
+Started with Phases 10 and 21 still 🔄 (only their device checks were open); the user said to proceed.
+
+**Done (ADR 0024):**
+- **Protocol** (add-only, v1):
+  - `Hello` gains `capabilities` (`DIRECT`, `RELAY`) and `HelloProof` (Ed25519 key, signature);
+  - `nearbyHelloMessage` signs context ‖ own token ‖ peer token ‖ key ‖ capabilities;
+  - `encodeHello`/`decodeHello`, `encodeAck`/`decodeAck`.
+- **Transport:**
+  - `NearbyTransport` (REQ §11.2 link interface) and `NearbyPeerTransport`:
+    - two `Hello`s per side, re-proved after a peer reload, invalid proofs counted (3 close the link);
+    - known/unknown peers, envelopes only to the proven recipient device;
+    - coalesced `Ack`s, 15 s ACK timeout, link drop → `TIMEOUT`;
+    - `summary$` for the UI.
+  - `TransportRouter`: `route()` (`internet` / `nearby` / `unreachable` / `offline`), `NO_ROUTE`, `via` on success, `onRoutesChanged`.
+  - `@pingdost/transport/testing` has the in-memory radio (`FakeLinks`).
+- **Engine:**
+  - routing per device item: `unreachable` parks it as `waiting_for_nearby_route` (not encrypted, not an attempt) until routes change;
+  - `nearby` skips the key claim and uses the cached fallback key (offline first contact);
+  - `via` on delivery rows; partial fan-out when the sender's own directory is uncached offline;
+  - `canReachOffline(userId)`, `createNearbyIdentity`, `EngineStore.listDirectories()` (memory, SQLite, Dexie, contract).
+- **Android:**
+  - `src/nearby/service.ts`: toggle (local, off by default), start/stop by toggle, permission and Bluetooth, foreground service from the foreground only, `useNearby`/`useNearbyStatus`/`useNearbyPeer`;
+  - `status.ts`: every state worded;
+  - migration 007 (`delivery_state.via`); the router is `[ws, nearby]`; the chat's "online" is the socket only.
+  - UI: Settings → **Nearby messaging** (status, toggle, Allow, Bluetooth settings, how it works, what others see) and its setup screen (permission explained first); offline banner with the nearby state and "Can't reach this contact offline until you've connected once online"; chat header "nearby · Bluetooth"; message info path per device ("Sent over Bluetooth … not yet delivered").
+  - The BLE wrapper reports links that were up before JS started (reload) as new.
+- **Docs:** ADR 0024, CHANGES 2026-11-01 (four items), ARCHITECTURE A4/A5, decisions index, Phase 23/24/27/30 handoffs, CLAUDE.md.
+
+**Remaining (needs two Android phones; also open: Phase 21's checks):**
+- [ ] Install the new build on both (`pnpm --filter @pingdost/mobile android`). This is a JS change plus migration 007, with no new native code since Phase 21.
+- [ ] On both: Settings → Nearby messaging → turn on → allow. While online once, open a chat with each other so the directories are cached.
+- [ ] **Done when:**
+  - [ ] airplane mode with Bluetooth on: the header shows "nearby · Bluetooth"; text both ways; labels "Sent" → "Delivered"; message info says "Over Bluetooth";
+  - [ ] one phone out of range: "Queued — waiting for a nearby route", sent on return;
+  - [ ] Internet back: no duplicates on either phone;
+  - [ ] Bluetooth off and permission denied (revoke in app settings): visible in Settings and in the chat's offline banner.
+
+**Deviations / decisions:** ADR 0024; CHANGES 2026-11-01:
+1. A nearby ACK gives `sent_to_server` plus `via: nearby`; there is no new state.
+2. Strangers see the stable device public key.
+3. Nearby is off by default.
+4. The fan-out is partial offline.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 55/55 tasks.
+  - New tests: protocol 105 (+6), transport 34 (+19), engine 115 (+7 in `src/routing`, real vodozemac), chat-core labels (+1), mobile 95 (+8: nearby status 7, BLE reload 1).
+  - The store contracts (memory, SQLite migrations 002–007, Dexie) cover `via` and `listDirectories`.
+- `pnpm --filter @pingdost/server test:int`: 150 passed, 2 skipped (with `pnpm infra:up`). `pnpm format:check` clean. `buf lint` clean.
+- Metro bundled `nearby-messaging`, `nearby-setup`, `chat/[conversationId]`, `message-info/[messageId]` for Android (HTTP 200).
+- **Not run:** anything on a phone.
+
+**Known issues / tech debt:**
+- Strangers can recognise a phone again by its key (ADR 0024 Consequences; Phase 23 to weigh contact-only recognition).
+- Unknown peers hold link slots and auto-connect may keep reconnecting them (Phase 23 slot policy).
+- A peer that proved a contact's key could ACK and drop envelopes; the message stays "Sent", and the Internet does not resend it (Phase 23).
+- Location services off (Android 8–11) is not detected, only the permission.
+- Groups over nearby are not tested.
+- A push wake does not start nearby, and the foreground service starts only from the foreground.
+- The dev spike screen and nearby messaging compete for the native queue (noted on the dev row).
+
+**Next:** the two-phone checks of Phases 21 and 22, then Phase 23 (mesh relay).
+
 ## 2026-10-31 — Phase 21: Nearby spike (Android BLE) — 🔄 partial (two-phone checks and the matrix open)
 **Done (ADR 0023):**
 - **Research (dated, ADR 0023 Evidence):**

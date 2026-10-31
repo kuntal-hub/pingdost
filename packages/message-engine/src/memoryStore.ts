@@ -289,6 +289,10 @@ export class MemoryEngineStore implements EngineStore {
     return Promise.resolve(copy(this.#directory.get(userId)));
   }
 
+  listDirectories(): Promise<DirectoryRecord[]> {
+    return Promise.resolve(copy([...this.#directory.values()]));
+  }
+
   findDeviceOwner(deviceId: string): Promise<string | undefined> {
     for (const record of this.#directory.values()) {
       if (record.devices.some((d) => d.deviceId === deviceId))

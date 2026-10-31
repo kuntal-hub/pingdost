@@ -500,6 +500,11 @@ export class DexieEngineStore implements EngineStore {
       .then((row) => this.#open<DirectoryRecord>('directory', userId, row));
   }
 
+  async listDirectories(): Promise<DirectoryRecord[]> {
+    const rows = await this.db.directory.toArray();
+    return this.#openAll<DirectoryRecord>('directory', (r) => r.userId as string, rows);
+  }
+
   async findDeviceOwner(deviceId: string): Promise<string | undefined> {
     return (await this.db.directoryDevices.get(deviceId))?.userId;
   }

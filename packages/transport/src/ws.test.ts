@@ -401,7 +401,11 @@ describe('TransportRouter', () => {
     internet.status$.set('online');
     expect(router.status$.value).toBe('online');
     expect(router.online).toEqual(['internet']);
-    expect(await router.send(envelopePacket())).toEqual({ ok: true, status: 'stored' });
+    expect(await router.send(envelopePacket())).toEqual({
+      ok: true,
+      status: 'stored',
+      via: 'internet',
+    });
     expect(send).toHaveBeenCalledOnce();
   });
 });

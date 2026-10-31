@@ -45,6 +45,15 @@ describe('stateLabel', () => {
     expect(stateLabel('relayed', true).long).toContain('not yet delivered');
   });
 
+  it('names the nearby path without calling it delivered (ADR 0024)', () => {
+    const nearby = stateLabel('sent_to_server', false, 'nearby');
+    expect(nearby.short).toBe('Sent');
+    expect(nearby.long).toContain('Bluetooth');
+    expect(nearby.long).toContain('not yet delivered');
+    expect(stateLabel('sent_to_server', true, 'internet').long).toContain('server');
+    expect(stateLabel('sending', false).long).toContain('Bluetooth');
+  });
+
   it('uses the REQ §11.6 wording', () => {
     expect(stateLabel('expired_undelivered', true).short).toBe('Expired before delivery');
     expect(stateLabel('waiting_for_nearby_route', false).long).toBe(

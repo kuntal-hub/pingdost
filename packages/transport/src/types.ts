@@ -19,14 +19,25 @@ export type TransportErrorCode =
   /** No usable connection: the packet was not sent. */
   | 'OFFLINE'
   /** Sent, but no answer in time; the packet may or may not have arrived. */
-  | 'TIMEOUT';
+  | 'TIMEOUT'
+  /**
+   * A transport is up, but none reaches this device now (the Internet is down and the device
+   * is not in nearby range): the packet waits for a nearby route (REQ §8.3). Not sent.
+   */
+  | 'NO_ROUTE';
 
 /**
- * The outcome of one `send`. `ok` means the next hop holds the packet (the server's
- * `Accepted`): never delivery to the recipient (REQ §8.3).
+ * The outcome of one `send`. `ok` means the next hop holds the packet: the server's
+ * `Accepted`, or the recipient device's own nearby ACK. Never delivery to the recipient's
+ * user, which only an E2EE receipt shows (REQ §8.3).
  */
 export type SendResult =
-  | { ok: true; status: 'stored' | 'delivered_transport' }
+  | {
+      ok: true;
+      status: 'stored' | 'delivered_transport';
+      /** Set by the router: the path that carried it. */
+      via?: TransportKind;
+    }
   | {
       ok: false;
       /** A transport code or a server `ErrorCode`. */
@@ -69,4 +80,17 @@ export interface Transport {
   sendEphemeral?(packet: TransportPacket): Promise<SendResult>;
   /** Ephemeral packets for this device. There is nothing to acknowledge. */
   onEphemeral?(listener: (packet: TransportPacket) => void): Unsubscribe;
+  /**
+   * A transport that reaches only some devices (nearby): whether it reaches this one now.
+   * Without it, an online transport reaches every device (the server).
+   */
+  reaches?(deviceId: string): boolean;
+  /** Fires when `reaches` may answer differently. */
+  onReachability?(listener: () => void): Unsubscribe;
 }
+
+/**
+ * How a packet to one device would go now: over a transport, nowhere although a transport is
+ * up (`unreachable`: it waits for a nearby route), or nowhere because nothing is up.
+ */
+export type Route = TransportKind | 'unreachable' | 'offline';

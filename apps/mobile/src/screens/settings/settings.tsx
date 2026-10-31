@@ -6,6 +6,8 @@ import { authStore } from '@/api';
 import { useAuth } from '@/auth/use-auth';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Screen } from '@/components/screen';
+import { useNearbyStatus } from '@/nearby/service';
+import { describeNearby } from '@/nearby/status';
 import { removeDataFromThisPhone } from '@/recovery/remove-data';
 import { useAccount } from '@/settings/account';
 
@@ -13,6 +15,7 @@ export function SettingsScreen() {
   const router = useRouter();
   const username = useAuth((state) => state.session?.user.username);
   const me = useAccount((state) => state.me);
+  const nearby = describeNearby(useNearbyStatus());
 
   useEffect(() => {
     void useAccount
@@ -118,6 +121,14 @@ export function SettingsScreen() {
         />
       </ListSection>
 
+      <ListSection title="Without internet">
+        <ListRow
+          title="Nearby messaging"
+          subtitle={nearby.title}
+          onPress={() => router.push('/nearby-messaging')}
+        />
+      </ListSection>
+
       <ListSection title="About">
         <ListRow title="About privacy" onPress={() => router.push('/about-privacy')} />
       </ListSection>
@@ -125,7 +136,11 @@ export function SettingsScreen() {
       {__DEV__ && (
         <ListSection title="Developer">
           <ListRow title="Crypto interop (dev)" onPress={() => router.push('/crypto')} />
-          <ListRow title="Nearby spike (dev)" onPress={() => router.push('/nearby')} />
+          <ListRow
+            title="Nearby spike (dev)"
+            subtitle="Turn Nearby messaging off first: both read the same radio"
+            onPress={() => router.push('/nearby')}
+          />
         </ListSection>
       )}
 

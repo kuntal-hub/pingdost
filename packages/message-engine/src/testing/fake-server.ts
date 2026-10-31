@@ -506,6 +506,14 @@ export interface TestClientOptions {
   historySync?: EngineOptions['historySync'];
   now?: () => number;
   log?: EngineOptions['log'];
+  /** The engine's transport built around the fake server's (e.g. a router with nearby). */
+  transport?: (device: {
+    internet: FakeTransport;
+    userId: string;
+    deviceId: string;
+    account: OlmAccount;
+    store: EngineStore;
+  }) => EngineOptions['transport'];
 }
 
 /** A registered device with published keys and an engine (not started, transport offline). */
@@ -549,6 +557,8 @@ export async function createTestClient<S extends EngineStore>(
     needsFallbackKey: true,
   });
   const transport = server.transport(deviceId);
+  const engineTransport =
+    options.transport?.({ internet: transport, userId, deviceId, account, store }) ?? transport;
   const make = () =>
     new MessageEngine({
       self: { userId, deviceId, accountIdentityKey: identity.publicKey() },
@@ -556,7 +566,7 @@ export async function createTestClient<S extends EngineStore>(
       account,
       pickleKey,
       store,
-      transport,
+      transport: engineTransport,
       api,
       settings: {
         receiptDelayMs: 0,

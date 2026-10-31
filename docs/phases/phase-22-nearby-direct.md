@@ -11,30 +11,36 @@ Two phones with no Internet exchange E2EE messages directly over the nearby tran
 - The nearby transport ADR
 
 ## Tasks
-- [ ] **`NearbyTransport`** in `packages/transport` (the REQ §11.2 interface), with the Android implementation in `apps/mobile/src/nearby/` bridging the native module.
-- [ ] **Peer handshake** after the link comes up: a signed `HELLO` packet (device ed25519 identity, ephemeral token, protocol version, capabilities). Verify it against the cached device directory.
+- [x] **`NearbyTransport`** in `packages/transport` (the REQ §11.2 interface), with the Android implementation in `apps/mobile/src/nearby/` bridging the native module.
+  - Done: `NearbyTransport` is the link interface, which `createBleTransport` implements. `NearbyPeerTransport` is the engine-facing `Transport` (kind `nearby`), and `apps/mobile/src/nearby/service.ts` wires the two.
+- [x] **Peer handshake** after the link comes up: a signed `HELLO` packet (device ed25519 identity, ephemeral token, protocol version, capabilities). Verify it against the cached device directory.
   - Known contacts' devices → eligible for direct delivery.
   - Unknown peers → kept only as potential relays (Phase 23); no identity is shown to them.
-- [ ] **`TransportRouter` policy:**
+  - Done (ADR 0024): two `Hello`s per side; the proof signs both link tokens and names only the Ed25519 key, not the device ID. Strangers still see that key (CHANGES 2026-11-01).
+- [x] **`TransportRouter` policy:**
   - Internet (WS connected) first.
   - Otherwise, if the recipient device is in nearby range, send directly.
   - Otherwise mark `waiting_for_nearby_route` and keep the packet queued.
   - When either path appears, flush.
   - The same envelope may arrive by both paths; the recipient dedupes by messageId, and the sender's state merges.
-- [ ] **Acknowledgements:** a nearby transport ACK plus the E2EE delivery receipt sent back over the same link, or later via the Internet.
-- [ ] **Offline first contact:** use the cached fallback key (Phase 9 cache) to create an Olm prekey message offline. If there is no cached key, show "Can't reach this contact offline until you've connected once online".
-- [ ] **Settings and permissions:**
-  - a "Nearby messaging" toggle;
-  - a permission onboarding screen explaining why Bluetooth and Nearby devices are needed;
-  - clear degraded states (Bluetooth off, permission denied, airplane mode), never silent failure (REQ §19.4 last bullet).
-- [ ] **UI:**
+- [x] **Acknowledgements:** a nearby transport ACK plus the E2EE delivery receipt sent back over the same link, or later via the Internet.
+- [x] **Offline first contact:** use the cached fallback key (Phase 9 cache) to create an Olm prekey message offline. If there is no cached key, show "Can't reach this contact offline until you've connected once online".
+- [x] **Settings and permissions:**
+  - a "Nearby messaging" toggle (local to the phone, off by default);
+  - a permission onboarding screen explaining why Bluetooth and Nearby devices are needed (Location on Android 8–11);
+  - clear degraded states (Bluetooth off, permission denied, airplane mode), never silent failure (REQ §19.4 last bullet): in Settings and in the offline banner.
+- [x] **UI:**
   - status copy "Queued on this device — waiting for a nearby route" (REQ §11.6);
   - a nearby indicator in the chat header when the peer is in range;
   - message info shows the path used (Internet / nearby).
-- [ ] **Tests:** router unit tests with fake transports (path selection, flush on reconnect, dual-path dedupe, state merge); handshake verification tests.
+- [x] **Tests:** router unit tests with fake transports (path selection, flush on reconnect, dual-path dedupe, state merge); handshake verification tests.
+- [ ] **Device checks** (two phones; see PROGRESS).
 
 ## Key files
-`packages/transport/src/{nearby.ts,router.ts}`, `apps/mobile/src/nearby/*`, `packages/message-engine/src/routing/*`
+- `packages/protocol/proto/pingdost/v1/mesh.proto` (`Hello`, `HelloProof`), `packages/protocol/src/{signing.ts,codec.ts}` (`nearbyHelloMessage`, Hello/Ack codecs)
+- `packages/transport/src/{nearby.ts,router.ts,testing.ts}`
+- `packages/message-engine/src/routing/identity.ts`, `outbox.ts` (routes, parking, `via`, fallback key, partial fan-out), `engine.ts` (`canReachOffline`)
+- `apps/mobile/src/nearby/{service.ts,status.ts}`, `src/screens/settings/{nearby.tsx,nearby-setup.tsx}`, `src/components/offline-banner.tsx`, `src/db/migrations/007-nearby.ts`
 
 ## Out of scope
 Multi-hop relay (23); file chunks (24).

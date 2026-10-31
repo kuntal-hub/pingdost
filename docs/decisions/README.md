@@ -28,6 +28,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0021](0021-history-sync-web-attachments.md) | History sync (phone → web) and attachments on the web | 18 | Accepted |
 | [0022](0022-backup-recovery-primary-replacement.md) | Backup format, recovery phrase and replacing the primary phone | 19 | Accepted |
 | [0023](0023-nearby-transport.md) | Nearby transport: BLE GATT on platform APIs, rotating tokens, a connectedDevice foreground service | 21 | Accepted (device matrix pending) |
+| [0024](0024-direct-nearby-messaging.md) | Direct nearby messaging: signed two-step Hello by device key, per-device routing, `waiting_for_nearby_route`, delivery path | 22 | Accepted (device checks pending) |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 
@@ -45,6 +46,7 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ �
 | Backup format & recovery flows | 19 | No (done: 0022) |
 | Hosting choice & production topology | change 2026-10-19 (20 verifies) | **Yes** (done: 0013) |
 | Nearby transport (BLE / Nearby Connections / Wi-Fi Direct) | 21 | No (done: 0023) |
+| Nearby handshake & transport routing | 22 | No (done: 0024) |
 | Mesh routing, relay policy & routing tokens | 23 | No |
 | Incoming-call UX on Android | 26 | No |
 | Project license | 01 | **Yes** (done: 0001) |

@@ -22,10 +22,14 @@ export const SIGNING_CONTEXTS = {
   primaryTransferCode: 'pingdost/primary-transfer-code/v1',
   /** The approving phone's Olm message to the new phone: the account identity key (ADR 0022). */
   primaryTransferPayload: 'pingdost/primary-transfer-payload/v1',
+  /** Signed by a device's ed25519 key in the nearby handshake (ADR 0024). */
+  nearbyHello: 'pingdost/nearby-hello/v1',
 } as const;
 
 export const KEY_BYTES = 32;
 export const NONCE_BYTES = 32;
+/** `Hello.peer_token`: fresh random bytes per nearby link (ADR 0024). */
+export const HELLO_TOKEN_BYTES = 16;
 const MAX_KEY_ID_BYTES = 64;
 
 export interface DeviceIdentityKeys {
@@ -161,6 +165,42 @@ export function primaryTransferCodeMessage(
     deviceIdBytes(requestId),
     deviceIdBytes(deviceId),
     ...identityBytes(keys),
+  ]);
+}
+
+/**
+ * context ‖ signer's token (16) ‖ other side's token (16) ‖ ed25519 (32) ‖ capabilities (4,
+ * big-endian): this key speaks on exactly this link, with these capabilities (ADR 0024).
+ */
+export function nearbyHelloMessage(
+  ownToken: Uint8Array,
+  peerToken: Uint8Array,
+  identityKey: string,
+  capabilities: number,
+): Uint8Array {
+  for (const [token, field] of [
+    [ownToken, 'own_token'],
+    [peerToken, 'peer_token'],
+  ] as const) {
+    if (token.length !== HELLO_TOKEN_BYTES) {
+      throw new ProtocolError(
+        'INVALID_FIELD',
+        `${field} must be ${HELLO_TOKEN_BYTES} bytes`,
+        field,
+      );
+    }
+  }
+  if (!Number.isInteger(capabilities) || capabilities < 0 || capabilities > 0xffff_ffff) {
+    throw new ProtocolError('INVALID_FIELD', 'capabilities must be a uint32', 'capabilities');
+  }
+  const caps = new Uint8Array(4);
+  new DataView(caps.buffer).setUint32(0, capabilities);
+  return concat([
+    context(SIGNING_CONTEXTS.nearbyHello),
+    ownToken,
+    peerToken,
+    exactBytes(identityKey, KEY_BYTES, 'identity_key'),
+    caps,
   ]);
 }
 

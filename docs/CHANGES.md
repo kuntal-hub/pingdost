@@ -4,6 +4,17 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-01 — Phase 22: direct nearby messaging (ADR 0024)
+1. **After the recipient's phone acknowledges a message over Bluetooth, the state is `sent_to_server`, with the path recorded on the delivery row.** REQ §8.3's names have no state for "the recipient's own phone took it over Bluetooth". The state machine already means "the next hop holds it; only the E2EE receipt delivers it", so the state is reused. Labels and message info name the path ("Sent over Bluetooth to the recipient's phone — not yet delivered") and never show the raw name.
+   - *Reason:* a new state would touch the shared enum, both stores, history sync and both UIs, for the same meaning.
+   - *Affects:* 22 (done), 23 (relay acceptance stays `relayed`).
+2. **The handshake shows strangers this phone's public device key.** While nearby messaging is on, a PingDost phone in range sees that a PingDost phone is near and, once linked, this device's Ed25519 public key. It does not see the device ID, account, name or number, and the app looks nothing up on the server. The key is stable, so a stranger could recognise the phone again. The Settings screen says this. Contact-only recognition (no stable identifier) needs its own protocol, so Phase 23 will consider it under a separate ADR.
+   - *Affects:* 22 (done), 23, 27 (privacy notice).
+3. **Nearby messaging is off by default and local to each phone.** REQ says nothing about a default. Turning it on goes through a screen that explains the permission first.
+   - *Affects:* 22 (done), 27.
+4. **An offline fan-out is partial.** When the sender's own directory is not cached (it never needed it), the contact's devices get the message now and the sender's own linked browsers get their copy once the Internet is back. Before this, the whole message waited.
+   - *Affects:* 22 (done).
+
 ### 2026-10-31 — Phase 21: nearby spike (ADR 0023)
 1. **No Google Nearby Connections.** The Phase 21 plan had an optional Nearby Connections path for bulk transfer between Android phones, and Phase 24 would have used it. `play-services-nearby` is closed source under the Android SDK License, which breaks the "permissive or OSI licenses" rule, and it needs Google Play services.
    - *Decision:* the user chose BLE only, with no Google library (2026-10-31).

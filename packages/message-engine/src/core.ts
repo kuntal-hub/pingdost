@@ -11,7 +11,7 @@ import { DEFAULT_LIMITS } from '@pingdost/config/public';
 import type { CryptoProvider, OlmAccount } from '@pingdost/crypto/core';
 import { directConversationIdFor, uuidv7 } from '@pingdost/protocol';
 import type { Group, MessageState } from '@pingdost/shared-types';
-import { Listeners, type BackoffOptions, type Transport } from '@pingdost/transport';
+import { Listeners, type BackoffOptions, type Route, type Transport } from '@pingdost/transport';
 
 import {
   diffDirectory,
@@ -48,7 +48,15 @@ function primaryReplaced(change: DirectoryChange): boolean {
 export type EngineTransport = Pick<
   Transport,
   'status$' | 'send' | 'onPacket' | 'sendTyping' | 'onTyping' | 'sendEphemeral' | 'onEphemeral'
->;
+> & {
+  /**
+   * How a packet to this device would go now (`TransportRouter`, ADR 0024). Without it,
+   * every device is reachable while the transport is online.
+   */
+  route?(deviceId: string): Route;
+  /** Fires when a route may have appeared: packets waiting for one go then. */
+  onRoutesChanged?(listener: () => void): () => void;
+};
 
 /** The group calls the engine makes (`@pingdost/api-client`'s `groupsApi` fits). */
 export interface GroupsApi {

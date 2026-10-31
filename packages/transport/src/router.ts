@@ -1,13 +1,20 @@
 /**
- * Chooses a transport per packet (REQ §4.3). Phase 9 has the Internet only; Phase 22 adds the
- * nearby transport and routing by recipient reachability. Incoming packets from every
- * transport reach the same listeners, each with its own transport's ACK.
+ * Chooses a transport per packet (REQ §4.3, §11.1 mode 3; ADR 0024):
+ * 1. the first online transport that reaches every device: the Internet (WebSocket);
+ * 2. otherwise the first online transport that reaches the recipient device now: nearby;
+ * 3. otherwise `NO_ROUTE` when some transport is up (the packet waits for a nearby route), or
+ *    `OFFLINE` when none is.
+ * `onRoutesChanged` fires whenever a route may have appeared, so the sender flushes then. The
+ * same envelope may still travel both ways (a nearby ACK lost, then the Internet back): the
+ * recipient dedupes by envelope and message ID. Incoming packets from every transport reach
+ * the same listeners, each with its own transport's ACK.
  */
-import type { TransportPacket } from '@pingdost/protocol';
+import { bytesToUuid, UUID_BYTES, type TransportPacket } from '@pingdost/protocol';
 
 import { Listeners, ValueStream, type ReadonlyValueStream } from './stream';
 import type {
   PacketListener,
+  Route,
   SendResult,
   Transport,
   TransportKind,
@@ -17,6 +24,7 @@ import type {
 } from './types';
 
 const OFFLINE: SendResult = { ok: false, code: 'OFFLINE', retryable: true };
+const NO_ROUTE: SendResult = { ok: false, code: 'NO_ROUTE', retryable: true };
 
 export class TransportRouter {
   readonly #transports: Transport[];
@@ -24,6 +32,7 @@ export class TransportRouter {
   readonly #packets = new Listeners<Parameters<PacketListener>>();
   readonly #typing = new Listeners<[TypingSignal]>();
   readonly #ephemeral = new Listeners<[TransportPacket]>();
+  readonly #routes = new Listeners<[]>();
   readonly #unsubscribe: Unsubscribe[] = [];
 
   /** `transports` in order of preference. */
@@ -31,7 +40,10 @@ export class TransportRouter {
     this.#transports = transports;
     for (const transport of transports) {
       this.#unsubscribe.push(
-        transport.status$.subscribe(() => this.#updateStatus()),
+        transport.status$.subscribe(() => {
+          this.#updateStatus();
+          this.#routes.emit();
+        }),
         transport.onPacket((packet, ack) => this.#packets.emit(packet, ack)),
       );
       if (transport.onTyping) {
@@ -40,11 +52,14 @@ export class TransportRouter {
       if (transport.onEphemeral) {
         this.#unsubscribe.push(transport.onEphemeral((packet) => this.#ephemeral.emit(packet)));
       }
+      if (transport.onReachability) {
+        this.#unsubscribe.push(transport.onReachability(() => this.#routes.emit()));
+      }
     }
     this.#updateStatus();
   }
 
-  /** `online` when any transport is. */
+  /** `online` when any transport is (for nearby: while it is looking for peers). */
   get status$(): ReadonlyValueStream<TransportStatus> {
     return this.#status;
   }
@@ -54,10 +69,23 @@ export class TransportRouter {
     return this.#transports.filter((t) => t.status$.value === 'online').map((t) => t.kind);
   }
 
-  /** Sends over the first online transport; `OFFLINE` when there is none. */
-  send(packet: TransportPacket): Promise<SendResult> {
-    const transport = this.#transports.find((t) => t.status$.value === 'online');
-    return transport ? transport.send(packet) : Promise.resolve(OFFLINE);
+  /** How a packet to `deviceId` would go now. */
+  route(deviceId: string): Route {
+    return this.#pick(deviceId)?.kind ?? (this.#anyOnline() ? 'unreachable' : 'offline');
+  }
+
+  /** Fires when a transport's status or nearby reach changes: queued packets may go now. */
+  onRoutesChanged(listener: () => void): Unsubscribe {
+    return this.#routes.add(listener);
+  }
+
+  /** Over the preferred transport that reaches `packet.dst`; the result names the path. */
+  async send(packet: TransportPacket): Promise<SendResult> {
+    const deviceId = packet.dst.length === UUID_BYTES ? bytesToUuid(packet.dst) : undefined;
+    const transport = this.#pick(deviceId);
+    if (!transport) return this.#anyOnline() ? NO_ROUTE : OFFLINE;
+    const result = await transport.send(packet);
+    return result.ok ? { ...result, via: transport.kind } : result;
   }
 
   onPacket(listener: PacketListener): Unsubscribe {
@@ -89,6 +117,19 @@ export class TransportRouter {
 
   dispose(): void {
     for (const unsubscribe of this.#unsubscribe.splice(0)) unsubscribe();
+  }
+
+  /** Transports that reach every device first, then those that reach this one. */
+  #pick(deviceId: string | undefined): Transport | undefined {
+    const online = this.#transports.filter((t) => t.status$.value === 'online');
+    return (
+      online.find((t) => t.reaches === undefined) ??
+      (deviceId === undefined ? undefined : online.find((t) => t.reaches?.(deviceId) === true))
+    );
+  }
+
+  #anyOnline(): boolean {
+    return this.#transports.some((t) => t.status$.value === 'online');
   }
 
   #updateStatus(): void {

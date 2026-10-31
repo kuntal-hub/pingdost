@@ -22,7 +22,7 @@ async function migrated() {
 }
 
 runEngineStoreContract(
-  'SQLite (migrations 002–006)',
+  'SQLite (migrations 002–007)',
   async () => new SqliteEngineStore(await migrated()),
 );
 

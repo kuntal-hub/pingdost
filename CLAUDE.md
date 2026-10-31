@@ -119,7 +119,11 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - **Nearby (ADR 0023):**
     - `apps/mobile/modules/nearby` is a local Kotlin module on Android's BLE APIs: GATT links, framing, credit flow control, the `connectedDevice` foreground service. There is no Play Services. JS is in `modules/nearby/src` (types, `parseInbound`, `createBleTransport`).
     - JVM tests (framing, flow control): `.\gradlew.bat :nearby:testDebugUnitTest` in `apps/mobile/android` (about 4 minutes the first time). The TS tests run with `pnpm --filter @pingdost/mobile test`.
-    - Dev screen: Settings → Developer → **Nearby spike (dev)**. It needs two real phones, since BLE does not work in the emulator. ADR 0023 has the measurement steps; **Share report** exports the results.
+    - Dev screen: Settings → Developer → **Nearby spike (dev)**. It needs two real phones, since BLE does not work in the emulator. ADR 0023 has the measurement steps; **Share report** exports the results. Turn Nearby messaging off first: both read the same native queue.
+  - **Nearby messaging (ADR 0024):**
+    - `NearbyPeerTransport` (`packages/transport/src/nearby.ts`) runs the signed two-step `Hello` and per-envelope `Ack`. `TransportRouter.route()` chooses Internet, then nearby, else `waiting_for_nearby_route`.
+    - The engine side is `createNearbyIdentity` plus outbox routing; the app side is `apps/mobile/src/nearby/` (the toggle in Settings → Nearby messaging, off by default).
+    - Tests: `pnpm --filter @pingdost/transport test` and `pnpm --filter @pingdost/message-engine exec vitest run src/routing` (two engines in airplane mode over `@pingdost/transport/testing`'s in-memory radio).
 - **Staging deployment** (ADR 0013; runbooks in `docs/ops/`: `vps-setup.md`, `deploy.md`, `alerts.md`, `mobile-release.md`):
   - Image: `docker build -f apps/server/Dockerfile --platform linux/amd64 -t pingdost-server:local .` from the repo root (about 6 minutes; `.dockerignore` keeps `.env` and build output out).
   - Stack: `deploy/compose.staging.yml` + `deploy/Caddyfile` + a `.env` from `deploy/env.staging.example`. To rehearse locally, use another project name (`-p pingdost-stage`; the dev stack is also `pingdost`), an override that swaps in the local image and maps Caddy to `8088:80`, `API_DOMAIN=http://localhost`, and send `Host: localhost` (Caddy answers other hosts with an empty 200).

@@ -104,7 +104,15 @@ export function shownState(state: MessageState, readReceipts: boolean): MessageS
   return state === 'read' && !readReceipts ? 'delivered_to_recipient_device' : state;
 }
 
-export function stateLabel(state: MessageState, online: boolean): StateLabel {
+/**
+ * `via`: the path that carried it (ADR 0024). Over Bluetooth the next hop is the recipient's
+ * own phone, but only its E2EE receipt makes the message delivered.
+ */
+export function stateLabel(
+  state: MessageState,
+  online: boolean,
+  via?: 'internet' | 'nearby',
+): StateLabel {
   switch (state) {
     case 'local_queued':
       return {
@@ -123,11 +131,19 @@ export function stateLabel(state: MessageState, online: boolean): StateLabel {
         tone: 'muted',
       };
     case 'sending':
-      return { short: 'Sending…', long: 'Sending to the server.', glyph: '◷', tone: 'muted' };
+      return {
+        short: 'Sending…',
+        long: online ? 'Sending to the server.' : 'Sending over Bluetooth.',
+        glyph: '◷',
+        tone: 'muted',
+      };
     case 'sent_to_server':
       return {
         short: 'Sent',
-        long: 'Sent to the server — not yet delivered to the recipient.',
+        long:
+          via === 'nearby'
+            ? "Sent over Bluetooth to the recipient's phone — not yet delivered: waiting for its delivery receipt."
+            : 'Sent to the server — not yet delivered to the recipient.',
         glyph: '✓',
         tone: 'muted',
       };

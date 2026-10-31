@@ -23,9 +23,12 @@ import {
   type SyncMessage,
 } from './gen/pingdost/v1/content_pb';
 import { CryptoType, EnvelopeSchema, type Envelope } from './gen/pingdost/v1/envelope_pb';
+import { HelloSchema, type Hello } from './gen/pingdost/v1/mesh_pb';
 import {
+  AckSchema,
   PacketKind,
   TransportPacketSchema,
+  type Ack,
   type TransportPacket,
 } from './gen/pingdost/v1/packet_pb';
 import {
@@ -43,6 +46,7 @@ import {
   type CodecOptions,
 } from './limits';
 import { encodePaddedContent } from './padding';
+import { HELLO_TOKEN_BYTES, KEY_BYTES } from './signing';
 
 /** Longest `ContentHeader.conversation_id` (a 16-byte ID, or a 32-byte hash). */
 const MAX_CONVERSATION_ID_BYTES = 32;
@@ -210,6 +214,60 @@ export function decodeEnvelope(bytes: Uint8Array, options: CodecOptions = {}): E
   const envelope = parse(EnvelopeSchema, bytes, limitsFor(options).envelope);
   checkEnvelope(envelope);
   return envelope;
+}
+
+// Nearby handshake and transport ACKs (ADR 0024)
+
+/** A `Hello` is a few dozen bytes; anything near this is not one. */
+const HELLO_MAX_BYTES = 512;
+/** Most envelope IDs in one `Ack` over a nearby link. */
+export const MAX_ACK_IDS = 256;
+const ED25519_SIGNATURE_BYTES = 64;
+
+function checkHello(hello: Hello): void {
+  // The peer's highest version: a newer peer may name a later one.
+  if (hello.protocolVersion === 0) throw missing('protocol_version');
+  if (hello.peerToken.length !== HELLO_TOKEN_BYTES) {
+    throw invalid('peer_token', `must be ${HELLO_TOKEN_BYTES} bytes`);
+  }
+  const { proof } = hello;
+  if (proof === undefined) return;
+  if (proof.identityKey.length !== KEY_BYTES) {
+    throw invalid('proof.identity_key', `must be ${KEY_BYTES} bytes`);
+  }
+  if (proof.signature.length !== ED25519_SIGNATURE_BYTES) {
+    throw invalid('proof.signature', `must be ${ED25519_SIGNATURE_BYTES} bytes`);
+  }
+}
+
+export function encodeHello(hello: Hello): Uint8Array {
+  checkHello(hello);
+  return serialize(HelloSchema, hello, HELLO_MAX_BYTES);
+}
+
+export function decodeHello(bytes: Uint8Array): Hello {
+  const hello = parse(HelloSchema, bytes, HELLO_MAX_BYTES);
+  checkHello(hello);
+  return hello;
+}
+
+function checkAck(ack: Ack): void {
+  checkIds(ack.envelopeIds, 'envelope_ids');
+  if (ack.envelopeIds.length > MAX_ACK_IDS) {
+    throw invalid('envelope_ids', `must hold at most ${MAX_ACK_IDS} IDs`);
+  }
+}
+
+/** The payload of a `PACKET_KIND_ACK` packet. */
+export function encodeAck(ack: Ack): Uint8Array {
+  checkAck(ack);
+  return serialize(AckSchema, ack, MAX_ACK_IDS * (UUID_BYTES + 2) + 16);
+}
+
+export function decodeAck(bytes: Uint8Array): Ack {
+  const ack = parse(AckSchema, bytes, MAX_ACK_IDS * (UUID_BYTES + 2) + 16);
+  checkAck(ack);
+  return ack;
 }
 
 // Content

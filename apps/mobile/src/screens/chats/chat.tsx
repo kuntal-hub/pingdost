@@ -34,6 +34,7 @@ import {
 } from '@/engine/labels';
 import { watchPresence } from '@/engine/runtime';
 import { timeLabel, type TimelineItem } from '@/engine/timeline';
+import { useNearbyPeer } from '@/nearby/service';
 import { dismissChatNotification } from '@/push/notifications';
 import { usePalette } from '@/theme/theme-root';
 import { formatSize } from '@pingdost/attachments';
@@ -79,6 +80,7 @@ function HeaderTitle({ peerUserId }: { peerUserId: string | undefined }) {
   const router = useRouter();
   const contact = useContact(peerUserId);
   const online = usePresence(peerUserId);
+  const nearby = useNearbyPeer(peerUserId);
   const runtime = useChatRuntime();
   const [verified, setVerified] = useState(false);
   const name = contactName(contact);
@@ -93,7 +95,7 @@ function HeaderTitle({ peerUserId }: { peerUserId: string | undefined }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${name}${verified ? ', verified' : ''}. Contact info`}
+      accessibilityLabel={`${name}${verified ? ', verified' : ''}${nearby ? ', nearby over Bluetooth' : ''}. Contact info`}
       disabled={!peerUserId}
       onPress={() =>
         peerUserId && router.push({ pathname: '/contact/[userId]', params: { userId: peerUserId } })
@@ -106,7 +108,13 @@ function HeaderTitle({ peerUserId }: { peerUserId: string | undefined }) {
           {name}
           {verified ? '  ✓' : ''}
         </Text>
-        {online && <Text className="text-muted">online</Text>}
+        {(online || nearby) && (
+          <Text className="text-muted">
+            {[online ? 'online' : null, nearby ? 'nearby · Bluetooth' : null]
+              .filter(Boolean)
+              .join(' · ')}
+          </Text>
+        )}
       </View>
     </Pressable>
   );
@@ -644,6 +652,20 @@ export function ChatScreen({
     void runtime.engine.getConversation(conversationId).then(setConversation);
   }, [runtime, conversationId]);
 
+  // Whether a message could start offline (cached keys), for the offline banner (ADR 0024).
+  const [offlineReachable, setOfflineReachable] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!runtime || !peerUserId || status === 'online') return;
+    let live = true;
+    void runtime.engine
+      .canReachOffline(peerUserId)
+      .then((reachable) => live && setOfflineReachable(reachable))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [runtime, peerUserId, status]);
+
   useFocusEffect(
     useCallback(() => {
       focused.current = true;
@@ -815,7 +837,9 @@ export function ChatScreen({
         }}
       />
       <View className="px-4">
-        <OfflineBanner />
+        <OfflineBanner
+          peer={peerUserId ? { userId: peerUserId, name, reachable: offlineReachable } : undefined}
+        />
       </View>
       <FlashList
         ref={list}

@@ -250,6 +250,8 @@ export interface DeliveryRecord {
   own: boolean;
   state: MessageState;
   updatedAt: number;
+  /** The path that carried it to the next hop, once one accepted it (ADR 0024). */
+  via?: 'internet' | 'nearby';
 }
 
 interface OutboxBase {
@@ -437,6 +439,8 @@ export interface EngineStore {
   listSessions(deviceId: string): Promise<SessionRecord[]>;
 
   getDirectory(userId: string): Promise<DirectoryRecord | undefined>;
+  /** Every cached directory (the nearby handshake looks devices up by key; ADR 0024). */
+  listDirectories(): Promise<DirectoryRecord[]>;
   /** The user whose cached directory lists `deviceId`. */
   findDeviceOwner(deviceId: string): Promise<string | undefined>;
 

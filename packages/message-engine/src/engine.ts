@@ -123,6 +123,10 @@ export class MessageEngine {
     if (transport.onEphemeral) {
       this.#unsubscribe.push(transport.onEphemeral((packet) => this.#sync.receive(packet)));
     }
+    if (transport.onRoutesChanged) {
+      // The Internet came back or a nearby contact proved its key (ADR 0024).
+      this.#unsubscribe.push(transport.onRoutesChanged(() => this.#outbox.routesChanged()));
+    }
     this.#sweepTimer = setInterval(() => void this.#sweep(), core.settings.expirySweepMs);
     await this.#sweep();
     this.#outbox.start();
@@ -861,6 +865,23 @@ export class MessageEngine {
         directory?.accountIdentityKey != null &&
         directory.verifiedIdentityKey === directory.accountIdentityKey,
     };
+  }
+
+  /**
+   * Whether a message to this user can be encrypted with no Internet (ADR 0024): one of their
+   * phones is in the cached directory with a session or a cached fallback key. When false the
+   * app says "Can't reach this contact offline until you've connected once online".
+   */
+  async canReachOffline(userId: string): Promise<boolean> {
+    const store = this.#core.store;
+    const directory = await store.getDirectory(userId);
+    for (const device of directory?.devices ?? []) {
+      if (device.platform === 'web') continue; // browsers have no nearby radio
+      if (device.fallbackKey || (await store.listSessions(device.deviceId)).length > 0) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

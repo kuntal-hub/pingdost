@@ -7,6 +7,7 @@ import { Screen } from '@/components/screen';
 import { useChatRuntime, useConnectionStatus, useReadReceipts } from '@/engine/hooks';
 import { previewText, shownState, stateLabel } from '@/engine/labels';
 import { dayLabel, timeLabel } from '@/engine/timeline';
+import { pathLabel } from '@/nearby/status';
 import type { DeliveryRecord, MessageRecord } from '@pingdost/message-engine';
 
 function at(ms: number): string {
@@ -18,8 +19,8 @@ export function MessageInfoScreen({ messageId }: { messageId: string }) {
   const runtime = useChatRuntime();
   const online = useConnectionStatus() === 'online';
   const readReceipts = useReadReceipts();
-  const label = (state: DeliveryRecord['state']) =>
-    stateLabel(shownState(state, readReceipts), online);
+  const label = (state: DeliveryRecord['state'], via?: DeliveryRecord['via']) =>
+    stateLabel(shownState(state, readReceipts), online, via);
   const [info, setInfo] = useState<{
     message: MessageRecord;
     deliveries: DeliveryRecord[];
@@ -53,9 +54,17 @@ export function MessageInfoScreen({ messageId }: { messageId: string }) {
     );
 
   const { message, deliveries } = info;
-  const overall = message.state ? label(message.state) : undefined;
   const recipients = deliveries.filter((d) => !d.own);
   const own = deliveries.filter((d) => d.own);
+  // Every recipient device took it over Bluetooth: say so in the summary too.
+  const allNearby = recipients.length > 0 && recipients.every((d) => d.via === 'nearby');
+  const overall = message.state
+    ? label(message.state, allNearby ? 'nearby' : undefined)
+    : undefined;
+  const pathOf = (d: DeliveryRecord) => {
+    const path = pathLabel(d.via);
+    return path ? ` ${path}.` : '';
+  };
   return (
     <Screen>
       <View className="rounded-lg border border-border bg-surface p-4">
@@ -81,8 +90,8 @@ export function MessageInfoScreen({ messageId }: { messageId: string }) {
           {recipients.map((d, index) => (
             <ListRow
               key={d.deviceId}
-              title={`Device ${index + 1}: ${label(d.state).short}`}
-              subtitle={`${label(d.state).long} Updated ${at(d.updatedAt)}.`}
+              title={`Device ${index + 1}: ${label(d.state, d.via).short}`}
+              subtitle={`${label(d.state, d.via).long}${pathOf(d)} Updated ${at(d.updatedAt)}.`}
             />
           ))}
         </ListSection>

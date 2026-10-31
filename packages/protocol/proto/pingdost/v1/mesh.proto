@@ -41,10 +41,36 @@ message MeshAck {
   bytes packet_id = 1;
 }
 
-// Payload of PACKET_KIND_HELLO: the first packet between two nearby peers.
+// Payload of PACKET_KIND_HELLO: the nearby peer handshake (ADR 0024). Each side sends two:
+// first without `proof` (its fresh token), then, once it has the other side's token, the
+// same token with `proof`. A proof is bound to both tokens, so it cannot be replayed on
+// another link.
 message Hello {
   // The highest protocol major version this peer speaks.
   uint32 protocol_version = 1;
-  // An opaque, rotating token for this peer (Phase 22 defines it).
+  // 16 random bytes, new for every link: the challenge the other side signs.
   bytes peer_token = 2;
+  // HelloCapability bits.
+  uint32 capabilities = 3;
+  // Set in the second Hello.
+  HelloProof proof = 4;
+}
+
+// Bit values for Hello.capabilities. Receivers ignore bits they do not know.
+enum HelloCapability {
+  HELLO_CAPABILITY_UNSPECIFIED = 0;
+  // Takes envelopes addressed to its own device (direct nearby messaging, Phase 22).
+  HELLO_CAPABILITY_DIRECT = 1;
+  // Stores and forwards packets for other devices (mesh relay, Phase 23).
+  HELLO_CAPABILITY_RELAY = 2;
+}
+
+// The sender holds a device identity key. It names the key, not the device or the account:
+// only a peer that already has this key in its verified directory learns who it is.
+message HelloProof {
+  // The device's Ed25519 identity key, 32 bytes.
+  bytes identity_key = 1;
+  // Ed25519 over nearbyHelloMessage(own token, other side's token, identity key,
+  // capabilities), 64 bytes.
+  bytes signature = 2;
 }

@@ -202,6 +202,12 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
       expect(await store.listDeliveriesTo(b.deviceId, ['local_queued'])).toEqual([]);
       await store.apply({ deleteDeliveries: [{ messageId, deviceId: a.deviceId }] });
       expect(await store.listDeliveries(messageId)).toEqual([b]);
+      // The path that carried it (ADR 0024).
+      const nearby: DeliveryRecord = { ...b, state: 'sent_to_server', via: 'nearby' };
+      await store.apply({ deliveries: [nearby] });
+      expect(await store.listDeliveries(messageId)).toEqual([nearby]);
+      await store.apply({ deliveries: [{ ...nearby, via: 'internet' }] });
+      expect((await store.listDeliveries(messageId))[0]?.via).toBe('internet');
     });
 
     it('keeps every outbox item type, bytes included, oldest first', async () => {
@@ -317,6 +323,11 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
       await store.apply({ directory: [record] });
       expect(await store.getDirectory(record.userId)).toEqual(record);
       expect(await store.findDeviceOwner(deviceId)).toBe(record.userId);
+      const other: DirectoryRecord = { ...record, userId: testId(), devices: [] };
+      await store.apply({ directory: [other] });
+      expect(
+        (await store.listDirectories()).sort((x, y) => x.userId.localeCompare(y.userId)),
+      ).toEqual([record, other].sort((x, y) => x.userId.localeCompare(y.userId)));
       await store.apply({
         directory: [{ ...record, devices: [], verifiedIdentityKey: 'identity' }],
       });

@@ -24,6 +24,13 @@ Nearby messaging, relaying and file chunks work on iOS within Apple's background
 - Android↔iOS text exchange works over BLE.
 
 ## Handoff notes
+**From Phase 22 (ADR 0024):** iOS must speak the same handshake to reach Android phones:
+- two `Hello`s per link, the second with a `HelloProof` over `nearbyHelloMessage`;
+- `Ack` packets on the same link;
+- HELLO and ACK with `dst` = `0x00`.
+
+`NearbyPeerTransport` is platform-neutral TypeScript: an iOS `NearbyTransport` (link layer) is all that is missing.
+
 **From Phase 21 (ADR 0023):**
 - Android's GATT layout: service `5dd57eaf-834a-4b2d-96f6-b68a646c4a0b`, RX `aa6298cf-710a-43a7-a85e-42eae340dc5a` (write without response), TX `5a378fa3-6ee8-409f-bcd4-99790bc7feec` (notify). Framing (HELLO/DATA/CREDIT/TOKEN) is in `modules/nearby/android/.../Framing.kt`, with JVM tests to port.
 - Android puts the rotating token in the scan response as service data. iOS cannot advertise service data, and in the background it moves service UUIDs to its overflow area, so an iPhone's token comes only from the link HELLO. Android may not discover a backgrounded iPhone at all: measure it.
