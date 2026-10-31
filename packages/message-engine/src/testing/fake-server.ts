@@ -53,6 +53,8 @@ interface FakeDevice {
   oneTimeKeys: SignedKey[];
   fallbackKey: SignedKey | null;
   active: boolean;
+  platform: 'android' | 'web';
+  role: 'primary' | 'linked';
 }
 
 interface FakeUser {
@@ -77,6 +79,10 @@ export class FakeServer {
   /** Group membership, as `/v1/groups` keeps it (ADR 0016). */
   readonly groups = new Map<string, Group>();
   groupMaxMembers = 64;
+  /** Ephemeral packets relayed (never stored). */
+  ephemeralRelayed = 0;
+  /** Returns false to drop an ephemeral packet after answering it as relayed. */
+  ephemeralFilter: ((from: string, to: string) => boolean) | undefined;
   readonly #transports = new Map<string, FakeTransport>();
 
   addUser(identity: SigningKey): string {
@@ -85,8 +91,13 @@ export class FakeServer {
     return userId;
   }
 
-  /** Registers a device certified by the account identity key. */
-  addDevice(userId: string, identity: SigningKey, account: OlmAccount): string {
+  /** Registers a device certified by the account identity key (default: an Android phone). */
+  addDevice(
+    userId: string,
+    identity: SigningKey,
+    account: OlmAccount,
+    kind: { platform?: 'android' | 'web'; role?: 'primary' | 'linked' } = {},
+  ): string {
     const deviceId = uuidv7();
     const keys = account.identityKeys();
     this.devices.set(deviceId, {
@@ -98,6 +109,8 @@ export class FakeServer {
       oneTimeKeys: [],
       fallbackKey: null,
       active: true,
+      platform: kind.platform ?? 'android',
+      role: kind.role ?? 'primary',
     });
     this.#bump(userId);
     return deviceId;
@@ -315,6 +328,31 @@ export class FakeServer {
     return [...(this.mailbox.get(deviceId)?.values() ?? [])];
   }
 
+  /**
+   * The gateway's ephemeral relay (ADR 0021): handed to the recipient's socket if it is
+   * online, never stored. `ephemeralFilter` may drop a packet (tests of lost chunks).
+   */
+  ephemeral(from: string, packet: TransportPacket): SendResult {
+    const envelope = decodeEnvelope(packet.payload);
+    if (bytesToUuid(envelope.senderDeviceId) !== from) {
+      return { ok: false, code: 'FORBIDDEN', retryable: false };
+    }
+    const to = bytesToUuid(envelope.recipientDeviceId);
+    if (!this.devices.get(to)?.active) {
+      return { ok: false, code: 'RECIPIENT_UNKNOWN', retryable: false };
+    }
+    const recipient = this.#transports.get(to);
+    if (recipient?.status$.value !== 'online') {
+      return { ok: false, code: 'RECIPIENT_OFFLINE', retryable: true };
+    }
+    this.ephemeralRelayed++;
+    if (this.ephemeralFilter && !this.ephemeralFilter(from, to)) {
+      return { ok: true, status: 'delivered_transport' };
+    }
+    recipient.deliverEphemeral(packet);
+    return { ok: true, status: 'delivered_transport' };
+  }
+
   typing(from: string, typing: TypingSignal): boolean {
     for (const to of typing.recipientDeviceIds) {
       const recipient = this.#transports.get(to);
@@ -346,8 +384,8 @@ export class FakeServer {
         .filter((d) => d.userId === userId && d.active)
         .map((d) => ({
           deviceId: d.deviceId,
-          platform: 'android' as const,
-          role: 'primary' as const,
+          platform: d.platform,
+          role: d.role,
           identityKeys: { curve25519: d.curve25519, ed25519: d.ed25519 },
           deviceCertificate: d.certificate,
           fallbackKey: d.fallbackKey,
@@ -373,6 +411,7 @@ export class FakeTransport implements Transport {
   readonly status$ = new ValueStream<TransportStatus>('offline');
   readonly #packets = new Listeners<Parameters<PacketListener>>();
   readonly #typing = new Listeners<[TypingSignal]>();
+  readonly #ephemeral = new Listeners<[TransportPacket]>();
 
   constructor(
     private readonly server: FakeServer,
@@ -407,6 +446,23 @@ export class FakeTransport implements Transport {
 
   onTyping(listener: (typing: TypingSignal) => void): () => void {
     return this.#typing.add(listener);
+  }
+
+  sendEphemeral(packet: TransportPacket): Promise<SendResult> {
+    if (this.status$.value !== 'online') {
+      return Promise.resolve({ ok: false, code: 'OFFLINE', retryable: true });
+    }
+    return Promise.resolve(this.server.ephemeral(this.deviceId, packet));
+  }
+
+  onEphemeral(listener: (packet: TransportPacket) => void): () => void {
+    return this.#ephemeral.add(listener);
+  }
+
+  deliverEphemeral(packet: TransportPacket): void {
+    setTimeout(() => {
+      if (this.status$.value === 'online') this.#ephemeral.emit(packet);
+    }, 0);
   }
 
   deliver(packet: TransportPacket): void {
@@ -445,6 +501,9 @@ export interface TestClientOptions {
   blocked?: EngineOptions['blocked'];
   /** Publish this many one-time keys (default 5); 0 leaves only the fallback key. */
   oneTimeKeys?: number;
+  /** A linked browser instead of a phone (history sync, ADR 0021). */
+  platform?: 'android' | 'web';
+  historySync?: EngineOptions['historySync'];
   now?: () => number;
   log?: EngineOptions['log'];
 }
@@ -468,7 +527,12 @@ export async function createTestClient<S extends EngineStore>(
   const identity = options.sameUserAs?.identity ?? crypto.createSigningKey();
   const userId = options.sameUserAs?.userId ?? server.addUser(identity);
   const account = crypto.createAccount();
-  const deviceId = server.addDevice(userId, identity, account);
+  const deviceId = server.addDevice(
+    userId,
+    identity,
+    account,
+    options.platform === 'web' ? { platform: 'web', role: 'linked' } : {},
+  );
   const store = options.store ?? (new MemoryEngineStore() as unknown as S);
   const pickleKey = new Uint8Array(32).fill(7);
   const api = server.api(deviceId);
@@ -503,6 +567,7 @@ export async function createTestClient<S extends EngineStore>(
       ...(options.receipts ? { receipts: options.receipts } : {}),
       ...(options.typingIndicators ? { typingIndicators: options.typingIndicators } : {}),
       ...(options.blocked ? { blocked: options.blocked } : {}),
+      ...(options.historySync ? { historySync: options.historySync } : {}),
       ...(options.now ? { now: options.now } : {}),
       ...(options.log ? { log: options.log } : {}),
     });

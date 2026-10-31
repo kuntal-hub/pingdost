@@ -28,10 +28,11 @@ import type {
   MessageRecord,
   WriteBatch,
 } from './store';
+import type { HistorySyncOptions } from './sync';
 
 export type EngineTransport = Pick<
   Transport,
-  'status$' | 'send' | 'onPacket' | 'sendTyping' | 'onTyping'
+  'status$' | 'send' | 'onPacket' | 'sendTyping' | 'onTyping' | 'sendEphemeral' | 'onEphemeral'
 >;
 
 /** The group calls the engine makes (`@pingdost/api-client`'s `groupsApi` fits). */
@@ -134,6 +135,8 @@ export interface EngineOptions {
    * drops the rest) is dropped unread, without a receipt. Typing from them is ignored.
    */
   blocked?: (userId: string) => boolean;
+  /** History sync with this user's other devices (ADR 0021). */
+  historySync?: HistorySyncOptions;
   log?: EngineLogger;
 }
 

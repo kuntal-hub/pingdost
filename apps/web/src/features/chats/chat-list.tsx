@@ -1,5 +1,6 @@
 // The chat list (REQ §8.1): pinned chats first, then by latest activity; archived chats in their
-// own folder; unread counts; mute, pin, archive and delete from each row's menu.
+// own folder; unread counts; mute, pin, archive and delete from each row's menu. While history
+// arrives from the phone, a banner shows its progress (ADR 0021).
 import { BellOff, MoreVertical, Pin, Plus, Search, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router';
@@ -11,6 +12,7 @@ import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, Menu } from '@/components/ui/menu';
 import { cn } from '@/lib/cn';
+import { SyncBanner } from '@/sync/sync-status';
 import { previewText } from '@pingdost/chat-core';
 import { MUTED_FOREVER } from '@pingdost/message-engine';
 
@@ -143,6 +145,7 @@ export function ChatList() {
           <Plus size={18} />
         </Link>
       </div>
+      <SyncBanner />
       {(archivedCount > 0 || archived) && (
         <button
           type="button"
@@ -157,7 +160,9 @@ export function ChatList() {
           <li className="p-4 text-muted">Loading chats…</li>
         ) : shown.length === 0 ? (
           <li className="p-4 text-muted">
-            {archived ? 'No archived chats.' : 'No chats yet. Start one with the + button.'}
+            {archived
+              ? 'No archived chats.'
+              : 'No chats here yet. Your recent chats arrive from your phone, or start one with the + button.'}
           </li>
         ) : (
           shown.map((entry) => (

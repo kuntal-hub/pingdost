@@ -57,3 +57,8 @@ Make the product release-worthy: security and privacy audits, full acceptance tr
 **From Phase 14 (ADR 0017):**
 - REQ §19.3 server bullets are covered by `apps/server/test/attachments.int.test.ts` (fs + s3) and `engine.int.test.ts` scenario 9. The 100 MiB spike is slow-tagged: re-run it on the VPS and record the timings.
 - The staged-attachment record keeps the recipient device IDs and sizes until deletion: list this metadata in the privacy notes.
+- **From Phase 18 (ADR 0021):**
+  - each relayed ephemeral packet reads the recipient device from Mongo (`delivery.prepare` → `activeDeviceOwner`); cache it if relays get busy;
+  - the phone serves history and files only while PingDost is open (no push wake for a sync);
+  - the web has no video compression, and viewing a file holds it whole in memory (up to 100 MB);
+  - no Playwright e2e for the web UI yet.

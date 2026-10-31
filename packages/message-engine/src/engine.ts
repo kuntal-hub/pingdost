@@ -43,6 +43,12 @@ import type {
   ReceiptItem,
   WriteBatch,
 } from './store';
+import {
+  HistorySync,
+  type HistorySyncStatus,
+  type SyncSendProgress,
+  type SyncWindow,
+} from './sync';
 
 /** Who a conversation's messages go to: the peer, or the group's members. */
 interface Audience {
@@ -71,6 +77,7 @@ export class MessageEngine {
   readonly #outbox: Outbox;
   readonly #receiver: Receiver;
   readonly #groups: GroupManager;
+  readonly #sync: HistorySync;
   readonly #unsubscribe: (() => void)[] = [];
   #sweepTimer: ReturnType<typeof setInterval> | undefined;
   readonly #typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -83,6 +90,13 @@ export class MessageEngine {
     this.#receiver = new Receiver(this.#core, this.#outbox);
     this.#groups = new GroupManager(this.#core, this.#outbox);
     this.#core.groupSync = (groupId) => this.#groups.sync(groupId);
+    this.#sync = new HistorySync(this.#core, options.historySync ?? {}, {
+      undecryptable: (sender, sessionId) => this.#receiver.undecryptable(sender, sessionId),
+      groupsArrived: (groupIds) => {
+        for (const groupId of groupIds)
+          void this.#receiver.retryHeld(groupId).catch(() => undefined);
+      },
+    });
   }
 
   get self(): EngineOptions['self'] {
@@ -100,14 +114,24 @@ export class MessageEngine {
       transport.onPacket((packet, ack) => this.#receiver.handle(packet, ack)),
       transport.status$.subscribe((status) => {
         if (status === 'online') this.#outbox.kick();
+        if (status !== 'connecting') this.#sync.sink.connection(status === 'online');
       }),
     );
     if (transport.onTyping) {
       this.#unsubscribe.push(transport.onTyping((typing) => void this.#onTyping(typing)));
     }
+    if (transport.onEphemeral) {
+      this.#unsubscribe.push(transport.onEphemeral((packet) => this.#sync.receive(packet)));
+    }
     this.#sweepTimer = setInterval(() => void this.#sweep(), core.settings.expirySweepMs);
     await this.#sweep();
     this.#outbox.start();
+    // A browser resumes (or starts) its history sync (ADR 0021).
+    void this.#sync.sink
+      .start()
+      .catch((error: unknown) =>
+        core.log('warn', 'history sync did not start', { error: String(error) }),
+      );
     // Removals the server knows of (e.g. while this device was off), in the background.
     if (core.options.api.groups) void this.#groups.syncAll().catch(() => undefined);
   }
@@ -121,15 +145,66 @@ export class MessageEngine {
     for (const timer of this.#typingTimers.values()) clearTimeout(timer);
     this.#typingTimers.clear();
     this.#receiver.dispose();
+    this.#sync.sink.stop();
     await this.#outbox.stop();
     await this.#receiver.idle();
+    await this.#sync.idle();
     await this.#core.mutex.run(() => undefined);
     this.#core.dispose();
   }
 
   /** Resolves when queued incoming packets are handled (tests and the sim client). */
-  idle(): Promise<void> {
-    return this.#receiver.idle();
+  async idle(): Promise<void> {
+    await this.#receiver.idle();
+    await this.#sync.idle();
+  }
+
+  // History sync (ADR 0021)
+
+  /** This browser's history sync from the phone. */
+  historySyncStatus(): Promise<HistorySyncStatus> {
+    return Promise.resolve(this.#sync.sink.status);
+  }
+
+  onHistorySync(listener: (status: HistorySyncStatus) => void): () => void {
+    return this.#sync.sink.onStatus(listener);
+  }
+
+  /** Asks the phone for the recent window again (a new sync). */
+  syncHistory(window?: SyncWindow): Promise<void> {
+    return this.#sync.sink.syncRecent(window);
+  }
+
+  pauseHistorySync(): Promise<void> {
+    return this.#sync.sink.pause();
+  }
+
+  resumeHistorySync(): Promise<void> {
+    return this.#sync.sink.resume();
+  }
+
+  /** "Load older messages from phone": one conversation, older than `before`. */
+  loadOlderFromPhone(conversationId: string, before: MessageCursor | null): Promise<void> {
+    return this.#sync.sink.loadOlder(conversationId, before);
+  }
+
+  /** Part of an attachment's ciphertext, from the phone's copy (throws `SyncError`). */
+  fetchFromPhone(
+    attachmentId: string,
+    offset: number,
+    length?: number,
+  ): Promise<{ data: Uint8Array; totalSize: number }> {
+    return this.#sync.sink.fetchFilePart(attachmentId, offset, length);
+  }
+
+  /** The phone's syncs to linked browsers (Linked devices). */
+  async historySendProgress(): Promise<SyncSendProgress[]> {
+    const devices = await this.#sync.channel.ownDevices();
+    return this.#sync.source.progress(devices.map((d) => d.deviceId));
+  }
+
+  onHistorySendProgress(listener: () => void): () => void {
+    return this.#sync.source.onProgress(listener);
   }
 
   // Events

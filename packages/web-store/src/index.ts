@@ -2,8 +2,10 @@
 // the non-extractable vault key and sealed records, and the message engine's `EngineStore` on
 // IndexedDB. Used by the web app, and by server tests that run a browser-like device in Node.
 export { database, DATABASE_NAME, PingdostDb, wipeDatabase } from './db';
-export type { EngineRow, KeyRow, SealedRow, VaultKey } from './db';
+export type { EngineRow, FileChunkRow, FileRow, KeyRow, SealedRow, VaultKey } from './db';
 export { ACCOUNT_RECORD, DexieEngineStore } from './engine-store';
+export { FILE_PIECE_BYTES, FileCache } from './file-cache';
+export type { FileWriter } from './file-cache';
 export {
   decryptBytes,
   decryptRecord,

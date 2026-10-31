@@ -69,7 +69,8 @@ export function attachmentDecryptInput(info: AttachmentInfo): DecryptInput {
   };
 }
 
-function manifestFrom(info: AttachmentInfo, caption: string): AttachmentManifest {
+/** The manifest of a stored attachment (sends, retries, and history sync). */
+export function manifestFrom(info: AttachmentInfo, caption: string): AttachmentManifest {
   return create(AttachmentManifestSchema, {
     attachmentId: uuidToBytes(info.attachmentId),
     scheme: SCHEME,

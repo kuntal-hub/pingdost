@@ -1,8 +1,10 @@
 // Settings for the linked browser: privacy (the account's settings, the same as on the phone),
-// notifications, what this browser is, how its storage compares to the phone's, keyboard
-// shortcuts, and "Unlink this browser", which revokes it and deletes its PingDost data.
+// notifications, history from the phone, storage (the attachment cache), what this browser is,
+// how its storage compares to the phone's, keyboard shortcuts, and "Unlink this browser",
+// which revokes it and deletes its PingDost data.
 import { useEffect, useState } from 'react';
 
+import { StorageCard } from '@/attachments/storage-card';
 import { prefsChanged } from '@/chat/start';
 import { useChat } from '@/chat/store';
 import { Button } from '@/components/ui/button';
@@ -10,6 +12,7 @@ import { Alert, Card, CardTitle } from '@/components/ui/card';
 import { Toggle } from '@/components/ui/input';
 import { disablePush, enablePush, pushState, type PushState } from '@/push/push';
 import { api, unlink, useSession } from '@/session/session';
+import { HistorySyncCard } from '@/sync/sync-status';
 import type { PrivacyPrefs } from '@pingdost/shared-types';
 
 const PRIVACY: { key: keyof PrivacyPrefs; label: string; description: string }[] = [
@@ -112,6 +115,9 @@ export function SettingsPage() {
           </Button>
         )}
       </Card>
+
+      <HistorySyncCard />
+      <StorageCard />
 
       <Card className="flex flex-col gap-3">
         <CardTitle>This browser</CardTitle>

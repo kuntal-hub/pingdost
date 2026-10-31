@@ -22,6 +22,10 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0015](0015-push-wakes.md) | Push notifications: content-free wakes, local notifications | 12 | Accepted |
 | [0016](0016-groups-megolm.md) | Groups: server routing membership, E2EE controls, Megolm sessions | 13 | Accepted |
 | [0017](0017-attachment-staging-store.md) | Attachment staging: `fs` on the VPS disk, `s3` optional; SeaweedFS for local S3 tests | 14 | Accepted |
+| [0018](0018-attachments-android-ux.md) | Attachments on Android: local vault, compression, held sends, transfers | 15 | Accepted |
+| [0019](0019-web-pairing.md) | Web foundation and QR pairing | 16 | Accepted |
+| [0020](0020-web-chat.md) | Web chat: Dexie engine store, tab leadership, Web Push, PWA | 17 | Accepted |
+| [0021](0021-history-sync-web-attachments.md) | History sync (phone → web) and attachments on the web | 18 | Accepted |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 
@@ -34,8 +38,8 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ �
 | Safety-number / fingerprint format | 10 (proposal in 0003) | No (done: 0012) |
 | Redis command budget & mailbox provider (Upstash vs Valkey) | 08 | No (input to 20) (done: 0010) |
 | Attachment staging store (fs vs s3/R2), 100 MB proof | 14 | No (done: 0017) |
-| Web pairing protocol | 16 | No |
-| History sync protocol | 18 | No |
+| Web pairing protocol | 16 | No (done: 0019) |
+| History sync protocol | 18 | No (done: 0021) |
 | Backup format & recovery flows | 19 | No |
 | Hosting choice & production topology | change 2026-10-19 (20 verifies) | **Yes** (done: 0013) |
 | Nearby transport (BLE / Nearby Connections / Wi-Fi Direct) | 21 | No |

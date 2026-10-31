@@ -17,7 +17,16 @@ export { diffDirectory, verifyDirectory } from './directory';
 export type { DirectoryApi } from './directory';
 export { MessageEngine } from './engine';
 export type { ContactInfo } from './engine';
-export { MessageActionError } from './errors';
+export { MessageActionError, SyncError } from './errors';
+export { DEFAULT_SYNC_WINDOW, FILE_PART_BYTES } from './sync';
+export type {
+  HistorySyncOptions,
+  HistorySyncState,
+  HistorySyncStatus,
+  SyncFiles,
+  SyncSendProgress,
+  SyncWindow,
+} from './sync';
 export { GROUP_AVATAR_MAX_BYTES, GROUP_DESCRIPTION_MAX, GROUP_NAME_MAX } from './groups/content';
 export type { GroupInfo } from './groups/manager';
 export { groupNoticeBody, parseGroupNotice } from './groups/notices';

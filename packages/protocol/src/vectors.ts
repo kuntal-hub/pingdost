@@ -348,7 +348,27 @@ export function createVectors(): ProtocolVectors {
       ContentSchema,
       content({
         case: 'syncChunk',
-        value: { syncId: id(0x81), sequence: 4, last: true, data: filler(40, 23) },
+        value: {
+          syncId: id(0x81),
+          sequence: 4,
+          last: true,
+          data: filler(40, 23),
+          dataSha256: filler(32, 24),
+        },
+      }),
+    ),
+    vector(
+      'content/sync-request',
+      ContentSchema,
+      content({
+        case: 'syncChunk',
+        value: {
+          syncId: id(0x82),
+          op: {
+            case: 'request',
+            value: { days: 30, maxPerConversation: 500, conversationId: id(0x83), resumeAfter: 2 },
+          },
+        },
       }),
     ),
     vector(

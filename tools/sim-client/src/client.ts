@@ -52,6 +52,8 @@ export interface SimClientOptions {
   log?: EngineLogger;
   /** Another EngineStore for this device (default: in memory). */
   store?: EngineStore;
+  /** History sync (ADR 0021): a browser-like device asks, a phone-like one serves files. */
+  historySync?: EngineOptions['historySync'];
 }
 
 async function otpFor(mailpit: string, email: string): Promise<string> {
@@ -288,6 +290,7 @@ export class SimClient {
       api: { ...keys, keys, groups: groupsApi(this.api) },
       ...(options.settings ? { settings: options.settings } : {}),
       ...(options.receipts ? { receipts: options.receipts } : {}),
+      ...(options.historySync ? { historySync: options.historySync } : {}),
       ...(options.log ? { log: options.log } : {}),
     });
     transport.onEvent((event) => {

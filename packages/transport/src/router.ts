@@ -23,6 +23,7 @@ export class TransportRouter {
   readonly #status = new ValueStream<TransportStatus>('offline');
   readonly #packets = new Listeners<Parameters<PacketListener>>();
   readonly #typing = new Listeners<[TypingSignal]>();
+  readonly #ephemeral = new Listeners<[TransportPacket]>();
   readonly #unsubscribe: Unsubscribe[] = [];
 
   /** `transports` in order of preference. */
@@ -35,6 +36,9 @@ export class TransportRouter {
       );
       if (transport.onTyping) {
         this.#unsubscribe.push(transport.onTyping((typing) => this.#typing.emit(typing)));
+      }
+      if (transport.onEphemeral) {
+        this.#unsubscribe.push(transport.onEphemeral((packet) => this.#ephemeral.emit(packet)));
       }
     }
     this.#updateStatus();
@@ -69,6 +73,18 @@ export class TransportRouter {
 
   onTyping(listener: (typing: TypingSignal) => void): Unsubscribe {
     return this.#typing.add(listener);
+  }
+
+  /** Over the first online transport that relays ephemeral packets; `OFFLINE` if none. */
+  sendEphemeral(packet: TransportPacket): Promise<SendResult> {
+    const transport = this.#transports.find(
+      (t) => t.status$.value === 'online' && t.sendEphemeral !== undefined,
+    );
+    return transport?.sendEphemeral?.(packet) ?? Promise.resolve(OFFLINE);
+  }
+
+  onEphemeral(listener: (packet: TransportPacket) => void): Unsubscribe {
+    return this.#ephemeral.add(listener);
   }
 
   dispose(): void {

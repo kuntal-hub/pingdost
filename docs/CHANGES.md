@@ -4,6 +4,19 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-10-31 — Phase 18: history sync and web attachments (ADR 0021)
+1. **The server never holds sync data, not even briefly.** REQ §13.2 allows a relay to hold encrypted sync chunks "temporarily, with strict short expiry". PingDost relays them only to the online device, in memory, and otherwise answers `RECIPIENT_OFFLINE`.
+   - *Reason:* nothing to expire or delete, and a test can prove no writes. Both devices are online during a sync anyway.
+   - *Trade-off:* the phone must be online and PingDost open (or within 30 s of leaving it): there is no push wake for a sync, and the browser says "Phone offline — sync paused" meanwhile.
+   - *Affects:* 18 (done), 27 (a wake for sync, if wanted).
+2. **`device_sync_state` (REQ §14.1) is a sealed engine setting, not its own table**, on the phone (SQLCipher) and in the browser (Dexie).
+   - *Reason:* one small JSON state per linked browser, written in the same atomic `apply` as each batch, with the same encryption as everything else.
+   - *Affects:* 18 (done). Migration 002's empty `device_sync_state` table stays unused.
+3. **History from before pairing comes with a cap per conversation (500 newest messages in the window) as well as the window.** REQ asks for a configurable duration/count; the window is 7/30/90/365 days in the browser's Settings.
+   - *Affects:* 18 (done).
+4. **Files sent before a browser was linked come from the phone, up to 25 MB by default (10–100 MB in Settings).** Larger ones say to open them on the phone. There is no video compression in the browser: a video over 100 MB is refused there.
+   - *Affects:* 18 (done), 27.
+
 ### 2026-10-20 — Phase 15: attachments on Android (ADR 0018)
 1. **Video compression uses AndroidX Media3 Transformer in a local Expo module (`apps/mobile/modules/pingdost-media`), not react-native-compressor.** ARCHITECTURE A6 and the Phase 15 plan named react-native-compressor, to be re-validated; REQ does not name one.
    - *Reason:* react-native-compressor 2.0.3 is maintained, but it pulls a Nitro C++ build, a JitPack LAME build and LGPL audio libraries we do not need. Media3 (Apache-2.0, Google) is already in the app through expo-video and expo-audio, and it has hardware encoders, progress and cancel.

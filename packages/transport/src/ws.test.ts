@@ -193,6 +193,41 @@ describe('WsTransport', () => {
     expect(await second).toEqual({ ok: false, code: 'MAILBOX_UNAVAILABLE', retryable: true });
   });
 
+  it('relays ephemeral packets both ways, answered like sends', async () => {
+    const ws = transport();
+    const socket = await online(ws);
+    const received: TransportPacket[] = [];
+    ws.onEphemeral((packet) => received.push(packet));
+    const packet = { ...envelopePacket(), kind: PacketKind.EPHEMERAL };
+    const relayed = ws.sendEphemeral(packet);
+    const offline = ws.sendEphemeral(packet);
+    const [, a, b] = socket.frames;
+    expect(a?.body.case).toBe('ephemeral');
+    socket.reply({
+      requestId: a!.requestId,
+      body: {
+        case: 'accepted',
+        value: {
+          packetId: packet.packetId,
+          envelopeId: uuidv7Bytes(),
+          status: Accepted_Status.DELIVERED_TRANSPORT,
+        },
+      },
+    });
+    socket.reply({
+      requestId: b!.requestId,
+      body: {
+        case: 'error',
+        value: { code: 'RECIPIENT_OFFLINE', retryable: true, message: 'x' },
+      },
+    });
+    expect(await relayed).toEqual({ ok: true, status: 'delivered_transport' });
+    expect(await offline).toMatchObject({ ok: false, code: 'RECIPIENT_OFFLINE' });
+    socket.reply({ requestId: 0, body: { case: 'ephemeral', value: { packet } } });
+    expect(received).toHaveLength(1);
+    expect(received[0]?.packetId).toEqual(packet.packetId);
+  });
+
   it('reports OFFLINE before connecting, and for sends cut off by a close', async () => {
     const ws = transport();
     expect(await ws.send(envelopePacket())).toMatchObject({ ok: false, code: 'OFFLINE' });

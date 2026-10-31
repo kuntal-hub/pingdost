@@ -9,7 +9,19 @@
 import { fromBinary, toBinary, type DescMessage, type MessageShape } from '@bufbuild/protobuf';
 
 import { ProtocolError } from './errors';
-import { ContentSchema, type Content, type ContentHeader } from './gen/pingdost/v1/content_pb';
+import {
+  ContentSchema,
+  SyncBatchSchema,
+  SyncConversationSchema,
+  SyncGroupSchema,
+  SyncMessageSchema,
+  type Content,
+  type ContentHeader,
+  type SyncBatch,
+  type SyncConversation,
+  type SyncGroup,
+  type SyncMessage,
+} from './gen/pingdost/v1/content_pb';
 import { CryptoType, EnvelopeSchema, type Envelope } from './gen/pingdost/v1/envelope_pb';
 import {
   PacketKind,
@@ -254,9 +266,45 @@ function checkContent(content: Content): void {
       checkId(body.value.groupId, 'room_key_request.group_id');
       checkText(body.value.sessionId, 'room_key_request.session_id');
       break;
-    case 'syncChunk':
-      checkId(body.value.syncId, 'sync_chunk.sync_id');
+    case 'syncChunk': {
+      const chunk = body.value;
+      checkId(chunk.syncId, 'sync_chunk.sync_id');
+      switch (chunk.op.case) {
+        case undefined:
+          if (chunk.sequence === 0) throw missing('sync_chunk.sequence');
+          if (chunk.dataSha256.length !== 32)
+            throw invalid('sync_chunk.data_sha256', 'must be 32 bytes');
+          break;
+        case 'ack':
+          // A pause before the first batch names batch 0.
+          if (chunk.sequence === 0 && !chunk.op.value.pause) throw missing('sync_chunk.sequence');
+          break;
+        case 'request':
+          if (chunk.op.value.conversationId.length > 0) {
+            checkId(chunk.op.value.conversationId, 'sync_request.conversation_id');
+          }
+          if (chunk.op.value.beforeMessageId.length > 0) {
+            checkId(chunk.op.value.beforeMessageId, 'sync_request.before_message_id');
+          }
+          break;
+        case 'manifest':
+          for (const count of chunk.op.value.counts) {
+            checkId(count.conversationId, 'sync_manifest.counts.conversation_id');
+          }
+          break;
+        case 'stop':
+          checkEnumSet(chunk.op.value.reason, 'sync_stop.reason');
+          break;
+        case 'fileRequest':
+          checkId(chunk.op.value.attachmentId, 'sync_file_request.attachment_id');
+          if (chunk.op.value.length === 0) throw missing('sync_file_request.length');
+          break;
+        case 'filePart':
+          checkId(chunk.op.value.attachmentId, 'sync_file_part.attachment_id');
+          break;
+      }
       break;
+    }
     case 'callSignal':
       checkId(body.value.callId, 'call_signal.call_id');
       checkEnumSet(body.value.type, 'call_signal.type');
@@ -279,6 +327,55 @@ export function decodeContent(bytes: Uint8Array, options: CodecOptions = {}): Co
   const content = parse(ContentSchema, bytes, limitsFor(options).content);
   checkContent(content);
   return content;
+}
+
+// History sync batches (ADR 0021)
+
+function checkSyncBatch(batch: SyncBatch): void {
+  for (const conversation of batch.conversations) {
+    if (conversation.conversationId.length === 0)
+      throw missing('sync_conversation.conversation_id');
+    if (!conversation.group) checkId(conversation.peerUserId, 'sync_conversation.peer_user_id');
+  }
+  for (const group of batch.groups) checkId(group.groupId, 'sync_group.group_id');
+  for (const message of batch.messages) {
+    checkId(message.messageId, 'sync_message.message_id');
+    if (message.conversationId.length === 0) throw missing('sync_message.conversation_id');
+    checkId(message.senderUserId, 'sync_message.sender_user_id');
+    checkEnumSet(message.kind, 'sync_message.kind');
+    checkOptionalId(message.replyTo, 'sync_message.reply_to');
+  }
+}
+
+/** Encodes one batch's records (`SyncChunk.data`), at most `max` bytes. */
+export function encodeSyncBatch(batch: SyncBatch, max: number): Uint8Array {
+  checkSyncBatch(batch);
+  return serialize(SyncBatchSchema, batch, max);
+}
+
+export function decodeSyncBatch(bytes: Uint8Array, max: number): SyncBatch {
+  const batch = parse(SyncBatchSchema, bytes, max);
+  checkSyncBatch(batch);
+  return batch;
+}
+
+/** The encoded size of one batch record, to fill batches up to a size. */
+export function syncRecordSize(
+  record:
+    | { case: 'conversation'; value: SyncConversation }
+    | { case: 'group'; value: SyncGroup }
+    | { case: 'message'; value: SyncMessage },
+): number {
+  // The repeated field's tag and length prefix: at most 1 + 3 bytes for these sizes.
+  const overhead = 4;
+  switch (record.case) {
+    case 'conversation':
+      return toBinary(SyncConversationSchema, record.value).length + overhead;
+    case 'group':
+      return toBinary(SyncGroupSchema, record.value).length + overhead;
+    case 'message':
+      return toBinary(SyncMessageSchema, record.value).length + overhead;
+  }
 }
 
 /**

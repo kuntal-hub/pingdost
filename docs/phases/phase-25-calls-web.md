@@ -50,3 +50,8 @@ Android calls (26); group calls (never).
 - Web↔web audio and video calls work both direct and TURN-forced through staging coturn.
 - Logs and stores contain no SDP plaintext.
 - The tests pass, and `pnpm lint typecheck test` passes.
+
+## Handoff notes
+**From Phase 18 (ADR 0021):**
+- The ephemeral path exists end to end: `Transport.sendEphemeral` / `onEphemeral` (WS transport, router, fake server), and the gateway answers `Accepted{DELIVERED_TRANSPORT}` or `RECIPIENT_OFFLINE`. Budgets per socket: 250 packets and 8 MiB per 10 s.
+- `packages/message-engine/src/sync/channel.ts` (`OwnDeviceChannel`) encrypts Olm to one device and decodes incoming ephemeral Content. It accepts **own devices only**: widen it (or add a sibling) for contacts' devices and `CallSignal`, keeping the block check. `HistorySync.receive` routes only `syncChunk` today.

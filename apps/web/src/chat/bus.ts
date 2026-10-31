@@ -1,16 +1,18 @@
 // The tabs of one browser talk over a BroadcastChannel (ADR 0020). The leader tab answers
 // calls and announces everything that changes; followers ask and listen. Messages are
 // structured-cloned, so only plain data crosses (errors as `WireError`).
-import type { ConversationEvent, EngineEvent } from '@pingdost/message-engine';
+import type { TransferStatus } from '@/attachments/transfers';
+import type { ConversationEvent, EngineEvent, HistorySyncStatus } from '@pingdost/message-engine';
 import type { PrivacyPrefs } from '@pingdost/shared-types';
 import type { TransportStatus } from '@pingdost/transport';
 
 import {
   ENGINE_METHODS,
+  LEADER_METHODS,
   RemoteError,
   type ChatClient,
   type ChatEvents,
-  type EngineMethod,
+  type ClientMethod,
   type WireError,
 } from './client';
 
@@ -23,7 +25,7 @@ export type BusMessage =
       type: 'call';
       id: string;
       from: string;
-      method: EngineMethod | 'watchPresence';
+      method: ClientMethod;
       args: unknown[];
     }
   | { type: 'result'; id: string; to: string; ok: true; value: unknown }
@@ -34,6 +36,10 @@ export type BusMessage =
   | { type: 'status'; status: TransportStatus }
   | { type: 'presence'; userId: string; online: boolean }
   | { type: 'prefs'; privacy: PrivacyPrefs | null; blocked: string[] }
+  /** The history sync from the phone (ADR 0021). */
+  | { type: 'sync'; status: HistorySyncStatus }
+  /** An attachment download or upload in the leader tab. */
+  | { type: 'transfer'; status: TransferStatus }
   /** A follower changed privacy settings or blocks: the leader reloads them. */
   | { type: 'prefs_changed' }
   | { type: 'signed_out'; notice?: string };
@@ -57,6 +63,8 @@ export class RemoteChat {
   readonly #conversation = new Map<string, Set<(event: ConversationEvent) => void>>();
   readonly #list = new Set<() => void>();
   readonly #engine = new Set<(event: EngineEvent) => void>();
+  readonly #sync = new Set<(status: HistorySyncStatus) => void>();
+  readonly #transfer = new Set<(status: TransferStatus) => void>();
 
   constructor(
     private readonly channel: BroadcastChannel,
@@ -64,10 +72,12 @@ export class RemoteChat {
   ) {
     this.#ready = new Promise((resolve) => (this.#markReady = resolve));
     const call =
-      (method: EngineMethod | 'watchPresence') =>
+      (method: ClientMethod) =>
       (...args: unknown[]) =>
         this.#call(method, args);
-    const methods = Object.fromEntries(ENGINE_METHODS.map((name) => [name, call(name)]));
+    const methods = Object.fromEntries(
+      [...ENGINE_METHODS, ...LEADER_METHODS].map((name) => [name, call(name)]),
+    );
     const events: ChatEvents = {
       subscribe: (conversationId, listener) => {
         let set = this.#conversation.get(conversationId);
@@ -89,17 +99,25 @@ export class RemoteChat {
           this.#engine.delete(listener);
         };
       },
+      onHistorySync: (listener) => {
+        this.#sync.add(listener);
+        return () => {
+          this.#sync.delete(listener);
+        };
+      },
+      onTransfer: (listener) => {
+        this.#transfer.add(listener);
+        return () => {
+          this.#transfer.delete(listener);
+        };
+      },
     };
-    // The engine methods are built from their names, so the compiler cannot check them here.
-    this.client = {
-      ...methods,
-      watchPresence: call('watchPresence'),
-      ...events,
-    } as unknown as ChatClient;
+    // The methods are built from their names, so the compiler cannot check them here.
+    this.client = { ...methods, ...events } as unknown as ChatClient;
     channel.postMessage({ type: 'hello', tab } satisfies BusMessage);
   }
 
-  async #call(method: EngineMethod | 'watchPresence', args: unknown[]): Promise<unknown> {
+  async #call(method: ClientMethod, args: unknown[]): Promise<unknown> {
     await this.#ready;
     const id = crypto.randomUUID();
     return new Promise((resolve, reject) => {
@@ -160,6 +178,12 @@ export class RemoteChat {
         break;
       case 'engine':
         for (const listener of this.#engine) listener(message.event);
+        break;
+      case 'sync':
+        for (const listener of this.#sync) listener(message.status);
+        break;
+      case 'transfer':
+        for (const listener of this.#transfer) listener(message.status);
         break;
       default:
         break;

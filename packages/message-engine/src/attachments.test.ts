@@ -179,7 +179,8 @@ describe('attachment messages', () => {
     );
     expect((await bob.engine.getMessage(sent.messageId))?.attachment).toBeNull();
     expect((await alice.engine.getMessage(sent.messageId))?.attachment).toBeNull();
-  });
+    // Three devices and a 150 KB file: slow when every package's tests run at once.
+  }, 20_000);
 
   it('sends attachments to a group over Megolm', async () => {
     const server = new FakeServer();

@@ -44,6 +44,17 @@ export class Metrics {
     labelNames: ['code'] as const,
     registers: [this.registry],
   });
+  readonly ephemeralRelayed = new Counter({
+    name: 'pingdost_ephemeral_relayed_total',
+    help: 'Ephemeral packets (history sync, call signaling) relayed in memory, by outcome.',
+    labelNames: ['outcome'] as const,
+    registers: [this.registry],
+  });
+  readonly ephemeralBytes = new Counter({
+    name: 'pingdost_ephemeral_bytes_total',
+    help: 'Payload bytes of ephemeral packets relayed in memory (never stored).',
+    registers: [this.registry],
+  });
   readonly envelopesAcked = new Counter({
     name: 'pingdost_envelopes_acked_total',
     help: 'Envelope IDs acknowledged by recipient devices.',

@@ -19,7 +19,7 @@ beforeAll(async () => {
     env: { METRICS_TOKEN },
     // A small envelope limit, so an envelope the client codec still encodes is too large here.
     delivery: { settings: { onlineAckTimeoutMs: 400, envelopeMaxBytes: 4_096 } },
-    gateway: { authTimeoutMs: 400 },
+    gateway: { authTimeoutMs: 400, maxEphemeralFrames: 6 },
   });
 });
 
@@ -213,8 +213,14 @@ describe('send', () => {
     });
 
     const ephemeral = envelopePacket(server, alice.deviceId, bob.deviceId, { kind: 5 });
-    aliceSocket.send({ body: { case: 'ephemeral', value: { packet: ephemeral.packet } } });
+    const relayedId = aliceSocket.send({
+      body: { case: 'ephemeral', value: { packet: ephemeral.packet } },
+    });
     expect((await bobSocket.next('ephemeral')).packet?.packetId).toEqual(ephemeral.packet.packetId);
+    // Answered once it is on bob's socket (ADR 0021).
+    expect(await aliceSocket.next('accepted', { requestId: relayedId })).toMatchObject({
+      status: Accepted_Status.DELIVERED_TRANSPORT,
+    });
 
     bobSocket.close();
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -230,6 +236,27 @@ describe('send', () => {
         .collection('pending_envelopes')
         .countDocuments({ _id: offline.envelopeId as never }),
     ).toBe(0);
+
+    // The per-socket ephemeral budget (6 per window here): the 7th packet is refused.
+    const codes: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const id = aliceSocket.send({
+        body: {
+          case: 'ephemeral',
+          value: {
+            packet: envelopePacket(server, alice.deviceId, bob.deviceId, { kind: 5 }).packet,
+          },
+        },
+      });
+      codes.push((await aliceSocket.next('error', { requestId: id })).code);
+    }
+    expect(codes).toEqual([
+      'RECIPIENT_OFFLINE',
+      'RECIPIENT_OFFLINE',
+      'RECIPIENT_OFFLINE',
+      'RECIPIENT_OFFLINE',
+      'RATE_LIMITED',
+    ]);
     aliceSocket.close();
   });
 

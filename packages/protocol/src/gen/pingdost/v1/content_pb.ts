@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file pingdost/v1/content.proto.
  */
 export const file_pingdost_v1_content: GenFile = /*@__PURE__*/
-  fileDesc("ChlwaW5nZG9zdC92MS9jb250ZW50LnByb3RvEgtwaW5nZG9zdC52MSLTAQoNQ29udGVudEhlYWRlchIPCgd2ZXJzaW9uGAEgASgNEhIKCm1lc3NhZ2VfaWQYAiABKAwSFwoPY29udmVyc2F0aW9uX2lkGAMgASgMEhYKDnNlbmRlcl91c2VyX2lkGAQgASgMEhIKCnNlbnRfYXRfbXMYBSABKAMSFQoIcmVwbHlfdG8YBiABKAxIAIgBARIeChFyZWNpcGllbnRfdXNlcl9pZBgHIAEoDEgBiAEBQgsKCV9yZXBseV90b0IUChJfcmVjaXBpZW50X3VzZXJfaWQipgUKB0NvbnRlbnQSKgoGaGVhZGVyGAEgASgLMhoucGluZ2Rvc3QudjEuQ29udGVudEhlYWRlchIhCgR0ZXh0GAIgASgLMhEucGluZ2Rvc3QudjEuVGV4dEgAEikKCHJlYWN0aW9uGAMgASgLMhUucGluZ2Rvc3QudjEuUmVhY3Rpb25IABIhCgRlZGl0GAQgASgLMhEucGluZ2Rvc3QudjEuRWRpdEgAEiUKBmRlbGV0ZRgFIAEoCzITLnBpbmdkb3N0LnYxLkRlbGV0ZUgAEicKB3JlY2VpcHQYBiABKAsyFC5waW5nZG9zdC52MS5SZWNlaXB0SAASPgoTYXR0YWNobWVudF9tYW5pZmVzdBgHIAEoCzIfLnBpbmdkb3N0LnYxLkF0dGFjaG1lbnRNYW5pZmVzdEgAEjIKDWdyb3VwX2NvbnRyb2wYCCABKAsyGS5waW5nZG9zdC52MS5Hcm91cENvbnRyb2xIABIoCghyb29tX2tleRgJIAEoCzIULnBpbmdkb3N0LnYxLlJvb21LZXlIABIsCgpzeW5jX2NodW5rGAogASgLMhYucGluZ2Rvc3QudjEuU3luY0NodW5rSAASLgoLY2FsbF9zaWduYWwYCyABKAsyFy5waW5nZG9zdC52MS5DYWxsU2lnbmFsSAASMgoNc2Vzc2lvbl9yZXNldBgMIAEoCzIZLnBpbmdkb3N0LnYxLlNlc3Npb25SZXNldEgAEiwKCmtleV9jaGFuZ2UYDSABKAsyFi5waW5nZG9zdC52MS5LZXlDaGFuZ2VIABI3ChByb29tX2tleV9yZXF1ZXN0GA4gASgLMhsucGluZ2Rvc3QudjEuUm9vbUtleVJlcXVlc3RIABIPCgdwYWRkaW5nGA8gASgMQgYKBGJvZHkiFAoEVGV4dBIMCgRib2R5GAEgASgJIkQKCFJlYWN0aW9uEhkKEXRhcmdldF9tZXNzYWdlX2lkGAEgASgMEg0KBWVtb2ppGAIgASgJEg4KBnJlbW92ZRgDIAEoCCIvCgRFZGl0EhkKEXRhcmdldF9tZXNzYWdlX2lkGAEgASgMEgwKBGJvZHkYAiABKAkiIwoGRGVsZXRlEhkKEXRhcmdldF9tZXNzYWdlX2lkGAEgASgMIq4BCgdSZWNlaXB0EicKBHR5cGUYASABKA4yGS5waW5nZG9zdC52MS5SZWNlaXB0LlR5cGUSEwoLbWVzc2FnZV9pZHMYAiADKAwSFgoJaG9wX2NvdW50GAMgASgNSACIAQEiPwoEVHlwZRIUChBUWVBFX1VOU1BFQ0lGSUVEEAASEgoOVFlQRV9ERUxJVkVSRUQQARINCglUWVBFX1JFQUQQAkIMCgpfaG9wX2NvdW50Ip4DChJBdHRhY2htZW50TWFuaWZlc3QSFQoNYXR0YWNobWVudF9pZBgBIAEoDBIOCgZzY2hlbWUYAiABKAkSCwoDa2V5GAMgASgMEhQKDG5vbmNlX3ByZWZpeBgEIAEoDBIWCg5wbGFpbnRleHRfc2l6ZRgFIAEoBBISCgpjaHVua19zaXplGAYgASgNEhMKC2NodW5rX2NvdW50GAcgASgNEhEKCW1pbWVfdHlwZRgIIAEoCRIWCglmaWxlX25hbWUYCSABKAlIAIgBARIZChFjaXBoZXJ0ZXh0X3NoYTI1NhgKIAEoDBIeChZjaHVua19oYXNoX2xpc3Rfc2hhMjU2GAsgASgMEjIKCXRodW1ibmFpbBgMIAEoCzIfLnBpbmdkb3N0LnYxLkF0dGFjaG1lbnRNYW5pZmVzdBIPCgdjYXB0aW9uGA0gASgJEg0KBXdpZHRoGA4gASgNEg4KBmhlaWdodBgPIAEoDRITCgtkdXJhdGlvbl9tcxgQIAEoDRIQCgh3YXZlZm9ybRgRIAEoDEIMCgpfZmlsZV9uYW1lIpoDCgxHcm91cENvbnRyb2wSEAoIZ3JvdXBfaWQYASABKAwSMAoGYWN0aW9uGAIgASgOMiAucGluZ2Rvc3QudjEuR3JvdXBDb250cm9sLkFjdGlvbhIXCg9tZW1iZXJfdXNlcl9pZHMYAyADKAwSDAoEbmFtZRgEIAEoCRIPCgd2ZXJzaW9uGAUgASgEEikKB21lbWJlcnMYBiADKAsyGC5waW5nZG9zdC52MS5Hcm91cE1lbWJlchITCgtkZXNjcmlwdGlvbhgHIAEoCRIOCgZhdmF0YXIYCCABKAwivQEKBkFjdGlvbhIWChJBQ1RJT05fVU5TUEVDSUZJRUQQABIRCg1BQ1RJT05fQ1JFQVRFEAESFgoSQUNUSU9OX0FERF9NRU1CRVJTEAISGQoVQUNUSU9OX1JFTU9WRV9NRU1CRVJTEAMSEAoMQUNUSU9OX0xFQVZFEAQSFgoSQUNUSU9OX1VQREFURV9JTkZPEAUSFgoSQUNUSU9OX0NIQU5HRV9ST0xFEAYSEwoPQUNUSU9OX1NOQVBTSE9UEAcimgEKC0dyb3VwTWVtYmVyEg8KB3VzZXJfaWQYASABKAwSKwoEcm9sZRgCIAEoDjIdLnBpbmdkb3N0LnYxLkdyb3VwTWVtYmVyLlJvbGUiTQoEUm9sZRIUChBST0xFX1VOU1BFQ0lGSUVEEAASDgoKUk9MRV9PV05FUhABEg4KClJPTEVfQURNSU4QAhIPCgtST0xFX01FTUJFUhADIlYKB1Jvb21LZXkSEAoIZ3JvdXBfaWQYASABKAwSEgoKc2Vzc2lvbl9pZBgCIAEoCRITCgtzZXNzaW9uX2tleRgDIAEoCRIQCghleHBvcnRlZBgEIAEoCCJKCg5Sb29tS2V5UmVxdWVzdBIQCghncm91cF9pZBgBIAEoDBISCgpzZXNzaW9uX2lkGAIgASgJEhIKCmZyb21faW5kZXgYAyABKA0iSgoJU3luY0NodW5rEg8KB3N5bmNfaWQYASABKAwSEAoIc2VxdWVuY2UYAiABKA0SDAoEbGFzdBgDIAEoCBIMCgRkYXRhGAQgASgMIoUCCgpDYWxsU2lnbmFsEg8KB2NhbGxfaWQYASABKAwSKgoEdHlwZRgCIAEoDjIcLnBpbmdkb3N0LnYxLkNhbGxTaWduYWwuVHlwZRINCgV2aWRlbxgDIAEoCBILCgNzZHAYBCABKAkSFQoNaWNlX2NhbmRpZGF0ZRgFIAEoCSKGAQoEVHlwZRIUChBUWVBFX1VOU1BFQ0lGSUVEEAASDgoKVFlQRV9PRkZFUhABEg8KC1RZUEVfQU5TV0VSEAISFgoSVFlQRV9JQ0VfQ0FORElEQVRFEAMSDwoLVFlQRV9IQU5HVVAQBBIPCgtUWVBFX1JFSkVDVBAFEg0KCVRZUEVfQlVTWRAGIiIKDFNlc3Npb25SZXNldBISCgpzZXNzaW9uX2lkGAEgASgJIiAKCUtleUNoYW5nZRITCgtrZXlfdmVyc2lvbhgBIAEoDWIGcHJvdG8z");
+  fileDesc("ChlwaW5nZG9zdC92MS9jb250ZW50LnByb3RvEgtwaW5nZG9zdC52MSLTAQoNQ29udGVudEhlYWRlchIPCgd2ZXJzaW9uGAEgASgNEhIKCm1lc3NhZ2VfaWQYAiABKAwSFwoPY29udmVyc2F0aW9uX2lkGAMgASgMEhYKDnNlbmRlcl91c2VyX2lkGAQgASgMEhIKCnNlbnRfYXRfbXMYBSABKAMSFQoIcmVwbHlfdG8YBiABKAxIAIgBARIeChFyZWNpcGllbnRfdXNlcl9pZBgHIAEoDEgBiAEBQgsKCV9yZXBseV90b0IUChJfcmVjaXBpZW50X3VzZXJfaWQipgUKB0NvbnRlbnQSKgoGaGVhZGVyGAEgASgLMhoucGluZ2Rvc3QudjEuQ29udGVudEhlYWRlchIhCgR0ZXh0GAIgASgLMhEucGluZ2Rvc3QudjEuVGV4dEgAEikKCHJlYWN0aW9uGAMgASgLMhUucGluZ2Rvc3QudjEuUmVhY3Rpb25IABIhCgRlZGl0GAQgASgLMhEucGluZ2Rvc3QudjEuRWRpdEgAEiUKBmRlbGV0ZRgFIAEoCzITLnBpbmdkb3N0LnYxLkRlbGV0ZUgAEicKB3JlY2VpcHQYBiABKAsyFC5waW5nZG9zdC52MS5SZWNlaXB0SAASPgoTYXR0YWNobWVudF9tYW5pZmVzdBgHIAEoCzIfLnBpbmdkb3N0LnYxLkF0dGFjaG1lbnRNYW5pZmVzdEgAEjIKDWdyb3VwX2NvbnRyb2wYCCABKAsyGS5waW5nZG9zdC52MS5Hcm91cENvbnRyb2xIABIoCghyb29tX2tleRgJIAEoCzIULnBpbmdkb3N0LnYxLlJvb21LZXlIABIsCgpzeW5jX2NodW5rGAogASgLMhYucGluZ2Rvc3QudjEuU3luY0NodW5rSAASLgoLY2FsbF9zaWduYWwYCyABKAsyFy5waW5nZG9zdC52MS5DYWxsU2lnbmFsSAASMgoNc2Vzc2lvbl9yZXNldBgMIAEoCzIZLnBpbmdkb3N0LnYxLlNlc3Npb25SZXNldEgAEiwKCmtleV9jaGFuZ2UYDSABKAsyFi5waW5nZG9zdC52MS5LZXlDaGFuZ2VIABI3ChByb29tX2tleV9yZXF1ZXN0GA4gASgLMhsucGluZ2Rvc3QudjEuUm9vbUtleVJlcXVlc3RIABIPCgdwYWRkaW5nGA8gASgMQgYKBGJvZHkiFAoEVGV4dBIMCgRib2R5GAEgASgJIkQKCFJlYWN0aW9uEhkKEXRhcmdldF9tZXNzYWdlX2lkGAEgASgMEg0KBWVtb2ppGAIgASgJEg4KBnJlbW92ZRgDIAEoCCIvCgRFZGl0EhkKEXRhcmdldF9tZXNzYWdlX2lkGAEgASgMEgwKBGJvZHkYAiABKAkiIwoGRGVsZXRlEhkKEXRhcmdldF9tZXNzYWdlX2lkGAEgASgMIq4BCgdSZWNlaXB0EicKBHR5cGUYASABKA4yGS5waW5nZG9zdC52MS5SZWNlaXB0LlR5cGUSEwoLbWVzc2FnZV9pZHMYAiADKAwSFgoJaG9wX2NvdW50GAMgASgNSACIAQEiPwoEVHlwZRIUChBUWVBFX1VOU1BFQ0lGSUVEEAASEgoOVFlQRV9ERUxJVkVSRUQQARINCglUWVBFX1JFQUQQAkIMCgpfaG9wX2NvdW50Ip4DChJBdHRhY2htZW50TWFuaWZlc3QSFQoNYXR0YWNobWVudF9pZBgBIAEoDBIOCgZzY2hlbWUYAiABKAkSCwoDa2V5GAMgASgMEhQKDG5vbmNlX3ByZWZpeBgEIAEoDBIWCg5wbGFpbnRleHRfc2l6ZRgFIAEoBBISCgpjaHVua19zaXplGAYgASgNEhMKC2NodW5rX2NvdW50GAcgASgNEhEKCW1pbWVfdHlwZRgIIAEoCRIWCglmaWxlX25hbWUYCSABKAlIAIgBARIZChFjaXBoZXJ0ZXh0X3NoYTI1NhgKIAEoDBIeChZjaHVua19oYXNoX2xpc3Rfc2hhMjU2GAsgASgMEjIKCXRodW1ibmFpbBgMIAEoCzIfLnBpbmdkb3N0LnYxLkF0dGFjaG1lbnRNYW5pZmVzdBIPCgdjYXB0aW9uGA0gASgJEg0KBXdpZHRoGA4gASgNEg4KBmhlaWdodBgPIAEoDRITCgtkdXJhdGlvbl9tcxgQIAEoDRIQCgh3YXZlZm9ybRgRIAEoDEIMCgpfZmlsZV9uYW1lIpoDCgxHcm91cENvbnRyb2wSEAoIZ3JvdXBfaWQYASABKAwSMAoGYWN0aW9uGAIgASgOMiAucGluZ2Rvc3QudjEuR3JvdXBDb250cm9sLkFjdGlvbhIXCg9tZW1iZXJfdXNlcl9pZHMYAyADKAwSDAoEbmFtZRgEIAEoCRIPCgd2ZXJzaW9uGAUgASgEEikKB21lbWJlcnMYBiADKAsyGC5waW5nZG9zdC52MS5Hcm91cE1lbWJlchITCgtkZXNjcmlwdGlvbhgHIAEoCRIOCgZhdmF0YXIYCCABKAwivQEKBkFjdGlvbhIWChJBQ1RJT05fVU5TUEVDSUZJRUQQABIRCg1BQ1RJT05fQ1JFQVRFEAESFgoSQUNUSU9OX0FERF9NRU1CRVJTEAISGQoVQUNUSU9OX1JFTU9WRV9NRU1CRVJTEAMSEAoMQUNUSU9OX0xFQVZFEAQSFgoSQUNUSU9OX1VQREFURV9JTkZPEAUSFgoSQUNUSU9OX0NIQU5HRV9ST0xFEAYSEwoPQUNUSU9OX1NOQVBTSE9UEAcimgEKC0dyb3VwTWVtYmVyEg8KB3VzZXJfaWQYASABKAwSKwoEcm9sZRgCIAEoDjIdLnBpbmdkb3N0LnYxLkdyb3VwTWVtYmVyLlJvbGUiTQoEUm9sZRIUChBST0xFX1VOU1BFQ0lGSUVEEAASDgoKUk9MRV9PV05FUhABEg4KClJPTEVfQURNSU4QAhIPCgtST0xFX01FTUJFUhADIlYKB1Jvb21LZXkSEAoIZ3JvdXBfaWQYASABKAwSEgoKc2Vzc2lvbl9pZBgCIAEoCRITCgtzZXNzaW9uX2tleRgDIAEoCRIQCghleHBvcnRlZBgEIAEoCCJKCg5Sb29tS2V5UmVxdWVzdBIQCghncm91cF9pZBgBIAEoDBISCgpzZXNzaW9uX2lkGAIgASgJEhIKCmZyb21faW5kZXgYAyABKA0i8wIKCVN5bmNDaHVuaxIPCgdzeW5jX2lkGAEgASgMEhAKCHNlcXVlbmNlGAIgASgNEgwKBGxhc3QYAyABKAgSDAoEZGF0YRgEIAEoDBITCgtkYXRhX3NoYTI1NhgFIAEoDBIrCgdyZXF1ZXN0GAYgASgLMhgucGluZ2Rvc3QudjEuU3luY1JlcXVlc3RIABIjCgNhY2sYByABKAsyFC5waW5nZG9zdC52MS5TeW5jQWNrSAASLQoIbWFuaWZlc3QYCCABKAsyGS5waW5nZG9zdC52MS5TeW5jTWFuaWZlc3RIABIlCgRzdG9wGAkgASgLMhUucGluZ2Rvc3QudjEuU3luY1N0b3BIABI0CgxmaWxlX3JlcXVlc3QYCiABKAsyHC5waW5nZG9zdC52MS5TeW5jRmlsZVJlcXVlc3RIABIuCglmaWxlX3BhcnQYCyABKAsyGS5waW5nZG9zdC52MS5TeW5jRmlsZVBhcnRIAEIECgJvcCKeAQoLU3luY1JlcXVlc3QSDAoEZGF5cxgBIAEoDRIcChRtYXhfcGVyX2NvbnZlcnNhdGlvbhgCIAEoDRIXCg9jb252ZXJzYXRpb25faWQYAyABKAwSGQoRYmVmb3JlX3NvcnRfYXRfbXMYBCABKAMSGQoRYmVmb3JlX21lc3NhZ2VfaWQYBSABKAwSFAoMcmVzdW1lX2FmdGVyGAYgASgNIiQKB1N5bmNBY2sSCgoCb2sYASABKAgSDQoFcGF1c2UYAiABKAgiRwoMU3luY01hbmlmZXN0Eg8KB2JhdGNoZXMYASABKA0SJgoGY291bnRzGAIgAygLMhYucGluZ2Rvc3QudjEuU3luY0NvdW50IjYKCVN5bmNDb3VudBIXCg9jb252ZXJzYXRpb25faWQYASABKAwSEAoIbWVzc2FnZXMYAiABKA0ilQEKCFN5bmNTdG9wEiwKBnJlYXNvbhgBIAEoDjIcLnBpbmdkb3N0LnYxLlN5bmNTdG9wLlJlYXNvbiJbCgZSZWFzb24SFgoSUkVBU09OX1VOU1BFQ0lGSUVEEAASDwoLUkVBU09OX0JVU1kQARIUChBSRUFTT05fQ0FOQ0VMTEVEEAISEgoOUkVBU09OX1JFRlVTRUQQAyJICg9TeW5jRmlsZVJlcXVlc3QSFQoNYXR0YWNobWVudF9pZBgBIAEoDBIOCgZvZmZzZXQYAiABKAQSDgoGbGVuZ3RoGAMgASgNImgKDFN5bmNGaWxlUGFydBIVCg1hdHRhY2htZW50X2lkGAEgASgMEg4KBm9mZnNldBgCIAEoBBIMCgRkYXRhGAMgASgMEg8KB21pc3NpbmcYBCABKAgSEgoKdG90YWxfc2l6ZRgFIAEoBCLOAQoJU3luY0JhdGNoEjQKDWNvbnZlcnNhdGlvbnMYASADKAsyHS5waW5nZG9zdC52MS5TeW5jQ29udmVyc2F0aW9uEiYKBmdyb3VwcxgCIAMoCzIWLnBpbmdkb3N0LnYxLlN5bmNHcm91cBIqCghtZXNzYWdlcxgDIAMoCzIYLnBpbmdkb3N0LnYxLlN5bmNNZXNzYWdlEhoKEmNvbnZlcnNhdGlvbnNfZG9uZRgEIAEoDRIbChNjb252ZXJzYXRpb25zX3RvdGFsGAUgASgNIn4KEFN5bmNDb252ZXJzYXRpb24SFwoPY29udmVyc2F0aW9uX2lkGAEgASgMEg0KBWdyb3VwGAIgASgIEhQKDHBlZXJfdXNlcl9pZBgDIAEoDBIVCg1jcmVhdGVkX2F0X21zGAQgASgDEhUKDXVwZGF0ZWRfYXRfbXMYBSABKAMioAIKCVN5bmNHcm91cBIQCghncm91cF9pZBgBIAEoDBIPCgd2ZXJzaW9uGAIgASgEEikKB21lbWJlcnMYAyADKAsyGC5waW5nZG9zdC52MS5Hcm91cE1lbWJlchIWCg5zZXJ2ZXJfdmVyc2lvbhgEIAEoBBIwCg5zZXJ2ZXJfbWVtYmVycxgFIAMoCzIYLnBpbmdkb3N0LnYxLkdyb3VwTWVtYmVyEgwKBG5hbWUYBiABKAkSEwoLZGVzY3JpcHRpb24YByABKAkSDgoGYXZhdGFyGAggASgMEhIKCmluZm9fYXRfbXMYCSABKAMSDwoHaW5mb19pZBgKIAEoDBIMCgRsZWZ0GAsgASgIEhUKDWNyZWF0ZWRfYXRfbXMYDCABKAMisgQKC1N5bmNNZXNzYWdlEhIKCm1lc3NhZ2VfaWQYASABKAwSFwoPY29udmVyc2F0aW9uX2lkGAIgASgMEhYKDnNlbmRlcl91c2VyX2lkGAMgASgMEhgKEHNlbmRlcl9kZXZpY2VfaWQYBCABKAwSKwoEa2luZBgFIAEoDjIdLnBpbmdkb3N0LnYxLlN5bmNNZXNzYWdlLktpbmQSDAoEYm9keRgGIAEoCRIzCgphdHRhY2htZW50GAcgASgLMh8ucGluZ2Rvc3QudjEuQXR0YWNobWVudE1hbmlmZXN0EhUKCHJlcGx5X3RvGAggASgMSACIAQESEgoKc2VudF9hdF9tcxgJIAEoAxISCgpzb3J0X2F0X21zGAogASgDEg0KBXN0YXRlGAsgASgJEhQKDGVkaXRlZF9hdF9tcxgMIAEoAxIPCgdlZGl0X2lkGA0gASgMEhUKDWRlbGV0ZWRfYXRfbXMYDiABKAMSEgoKcmVhZF9hdF9tcxgPIAEoAxIsCglyZWFjdGlvbnMYECADKAsyGS5waW5nZG9zdC52MS5TeW5jUmVhY3Rpb24ieQoES2luZBIUChBLSU5EX1VOU1BFQ0lGSUVEEAASDQoJS0lORF9URVhUEAESEwoPS0lORF9BVFRBQ0hNRU5UEAISDwoLS0lORF9TWVNURU0QAxIUChBLSU5EX1VOU1VQUE9SVEVEEAQSEAoMS0lORF9ERUxFVEVEEAVCCwoJX3JlcGx5X3RvIloKDFN5bmNSZWFjdGlvbhIPCgd1c2VyX2lkGAEgASgMEg0KBWVtb2ppGAIgASgJEg8KB3JlbW92ZWQYAyABKAgSDQoFYXRfbXMYBCABKAMSCgoCaWQYBSABKAwihQIKCkNhbGxTaWduYWwSDwoHY2FsbF9pZBgBIAEoDBIqCgR0eXBlGAIgASgOMhwucGluZ2Rvc3QudjEuQ2FsbFNpZ25hbC5UeXBlEg0KBXZpZGVvGAMgASgIEgsKA3NkcBgEIAEoCRIVCg1pY2VfY2FuZGlkYXRlGAUgASgJIoYBCgRUeXBlEhQKEFRZUEVfVU5TUEVDSUZJRUQQABIOCgpUWVBFX09GRkVSEAESDwoLVFlQRV9BTlNXRVIQAhIWChJUWVBFX0lDRV9DQU5ESURBVEUQAxIPCgtUWVBFX0hBTkdVUBAEEg8KC1RZUEVfUkVKRUNUEAUSDQoJVFlQRV9CVVNZEAYiIgoMU2Vzc2lvblJlc2V0EhIKCnNlc3Npb25faWQYASABKAkiIAoJS2V5Q2hhbmdlEhMKC2tleV92ZXJzaW9uGAEgASgNYgZwcm90bzM");
 
 /**
  * @generated from message pingdost.v1.ContentHeader
@@ -709,7 +709,9 @@ export const RoomKeyRequestSchema: GenMessage<RoomKeyRequest> = /*@__PURE__*/
   messageDesc(file_pingdost_v1_content, 11);
 
 /**
- * One chunk of a history sync from the phone to a linked web device. Phase 18 extends it.
+ * History sync between a user's own devices (ADR 0021): the phone sends a linked browser its
+ * recent history, and attachment bytes on request. Always relayed as an EPHEMERAL packet, so
+ * the server stores none of it. With no `op` set, the chunk is a batch (fields 1–5).
  *
  * @generated from message pingdost.v1.SyncChunk
  */
@@ -722,19 +724,73 @@ export type SyncChunk = Message<"pingdost.v1.SyncChunk"> & {
   syncId: Uint8Array;
 
   /**
+   * Batches count from 1. An ack names the batch it acknowledges.
+   *
    * @generated from field: uint32 sequence = 2;
    */
   sequence: number;
 
   /**
+   * The sync's last batch: its manifest follows.
+   *
    * @generated from field: bool last = 3;
    */
   last: boolean;
 
   /**
+   * A batch: an encoded SyncBatch.
+   *
    * @generated from field: bytes data = 4;
    */
   data: Uint8Array;
+
+  /**
+   * SHA-256 of `data`.
+   *
+   * @generated from field: bytes data_sha256 = 5;
+   */
+  dataSha256: Uint8Array;
+
+  /**
+   * @generated from oneof pingdost.v1.SyncChunk.op
+   */
+  op: {
+    /**
+     * @generated from field: pingdost.v1.SyncRequest request = 6;
+     */
+    value: SyncRequest;
+    case: "request";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.SyncAck ack = 7;
+     */
+    value: SyncAck;
+    case: "ack";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.SyncManifest manifest = 8;
+     */
+    value: SyncManifest;
+    case: "manifest";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.SyncStop stop = 9;
+     */
+    value: SyncStop;
+    case: "stop";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.SyncFileRequest file_request = 10;
+     */
+    value: SyncFileRequest;
+    case: "fileRequest";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.SyncFilePart file_part = 11;
+     */
+    value: SyncFilePart;
+    case: "filePart";
+  } | { case: undefined; value?: undefined };
 };
 
 /**
@@ -743,6 +799,587 @@ export type SyncChunk = Message<"pingdost.v1.SyncChunk"> & {
  */
 export const SyncChunkSchema: GenMessage<SyncChunk> = /*@__PURE__*/
   messageDesc(file_pingdost_v1_content, 12);
+
+/**
+ * Browser → phone: send history (or resume a sync with the same sync_id).
+ *
+ * @generated from message pingdost.v1.SyncRequest
+ */
+export type SyncRequest = Message<"pingdost.v1.SyncRequest"> & {
+  /**
+   * Messages from the last `days` days (0: any age), at most `max_per_conversation` per
+   * conversation (0: the phone's default).
+   *
+   * @generated from field: uint32 days = 1;
+   */
+  days: number;
+
+  /**
+   * @generated from field: uint32 max_per_conversation = 2;
+   */
+  maxPerConversation: number;
+
+  /**
+   * One conversation only (its ID); empty for all of them.
+   *
+   * @generated from field: bytes conversation_id = 3;
+   */
+  conversationId: Uint8Array;
+
+  /**
+   * Only messages before this one in display order ("load older messages").
+   *
+   * @generated from field: int64 before_sort_at_ms = 4;
+   */
+  beforeSortAtMs: bigint;
+
+  /**
+   * @generated from field: bytes before_message_id = 5;
+   */
+  beforeMessageId: Uint8Array;
+
+  /**
+   * The last batch the browser stored; 0 starts the sync from the beginning.
+   *
+   * @generated from field: uint32 resume_after = 6;
+   */
+  resumeAfter: number;
+};
+
+/**
+ * Describes the message pingdost.v1.SyncRequest.
+ * Use `create(SyncRequestSchema)` to create a new message.
+ */
+export const SyncRequestSchema: GenMessage<SyncRequest> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 13);
+
+/**
+ * Browser → phone: batch `sequence` was stored (`ok`), or failed its hash check.
+ *
+ * @generated from message pingdost.v1.SyncAck
+ */
+export type SyncAck = Message<"pingdost.v1.SyncAck"> & {
+  /**
+   * @generated from field: bool ok = 1;
+   */
+  ok: boolean;
+
+  /**
+   * Stop after this batch: the user paused. A later request resumes.
+   *
+   * @generated from field: bool pause = 2;
+   */
+  pause: boolean;
+};
+
+/**
+ * Describes the message pingdost.v1.SyncAck.
+ * Use `create(SyncAckSchema)` to create a new message.
+ */
+export const SyncAckSchema: GenMessage<SyncAck> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 14);
+
+/**
+ * Phone → browser after the last batch: what the whole sync held, to check it arrived.
+ *
+ * @generated from message pingdost.v1.SyncManifest
+ */
+export type SyncManifest = Message<"pingdost.v1.SyncManifest"> & {
+  /**
+   * @generated from field: uint32 batches = 1;
+   */
+  batches: number;
+
+  /**
+   * @generated from field: repeated pingdost.v1.SyncCount counts = 2;
+   */
+  counts: SyncCount[];
+};
+
+/**
+ * Describes the message pingdost.v1.SyncManifest.
+ * Use `create(SyncManifestSchema)` to create a new message.
+ */
+export const SyncManifestSchema: GenMessage<SyncManifest> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 15);
+
+/**
+ * @generated from message pingdost.v1.SyncCount
+ */
+export type SyncCount = Message<"pingdost.v1.SyncCount"> & {
+  /**
+   * @generated from field: bytes conversation_id = 1;
+   */
+  conversationId: Uint8Array;
+
+  /**
+   * @generated from field: uint32 messages = 2;
+   */
+  messages: number;
+};
+
+/**
+ * Describes the message pingdost.v1.SyncCount.
+ * Use `create(SyncCountSchema)` to create a new message.
+ */
+export const SyncCountSchema: GenMessage<SyncCount> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 16);
+
+/**
+ * Either side: the sync ended without a manifest.
+ *
+ * @generated from message pingdost.v1.SyncStop
+ */
+export type SyncStop = Message<"pingdost.v1.SyncStop"> & {
+  /**
+   * @generated from field: pingdost.v1.SyncStop.Reason reason = 1;
+   */
+  reason: SyncStop_Reason;
+};
+
+/**
+ * Describes the message pingdost.v1.SyncStop.
+ * Use `create(SyncStopSchema)` to create a new message.
+ */
+export const SyncStopSchema: GenMessage<SyncStop> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 17);
+
+/**
+ * @generated from enum pingdost.v1.SyncStop.Reason
+ */
+export enum SyncStop_Reason {
+  /**
+   * @generated from enum value: REASON_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The phone is serving another sync to this device.
+   *
+   * @generated from enum value: REASON_BUSY = 1;
+   */
+  BUSY = 1,
+
+  /**
+   * The browser gave up on it.
+   *
+   * @generated from enum value: REASON_CANCELLED = 2;
+   */
+  CANCELLED = 2,
+
+  /**
+   * The phone does not sync to this device.
+   *
+   * @generated from enum value: REASON_REFUSED = 3;
+   */
+  REFUSED = 3,
+}
+
+/**
+ * Describes the enum pingdost.v1.SyncStop.Reason.
+ */
+export const SyncStop_ReasonSchema: GenEnum<SyncStop_Reason> = /*@__PURE__*/
+  enumDesc(file_pingdost_v1_content, 17, 0);
+
+/**
+ * Browser → phone: bytes of an attachment's ciphertext, exactly as staged (ADR 0004).
+ *
+ * @generated from message pingdost.v1.SyncFileRequest
+ */
+export type SyncFileRequest = Message<"pingdost.v1.SyncFileRequest"> & {
+  /**
+   * @generated from field: bytes attachment_id = 1;
+   */
+  attachmentId: Uint8Array;
+
+  /**
+   * @generated from field: uint64 offset = 2;
+   */
+  offset: bigint;
+
+  /**
+   * @generated from field: uint32 length = 3;
+   */
+  length: number;
+};
+
+/**
+ * Describes the message pingdost.v1.SyncFileRequest.
+ * Use `create(SyncFileRequestSchema)` to create a new message.
+ */
+export const SyncFileRequestSchema: GenMessage<SyncFileRequest> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 18);
+
+/**
+ * Phone → browser: the requested bytes, or `missing` when the phone has no copy.
+ *
+ * @generated from message pingdost.v1.SyncFilePart
+ */
+export type SyncFilePart = Message<"pingdost.v1.SyncFilePart"> & {
+  /**
+   * @generated from field: bytes attachment_id = 1;
+   */
+  attachmentId: Uint8Array;
+
+  /**
+   * @generated from field: uint64 offset = 2;
+   */
+  offset: bigint;
+
+  /**
+   * @generated from field: bytes data = 3;
+   */
+  data: Uint8Array;
+
+  /**
+   * @generated from field: bool missing = 4;
+   */
+  missing: boolean;
+
+  /**
+   * The whole ciphertext's size.
+   *
+   * @generated from field: uint64 total_size = 5;
+   */
+  totalSize: bigint;
+};
+
+/**
+ * Describes the message pingdost.v1.SyncFilePart.
+ * Use `create(SyncFilePartSchema)` to create a new message.
+ */
+export const SyncFilePartSchema: GenMessage<SyncFilePart> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 19);
+
+/**
+ * The records of one sync batch (SyncChunk.data): plain history, never keys or sessions.
+ *
+ * @generated from message pingdost.v1.SyncBatch
+ */
+export type SyncBatch = Message<"pingdost.v1.SyncBatch"> & {
+  /**
+   * @generated from field: repeated pingdost.v1.SyncConversation conversations = 1;
+   */
+  conversations: SyncConversation[];
+
+  /**
+   * @generated from field: repeated pingdost.v1.SyncGroup groups = 2;
+   */
+  groups: SyncGroup[];
+
+  /**
+   * @generated from field: repeated pingdost.v1.SyncMessage messages = 3;
+   */
+  messages: SyncMessage[];
+
+  /**
+   * Progress: conversations finished after this batch, of all this sync covers.
+   *
+   * @generated from field: uint32 conversations_done = 4;
+   */
+  conversationsDone: number;
+
+  /**
+   * @generated from field: uint32 conversations_total = 5;
+   */
+  conversationsTotal: number;
+};
+
+/**
+ * Describes the message pingdost.v1.SyncBatch.
+ * Use `create(SyncBatchSchema)` to create a new message.
+ */
+export const SyncBatchSchema: GenMessage<SyncBatch> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 20);
+
+/**
+ * @generated from message pingdost.v1.SyncConversation
+ */
+export type SyncConversation = Message<"pingdost.v1.SyncConversation"> & {
+  /**
+   * @generated from field: bytes conversation_id = 1;
+   */
+  conversationId: Uint8Array;
+
+  /**
+   * @generated from field: bool group = 2;
+   */
+  group: boolean;
+
+  /**
+   * Direct conversations: the other user.
+   *
+   * @generated from field: bytes peer_user_id = 3;
+   */
+  peerUserId: Uint8Array;
+
+  /**
+   * @generated from field: int64 created_at_ms = 4;
+   */
+  createdAtMs: bigint;
+
+  /**
+   * @generated from field: int64 updated_at_ms = 5;
+   */
+  updatedAtMs: bigint;
+};
+
+/**
+ * Describes the message pingdost.v1.SyncConversation.
+ * Use `create(SyncConversationSchema)` to create a new message.
+ */
+export const SyncConversationSchema: GenMessage<SyncConversation> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 21);
+
+/**
+ * @generated from message pingdost.v1.SyncGroup
+ */
+export type SyncGroup = Message<"pingdost.v1.SyncGroup"> & {
+  /**
+   * @generated from field: bytes group_id = 1;
+   */
+  groupId: Uint8Array;
+
+  /**
+   * @generated from field: uint64 version = 2;
+   */
+  version: bigint;
+
+  /**
+   * @generated from field: repeated pingdost.v1.GroupMember members = 3;
+   */
+  members: GroupMember[];
+
+  /**
+   * @generated from field: uint64 server_version = 4;
+   */
+  serverVersion: bigint;
+
+  /**
+   * @generated from field: repeated pingdost.v1.GroupMember server_members = 5;
+   */
+  serverMembers: GroupMember[];
+
+  /**
+   * @generated from field: string name = 6;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string description = 7;
+   */
+  description: string;
+
+  /**
+   * @generated from field: bytes avatar = 8;
+   */
+  avatar: Uint8Array;
+
+  /**
+   * @generated from field: int64 info_at_ms = 9;
+   */
+  infoAtMs: bigint;
+
+  /**
+   * @generated from field: bytes info_id = 10;
+   */
+  infoId: Uint8Array;
+
+  /**
+   * @generated from field: bool left = 11;
+   */
+  left: boolean;
+
+  /**
+   * @generated from field: int64 created_at_ms = 12;
+   */
+  createdAtMs: bigint;
+};
+
+/**
+ * Describes the message pingdost.v1.SyncGroup.
+ * Use `create(SyncGroupSchema)` to create a new message.
+ */
+export const SyncGroupSchema: GenMessage<SyncGroup> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 22);
+
+/**
+ * @generated from message pingdost.v1.SyncMessage
+ */
+export type SyncMessage = Message<"pingdost.v1.SyncMessage"> & {
+  /**
+   * @generated from field: bytes message_id = 1;
+   */
+  messageId: Uint8Array;
+
+  /**
+   * @generated from field: bytes conversation_id = 2;
+   */
+  conversationId: Uint8Array;
+
+  /**
+   * @generated from field: bytes sender_user_id = 3;
+   */
+  senderUserId: Uint8Array;
+
+  /**
+   * Empty for system notices.
+   *
+   * @generated from field: bytes sender_device_id = 4;
+   */
+  senderDeviceId: Uint8Array;
+
+  /**
+   * @generated from field: pingdost.v1.SyncMessage.Kind kind = 5;
+   */
+  kind: SyncMessage_Kind;
+
+  /**
+   * @generated from field: string body = 6;
+   */
+  body: string;
+
+  /**
+   * @generated from field: pingdost.v1.AttachmentManifest attachment = 7;
+   */
+  attachment?: AttachmentManifest | undefined;
+
+  /**
+   * @generated from field: optional bytes reply_to = 8;
+   */
+  replyTo?: Uint8Array | undefined;
+
+  /**
+   * @generated from field: int64 sent_at_ms = 9;
+   */
+  sentAtMs: bigint;
+
+  /**
+   * @generated from field: int64 sort_at_ms = 10;
+   */
+  sortAtMs: bigint;
+
+  /**
+   * Outgoing messages: the state as the phone knows it (a MessageState name).
+   *
+   * @generated from field: string state = 11;
+   */
+  state: string;
+
+  /**
+   * @generated from field: int64 edited_at_ms = 12;
+   */
+  editedAtMs: bigint;
+
+  /**
+   * @generated from field: bytes edit_id = 13;
+   */
+  editId: Uint8Array;
+
+  /**
+   * @generated from field: int64 deleted_at_ms = 14;
+   */
+  deletedAtMs: bigint;
+
+  /**
+   * 0: not read yet.
+   *
+   * @generated from field: int64 read_at_ms = 15;
+   */
+  readAtMs: bigint;
+
+  /**
+   * @generated from field: repeated pingdost.v1.SyncReaction reactions = 16;
+   */
+  reactions: SyncReaction[];
+};
+
+/**
+ * Describes the message pingdost.v1.SyncMessage.
+ * Use `create(SyncMessageSchema)` to create a new message.
+ */
+export const SyncMessageSchema: GenMessage<SyncMessage> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 23);
+
+/**
+ * @generated from enum pingdost.v1.SyncMessage.Kind
+ */
+export enum SyncMessage_Kind {
+  /**
+   * @generated from enum value: KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: KIND_TEXT = 1;
+   */
+  TEXT = 1,
+
+  /**
+   * @generated from enum value: KIND_ATTACHMENT = 2;
+   */
+  ATTACHMENT = 2,
+
+  /**
+   * @generated from enum value: KIND_SYSTEM = 3;
+   */
+  SYSTEM = 3,
+
+  /**
+   * @generated from enum value: KIND_UNSUPPORTED = 4;
+   */
+  UNSUPPORTED = 4,
+
+  /**
+   * @generated from enum value: KIND_DELETED = 5;
+   */
+  DELETED = 5,
+}
+
+/**
+ * Describes the enum pingdost.v1.SyncMessage.Kind.
+ */
+export const SyncMessage_KindSchema: GenEnum<SyncMessage_Kind> = /*@__PURE__*/
+  enumDesc(file_pingdost_v1_content, 23, 0);
+
+/**
+ * @generated from message pingdost.v1.SyncReaction
+ */
+export type SyncReaction = Message<"pingdost.v1.SyncReaction"> & {
+  /**
+   * @generated from field: bytes user_id = 1;
+   */
+  userId: Uint8Array;
+
+  /**
+   * @generated from field: string emoji = 2;
+   */
+  emoji: string;
+
+  /**
+   * The user withdrew it.
+   *
+   * @generated from field: bool removed = 3;
+   */
+  removed: boolean;
+
+  /**
+   * @generated from field: int64 at_ms = 4;
+   */
+  atMs: bigint;
+
+  /**
+   * @generated from field: bytes id = 5;
+   */
+  id: Uint8Array;
+};
+
+/**
+ * Describes the message pingdost.v1.SyncReaction.
+ * Use `create(SyncReactionSchema)` to create a new message.
+ */
+export const SyncReactionSchema: GenMessage<SyncReaction> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_content, 24);
 
 /**
  * WebRTC call signaling, relayed as an ephemeral packet. Phase 25 extends it.
@@ -787,7 +1424,7 @@ export type CallSignal = Message<"pingdost.v1.CallSignal"> & {
  * Use `create(CallSignalSchema)` to create a new message.
  */
 export const CallSignalSchema: GenMessage<CallSignal> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_content, 13);
+  messageDesc(file_pingdost_v1_content, 25);
 
 /**
  * @generated from enum pingdost.v1.CallSignal.Type
@@ -833,7 +1470,7 @@ export enum CallSignal_Type {
  * Describes the enum pingdost.v1.CallSignal.Type.
  */
 export const CallSignal_TypeSchema: GenEnum<CallSignal_Type> = /*@__PURE__*/
-  enumDesc(file_pingdost_v1_content, 13, 0);
+  enumDesc(file_pingdost_v1_content, 25, 0);
 
 /**
  * Asks the peer device to start a new Olm session, e.g. after an undecryptable message.
@@ -854,7 +1491,7 @@ export type SessionReset = Message<"pingdost.v1.SessionReset"> & {
  * Use `create(SessionResetSchema)` to create a new message.
  */
 export const SessionResetSchema: GenMessage<SessionReset> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_content, 14);
+  messageDesc(file_pingdost_v1_content, 26);
 
 /**
  * The sender's device list or keys changed: refetch them from the key directory.
@@ -873,5 +1510,5 @@ export type KeyChange = Message<"pingdost.v1.KeyChange"> & {
  * Use `create(KeyChangeSchema)` to create a new message.
  */
 export const KeyChangeSchema: GenMessage<KeyChange> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_content, 15);
+  messageDesc(file_pingdost_v1_content, 27);
 

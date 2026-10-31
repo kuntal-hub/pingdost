@@ -1,8 +1,9 @@
 // One conversation on the web (REQ §8.1–8.2): a virtualized timeline (react-virtuoso) that
 // stays at the newest message and loads older pages when scrolled up, typing, and the composer
-// with reply and edit. Keyboard: Enter sends, Shift+Enter is a new line, Esc cancels a reply or
+// with reply, edit and files. Past the oldest message here, older ones can be asked of the
+// phone (ADR 0021). Keyboard: Enter sends, Shift+Enter is a new line, Esc cancels a reply or
 // edit, ↑ in an empty composer edits your last message.
-import { Info, Search, X } from 'lucide-react';
+import { Info, Paperclip, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
@@ -16,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/menu';
 import { api, useSession } from '@/session/session';
+import { syncLabel, useHistorySync } from '@/sync/sync-status';
 import { previewText, type TimelineItem } from '@pingdost/chat-core';
 import { DEFAULT_LIMITS } from '@pingdost/config/public';
 import {
@@ -28,6 +30,7 @@ import {
 import { Bubble, type BubbleActions } from './bubble';
 import { groupName, groupPictureUri } from './format';
 import { AttachmentView } from '../attachments/attachment-view';
+import { SendFileDialog } from '../attachments/send-file-dialog';
 
 const MAX_TEXT = 4_000;
 const START_INDEX = 1_000_000;
@@ -112,7 +115,9 @@ function Composer({
   const client = useChatClient();
   const [text, setText] = useState('');
   const [error, setError] = useState<string>();
+  const [picked, setPicked] = useState<File>();
   const input = useRef<HTMLTextAreaElement>(null);
+  const filePicker = useRef<HTMLInputElement>(null);
   const trimmed = text.trim();
 
   useEffect(() => {
@@ -189,6 +194,25 @@ function Composer({
         </p>
       )}
       <div className="flex items-end gap-2">
+        <input
+          ref={filePicker}
+          type="file"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (file) setPicked(file);
+          }}
+        />
+        <button
+          type="button"
+          aria-label="Send a photo, video or file"
+          disabled={!client || editing !== undefined}
+          onClick={() => filePicker.current?.click()}
+          className="mb-1 rounded p-2 hover:bg-surface disabled:opacity-50"
+        >
+          <Paperclip size={20} />
+        </button>
         <Textarea
           ref={input}
           aria-label={editing ? 'Edited message' : 'Message'}
@@ -212,6 +236,65 @@ function Composer({
           {editing ? 'Save' : 'Send'}
         </Button>
       </div>
+      <SendFileDialog
+        file={picked}
+        conversationId={conversationId}
+        replyTo={replyTo?.messageId}
+        onClose={(sent) => {
+          setPicked(undefined);
+          if (sent) onDone();
+        }}
+      />
+    </div>
+  );
+}
+
+/** Above the oldest message here: older messages of this chat, from the phone. */
+function OlderFromPhone({
+  conversationId,
+  oldest,
+}: {
+  conversationId: string;
+  oldest: MessageRecord | undefined;
+}) {
+  const client = useChatClient();
+  const sync = useHistorySync();
+  const [asked, setAsked] = useState(false);
+  const [error, setError] = useState<string>();
+  const mine = sync?.conversationId === conversationId;
+  const busy =
+    sync?.state === 'requesting' ||
+    sync?.state === 'syncing' ||
+    sync?.state === 'phone_offline' ||
+    sync?.state === 'offline';
+  return (
+    <div className="flex flex-col items-center gap-1 py-3">
+      <Button
+        variant="ghost"
+        className="min-h-9 text-sm"
+        disabled={!client || busy}
+        onClick={() => {
+          setError(undefined);
+          setAsked(true);
+          client
+            ?.loadOlderFromPhone(
+              conversationId,
+              oldest ? { sortAt: oldest.sortAt, messageId: oldest.messageId } : null,
+            )
+            .catch((e: unknown) =>
+              setError(e instanceof Error ? e.message : 'Your phone could not be asked.'),
+            );
+        }}
+      >
+        Load older messages from phone
+      </Button>
+      {asked && mine && sync && <p className="text-xs text-muted">{syncLabel(sync)}</p>}
+      {busy && !mine && <p className="text-xs text-muted">Wait until the history sync finishes.</p>}
+      {error && (
+        <p role="alert" className="text-xs text-danger">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -227,7 +310,7 @@ export function ChatView() {
   const privacy = useChat((state) => state.privacy);
   const blockedIds = useChat((state) => state.blocked);
   const [conversation, setConversation] = useState<ConversationRecord>();
-  const { items, loaded, loadOlder, loadUntil, typing } = useConversation(conversationId);
+  const { items, loaded, loadOlder, loadUntil, typing, complete } = useConversation(conversationId);
   const isGroup = conversation?.kind === 'group';
   const group = useGroup(isGroup ? conversationId : undefined);
   const peerUserId = isGroup ? undefined : conversation?.peerUserId;
@@ -343,6 +426,12 @@ export function ChatView() {
       <div className="flex h-full items-center justify-center text-muted">Opening the chat…</div>
     );
   }
+  const oldestMessage = items.find(
+    (item): item is Extract<TimelineItem, { type: 'message' }> => item.type === 'message',
+  )?.message;
+  const oldestHeader = () => (
+    <OlderFromPhone conversationId={conversationId} oldest={oldestMessage} />
+  );
   const name = isGroup ? groupName(group) : contactName(peer);
   const readReceipts = privacy?.readReceipts ?? false;
 
@@ -358,11 +447,14 @@ export function ChatView() {
       )}
       <div className="min-h-0 flex-1">
         {items.length === 0 ? (
-          <p className="mx-auto mt-10 max-w-md px-6 text-center text-muted">
-            {isGroup
-              ? `Messages in ${name} are end-to-end encrypted for its members. No one else, not even PingDost, can read them.`
-              : `Messages with ${name} are end-to-end encrypted. No one else, not even PingDost, can read them.`}
-          </p>
+          <div className="mx-auto mt-10 max-w-md px-6 text-center text-muted">
+            <p>
+              {isGroup
+                ? `Messages in ${name} are end-to-end encrypted for its members. No one else, not even PingDost, can read them.`
+                : `Messages with ${name} are end-to-end encrypted. No one else, not even PingDost, can read them.`}
+            </p>
+            {complete && <OlderFromPhone conversationId={conversationId} oldest={undefined} />}
+          </div>
         ) : (
           <Virtuoso
             ref={list}
@@ -372,6 +464,7 @@ export function ChatView() {
             followOutput="smooth"
             startReached={() => void loadOlder()}
             computeItemKey={(_, item) => item.key}
+            components={complete ? { Header: oldestHeader } : {}}
             itemContent={(_, item) =>
               item.type === 'day' ? (
                 <div className="my-3 flex justify-center">

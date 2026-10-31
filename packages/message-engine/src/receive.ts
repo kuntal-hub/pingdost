@@ -774,6 +774,11 @@ export class Receiver {
       .map((item) => item.id);
   }
 
+  /** An ephemeral packet that would not decrypt (ADR 0021): the same rate-limited repair. */
+  undecryptable(sender: RemoteDevice, sessionId?: string): Promise<void> {
+    return this.#undecryptable(sender, sessionId);
+  }
+
   async #undecryptable(sender: RemoteDevice, sessionId: string | undefined): Promise<void> {
     const { core } = this;
     core.events.emit({ type: 'decrypt_failed', userId: sender.userId, deviceId: sender.deviceId });

@@ -1,7 +1,9 @@
 // The leader tab's chat runtime (ADR 0020): the message engine on the Dexie store, the
 // gateway socket, and this account's privacy settings and blocks. It answers the other tabs'
 // calls and announces every change to them. Messages from this user's phone arrive here as
-// copies from an own device and show as sent by "you".
+// copies from an own device and show as sent by "you". The history sync from the phone and
+// attachment transfers run here too (ADR 0021).
+import { Transfers } from '@/attachments/transfers';
 import { publicConfig } from '@/config';
 import { cryptoProvider } from '@/crypto/provider';
 import {
@@ -12,6 +14,7 @@ import {
   refreshTokens,
   useSession,
 } from '@/session/session';
+import { syncWindow } from '@/sync/prefs';
 import { MessageEngine, type ConversationEvent, type EngineEvent } from '@pingdost/message-engine';
 import { TransportRouter, WsTransport } from '@pingdost/transport';
 import { database, DexieEngineStore, vaultKey } from '@pingdost/web-store';
@@ -73,6 +76,8 @@ export async function startLeader(
     },
     typingIndicators: () => useChat.getState().privacy?.typingIndicators ?? true,
     blocked: (userId) => useChat.getState().blocked.includes(userId),
+    // After pairing, the recent history comes from the phone by itself.
+    historySync: { autoStart: true, window: syncWindow() },
     ...(import.meta.env.DEV
       ? {
           log: (level, message, fields) =>
@@ -80,6 +85,12 @@ export async function startLeader(
         }
       : {}),
   });
+
+  const transfers = new Transfers(engine, provider, (status) => {
+    for (const listener of transferListeners) listener(status);
+    post({ type: 'transfer', status });
+  });
+  const transferListeners = new Set<Parameters<ChatClient['onTransfer']>[0]>();
 
   const cleanup: (() => void)[] = [];
   const sharePrefs = () => {
@@ -92,10 +103,13 @@ export async function startLeader(
     ),
     engine.onConversationListChanged(() => post({ type: 'list' })),
     engine.onEvent((event: EngineEvent) => post({ type: 'engine', event })),
+    engine.onHistorySync((status) => post({ type: 'sync', status })),
     router.status$.subscribe(
       (status) => {
         useChat.setState({ status });
         post({ type: 'status', status });
+        // Uploads cut off by a lost connection go on.
+        if (status === 'online') void transfers.resumeUploads().catch(() => undefined);
       },
       { emitCurrent: true },
     ),
@@ -142,9 +156,22 @@ export async function startLeader(
       transport.watchPresence(userIds);
       return Promise.resolve();
     },
+    downloadAttachment: (messageId, role) => transfers.download(messageId, role),
+    sendFile: (conversationId, file, options) => transfers.sendFile(conversationId, file, options),
+    retryUpload: (messageId) => transfers.retryUpload(messageId),
+    transfers: () => Promise.resolve(transfers.snapshot()),
+    applyCacheLimit: () => transfers.applyCacheLimit(),
+    clearCache: () => transfers.clearCache(),
     subscribe: (conversationId, listener) => engine.subscribe(conversationId, listener),
     onListChanged: (listener) => engine.onConversationListChanged(listener),
     onEngineEvent: (listener) => engine.onEvent(listener),
+    onHistorySync: (listener) => engine.onHistorySync(listener),
+    onTransfer: (listener) => {
+      transferListeners.add(listener);
+      return () => {
+        transferListeners.delete(listener);
+      };
+    },
   } as ChatClient;
 
   await engine.start();
@@ -169,6 +196,7 @@ export async function startLeader(
       case 'hello':
         sharePrefs();
         post({ type: 'status', status: router.status$.value });
+        void engine.historySyncStatus().then((status) => post({ type: 'sync', status }));
         break;
       case 'prefs_changed':
         void loadPrefs().then(sharePrefs, () => undefined);

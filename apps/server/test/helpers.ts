@@ -59,6 +59,8 @@ export interface TestServerOptions {
   pushSenders?: AppDeps['pushSenders'];
   attachments?: AppDeps['attachments'];
   mongo?: Mongo;
+  /** The Mongo client emits `commandStarted` for every command (write checks). */
+  monitorMongo?: boolean;
 }
 
 export async function startTestServer(options: TestServerOptions = {}): Promise<TestServer> {
@@ -77,7 +79,10 @@ export async function startTestServer(options: TestServerOptions = {}): Promise<
   const ownMongo = options.mongo === undefined;
   const mongo =
     options.mongo ??
-    createMongo(config.MONGODB_URI, { dbName: `pingdost_test_${randomUUID().slice(0, 8)}` });
+    createMongo(config.MONGODB_URI, {
+      dbName: `pingdost_test_${randomUUID().slice(0, 8)}`,
+      ...(options.monitorMongo ? { monitorCommands: true } : {}),
+    });
   if (ownMongo) await setupIndexes(mongo);
   const redis = createRedisHandle(config.REDIS_URL);
   const email = createEmailProvider(config, logger);

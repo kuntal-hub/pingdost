@@ -1,7 +1,14 @@
 // What the web UI talks to (ADR 0020): one interface whether this tab runs the engine (the
 // leader) or another tab does (a follower, over BroadcastChannel). The methods are the
-// engine's own, so both sides behave the same.
-import type { ConversationEvent, EngineEvent, MessageEngine } from '@pingdost/message-engine';
+// engine's own, so both sides behave the same, plus the leader's attachment transfers
+// (ADR 0021), which run next to the engine.
+import type { SendFileOptions, TransferStatus } from '@/attachments/transfers';
+import type {
+  ConversationEvent,
+  EngineEvent,
+  HistorySyncStatus,
+  MessageEngine,
+} from '@pingdost/message-engine';
 
 export const ENGINE_METHODS = [
   'listConversations',
@@ -36,19 +43,50 @@ export const ENGINE_METHODS = [
   'attachmentRecipients',
   'sendAttachment',
   'releaseAttachment',
+  'historySyncStatus',
+  'syncHistory',
+  'pauseHistorySync',
+  'resumeHistorySync',
+  'loadOlderFromPhone',
 ] as const satisfies readonly (keyof MessageEngine)[];
 
 export type EngineMethod = (typeof ENGINE_METHODS)[number];
 
-export type ChatApi = Pick<MessageEngine, EngineMethod> & {
+/** The leader tab's own calls, besides the engine's. */
+export interface LeaderApi {
   /** Only these users' presence is reported (the open chat's peer). */
   watchPresence(userIds: string[]): Promise<void>;
-};
+  /** Fetches a message's file (or preview) into this browser's cache. */
+  downloadAttachment(messageId: string, role?: 'file' | 'thumbnail'): Promise<void>;
+  /** Compresses (images), encrypts and sends a file; throws `SendFileError` with the reason. */
+  sendFile(conversationId: string, file: File, options: SendFileOptions): Promise<void>;
+  retryUpload(messageId: string): Promise<void>;
+  transfers(): Promise<TransferStatus[]>;
+  /** Trims the cache to its limit (after the limit changed); returns the bytes freed. */
+  applyCacheLimit(): Promise<number>;
+  clearCache(): Promise<number>;
+}
+
+export const LEADER_METHODS = [
+  'watchPresence',
+  'downloadAttachment',
+  'sendFile',
+  'retryUpload',
+  'transfers',
+  'applyCacheLimit',
+  'clearCache',
+] as const satisfies readonly (keyof LeaderApi)[];
+
+export type ClientMethod = EngineMethod | (typeof LEADER_METHODS)[number];
+
+export type ChatApi = Pick<MessageEngine, EngineMethod> & LeaderApi;
 
 export interface ChatEvents {
   subscribe(conversationId: string, listener: (event: ConversationEvent) => void): () => void;
   onListChanged(listener: () => void): () => void;
   onEngineEvent(listener: (event: EngineEvent) => void): () => void;
+  onHistorySync(listener: (status: HistorySyncStatus) => void): () => void;
+  onTransfer(listener: (status: TransferStatus) => void): () => void;
 }
 
 export type ChatClient = ChatApi & ChatEvents;

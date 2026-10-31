@@ -33,6 +33,10 @@ export const DEFAULT_LIMITS = {
   meshPacketTtlSeconds: 1_209_600,
   meshRelayStorageLimitBytes: 262_144_000,
   syncRecentDays: 30,
+  /** History sync: at most this many recent messages per conversation (ADR 0021). */
+  syncMaxPerConversation: 500,
+  /** A linked browser fetches at most this much of one file from the phone (ADR 0021). */
+  syncFileMaxBytes: 26_214_400,
   webPairingTtlSeconds: 120,
 } as const;
 

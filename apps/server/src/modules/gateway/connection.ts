@@ -69,6 +69,9 @@ export interface GatewaySettings {
   /** Frames per `rateWindowMs`, per socket. */
   maxFrames: number;
   maxTypingFrames: number;
+  /** Ephemeral packets (ADR 0021), and their payload bytes, per `rateWindowMs`, per socket. */
+  maxEphemeralFrames: number;
+  maxEphemeralBytes: number;
   rateWindowMs: number;
   /** How long a fetch batch waits for its ACKs before the stream stops. */
   fetchAckTimeoutMs: number;
@@ -87,6 +90,8 @@ export const DEFAULT_GATEWAY_SETTINGS: GatewaySettings = {
   maxInflightSends: 64,
   maxFrames: 300,
   maxTypingFrames: 30,
+  maxEphemeralFrames: 250,
+  maxEphemeralBytes: 8 * 1_048_576,
   rateWindowMs: 10_000,
   fetchAckTimeoutMs: 30_000,
   ackCoalesceMs: 50,
@@ -123,7 +128,7 @@ export interface GatewayDeps {
 
 type ServerFrameInit = MessageInitShape<typeof ServerFrameSchema>;
 
-/** A fixed-window frame budget. */
+/** A fixed-window budget (frames, or bytes with `amount`). */
 class FrameBudget {
   #windowStart = 0;
   #count = 0;
@@ -131,12 +136,13 @@ class FrameBudget {
     private readonly limit: number,
     private readonly windowMs: number,
   ) {}
-  take(now: number): boolean {
+  take(now: number, amount = 1): boolean {
     if (now - this.#windowStart >= this.windowMs) {
       this.#windowStart = now;
       this.#count = 0;
     }
-    return ++this.#count <= this.limit;
+    this.#count += amount;
+    return this.#count <= this.limit;
   }
 }
 
@@ -158,6 +164,8 @@ export class Connection implements PresencePeer {
   readonly #timers = new Set<NodeJS.Timeout>();
   readonly #frames: FrameBudget;
   readonly #typing: FrameBudget;
+  readonly #ephemeral: FrameBudget;
+  readonly #ephemeralBytes: FrameBudget;
   #inflightSends = 0;
   #alive = true;
   readonly #log: Logger;
@@ -169,6 +177,8 @@ export class Connection implements PresencePeer {
     const { settings } = d;
     this.#frames = new FrameBudget(settings.maxFrames, settings.rateWindowMs);
     this.#typing = new FrameBudget(settings.maxTypingFrames, settings.rateWindowMs);
+    this.#ephemeral = new FrameBudget(settings.maxEphemeralFrames, settings.rateWindowMs);
+    this.#ephemeralBytes = new FrameBudget(settings.maxEphemeralBytes, settings.rateWindowMs);
     this.#log = d.log.child({ component: 'gateway' });
 
     socket.on('message', (data, isBinary) => void this.#onMessage(data, isBinary));
@@ -519,8 +529,19 @@ export class Connection implements PresencePeer {
     }
   }
 
-  /** Relayed to an online recipient only, never stored (ARCHITECTURE A4). */
+  /**
+   * Relayed in memory to an online recipient only, never written to Redis or Mongo
+   * (ARCHITECTURE A4, ADR 0021). Answered `Accepted{DELIVERED_TRANSPORT}` once handed to the
+   * recipient's socket, else `RECIPIENT_OFFLINE`; a slow recipient counts as offline.
+   */
   async #onEphemeral(requestId: number, packet: TransportPacket): Promise<void> {
+    const { clock, metrics } = this.d;
+    const now = clock.now();
+    if (!this.#ephemeral.take(now) || !this.#ephemeralBytes.take(now, packet.payload.length)) {
+      metrics.ephemeralRelayed.inc({ outcome: 'rate_limited' });
+      this.#error(requestId, 'RATE_LIMITED', 'too many ephemeral packets');
+      return;
+    }
     try {
       const { record, blocked } = await this.d.delivery.prepare(this.#sender, packet);
       // Blocked: answered as if the device were offline.
@@ -528,7 +549,16 @@ export class Connection implements PresencePeer {
       const sent = recipient?.open
         ? recipient.#sendIfRoom({ requestId: 0, body: { case: 'ephemeral', value: { packet } } })
         : false;
-      if (!sent) this.#error(requestId, 'RECIPIENT_OFFLINE', 'the recipient device is offline');
+      if (!sent) {
+        metrics.ephemeralRelayed.inc({ outcome: 'offline' });
+        this.#error(requestId, 'RECIPIENT_OFFLINE', 'the recipient device is offline');
+        return;
+      }
+      metrics.ephemeralRelayed.inc({ outcome: 'relayed' });
+      metrics.ephemeralBytes.inc(packet.payload.length);
+      if (requestId !== 0) {
+        this.#accepted(requestId, packet, record, Accepted_Status.DELIVERED_TRANSPORT);
+      }
     } catch (error) {
       if (!(error instanceof DeliveryError)) throw error;
       this.#error(requestId, error.code, error.message);

@@ -23,6 +23,24 @@ export interface SealedRow {
   data: Uint8Array;
 }
 
+/** One cached attachment: its ciphertext is in `fileChunks` (`file-cache.ts`). */
+export interface FileRow {
+  attachmentId: string;
+  /** The whole ciphertext's size, from the manifest. */
+  size: number;
+  /** Bytes stored so far, in order. */
+  stored: number;
+  /** All of it is here and passed its integrity check. */
+  complete: boolean;
+  lastUsedAt: number;
+}
+
+export interface FileChunkRow {
+  attachmentId: string;
+  index: number;
+  data: Uint8Array;
+}
+
 /** An engine row: plaintext index fields plus the sealed record. */
 export interface EngineRow {
   iv: Uint8Array;
@@ -47,6 +65,8 @@ export class PingdostDb extends Dexie {
   groupSessionsOut!: Table<EngineRow, string>;
   groupSessionsIn!: Table<EngineRow, string>;
   held!: Table<EngineRow, string>;
+  files!: EntityTable<FileRow, 'attachmentId'>;
+  fileChunks!: Table<FileChunkRow, [string, number]>;
 
   constructor(name = DATABASE_NAME) {
     super(name);
@@ -68,6 +88,11 @@ export class PingdostDb extends Dexie {
       groupSessionsOut: 'groupId',
       groupSessionsIn: 'key, groupId',
       held: 'id, groupId, receivedAt',
+    });
+    // Version 3 (ADR 0021): the attachment cache (`file-cache.ts`).
+    this.version(3).stores({
+      files: 'attachmentId, lastUsedAt',
+      fileChunks: '[attachmentId+index], attachmentId',
     });
   }
 }

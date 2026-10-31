@@ -10,22 +10,22 @@ After pairing, the browser gets a configurable recent-history window from the ph
 - ARCHITECTURE A3 (ephemeral), A4
 
 ## Tasks
-- [ ] **Sync protocol ADR:**
+- [x] **Sync protocol ADR:** (ADR 0021)
   - **Request:** the web sends `SyncChunk{request: window SYNC_RECENT_DAYS / max messages per conversation}` to the phone over the Olm session between own devices, as an **ephemeral** envelope. The server relays it in memory to online devices only; nothing is written to Redis or Mongo.
   - **Batches:** the phone builds bounded batches (conversations + group state + messages + receipt states + attachment manifests, no attachment bytes + small encrypted thumbnails optional) with a cursor stored in `device_sync_state`.
   - **Integrity and resume:** each batch carries a hash and a sequence number, and the web acknowledges each one. The final manifest holds per-conversation counts for an integrity check. Pause/resume works via the cursor, and duplicates are skipped by messageId.
   - **Availability:** if either side goes offline, the sync pauses with an honest status ("Phone offline — sync paused").
-- [ ] **Server:** an ephemeral relay frame type with size limits and rate limits. Add a test proving that no Redis or Mongo writes happen (command counter + Mongo profiler/spy).
-- [ ] **Phone UI:** sync progress in Linked devices. **Web UI:** a progress bar, pause/resume, and a "Load older messages from phone" button per conversation (a scoped request).
-- [ ] **Web attachments:**
+- [x] **Server:** an ephemeral relay frame type with size limits and rate limits. Add a test proving that no Redis or Mongo writes happen (command counter + Mongo profiler/spy).
+- [x] **Phone UI:** sync progress in Linked devices. **Web UI:** a progress bar, pause/resume, and a "Load older messages from phone" button per conversation (a scoped request).
+- [x] **Web attachments:**
   - **Download:** if the staged object is still on the server and this device is a recipient, download and decrypt it (`@pingdost/attachments` `decryptStream` over the WASM provider → Blob; ADR 0004 dropped libsodium). Otherwise request the bytes from the phone over the ephemeral relay in chunks (size cap, configurable; default 25 MB, with an honest message beyond that).
   - **Cache:** an IndexedDB LRU with a size limit setting.
   - **Send from web:** encrypt and upload via Phase 14. Images can be compressed in the browser (canvas). There is no video compression on web in v1; send the original if it is ≤ the limit, else reject with an explanation.
   - Viewers for images, video, audio and documents (download).
-- [ ] **Tests:** sync engine unit tests (batching, resume after interruption, dedupe, integrity mismatch), and a sim-client integration test (phone-like + web-like clients) with mid-sync disconnects.
+- [x] **Tests:** sync engine unit tests (batching, resume after interruption, dedupe, integrity mismatch), and a sim-client integration test (phone-like + web-like clients) with mid-sync disconnects.
 
 ## Key files
-`packages/message-engine/src/sync/*`, `apps/server/src/modules/gateway/ephemeral.ts`, `apps/mobile/src/sync/*`, `apps/web/src/{sync/*,attachments/*}`
+`packages/message-engine/src/sync/*`, `apps/server/src/modules/gateway/connection.ts` (`#onEphemeral`; no separate `ephemeral.ts`), `packages/web-store/src/file-cache.ts`, `apps/mobile/src/sync/*`, `apps/web/src/{sync/*,attachments/*}`
 
 ## Out of scope
 Recovery backups (19).
@@ -59,3 +59,7 @@ Recovery backups (19).
 - `features/attachments/attachment-view.tsx` is the placeholder the bubble renders for attachments: replace it.
 - Store-wise, a `device_sync_state` equivalent belongs in `packages/web-store` (a new Dexie version), sealed like the rest.
 - Server tests can run a browser-like device on the Dexie store: `SimClient` with `store: new DexieEngineStore(...)` (see `apps/server/test/web.int.test.ts`).
+## Outcome (2026-10-31, ADR 0021)
+- The cursor (`device_sync_state`) is a sealed engine setting on both sides (`sync.source.<browser>`, `sync.sink`), not a new Dexie table: it is written in the same `apply` as each batch.
+- The web's file cache is Dexie version 3 (`files`, `fileChunks`) in `packages/web-store`.
+- Browser checks (real phone and Chrome) are listed in `docs/PROGRESS.md`.

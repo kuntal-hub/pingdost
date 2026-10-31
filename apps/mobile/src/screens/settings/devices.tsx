@@ -11,6 +11,7 @@ import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
 import { useChatRuntime } from '@/engine/hooks';
 import { useCryptoContext } from '@/hooks/use-crypto-context';
+import { describeSync, useSyncSendProgress } from '@/sync/progress';
 import { usePalette } from '@/theme/theme-root';
 import type { DeviceSummary } from '@pingdost/shared-types';
 
@@ -33,6 +34,7 @@ export function DevicesScreen() {
   const crypto = useCryptoContext();
   const [devices, setDevices] = useState<DeviceSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const syncs = useSyncSendProgress();
 
   const load = useCallback(() => {
     setError(null);
@@ -91,7 +93,12 @@ export function DevicesScreen() {
             <ListRow
               key={device.deviceId}
               title={device.name}
-              subtitle={describeDevice(device, device.deviceId === currentId)}
+              subtitle={[
+                describeDevice(device, device.deviceId === currentId),
+                describeSync(syncs[device.deviceId]),
+              ]
+                .filter(Boolean)
+                .join('\n')}
               {...(device.role === 'linked' ? { onPress: () => confirmRevoke(device) } : {})}
             />
           ))}

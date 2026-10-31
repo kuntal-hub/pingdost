@@ -16,6 +16,8 @@ export interface MongoOptions {
   /** Overrides the database named in the URI (tests use one database per file). */
   dbName?: string;
   serverSelectionTimeoutMS?: number;
+  /** Emit the driver's command events (tests that prove no writes happen, ADR 0021). */
+  monitorCommands?: boolean;
 }
 
 /** Creates the client without connecting; the driver connects on first use. */
@@ -25,6 +27,7 @@ export function createMongo(uri: string, options: MongoOptions = {}): Mongo {
     maxPoolSize: 10,
     serverSelectionTimeoutMS: options.serverSelectionTimeoutMS ?? 5_000,
     connectTimeoutMS: 5_000,
+    ...(options.monitorCommands ? { monitorCommands: true } : {}),
   });
   const db = client.db(options.dbName);
   return {

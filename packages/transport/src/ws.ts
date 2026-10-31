@@ -4,7 +4,8 @@
  * browsers and Node (which has had a global `WebSocket` since v22, so no `ws` shim is needed).
  *
  * - The first frame is `Auth`; the transport is `online` after `AuthOk`.
- * - Every `send` is answered by one `Accepted` or `ServerError` with the same request ID.
+ * - Every `send` is answered by one `Accepted` or `ServerError` with the same request ID; so
+ *   is every `sendEphemeral` (ADR 0021: `Accepted` once relayed, `RECIPIENT_OFFLINE` if not).
  * - After `AuthOk` the server streams the device's pending mail by itself, so a reconnect
  *   resumes the fetch; the engine resends its outbox when the status turns `online`.
  * - Reconnects back off exponentially with jitter. Close codes: 4001 refreshes the token,
@@ -129,6 +130,7 @@ export class WsTransport implements Transport {
   readonly #now: () => number;
   readonly #packets = new Listeners<Parameters<PacketListener>>();
   readonly #typing = new Listeners<[TypingSignal]>();
+  readonly #ephemeral = new Listeners<[TransportPacket]>();
   readonly #events = new Listeners<[WsEvent]>();
 
   #wanted = false;
@@ -201,6 +203,19 @@ export class WsTransport implements Transport {
   }
 
   send(packet: TransportPacket): Promise<SendResult> {
+    return this.#request(packet, 'send');
+  }
+
+  /** The server answers `Accepted` once it handed the packet to the recipient's socket. */
+  sendEphemeral(packet: TransportPacket): Promise<SendResult> {
+    return this.#request(packet, 'ephemeral');
+  }
+
+  onEphemeral(listener: (packet: TransportPacket) => void): Unsubscribe {
+    return this.#ephemeral.add(listener);
+  }
+
+  #request(packet: TransportPacket, kind: 'send' | 'ephemeral'): Promise<SendResult> {
     if (this.status !== 'online') return Promise.resolve(OFFLINE);
     const requestId = this.#nextRequestId();
     return new Promise<SendResult>((resolve) => {
@@ -209,7 +224,7 @@ export class WsTransport implements Transport {
         resolve({ ok: false, code: 'TIMEOUT', retryable: true });
       }, this.#options.sendTimeoutMs ?? 15_000);
       this.#pending.set(requestId, { resolve, timer });
-      const sent = this.#sendFrame({ requestId, body: { case: 'send', value: { packet } } });
+      const sent = this.#sendFrame({ requestId, body: { case: kind, value: { packet } } });
       if (sent !== true) {
         clearTimeout(timer);
         this.#pending.delete(requestId);
@@ -381,8 +396,11 @@ export class WsTransport implements Transport {
           version: Number(body.value.version),
         });
         break;
+      case 'ephemeral':
+        if (body.value.packet) this.#ephemeral.emit(body.value.packet);
+        break;
       default:
-        // Pong only refreshes the liveness clock; Ephemeral arrives in later phases.
+        // Pong only refreshes the liveness clock.
         break;
     }
   }

@@ -7,7 +7,8 @@
 // - network back: reconnect now instead of waiting out the backoff;
 // - 4001: token refresh through the auth store; revoked: chat data wiped and signed out.
 // While the engine runs, every change to the Olm account goes through it. Receipts, typing
-// and blocks follow the account's privacy settings and block list (Phase 11).
+// and blocks follow the account's privacy settings and block list (Phase 11). It also serves
+// linked browsers their history and, from the vault, files they ask for (ADR 0021).
 import * as Network from 'expo-network';
 import * as SecureStore from 'expo-secure-store';
 import { AppState } from 'react-native';
@@ -24,6 +25,7 @@ import { getCryptoContext } from '@/crypto/bootstrap';
 import { getOrCreateSecret, SECRET_ITEMS, SECURE_STORE_OPTIONS } from '@/crypto/secrets';
 import { installNotifier } from '@/push/notifications';
 import { cachedPrivacy, useAccount } from '@/settings/account';
+import { vaultSyncFiles } from '@/sync/files';
 import type { CryptoProvider } from '@pingdost/crypto/core';
 import { MessageEngine } from '@pingdost/message-engine';
 import { TransportRouter, WsTransport, type TransportStatus } from '@pingdost/transport';
@@ -119,6 +121,7 @@ async function boot(): Promise<ChatRuntime> {
   });
   const router = new TransportRouter([transport]);
   const store = new SqliteEngineStore(db);
+  const repo = new AttachmentRepo(db, (work) => store.exclusive(work));
   const engine = new MessageEngine({
     self: { userId, deviceId, ...(accountIdentityKey ? { accountIdentityKey } : {}) },
     crypto: context.provider,
@@ -136,6 +139,7 @@ async function boot(): Promise<ChatRuntime> {
     },
     typingIndicators: () => useAccount.getState().privacy?.typingIndicators ?? true,
     blocked: isBlocked,
+    historySync: { files: vaultSyncFiles(repo) },
     ...(__DEV__
       ? {
           log: (level: string, message: string, fields?: object) =>
@@ -240,7 +244,7 @@ async function boot(): Promise<ChatRuntime> {
     startTransfers({
       engine,
       provider: context.provider,
-      repo: new AttachmentRepo(db, (work) => store.exclusive(work)),
+      repo,
       api: api.attachments,
       deviceId,
     }),

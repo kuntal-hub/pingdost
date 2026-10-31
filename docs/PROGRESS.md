@@ -17,6 +17,55 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-31 — Phase 18: History sync (phone → web) + web attachments — 🔄 partial (browser checks open)
+**Done (ADR 0021):**
+- **Protocol:** `SyncChunk` ops (request, ack, manifest, stop, file request/part) and `SyncBatch` records, add-only; codec checks; `encodeSyncBatch`/`decodeSyncBatch`; new vectors (`content/sync-chunk`, `content/sync-request`).
+- **Transport:** `sendEphemeral`/`onEphemeral` (WS transport, router). **Server:** a relayed ephemeral packet is answered `Accepted{DELIVERED_TRANSPORT}`; per-socket budgets (250 packets, 8 MiB per 10 s); two metrics.
+- **Engine `src/sync/*`:**
+  - `OwnDeviceChannel` (Olm to own devices, ephemeral only);
+  - `SyncSource` (phone: bounded hashed batches, stop-and-wait, cursor in a sealed setting, manifest, vault file parts);
+  - `SyncSink` (browser: atomic batch + cursor, hash check, manifest check, dedupe, pause/resume, honest offline states with retry, "load older");
+  - engine API `historySyncStatus/onHistorySync/syncHistory/pause/resume/loadOlderFromPhone/fetchFromPhone/historySendProgress`.
+- **web-store:** `FileCache` (Dexie v3; ciphertext in pieces, LRU).
+- **Web:**
+  - leader-side transfers (staged download, else the phone in parts up to 25 MB; verify before use; send with canvas compression and previews; held send; upload resume);
+  - viewers (image, video, audio inline; documents saved only);
+  - composer attach + send dialog; sync banner (progress, pause/resume); "Load older messages from phone" in each chat;
+  - Settings → History from your phone and Storage (cache limit, phone-file limit, clear cache);
+  - optional `VITE_STORAGE_URL` in the CSP.
+- **Android:** serves vault files to the browser (`src/sync/files.ts`); Settings → Devices shows each browser's sync progress.
+- **Sim client:** `historySync` option.
+
+**Remaining (browser checks with the real phone; the dev servers were not running for them):**
+- [ ] Link a browser to the real phone with history: the chat list fills from the phone with the progress banner; only the last 30 days (max 500 per chat) arrive; the phone's Devices screen shows "Sending history…", then "History sent".
+- [ ] Mid-sync: close the tab and reopen it; the sync resumes (not from zero). Put PingDost on the phone in the background for > 30 s: the browser says "Phone offline — sync paused", and continues when the app is opened again.
+- [ ] Pause and resume from the banner.
+- [ ] In a chat, scroll to the top → "Load older messages from phone" brings older messages.
+- [ ] A photo and a PDF sent from the phone before pairing: the browser shows the preview, opens the photo (from the phone), saves the PDF. A file over 25 MB says to open it on the phone.
+- [ ] Send a photo (compressed and original), a short video and a PDF from the browser; the phone and a contact receive them.
+- [ ] Settings → Storage: clear cache keeps the messages; a smaller limit trims the cache.
+
+**Deviations / decisions:** ADR 0021; CHANGES 2026-10-31. The server never holds sync data (the phone must be online and PingDost open); `device_sync_state` is a sealed engine setting; 500 messages per chat cap; phone files up to 25 MB; no video compression on the web.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 52/52 tasks:
+  - engine 108 (13 new sync tests);
+  - protocol 98, transport 15;
+  - web-store 24 (3 cache), web 10 (3 transfers);
+  - mobile 75, server 35.
+- `pnpm format:check` clean. `pnpm --filter @pingdost/web build` OK (45 precache entries; first chunk still about 264 kB).
+- `pnpm test:int`: 143 passed, 2 skipped. New `history-sync.int.test.ts`: phone + Dexie browser over the real server, socket drop, killed tab, phone offline, each message exactly once, **no Redis write command and no Mongo document change**, zero Redis commands for an uninterrupted sync. `gateway.int.test.ts` covers the `Accepted` answer and the ephemeral budget.
+- One engine test (a 150 KB attachment over three devices) timed out under full-suite load; its timeout is now 20 s.
+- **Not run:** a real browser or the real phone for Phase 18 (see Remaining). Docker Desktop had stopped; it was started again for `test:int`.
+
+**Known issues / tech debt:**
+- The phone serves the sync only in the foreground (no wake).
+- Viewing a file holds it whole in memory.
+- Each relayed packet does one Mongo read (recipient device).
+- No Playwright e2e yet.
+
+**Next:** Phase 19 (recovery and backup), or the open device/browser checks of 10–18.
+
 ## 2026-10-20 — Phase 17: Web chat (1:1 + groups) + Web Push + PWA — 🔄 partial (browser checks open)
 **Done (ADR 0020):**
 - **`packages/web-store`** (moved from `apps/web/src/db`): `DexieEngineStore` (sealed rows, one IndexedDB transaction per batch, an IV-keyed cache, an in-memory search index) passes the full store contract. A portable `VaultKey` type lets Node programs use it.

@@ -60,4 +60,13 @@ export interface Transport {
   /** Best effort: false when it could not be sent. */
   sendTyping?(typing: TypingSignal): boolean;
   onTyping?(listener: (typing: TypingSignal) => void): Unsubscribe;
+  /**
+   * Sends one `PACKET_KIND_EPHEMERAL` packet (history sync, later call signaling): relayed in
+   * memory to the recipient device only while it is online, never stored on the way
+   * (ARCHITECTURE A4). `ok` means it was handed to the recipient's socket; an offline
+   * recipient is `RECIPIENT_OFFLINE`. Never throws.
+   */
+  sendEphemeral?(packet: TransportPacket): Promise<SendResult>;
+  /** Ephemeral packets for this device. There is nothing to acknowledge. */
+  onEphemeral?(listener: (packet: TransportPacket) => void): Unsubscribe;
 }

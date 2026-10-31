@@ -27,6 +27,8 @@ function originOf(url: string | undefined): string | undefined {
 export function contentSecurityPolicy(options: {
   apiUrl: string | undefined;
   wsUrl: string | undefined;
+  /** Where signed attachment URLs point when the store is not the API itself (S3, ADR 0017). */
+  storageUrl?: string | undefined;
   dev: boolean;
 }): string {
   const nonce = options.dev ? ` 'nonce-${DEV_NONCE}'` : '';
@@ -34,6 +36,7 @@ export function contentSecurityPolicy(options: {
     "'self'",
     originOf(options.apiUrl),
     originOf(options.wsUrl),
+    originOf(options.storageUrl),
     // Vite's hot-reload socket.
     ...(options.dev ? ['ws://localhost:5173', 'ws://127.0.0.1:5173'] : []),
   ].filter(Boolean);
@@ -60,7 +63,12 @@ function csp(env: Record<string, string>, dev: boolean): Plugin {
     transformIndexHtml: (html) =>
       html.replace(
         '%PINGDOST_CSP%',
-        contentSecurityPolicy({ apiUrl: env.VITE_API_URL, wsUrl: env.VITE_WS_URL, dev }),
+        contentSecurityPolicy({
+          apiUrl: env.VITE_API_URL,
+          wsUrl: env.VITE_WS_URL,
+          storageUrl: env.VITE_STORAGE_URL,
+          dev,
+        }),
       ),
   };
 }

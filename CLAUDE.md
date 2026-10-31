@@ -92,6 +92,7 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - Groups (ADR 0016): `test/groups.int.test.ts` covers the REST roles and limits, the gateway's member-only routing, and sim clients in Megolm groups (removal, late joiner, two devices, a key after its message). Engine-level group tests: `packages/message-engine/src/groups/*.test.ts`.
   - Push (ADR 0015): `test/push.int.test.ts` runs the real FCM sender against a fake Google and checks the exact request body. Real pushes need `FCM_PROJECT_ID` + `FCM_SERVICE_ACCOUNT_JSON_BASE64` in the root `.env` (setup steps in `docs/phases/phase-12-push-notifications.md`).
   - `test/redis-budget.int.test.ts` prints `REDIS_BUDGET {...}` and fails if an operation costs more Redis commands than ADR 0010 allows.
+  - History sync (ADR 0021): `test/history-sync.int.test.ts` runs a phone and a Dexie-backed browser through disconnects on both sides and proves no Redis or Mongo writes (`startTestServer({ monitorMongo: true })` records Mongo commands). Engine-level sync tests: `packages/message-engine/src/sync/*.test.ts`.
 - **Web app** (`apps/web`, Vite 8 + React 19 + Tailwind 4; ADR 0019):
   - `pnpm --filter @pingdost/web dev` (http://localhost:5173, the server's default `WEB_ORIGIN`), `build`, `test`. Copy `apps/web/.env.example` to `apps/web/.env` (`VITE_API_URL`, `VITE_WS_URL`; public values only).
   - The page carries a strict CSP built in `vite.config.ts`. Dev adds a fixed nonce for Vite's own tags. Never add inline scripts or styles; set theme colours through the CSSOM (`theme.ts`).
@@ -101,6 +102,7 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
     - the engine runs in the tab holding the Web Lock (`src/chat/leader.ts`); other tabs call it over BroadcastChannel (`src/chat/bus.ts`);
     - storage is `packages/web-store` (`DexieEngineStore`, vault), shared labels are in `packages/chat-core`;
     - the phone↔web check over the real server is `apps/server/test/web.int.test.ts`.
+  - History sync and files (ADR 0021): the leader runs the sync (`historySync` engine option; window in Settings) and attachment transfers (`src/attachments/transfers.ts`); the cache is `FileCache` in `packages/web-store` (Dexie version 3). Files sent before pairing come from the phone (`fetchFromPhone`), so the phone app must be open.
   - Notifications and PWA exist only in builds. Run `pnpm --filter @pingdost/server vapid-keys`, put the keys in `.env` and `apps/web/.env` (`VITE_WEB_PUSH_PUBLIC_KEY`), then `pnpm --filter @pingdost/web build` and `preview` (also on :5173).
 - **Pairing** (server `modules/pairing`, ADR 0019): `test/pairing.int.test.ts`. `SimClient.linkedDevice(options, owner)` links a second device through the real flow.
 - **Attachments** (`packages/attachments`, server `modules/attachments`; ADR 0004, 0017):

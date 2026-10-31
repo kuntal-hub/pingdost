@@ -8,6 +8,7 @@ import { publicConfig } from '@/config';
 import {
   accountApi,
   ApiError,
+  attachmentsApi,
   authApi,
   createApiClient,
   devicesApi,
@@ -72,6 +73,7 @@ const client = createApiClient({
 
 export const api = {
   account: accountApi(client),
+  attachments: attachmentsApi(client),
   auth: authApi(client),
   devices: devicesApi(client),
   keys: keysApi(client),

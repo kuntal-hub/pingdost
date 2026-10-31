@@ -137,6 +137,8 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - **Typing (ADR 0014):** relayed only to sockets that watch the sender (`Presence.watch_user_ids`, i.e. the open chat), never across a block.
 - **Presence (ADR 0012):** in memory on the gateway only. Clients name the users they watch (`Presence.watch_user_ids`, at most 32); it is reciprocal and follows `privacy.lastSeen`. The server keeps no contact list.
 - **Ephemeral relay.** Call signaling, history-sync chunks and typing are **ephemeral**: the server relays them in memory to online devices only and never writes them to Redis or Mongo. Ephemeral envelopes travel as `PACKET_KIND_EPHEMERAL`.
+  - A relayed packet is answered `Accepted{DELIVERED_TRANSPORT}`, an offline (or too slow) recipient `RECIPIENT_OFFLINE`. Budgets: 250 packets and 8 MiB per socket per 10 s (ADR 0021).
+- **History sync (ADR 0021):** the phone sends a linked browser its recent window (default 30 days, at most 500 messages per conversation) as `SyncChunk` batches over Olm between own devices, ephemeral only. Batches are bounded and hashed and acknowledged one at a time, a manifest checks the per-conversation counts, and the cursor is a sealed engine setting on both sides, so a killed tab resumes. Older messages and files sent before pairing come from the phone on request (files up to 25 MB, configurable).
 - **Limits:** `ENVELOPE_MAX_BYTES` (default 64 KiB). Decoders reject oversized, expired or unknown-major-version packets.
 - **Details (ADR 0006):**
   - use the codecs in `@pingdost/protocol` (size, version, expiry and required-field checks), never raw `toBinary`/`fromBinary`;

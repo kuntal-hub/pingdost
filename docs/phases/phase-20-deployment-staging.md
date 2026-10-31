@@ -110,3 +110,4 @@ coturn (25); production launch (27, on the same VPS).
 - R2 (`ATTACHMENT_STORE=s3`, `ATTACHMENT_OBJECT_STORE_REGION=auto`) needs a card even on the free tier: only with the user's go-ahead.
 
 **From Phase 16 (ADR 0019):** serve the web app's CSP as a header (the same policy as `contentSecurityPolicy` in `apps/web/vite.config.ts`, without the dev nonce), plus `frame-ancestors 'none'`, HSTS and `Referrer-Policy: no-referrer`. Set `WEB_ORIGIN` to the Pages origin (CORS is limited to it), and `VITE_API_URL` / `VITE_WS_URL` at build time.
+- **From Phase 18 (ADR 0021):** the web build takes an optional `VITE_STORAGE_URL` (added to the CSP `connect-src`) only if staging is S3; the default `fs` store is the API origin. History sync and file relays are ephemeral and need no server config; watch `pingdost_ephemeral_relayed_total{outcome}` and `pingdost_ephemeral_bytes_total`.
