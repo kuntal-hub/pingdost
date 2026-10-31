@@ -168,6 +168,11 @@ const serverEnvSchema = z.object({
   /** Abuse reports (with any messages the reporter attached) are deleted after this. */
   ABUSE_REPORT_RETENTION_SECONDS: int(DAY, 365 * DAY).default(7_776_000),
   METRICS_TOKEN: z.string().min(32, 'must be at least 32 characters').optional(),
+  /**
+   * Phase 20: the jobs ping this URL every 5 minutes (e.g. a healthchecks.io check), so a
+   * stopped job loop raises an alert. Unset: no pings. The URL is a secret (it holds the check ID).
+   */
+  HEARTBEAT_URL: httpUrl.optional(),
 });
 
 type ServerEnvKey = keyof z.input<typeof serverEnvSchema>;
@@ -189,6 +194,7 @@ export const SERVER_SECRET_KEYS = [
   'WEB_PUSH_VAPID_PRIVATE_KEY',
   'TURN_SHARED_SECRET',
   'METRICS_TOKEN',
+  'HEARTBEAT_URL',
 ] as const satisfies readonly ServerEnvKey[];
 
 /** Key material that is only for local development; production rejects it. */

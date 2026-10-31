@@ -17,6 +17,21 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-10-31 — Phase 20: Deployment (staging) — 🔄 partial (stopped at the usage limit)
+**Done (not yet verified end to end):**
+- `apps/server/Dockerfile` (node:24.22.2-trixie-slim, non-root, `pnpm deploy --prod`; built locally, 422 MB, runs as `node`) and a root `.dockerignore` (no `.env`, no build output).
+- `deploy/compose.staging.yml` (server, Valkey 8.1.10 with AOF/noeviction/256 MB/password, Caddy 2.11.7 the only published service, memory limits, internal network), `deploy/Caddyfile` (TLS, WS proxy, no access log, /metrics hidden, 4 MB bodies), `deploy/env.staging.example`.
+- `deploy/scripts/`: `vps-setup.sh` (deploy user, SSH keys only, unattended upgrades, swap, Docker, cron), `monitor.sh` (thresholds → healthchecks.io), `mongo-backup.sh` (nightly, 7 days, mailbox excluded).
+- `.github/workflows/deploy.yml` (tag → GHCR amd64 image → SSH deploy → /readyz).
+- Server: optional `HEARTBEAT_URL` job (5 min) + unit test. Web: the build emits Cloudflare Pages `_headers` (CSP + frame-ancestors, HSTS, COOP, Permissions-Policy).
+- Provider re-check 2026-10-31 (for ADR 0013): Atlas Free 0.5 GB / 500 connections / 100 ops/s / 10 GB in+out per 7 days / optional daily snapshots / paused after 30 idle days; GHCR free for public images; Actions free for public repos; Hostinger panel firewall drops all by default; KVM 1 $6.49 → $11.99 renewal, KVM 2 $8.99 → $14.99 (third-party, confirm at checkout); Hostinger backup terms not confirmed first-party; Brevo 300/day; ZeptoMail first 10K credit (third-party); UptimeRobot 50 monitors / 5 min (non-commercial); healthchecks.io 20 checks.
+
+**Remaining, in order:**
+- [ ] Local rehearsal: rebuild the image (Dockerfile fix), run the stack with the override in the session scratchpad (`compose.local.yml`, `server.env`, `compose.env`: Caddy on :8088, dev Mongo + Mailpit), run the sim-client through it, measure RAM idle and under load (`docker stats`), shellcheck the scripts, run `monitor.sh` against it.
+- [ ] `docs/ops/vps-setup.md`, `docs/ops/deploy.md` (deploy, rollback, rotate secrets, rebuild on a new VPS), `docs/ops/alerts.md`; numbered manual steps (hPanel firewall, Atlas, Cloudflare DNS/Pages, email SPF/DKIM, healthchecks.io/UptimeRobot, GitHub `staging` environment, GHCR package public); call out card steps.
+- [ ] Mobile staging profile (`.env.production` with staging URLs) and release keystore signing (config plugin), release APK.
+- [ ] ADR 0013 update (verified plan, limits, measured RAM), CHANGES, ARCHITECTURE A9, phase file, then `pnpm lint typecheck test`, `format:check`, commit.
+- [ ] User: buy/confirm the VPS plan, then every "Done when" check on the real VPS.
 ## 2026-10-31 — Phase 19: Recovery, encrypted backup & primary replacement — 🔄 partial (device checks open)
 **Done (ADR 0022):**
 - **Crypto crate:** `backup_derive_key` (Argon2id v0x13, RustCrypto `argon2` 0.6.0, bounded parameters); `CryptoProvider.deriveBackupKey`; conformance scenario `backup-kdf`. WASM and Android (`build:android`, NDK 27.1) bindings regenerated.

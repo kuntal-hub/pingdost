@@ -1,0 +1,87 @@
+name: Deploy staging
+
+# A tag the user pushes by hand (`git tag v0.1.0 && git push origin v0.1.0`) builds the server
+# image for linux/amd64, pushes it to GHCR, then updates the VPS over SSH (ADR 0013).
+# Setup: docs/ops/deploy.md (the `staging` environment's variables and secrets).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  image:
+    name: Build and push the server image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.name.outputs.image }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: name
+        name: Image name (GHCR wants lowercase)
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/pingdost-server" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/login-action@v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7.4.0
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.name.outputs.image }}:${{ github.ref_name }}
+            ${{ steps.name.outputs.image }}:staging
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Update the VPS
+    needs: image
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v7
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
+          HOST: ${{ vars.STAGING_SSH_HOST }}
+          SSH_USER: ${{ vars.STAGING_SSH_USER }}
+          API_DOMAIN: ${{ vars.STAGING_API_DOMAIN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9A-Za-z._-]+$ ]] || { echo "unexpected tag: $TAG"; exit 1; }
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          target="$SSH_USER@$HOST"
+          # The stack's files come from the tagged commit; .env stays on the VPS only.
+          scp -q deploy/compose.staging.yml deploy/Caddyfile "$target:/srv/pingdost/"
+          scp -q deploy/scripts/*.sh "$target:/srv/pingdost/scripts/"
+          ssh "$target" "set -e
+            cd /srv/pingdost
+            chmod 755 scripts/*.sh
+            sed -i 's/^SERVER_TAG=.*/SERVER_TAG=$TAG/' .env
+            docker compose -f compose.staging.yml pull
+            docker compose -f compose.staging.yml up -d --remove-orphans
+            docker compose -f compose.staging.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+            docker image prune -f"
+      - name: Wait until ready
+        env:
+          API_DOMAIN: ${{ vars.STAGING_API_DOMAIN }}
+        run: curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "https://$API_DOMAIN/readyz"

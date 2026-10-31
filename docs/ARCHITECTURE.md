@@ -303,6 +303,7 @@ GROUP_MAX_MEMBERS=64
 SECURITY_EVENT_RETENTION_SECONDS=7776000
 ABUSE_REPORT_RETENTION_SECONDS=7776000      # Phase 11: abuse reports (and attached messages) TTL
 METRICS_TOKEN=
+HEARTBEAT_URL=                              # Phase 20: the jobs ping it every 5 min (healthchecks.io); secret
 LOG_LEVEL=info                              # Phase 5
 TRUST_PROXY=false                           # Phase 5: true behind a reverse proxy
 ZEPTOMAIL_API_URL=https://api.zeptomail.com/v1.1/email   # Phase 5: region-specific host

@@ -1,0 +1,23 @@
+# Build context for apps/server/Dockerfile (the repo root). Secrets and build output never go
+# into an image; the mobile and web apps contribute only their manifests (the lockfile lists them).
+.git
+.env
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+**/.turbo
+**/dist
+**/.expo
+target
+**/*.so
+**/*.wasm
+**/*.pdbk
+apps/server/.data
+apps/mobile/*
+!apps/mobile/package.json
+apps/web/*
+!apps/web/package.json
+packages/crypto-native/android
+deploy
+docs

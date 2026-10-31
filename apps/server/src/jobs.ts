@@ -46,7 +46,33 @@ export function createJobs(deps: JobDeps): Job[] {
       mongo: new MongoMailbox(deps.mongo.db),
     }),
     ...attachmentJobs(service, deps.config.ATTACHMENT_JANITOR_INTERVAL_SECONDS * 1_000),
+    ...(deps.config.HEARTBEAT_URL
+      ? [heartbeatJob(deps.config.HEARTBEAT_URL, deps.logger.child({ component: 'heartbeat' }))]
+      : []),
   ];
+}
+
+export const HEARTBEAT_INTERVAL_MS = 5 * 60_000;
+
+/**
+ * Phase 20: proves the job loop runs (it takes a Mongo lease first) to an outside monitor. A
+ * missed ping is the alert; a failed one is only logged (status only, never the URL).
+ */
+export function heartbeatJob(url: string, log: Logger): Job {
+  return {
+    name: 'heartbeat',
+    intervalMs: HEARTBEAT_INTERVAL_MS,
+    async run(signal) {
+      try {
+        const response = await fetch(url, {
+          signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
+        });
+        if (!response.ok) log.warn({ status: response.status }, 'heartbeat ping refused');
+      } catch {
+        log.warn('heartbeat ping failed');
+      }
+    },
+  };
 }
 
 export function startScheduler(deps: JobDeps): Scheduler {

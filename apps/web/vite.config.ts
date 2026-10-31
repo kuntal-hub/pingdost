@@ -73,6 +73,46 @@ function csp(env: Record<string, string>, dev: boolean): Plugin {
   };
 }
 
+/**
+ * Cloudflare Pages' `_headers` (Phase 20): the page's policy as a header too, with what a
+ * `<meta>` cannot carry (`frame-ancestors`), plus HSTS, no referrer, isolation and feature
+ * limits. No COEP: the crypto WASM needs no shared memory, and COEP would block Cloudinary
+ * avatars. Camera and microphone stay available to this origin for calls (Phase 25).
+ */
+export function pagesHeaders(env: Record<string, string>): string {
+  const policy = contentSecurityPolicy({
+    apiUrl: env.VITE_API_URL,
+    wsUrl: env.VITE_WS_URL,
+    storageUrl: env.VITE_STORAGE_URL,
+    dev: false,
+  });
+  return [
+    '/*',
+    `  Content-Security-Policy: ${policy}; frame-ancestors 'none'`,
+    '  Strict-Transport-Security: max-age=31536000',
+    '  Referrer-Policy: no-referrer',
+    '  X-Content-Type-Options: nosniff',
+    '  X-Frame-Options: DENY',
+    '  Cross-Origin-Opener-Policy: same-origin',
+    '  Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()',
+    '/sw.js',
+    '  Cache-Control: no-cache',
+    '/assets/*',
+    '  Cache-Control: public, max-age=31536000, immutable',
+    '',
+  ].join('\n');
+}
+
+function headersFile(env: Record<string, string>): Plugin {
+  return {
+    name: 'pingdost-pages-headers',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: '_headers', source: pagesHeaders(env) });
+    },
+  };
+}
+
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
   const dev = command === 'serve';
@@ -81,6 +121,7 @@ export default defineConfig(({ command, mode }) => {
       react(),
       tailwindcss(),
       csp(env, dev),
+      headersFile(env),
       // Install, the offline shell and Web Push (ADR 0020). The service worker exists only in
       // builds (`build` + `preview`), never in `vite dev`.
       VitePWA({

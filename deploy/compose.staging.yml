@@ -1,0 +1,103 @@
+# PingDost staging on the Hostinger VPS (ADR 0013): one Compose stack in /srv/pingdost, next to
+# the Caddyfile and a chmod-600 `.env` (see deploy/env.staging.example). Only Caddy publishes
+# ports; Valkey has no route to the internet; every service has a memory limit.
+#   docker compose -f compose.staging.yml pull && docker compose -f compose.staging.yml up -d
+name: pingdost
+
+x-logging: &logging # Rotated by size: about a week of logs at staging volume (docs/ops/deploy.md).
+  driver: local
+  options:
+    max-size: 10m
+    max-file: '5'
+
+services:
+  server:
+    image: ghcr.io/${GHCR_OWNER:?set GHCR_OWNER in .env}/pingdost-server:${SERVER_TAG:-staging}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      # Caddy is the only client; it sets X-Forwarded-For itself (per-IP rate limits).
+      TRUST_PROXY: 'true'
+      # One instance: the jobs run in the API process (in-memory presence and limits).
+      RUN_WORKER_IN_PROCESS: 'true'
+      ATTACHMENT_STORE: fs
+      ATTACHMENT_FS_ROOT: /data/attachments
+    volumes:
+      - attachments:/data/attachments
+    depends_on:
+      valkey:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 640m
+    logging: *logging
+    networks: [internal, edge]
+
+  valkey:
+    image: valkey/valkey:8.1.10-alpine
+    restart: unless-stopped
+    # The hot mailbox (ADR 0010, 0013): append-only, never evicts (a full Valkey refuses writes
+    # and the server falls back to Mongo), password from .env (also in REDIS_URL).
+    command:
+      - valkey-server
+      - --appendonly
+      - 'yes'
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
+      - --requirepass
+      - ${VALKEY_PASSWORD:?set VALKEY_PASSWORD in .env}
+    environment:
+      REDISCLI_AUTH: ${VALKEY_PASSWORD}
+    healthcheck:
+      test: ['CMD-SHELL', 'valkey-cli ping | grep -q PONG']
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    volumes:
+      - valkey-data:/data
+    cap_drop: [ALL]
+    # The image's entrypoint chowns /data, then drops to the valkey user.
+    cap_add: [CHOWN, SETUID, SETGID]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 320m
+    logging: *logging
+    networks: [internal]
+
+  caddy:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [server]
+    mem_limit: 128m
+    logging: *logging
+    networks: [edge]
+
+networks:
+  # Valkey and the server only, with no route out.
+  internal:
+    internal: true
+  edge: {}
+
+volumes:
+  attachments:
+  valkey-data:
+  caddy-data:
+  caddy-config:

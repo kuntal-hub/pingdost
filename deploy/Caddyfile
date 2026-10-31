@@ -1,0 +1,38 @@
+# The VPS's only public listener (ADR 0013): TLS from Let's Encrypt for API_DOMAIN, then the API
+# and the WebSocket gateway (/v1/ws) on the internal network.
+# - No access log: attachment URLs carry their signature in the query string, and the server
+#   logs paths only.
+# - /metrics is not served publicly; deploy/scripts/monitor.sh reads it inside the VPS.
+# - Bodies: an attachment part is about 1 MiB (16 × 65,552 B); everything else is small.
+{
+	email {$ACME_EMAIL}
+	servers {
+		timeouts {
+			read_header 10s
+		}
+	}
+}
+
+{$API_DOMAIN} {
+	@metrics path /metrics /metrics/*
+	respond @metrics 404
+
+	request_body {
+		max_size 4MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		Cross-Origin-Resource-Policy "same-site"
+		-Server
+	}
+
+	reverse_proxy server:3000 {
+		# Ranged downloads and WebSocket frames go through at once, never buffered.
+		flush_interval -1
+	}
+}
