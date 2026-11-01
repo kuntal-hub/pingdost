@@ -1,6 +1,7 @@
 // Settings → Storage (REQ §14.1, §14.3; ADR 0018): what PingDost keeps on this phone, automatic
 // downloads, per-chat media, and "Clear cache", which removes previews and temporary files
-// only and says so. The nearby relay cache is listed apart from chats (filled in Phase 23).
+// only and says so. The nearby relay cache (ADR 0025) is listed apart from chats, with its own
+// clear action.
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
@@ -14,6 +15,7 @@ import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
 import { useNames } from '@/engine/groups';
 import { useChatRuntime } from '@/engine/hooks';
+import { clearRelayCache, useRelay } from '@/nearby/service';
 import { formatSize } from '@pingdost/attachments';
 
 const AUTO: { value: AutoDownload; title: string }[] = [
@@ -45,9 +47,26 @@ function useChatNames(): (conversationId: string) => string {
   return (id) => names[id] ?? 'Chat';
 }
 
+/** "Clear relay cache" (REQ §14.3): only other people's relayed messages; never chats. */
+export function confirmClearRelay(): void {
+  Alert.alert(
+    'Clear relay cache?',
+    'This deletes the encrypted messages this phone carries for others. Your own chats and messages stay.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: () => void clearRelayCache().catch(() => undefined),
+      },
+    ],
+  );
+}
+
 export function StorageScreen() {
   const router = useRouter();
   const runtime = useChatRuntime();
+  const relay = useRelay();
   const prefs = useAttachmentPrefs((state) => state.prefs);
   const [usage, setUsage] = useState<StorageUsage>();
   const [cleared, setCleared] = useState<string>();
@@ -177,8 +196,18 @@ export function StorageScreen() {
 
       <ListSection title="Nearby relay cache">
         <ListRow
-          title="Not in use yet"
-          subtitle="Messages carried for nearby devices will be kept here, apart from your chats. Clearing one never clears the other."
+          title={
+            relay.mesh.stored.packets === 0
+              ? 'Empty'
+              : `${relay.mesh.stored.packets} ${relay.mesh.stored.packets === 1 ? 'message' : 'messages'} · ${formatSize(relay.mesh.stored.bytes)}`
+          }
+          subtitle="Encrypted messages this phone carries for others nearby, kept apart from your chats. Clearing one never clears the other."
+          onPress={() => router.push('/nearby-relay')}
+        />
+        <ListRow
+          title="Clear relay cache"
+          subtitle="Deletes only the messages carried for others. Your chats stay."
+          {...(relay.mesh.stored.packets > 0 ? { onPress: confirmClearRelay } : {})}
         />
       </ListSection>
 

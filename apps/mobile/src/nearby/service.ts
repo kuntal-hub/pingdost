@@ -7,7 +7,14 @@
 // and a `connectedDevice` foreground service ("Nearby is on") keeps that going with the
 // screen off. That service can only start while the app is on screen, so it is (re)started
 // whenever the app comes to the foreground.
+//
+// The mesh relay (Phase 23, ADR 0025) rides on the same links: messages for contacts out of
+// range wait in it for relays, and with "Nearby relay" on (Settings, off by default) this
+// phone also carries other people's encrypted messages, paused by the battery and storage
+// rules in `relay.ts`. The service's notification then says "PingDost nearby relay active".
+import { Paths } from 'expo-file-system';
 import * as Network from 'expo-network';
+import type { SQLiteDatabase } from 'expo-sqlite';
 import { AppState, PermissionsAndroid, type Permission } from 'react-native';
 import { z } from 'zod';
 import { create } from 'zustand';
@@ -16,11 +23,20 @@ import { getCryptoContext } from '@/crypto/bootstrap';
 import { readSetting, SETTING_KEYS, writeSetting } from '@/db/settings';
 import {
   NearbyPeerTransport,
+  type MeshStatus,
   type NearbyIdentity,
   type NearbySummary,
   type NearbyTransport,
 } from '@pingdost/transport';
 
+import {
+  DEFAULT_RELAY_PREFS,
+  relayDecision,
+  RelayPrefsSchema,
+  type RelayDecision,
+  type RelayPrefs,
+} from './relay';
+import { SqliteMeshPersistence } from './relay-store';
 import { nearbyStatus, type NearbyStatus } from './status';
 import {
   createBleTransport,
@@ -50,7 +66,20 @@ interface NearbyStore {
   running: boolean;
   error: string | null;
   airplane: boolean;
+  /** Settings → Nearby relay (ADR 0025). */
+  relay: RelayPrefs;
+  relayDecision: RelayDecision;
+  /** The relay's counters and store, while signed in on a build with the module. */
+  mesh: MeshStatus | null;
 }
+
+const EMPTY_MESH: MeshStatus = {
+  relaying: false,
+  stored: { packets: 0, bytes: 0 },
+  own: 0,
+  carried: 0,
+  handedOver: 0,
+};
 
 export const useNearby = create<NearbyStore>()(() => ({
   enabled: false,
@@ -60,7 +89,23 @@ export const useNearby = create<NearbyStore>()(() => ({
   running: false,
   error: null,
   airplane: false,
+  relay: DEFAULT_RELAY_PREFS,
+  relayDecision: { relaying: false, reason: 'off' },
+  mesh: null,
 }));
+
+/** The relay's state for Settings and Storage. */
+export function useRelay(): {
+  prefs: RelayPrefs;
+  decision: RelayDecision;
+  mesh: MeshStatus;
+  available: boolean;
+} {
+  const prefs = useNearby((state) => state.relay);
+  const decision = useNearby((state) => state.relayDecision);
+  const mesh = useNearby((state) => state.mesh);
+  return { prefs, decision, mesh: mesh ?? EMPTY_MESH, available: mesh !== null };
+}
 
 /** The current state, as one value the screens switch on. */
 export function useNearbyStatus(): NearbyStatus {
@@ -99,8 +144,13 @@ async function loadPrefs(): Promise<NearbyPrefs> {
   if (state.loaded) return { enabled: state.enabled };
   const { db } = (await getCryptoContext()).database;
   const stored = await readSetting(db, SETTING_KEYS.nearby, NearbyPrefsSchema);
+  const relay = await readSetting(db, SETTING_KEYS.relay, RelayPrefsSchema);
   const prefs = stored ?? { enabled: false };
-  useNearby.setState({ enabled: prefs.enabled, loaded: true });
+  useNearby.setState({
+    enabled: prefs.enabled,
+    relay: relay ?? DEFAULT_RELAY_PREFS,
+    loaded: true,
+  });
   return prefs;
 }
 
@@ -115,11 +165,18 @@ export async function refreshNearby(): Promise<NearbyState | null> {
   return native;
 }
 
+/** Battery and storage change slowly: the relay rules are checked again this often. */
+const RELAY_CHECK_MS = 60_000;
+
 /**
  * The engine's nearby transport, or undefined in a build without the module. The chat runtime
- * makes it once per sign-in; `startNearby` then follows the toggle.
+ * makes it once per sign-in; `startNearby` then follows the toggle. The mesh relay's store is
+ * this phone's database (`mesh_relay_packets`, apart from chats).
  */
-export function createNearby(identity: NearbyIdentity): NearbyPeerTransport | undefined {
+export function createNearby(
+  identity: NearbyIdentity,
+  db: SQLiteDatabase,
+): NearbyPeerTransport | undefined {
   const native = PingdostNearby;
   if (!native) return undefined;
   const ble = createBleTransport(native);
@@ -130,6 +187,7 @@ export function createNearby(identity: NearbyIdentity): NearbyPeerTransport | un
   const transport = new NearbyPeerTransport({
     links,
     identity,
+    mesh: { persistence: new SqliteMeshPersistence(db), relaying: false },
     ...(__DEV__
       ? {
           log: (message: string, fields?: object) =>
@@ -140,6 +198,7 @@ export function createNearby(identity: NearbyIdentity): NearbyPeerTransport | un
   const stateChanged = native.addListener('stateChanged', (state) => {
     useNearby.setState({ native: state });
   });
+  const check = setInterval(() => void startNearby().catch(() => undefined), RELAY_CHECK_MS);
   current = {
     transport,
     ble,
@@ -147,10 +206,42 @@ export function createNearby(identity: NearbyIdentity): NearbyPeerTransport | un
       transport.summary$.subscribe((summary) => useNearby.setState({ summary }), {
         emitCurrent: true,
       }),
+      ...(transport.mesh
+        ? [
+            transport.mesh.status$.subscribe((mesh) => useNearby.setState({ mesh }), {
+              emitCurrent: true,
+            }),
+          ]
+        : []),
       () => stateChanged.remove(),
+      () => clearInterval(check),
     ],
   };
   return transport;
+}
+
+function freeBytes(): number | null {
+  try {
+    const free = Paths.availableDiskSpace;
+    return Number.isFinite(free) && free > 0 ? free : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Relaying follows the toggle, nearby itself, the battery and the storage, at once. */
+function applyRelay(running: Running, nearbyRunning: boolean): void {
+  const { relay, native } = useNearby.getState();
+  const decision = relayDecision({
+    prefs: relay,
+    nearbyRunning,
+    power: native?.power ?? null,
+    freeBytes: freeBytes(),
+  });
+  useNearby.setState({ relayDecision: decision });
+  running.transport.mesh?.setRelaying(decision.relaying);
+  PingdostNearby?.setRelayNotification?.(decision.relaying);
+  PingdostNearby?.setRestartReminder?.(relay.remindAfterRestart && useNearby.getState().enabled);
 }
 
 /** Starts or stops nearby messaging to match the toggle, the permissions and the hardware. */
@@ -167,6 +258,7 @@ async function apply(): Promise<void> {
   const state = await refreshNearby().catch(() => null);
   const allowed = state !== null && state.supported && state.missingPermissions.length === 0;
   if (!enabled || !allowed) {
+    applyRelay(running, false);
     await stopTransport(running);
     return;
   }
@@ -176,12 +268,29 @@ async function apply(): Promise<void> {
       useNearby.setState({ running: true, error: null });
     } catch (error) {
       useNearby.setState({ running: false, error: reasonOf(error) });
+      applyRelay(running, false);
       return;
     }
   }
+  applyRelay(running, true);
   if (AppState.currentState === 'active' && !state.foregroundService) {
     await native.startForegroundService().catch(() => undefined);
   }
+}
+
+/** Settings → Nearby relay: the opt-in and its pause rules. Applied at once. */
+export async function setRelayPrefs(change: Partial<RelayPrefs>): Promise<void> {
+  await loadPrefs();
+  const relay = { ...useNearby.getState().relay, ...change };
+  useNearby.setState({ relay });
+  const { db } = (await getCryptoContext()).database;
+  await writeSetting(db, SETTING_KEYS.relay, relay satisfies RelayPrefs);
+  await startNearby();
+}
+
+/** "Clear relay cache": other people's messages held here go; chats and own messages stay. */
+export async function clearRelayCache(): Promise<void> {
+  await current?.transport.mesh?.clear();
 }
 
 async function stopTransport(running: Running): Promise<void> {
@@ -224,7 +333,12 @@ export async function disposeNearby(): Promise<void> {
   running.transport.dispose();
   running.ble.dispose();
   for (const remove of running.cleanup.splice(0)) remove();
-  useNearby.setState({ summary: { peers: [], unknown: 0, pending: 0 }, loaded: false });
+  useNearby.setState({
+    summary: { peers: [], unknown: 0, pending: 0 },
+    loaded: false,
+    mesh: null,
+    relayDecision: { relaying: false, reason: 'off' },
+  });
 }
 
 function reasonOf(error: unknown): string {

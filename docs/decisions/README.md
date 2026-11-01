@@ -47,6 +47,7 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ Â
 | Hosting choice & production topology | change 2026-10-19 (20 verifies) | **Yes** (done: 0013) |
 | Nearby transport (BLE / Nearby Connections / Wi-Fi Direct) | 21 | No (done: 0023) |
 | Nearby handshake & transport routing | 22 | No (done: 0024) |
-| Mesh routing, relay policy & routing tokens | 23 | No |
+| Mesh routing, relay policy & routing tokens | 23 | No (done: 0025) |
+| Nearby recognition (contact-only tags or not) | 23 | No (done: 0026) |
 | Incoming-call UX on Android | 26 | No |
 | Project license | 01 | **Yes** (done: 0001) |

@@ -128,8 +128,9 @@ export function describeNearby(status: NearbyStatus): NearbyText {
 }
 
 /** The path a delivery took, for message info. */
-export function pathLabel(via: 'internet' | 'nearby' | undefined): string | null {
+export function pathLabel(via: 'internet' | 'nearby' | 'mesh' | undefined): string | null {
   if (via === 'nearby') return 'Over Bluetooth, directly to this phone';
   if (via === 'internet') return 'Over the internet, through the server';
+  if (via === 'mesh') return 'Over Bluetooth, through other phones nearby (relays)';
   return null;
 }

@@ -18,6 +18,8 @@ import {
   encodeClientFrame,
   encodeContent,
   encodeEnvelope,
+  encodeMeshEnvelope,
+  encodeMeshSummary,
   encodeServerFrame,
   encodeTransportPacket,
 } from './codec';
@@ -33,7 +35,9 @@ import {
   HelloSchema,
   MeshAckSchema,
   MeshChunkSchema,
+  MeshEnvelopeSchema,
   MeshHeaderSchema,
+  MeshSummarySchema,
 } from './gen/pingdost/v1/mesh_pb';
 import {
   AckSchema,
@@ -110,7 +114,7 @@ function plain<Desc extends DescMessage>(
 function packet(
   kind: PacketKind,
   payload: Uint8Array,
-  extra: { dst?: Uint8Array; flags?: number; hopBudget?: number } = {},
+  extra: { dst?: Uint8Array; flags?: number; hopBudget?: number; copies?: number } = {},
 ) {
   return create(TransportPacketSchema, {
     version: PROTOCOL_VERSION,
@@ -122,6 +126,7 @@ function packet(
     hopBudget: extra.hopBudget ?? 0,
     flags: extra.flags ?? 0,
     payload,
+    ...(extra.copies === undefined ? {} : { copies: extra.copies }),
   });
 }
 
@@ -174,6 +179,20 @@ export function createVectors(): ProtocolVectors {
     HelloSchema,
     create(HelloSchema, { protocolVersion: PROTOCOL_VERSION, peerToken: ROUTING_TOKEN }),
   );
+  // ADR 0025: a relayed envelope (no device IDs) and the hop-local summary.
+  const meshToken = filler(16, 3);
+  const meshEnvelope = encodeMeshEnvelope(
+    create(MeshEnvelopeSchema, {
+      originToken: filler(16, 4),
+      envelopeId: ENVELOPE_ID,
+      cryptoType: CryptoType.OLM,
+      ciphertext: filler(48, 2),
+      signature: filler(64, 6),
+    }),
+  );
+  const meshSummary = encodeMeshSummary(
+    create(MeshSummarySchema, { routingTokens: [meshToken], delivered: [id(0x107)] }),
+  );
 
   const envelopePacket = packet(PacketKind.ENVELOPE, olm);
   const ephemeralPacket = packet(PacketKind.EPHEMERAL, olmPrekey, { flags: PacketFlag.URGENT });
@@ -194,6 +213,8 @@ export function createVectors(): ProtocolVectors {
     vector('mesh-ack', MeshAckSchema, meshAck),
     vector('mesh-chunk', MeshChunkSchema, meshChunk),
     vector('hello', HelloSchema, hello),
+    vector('mesh-envelope', MeshEnvelopeSchema, meshEnvelope),
+    vector('mesh-summary', MeshSummarySchema, meshSummary),
     plain('mesh-header', MeshHeaderSchema, {
       packetId: id(0x104),
       createdAtMs: CREATED_AT_MS,
@@ -240,6 +261,26 @@ export function createVectors(): ProtocolVectors {
       'packet/hello',
       TransportPacketSchema,
       encodeTransportPacket(packet(PacketKind.HELLO, hello, { dst: ROUTING_TOKEN }), options),
+    ),
+    vector(
+      'packet/mesh-envelope',
+      TransportPacketSchema,
+      encodeTransportPacket(
+        packet(PacketKind.MESH_ENVELOPE, meshEnvelope, {
+          dst: meshToken,
+          hopBudget: 8,
+          copies: 8,
+        }),
+        options,
+      ),
+    ),
+    vector(
+      'packet/mesh-summary',
+      TransportPacketSchema,
+      encodeTransportPacket(
+        packet(PacketKind.MESH_SUMMARY, meshSummary, { dst: Uint8Array.of(0) }),
+        options,
+      ),
     ),
 
     // Content, one per body (padded as sent).

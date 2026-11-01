@@ -127,6 +127,16 @@ export class MessageEngine {
       // The Internet came back or a nearby contact proved its key (ADR 0024).
       this.#unsubscribe.push(transport.onRoutesChanged(() => this.#outbox.routesChanged()));
     }
+    if (transport.onRelayed) {
+      // Mesh relays accepted an envelope this phone holds (ADR 0025): `relayed`.
+      this.#unsubscribe.push(
+        transport.onRelayed(({ envelopeId, relays }) => {
+          this.#outbox.relayed(envelopeId, relays).catch((error: unknown) => {
+            core.log('error', 'relayed update failed', { error: String(error) });
+          });
+        }),
+      );
+    }
     this.#sweepTimer = setInterval(() => void this.#sweep(), core.settings.expirySweepMs);
     await this.#sweep();
     this.#outbox.start();

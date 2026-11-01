@@ -147,6 +147,7 @@ async function boot(): Promise<ChatRuntime> {
       store,
       blocked: isBlocked,
     }),
+    db,
   );
   const router = new TransportRouter(nearby ? [transport, nearby] : [transport]);
   const repo = new AttachmentRepo(db, (work) => store.exclusive(work));

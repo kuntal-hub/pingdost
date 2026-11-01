@@ -20,6 +20,8 @@ export const SETTING_KEYS = {
   announce: 'announce',
   /** `NearbyPrefs` (Settings → Nearby messaging): local to this phone (ADR 0024). */
   nearby: 'nearby',
+  /** `RelayPrefs` (Settings → Nearby relay): local to this phone, off by default (ADR 0025). */
+  relay: 'relay',
 } as const;
 
 export async function readSetting<T>(

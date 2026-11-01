@@ -45,6 +45,15 @@ describe('stateLabel', () => {
     expect(stateLabel('relayed', true).long).toContain('not yet delivered');
   });
 
+  it('counts the relays without calling it delivered (ADR 0025, REQ §11.6)', () => {
+    expect(stateLabel('relayed', false, 'mesh', 2).long).toMatch(
+      /^Forwarded by 2 devices — not yet delivered\./,
+    );
+    expect(stateLabel('relayed', false, 'mesh', 1).long).toContain('Forwarded by 1 device —');
+    expect(stateLabel('relayed', false).long).toContain('a nearby device');
+    expect(stateLabel('relayed', false, 'mesh', 3).short).toBe('Forwarded');
+  });
+
   it('names the nearby path without calling it delivered (ADR 0024)', () => {
     const nearby = stateLabel('sent_to_server', false, 'nearby');
     expect(nearby.short).toBe('Sent');

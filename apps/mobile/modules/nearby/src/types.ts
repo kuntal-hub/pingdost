@@ -151,5 +151,9 @@ export interface NearbyNative {
   receive(maxBytes: number): Uint8Array;
   startForegroundService(): Promise<void>;
   stopForegroundService(): Promise<void>;
+  /** The service's notification: "PingDost nearby relay active" or "Nearby is on" (ADR 0025). */
+  setRelayNotification?(relay: boolean): void;
+  /** After a restart, a notification offers to open the app and turn nearby back on. */
+  setRestartReminder?(enabled: boolean): void;
   addListener<E extends keyof NearbyEvents>(event: E, listener: NearbyEvents[E]): Subscription;
 }

@@ -80,6 +80,27 @@
       "binary": "CAESCFJUSwECAwQF"
     },
     {
+      "name": "mesh-envelope",
+      "type": "pingdost.v1.MeshEnvelope",
+      "json": {
+        "originToken": "BCNCYYCfvt38GzpZeJe21Q==",
+        "envelopeId": "u7CcJRhkUMqgvusYnA/T7w==",
+        "cryptoType": "CRYPTO_TYPE_OLM",
+        "ciphertext": "AiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSz",
+        "signature": "BiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIpw=="
+      },
+      "binary": "ChAEI0JhgJ++3fwbOll4l7bVEhC7sJwlGGRQyqC+6xicD9PvGAIyMAIhQF9+nbzb+hk4V3aVtNPyETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUszpABiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIpw=="
+    },
+    {
+      "name": "mesh-summary",
+      "type": "pingdost.v1.MeshSummary",
+      "json": {
+        "routingTokens": ["AyJBYH+evdz7GjlYd5a11A=="],
+        "delivered": ["AZLxoAAAcACAAAAAAAABBw=="]
+      },
+      "binary": "ChADIkFgf5693PsaOVh3lrXUEhABkvGgAABwAIAAAAAAAAEH"
+    },
+    {
       "name": "mesh-header",
       "type": "pingdost.v1.MeshHeader",
       "json": {
@@ -184,6 +205,36 @@
         "payload": "CAESCFJUSwECAwQF"
       },
       "binary": "CAESEAGS8aAAAHAAgAAAAAAAAQYYBiIIUlRLAQIDBAUogICzwZwzMICQl4KhM0oMCAESCFJUSwECAwQF"
+    },
+    {
+      "name": "packet/mesh-envelope",
+      "type": "pingdost.v1.TransportPacket",
+      "json": {
+        "version": 1,
+        "packetId": "AZLxoAAAcACAAAAAAAABBw==",
+        "kind": "PACKET_KIND_MESH_ENVELOPE",
+        "dst": "AyJBYH+evdz7GjlYd5a11A==",
+        "createdAtMs": "1760000000000",
+        "expiresAtMs": "1761209600000",
+        "hopBudget": 8,
+        "payload": "ChAEI0JhgJ++3fwbOll4l7bVEhC7sJwlGGRQyqC+6xicD9PvGAIyMAIhQF9+nbzb+hk4V3aVtNPyETBPbo2sy+oJKEdmhaTD4gEgP159nLva+Rg3VnWUszpABiVEY4KhwN/+HTxbepm41/YVNFNykbDP7g0sS2qJqMfmBSRDYoGgv979HDtaeZi31vUUM1JxkK/O7QwrSmmIpw==",
+        "copies": 8
+      },
+      "binary": "CAESEAGS8aAAAHAAgAAAAAAAAQcYByIQAyJBYH+evdz7GjlYd5a11CiAgLPBnDMwgJCXgqEzOAhKmgEKEAQjQmGAn77d/Bs6WXiXttUSELuwnCUYZFDKoL7rGJwP0+8YAjIwAiFAX36dvNv6GThXdpW00/IRME9ujazL6gkoR2aFpMPiASA/Xn2cu9r5GDdWdZSzOkAGJURjgqHA3/4dPFt6mbjX9hU0U3KRsM/uDSxLaomox+YFJENigaC/3v0cO1p5mLfW9RQzUnGQr87tDCtKaYinUAg="
+    },
+    {
+      "name": "packet/mesh-summary",
+      "type": "pingdost.v1.TransportPacket",
+      "json": {
+        "version": 1,
+        "packetId": "AZLxoAAAcACAAAAAAAABCA==",
+        "kind": "PACKET_KIND_MESH_SUMMARY",
+        "dst": "AA==",
+        "createdAtMs": "1760000000000",
+        "expiresAtMs": "1761209600000",
+        "payload": "ChADIkFgf5693PsaOVh3lrXUEhABkvGgAABwAIAAAAAAAAEH"
+      },
+      "binary": "CAESEAGS8aAAAHAAgAAAAAAAAQgYCCIBACiAgLPBnDMwgJCXgqEzSiQKEAMiQWB/nr3c+xo5WHeWtdQSEAGS8aAAAHAAgAAAAAAAAQc="
     },
     {
       "name": "content/text",

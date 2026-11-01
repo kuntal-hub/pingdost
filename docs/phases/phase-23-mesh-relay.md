@@ -11,20 +11,20 @@ Opt-in devices temporarily store and forward encrypted third-party packets with 
 - The nearby transport ADR
 
 ## Tasks
-- [ ] **`packages/mesh-protocol`:**
+- [x] **`packages/mesh-protocol`:**
   - `MeshHeader` handling: unique packet ID, creation time, absolute expiry, destination routing token, hop budget, type, chunk ref, integrity;
   - **validation:** reject expired, malformed, oversized and over-budget packets; decrement the hop budget per hop; `MESH_PACKET_MAX_HOPS` and `MESH_PACKET_TTL_SECONDS` from config;
   - a **bounded seen-cache** (LRU + expiry, persisted to `seen_mesh_packets`);
   - a **relay store**: byte cap `MESH_RELAY_STORAGE_LIMIT_BYTES` (default 250 MB), eviction (expired first, then oldest), per-origin quotas, and rate limits on packet creation, relay and discovery;
   - **forwarding strategy ADR** (mesh routing & relay policy): bounded-copy spray-and-wait vs flooding with a hop limit; routing token design (e.g. a rotating token derived from the recipient device ID + epoch day; identifiers only, no new crypto); what relays can see (REQ §11.3);
   - **mesh ACKs:** the destination's delivery ACK propagates so relays drop their stored copies.
-- [ ] **Relay receipts:** when B accepts a packet from A, B returns a signed `accepted` frame, and A moves the message to `relayed` ("Forwarded by N devices — not yet delivered"). The final state still requires the recipient's E2EE receipt; its hop count is optional.
-- [ ] **Consent and controls:**
+- [x] **Relay receipts:** when B accepts a packet from A, B returns a signed `accepted` frame, and A moves the message to `relayed` ("Forwarded by N devices — not yet delivered"). The final state still requires the recipient's E2EE receipt; its hop count is optional.
+- [x] **Consent and controls:**
   - an explicit opt-in screen "Allow this device to relay messages", explaining routing metadata visibility, battery and storage, with an easy off switch. **Disabling it stops forwarding new third-party packets immediately.**
   - **Clear relay cache** sits in the Storage screen, separate from chat history.
-- [ ] **Policies:** pause relaying when the battery is below a threshold or the saver is on, storage is low, or the data/battery mode is restricted (user settings). All thresholds are configurable.
-- [ ] **Android foreground service** (`connectedDevice`) while relay or nearby is enabled, with a persistent notification "PingDost nearby relay active". Stop it when disabled. Make boot restart optional and best-effort. Document the background limits in the in-app help (REQ §11.5).
-- [ ] **Simulation harness** (`packages/mesh-protocol/test/sim/` or `tools/sim-client`): virtual devices with an in-memory nearby transport and a mobility schedule. **Scenarios:**
+- [x] **Policies:** pause relaying when the battery is below a threshold or the saver is on, storage is low, or the data/battery mode is restricted (user settings). All thresholds are configurable.
+- [x] **Android foreground service** (`connectedDevice`) while relay or nearby is enabled, with a persistent notification "PingDost nearby relay active". Stop it when disabled. Make boot restart optional and best-effort. Document the background limits in the in-app help (REQ §11.5).
+- [x] **Simulation harness** (`packages/mesh-protocol/test/sim/` or `tools/sim-client`): virtual devices with an in-memory nearby transport and a mobility schedule. **Scenarios:**
   - A→B→C delivery, where C decrypts;
   - B cannot decrypt, because it has no keys;
   - tamper at B is detected at C;
@@ -33,7 +33,7 @@ Opt-in devices temporarily store and forward encrypted third-party packets with 
   - relay disabled → no forwarding;
   - storage cap and per-origin quota enforced;
   - spam origin rate-limited.
-- [ ] **Device test:** with 2 phones, verify relay acceptance and the receipt UI. With a 3rd phone (if available), do a physical A→B→C run, with B out of A's range when it delivers. Otherwise record it as pending in PROGRESS.
+- [ ] **Device test** (open: needs two phones, three for the physical run; PROGRESS 2026-11-01): with 2 phones, verify relay acceptance and the receipt UI. With a 3rd phone (if available), do a physical A→B→C run, with B out of A's range when it delivers. Otherwise record it as pending in PROGRESS.
 
 ## Key files
 `packages/mesh-protocol/src/*`, `packages/mesh-protocol/test/sim/*`, `apps/mobile/src/nearby/relay*`, `apps/mobile/modules/nearby/android/**` (foreground service), `apps/mobile/app/(app)/settings/relay.tsx`
@@ -46,6 +46,10 @@ File chunk transfer (24); iOS (30).
 - The relay opt-in, opt-out and cache clearing work on a device.
 - The UI distinguishes queued / relayed / delivered.
 - The ADR is written, and `pnpm lint typecheck test` passes.
+
+## Done in Phase 23 (ADR 0025, ADR 0026)
+- Deviations (CHANGES 2026-11-01, Phase 23): the boot restart is a tap-to-resume notification; delivered lists are unauthenticated and never remove the sender's copy; relaying needs nearby messaging on; the simulation is in `packages/message-engine/src/mesh/`; recognition stays key-based.
+- The relay settings route is `(settings)/nearby-relay.tsx` (screen `screens/settings/relay.tsx`).
 
 ## Handoff notes
 **From Phase 9 (ADR 0011):**

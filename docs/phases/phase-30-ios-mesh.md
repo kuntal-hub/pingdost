@@ -24,6 +24,8 @@ Nearby messaging, relaying and file chunks work on iOS within Apple's background
 - Android↔iOS text exchange works over BLE.
 
 ## Handoff notes
+**From Phase 23 (ADR 0025):** iOS relays and receives the same mesh packets: `MESH_ENVELOPE` with daily routing tokens (`meshRoutingToken`), the sender's signature (`meshEnvelopeMessage`), `MeshSummary` after the handshake, signed `MeshAck`s (`meshAckMessage`) and spray copies. The shared TS (`@pingdost/mesh-protocol`, `MeshRelay`) should run unchanged; only the link layer and the background limits differ (iOS gives far less background time).
+
 **From Phase 22 (ADR 0024):** iOS must speak the same handshake to reach Android phones:
 - two `Hello`s per link, the second with a `HelloProof` over `nearbyHelloMessage`;
 - `Ack` packets on the same link;

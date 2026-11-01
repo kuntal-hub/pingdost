@@ -104,14 +104,27 @@ export function shownState(state: MessageState, readReceipts: boolean): MessageS
   return state === 'read' && !readReceipts ? 'delivered_to_recipient_device' : state;
 }
 
+/** "Forwarded by 2 devices — not yet delivered." (REQ §11.6), with how the mesh delivers. */
+export function relayedLabel(relays?: number): string {
+  const who =
+    relays === undefined || relays < 1
+      ? 'a nearby device'
+      : relays === 1
+        ? '1 device'
+        : `${relays} devices`;
+  return `Forwarded by ${who} — not yet delivered. Over the mesh it arrives only when a path to the recipient appears.`;
+}
+
 /**
  * `via`: the path that carried it (ADR 0024). Over Bluetooth the next hop is the recipient's
- * own phone, but only its E2EE receipt makes the message delivered.
+ * own phone, but only its E2EE receipt makes the message delivered. `relays`: how many
+ * devices accepted it from this one over the mesh (ADR 0025).
  */
 export function stateLabel(
   state: MessageState,
   online: boolean,
-  via?: 'internet' | 'nearby',
+  via?: 'internet' | 'nearby' | 'mesh',
+  relays?: number,
 ): StateLabel {
   switch (state) {
     case 'local_queued':
@@ -150,7 +163,7 @@ export function stateLabel(
     case 'relayed':
       return {
         short: 'Forwarded',
-        long: 'Forwarded by a nearby device — not yet delivered.',
+        long: relayedLabel(relays),
         glyph: '✓',
         tone: 'muted',
       };

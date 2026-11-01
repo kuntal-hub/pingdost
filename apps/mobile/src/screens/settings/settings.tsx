@@ -6,7 +6,8 @@ import { authStore } from '@/api';
 import { useAuth } from '@/auth/use-auth';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Screen } from '@/components/screen';
-import { useNearbyStatus } from '@/nearby/service';
+import { describeRelay } from '@/nearby/relay';
+import { useNearbyStatus, useRelay } from '@/nearby/service';
 import { describeNearby } from '@/nearby/status';
 import { removeDataFromThisPhone } from '@/recovery/remove-data';
 import { useAccount } from '@/settings/account';
@@ -16,6 +17,8 @@ export function SettingsScreen() {
   const username = useAuth((state) => state.session?.user.username);
   const me = useAccount((state) => state.me);
   const nearby = describeNearby(useNearbyStatus());
+  const relayState = useRelay();
+  const relay = describeRelay(relayState.decision, relayState.prefs, relayState.mesh.stored);
 
   useEffect(() => {
     void useAccount
@@ -126,6 +129,11 @@ export function SettingsScreen() {
           title="Nearby messaging"
           subtitle={nearby.title}
           onPress={() => router.push('/nearby-messaging')}
+        />
+        <ListRow
+          title="Nearby relay"
+          subtitle={relay.title}
+          onPress={() => router.push('/nearby-relay')}
         />
       </ListSection>
 

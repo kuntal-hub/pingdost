@@ -67,6 +67,9 @@ const RECEIPT_IDS_PER_CONTENT = 200;
 /** Floor for the next wake-up, so items that cannot progress never spin. */
 const MIN_WAKE_MS = 250;
 
+/** Routes without the Internet: no key claim, sessions start from cached fallback keys. */
+const offline = (route: Route | undefined) => route === 'nearby' || route === 'mesh';
+
 async function pool<T>(items: T[], limit: number, run: (item: T) => Promise<void>): Promise<void> {
   let next = 0;
   const worker = async () => {
@@ -155,8 +158,10 @@ export class Outbox {
     const routes = new Map<string, Route>();
     const ready: DeviceItem[] = [];
     for (const item of due) {
-      const route = core.options.transport.route?.(item.recipientDeviceId) ?? 'internet';
+      let route = core.options.transport.route?.(item.recipientDeviceId) ?? 'internet';
       if (route === 'offline') continue; // everything went down meanwhile
+      // A browser is never in Bluetooth range: it waits for the Internet, not the mesh.
+      if (route === 'mesh' && (await this.#device(item))?.platform === 'web') route = 'unreachable';
       if (route === 'unreachable') {
         await core.mutex.run(() => this.#wait(item));
         continue;
@@ -165,12 +170,12 @@ export class Outbox {
       ready.push(item);
     }
     if (ready.length === 0 || this.#stopped) return;
-    // Nearby means no Internet: no key claim, the cached fallback key instead.
-    const keys = await this.#claimKeys(ready.filter((item) => routes.get(item.id) !== 'nearby'));
+    // Nearby or the mesh means no Internet: no key claim, the cached fallback key instead.
+    const keys = await this.#claimKeys(ready.filter((item) => !offline(routes.get(item.id))));
     await pool(ready, core.settings.maxInflight, async (item) => {
       if (this.#stopped) return;
       try {
-        await this.#send(item, keys, routes.get(item.id) === 'nearby');
+        await this.#send(item, keys, routes.get(item.id) ?? 'internet');
       } catch (error) {
         core.log('error', 'outbox item failed', { error: String(error) });
       }
@@ -724,9 +729,9 @@ export class Outbox {
     return keys;
   }
 
-  async #send(item: DeviceItem, keys: Map<string, string>, nearby: boolean): Promise<void> {
+  async #send(item: DeviceItem, keys: Map<string, string>, route: Route): Promise<void> {
     const { core } = this;
-    const ready = await core.mutex.run(() => this.#prepare(item, keys, nearby));
+    const ready = await core.mutex.run(() => this.#prepare(item, keys, route));
     if (!ready) return;
     let packet: TransportPacket;
     try {
@@ -745,15 +750,16 @@ export class Outbox {
   }
 
   /**
-   * Encrypts the item if it has no packet yet, and marks its delivery `sending`. `nearby`: no
-   * Internet, so a new session starts from the device's cached fallback key (mesh first
-   * contact, ARCHITECTURE A5).
+   * Encrypts the item if it has no packet yet, and marks its delivery `sending` (not for the
+   * mesh, which only holds it here). Nearby or the mesh: no Internet, so a new session starts
+   * from the device's cached fallback key (mesh first contact, ARCHITECTURE A5).
    */
   async #prepare(
     item: DeviceItem,
     keys: Map<string, string>,
-    nearby: boolean,
+    route: Route,
   ): Promise<DeviceItem | undefined> {
+    const nearby = offline(route);
     const { core } = this;
     const stored = await core.store.getOutboxItem(item.id);
     if (stored?.type !== 'device') return undefined; // settled meanwhile (receipt, revocation)
@@ -804,8 +810,8 @@ export class Outbox {
       batch.outbox = [current];
     }
 
-    await this.#moveDelivery(batch, current, 'sending', now);
-    await core.commit(batch);
+    if (route !== 'mesh') await this.#moveDelivery(batch, current, 'sending', now);
+    if (batch.sessions || batch.deliveries?.length) await core.commit(batch);
     return current;
   }
 
@@ -848,8 +854,14 @@ export class Outbox {
     const now = core.now();
     const batch: WriteBatch = {};
     let state: MessageState;
-    let via: 'internet' | 'nearby' | undefined;
-    if (result.ok) {
+    let via: DeliveryRecord['via'];
+    if (result.ok && result.status === 'held') {
+      // The mesh on this phone holds it for relays (ADR 0025). The item stays, so the same
+      // packet still goes over the Internet or a direct link when one appears; it waits for
+      // that, and `relayed` comes from the relays' signed acceptances.
+      this.#parked.add(item.id);
+      state = 'waiting_for_nearby_route';
+    } else if (result.ok) {
       // The server's Accepted, or the recipient device's nearby ACK: the next hop holds it.
       batch.deleteOutbox = [item.id];
       state = 'sent_to_server';
@@ -892,7 +904,7 @@ export class Outbox {
     item: DeviceItem,
     state: MessageState,
     now: number,
-    via?: 'internet' | 'nearby',
+    via?: DeliveryRecord['via'],
   ) {
     if (item.purpose !== 'message') return;
     const { core } = this;
@@ -906,6 +918,33 @@ export class Outbox {
     batch.deliveries = [...(batch.deliveries ?? []), moved];
     const message = await core.restate(item.messageId, [moved]);
     if (message) batch.messages = [...(batch.messages ?? []), message];
+  }
+
+  /**
+   * Relays accepted an envelope the mesh holds (ADR 0025): its device row becomes `relayed`
+   * ("Forwarded by N devices — not yet delivered"), never more. A row that is already further
+   * (the server took it, or a receipt came) keeps its state.
+   */
+  async relayed(envelopeId: string, relays: number): Promise<void> {
+    const { core } = this;
+    await core.mutex.run(async () => {
+      const item = await core.store.getOutboxItem(envelopeId);
+      if (item?.type !== 'device' || item.purpose !== 'message') return;
+      const row = (await core.store.listDeliveries(item.messageId)).find(
+        (d) => d.deviceId === item.recipientDeviceId,
+      );
+      if (!row) return;
+      const now = core.now();
+      const base = row.state === 'relayed' ? row : EngineCore.moved(row, 'relayed', now);
+      if (base?.state !== 'relayed') return;
+      const count = Math.max(row.relays ?? 0, relays);
+      if (row.state === 'relayed' && row.relays === count) return;
+      const next: DeliveryRecord = { ...base, via: 'mesh', relays: count, updatedAt: now };
+      const batch: WriteBatch = { deliveries: [next] };
+      const message = await core.restate(item.messageId, [next]);
+      if (message) batch.messages = [message];
+      await core.commit(batch);
+    });
   }
 
   /** Deletes an item whose device is gone, with its delivery row. */

@@ -26,6 +26,11 @@ enum PacketKind {
   PACKET_KIND_EPHEMERAL = 5;
   // payload: Hello, the nearby peer handshake.
   PACKET_KIND_HELLO = 6;
+  // payload: MeshEnvelope, an E2EE envelope relayed over the mesh (ADR 0025). `dst` is the
+  // recipient device's routing token, never its device ID.
+  PACKET_KIND_MESH_ENVELOPE = 7;
+  // payload: MeshSummary, hop-local: the sender's routing tokens and delivered packet IDs.
+  PACKET_KIND_MESH_SUMMARY = 8;
 }
 
 // Bit values for TransportPacket.flags. Receivers ignore bits they do not know.
@@ -53,6 +58,10 @@ message TransportPacket {
   uint32 flags = 8;
   // The encoded message named by `kind`.
   bytes payload = 9;
+  // Mesh packets only: the copies the holder may still hand to other relays (binary
+  // spray-and-wait, ADR 0025). 1 means "deliver to the recipient only". Relays change it, so
+  // it is not signed; receivers bound it.
+  uint32 copies = 10;
 }
 
 // The recipient device has stored these envelopes, so the mailbox may delete them

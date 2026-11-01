@@ -14,6 +14,8 @@ export type {
   PeerConnection,
   PeerDescriptor,
 } from './nearby';
+export { MeshRelay } from './mesh';
+export type { MeshIdentity, MeshLink, MeshOrigin, MeshRelayOptions, MeshStatus } from './mesh';
 export { TransportRouter } from './router';
 export { Listeners, ValueStream } from './stream';
 export type { ReadonlyValueStream } from './stream';

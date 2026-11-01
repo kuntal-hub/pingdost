@@ -9,6 +9,9 @@ import type { ReadonlyValueStream } from './stream';
 
 export type TransportKind = 'internet' | 'nearby';
 
+/** The path that carried a packet to its next hop: a mesh relay is a path of nearby. */
+export type TransportPath = TransportKind | 'mesh';
+
 /** `online` means the transport can carry packets now (for the WebSocket: after `AuthOk`). */
 export type TransportStatus = 'offline' | 'connecting' | 'online';
 
@@ -30,13 +33,17 @@ export type TransportErrorCode =
  * The outcome of one `send`. `ok` means the next hop holds the packet: the server's
  * `Accepted`, or the recipient device's own nearby ACK. Never delivery to the recipient's
  * user, which only an E2EE receipt shows (REQ §8.3).
+ *
+ * `held` (ADR 0025): the mesh relay on this device took it and will hand it to relays as they
+ * come into range. Nothing left the phone yet, so the sender keeps its copy too; relays that
+ * accept it are reported through `onRelayed`.
  */
 export type SendResult =
   | {
       ok: true;
-      status: 'stored' | 'delivered_transport';
-      /** Set by the router: the path that carried it. */
-      via?: TransportKind;
+      status: 'stored' | 'delivered_transport' | 'held';
+      /** The path that carried it (the router sets it when the transport did not). */
+      via?: TransportPath;
     }
   | {
       ok: false;
@@ -87,10 +94,26 @@ export interface Transport {
   reaches?(deviceId: string): boolean;
   /** Fires when `reaches` may answer differently. */
   onReachability?(listener: () => void): Unsubscribe;
+  /**
+   * The mesh (ADR 0025): whether this transport can take a packet for a device out of range
+   * and hold it for relays. `send` then answers `held`.
+   */
+  carries?(deviceId: string): boolean;
+  /** The sender is done with these envelopes (a receipt, or sent another way): drop copies. */
+  withdraw?(envelopeIds: readonly string[]): void;
+  /** Relays accepted an envelope this transport holds. */
+  onRelayed?(listener: (event: RelayedEvent) => void): Unsubscribe;
+}
+
+/** `relays` distinct devices accepted this envelope from this device (REQ §11.6). */
+export interface RelayedEvent {
+  envelopeId: string;
+  relays: number;
 }
 
 /**
- * How a packet to one device would go now: over a transport, nowhere although a transport is
- * up (`unreachable`: it waits for a nearby route), or nowhere because nothing is up.
+ * How a packet to one device would go now: over a transport, into the mesh (held for relays),
+ * nowhere although a transport is up (`unreachable`: it waits for a nearby route), or nowhere
+ * because nothing is up.
  */
-export type Route = TransportKind | 'unreachable' | 'offline';
+export type Route = TransportKind | 'mesh' | 'unreachable' | 'offline';

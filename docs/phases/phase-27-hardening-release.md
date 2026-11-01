@@ -68,6 +68,13 @@ Make the product release-worthy: security and privacy audits, full acceptance tr
 - Approving from the old phone moves no history: consider an online hand-over over the Phase 18 sync channel.
 - Keep old `.pdbk` files readable: a fixture backup from this version restored by every later build.
 - Device checks of the phone-change flows on two real phones (see the Phase 19 PROGRESS entry).
+**From Phase 23 (ADR 0025, 0026; CHANGES 2026-11-01):**
+- Privacy notice: relays see daily routing tokens, packet IDs, times, hop budget, copies, size, crypto type, and for groups the group and Megolm session IDs. Phones in range can recognise a phone's public device key (ADR 0026). The Nearby relay screen says so already; reuse its wording.
+- Play Console: declare `RECEIVE_BOOT_COMPLETED` (the optional reminder after a restart) beside the `connectedDevice` service. Decide whether a headless start at boot is wanted (the relay is JavaScript; ADR 0025).
+- "Clear relay cache" frees rows but not file size: consider a `VACUUM` (or `incremental_vacuum`) after clearing up to 250 MB.
+- Abuse: delivered-ID lists are unauthenticated and quotas are per self-chosen origin token; measure whether an authenticated delivery proof or tighter per-neighbour limits are needed.
+- Copy: "Forwarded by N devices — not yet delivered" (`relayedLabel`) and the relay pause reasons (`describeRelay`) need the release copy review.
+
 **From Phase 22 (ADR 0024):**
 - The privacy notes must say what nearby messaging shows to PingDost phones in range: that a PingDost phone is near, and this device's public Ed25519 key, which is stable.
 - Declare the Bluetooth permissions and the `connectedDevice` foreground service in Play Console. The text the app shows is in `screens/settings/nearby.tsx`.

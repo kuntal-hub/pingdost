@@ -19,7 +19,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file pingdost/v1/packet.proto.
  */
 export const file_pingdost_v1_packet: GenFile = /*@__PURE__*/
-  fileDesc("ChhwaW5nZG9zdC92MS9wYWNrZXQucHJvdG8SC3Bpbmdkb3N0LnYxIssBCg9UcmFuc3BvcnRQYWNrZXQSDwoHdmVyc2lvbhgBIAEoDRIRCglwYWNrZXRfaWQYAiABKAwSJQoEa2luZBgDIAEoDjIXLnBpbmdkb3N0LnYxLlBhY2tldEtpbmQSCwoDZHN0GAQgASgMEhUKDWNyZWF0ZWRfYXRfbXMYBSABKAMSFQoNZXhwaXJlc19hdF9tcxgGIAEoAxISCgpob3BfYnVkZ2V0GAcgASgNEg0KBWZsYWdzGAggASgNEg8KB3BheWxvYWQYCSABKAwiGwoDQWNrEhQKDGVudmVsb3BlX2lkcxgBIAMoDCrAAQoKUGFja2V0S2luZBIbChdQQUNLRVRfS0lORF9VTlNQRUNJRklFRBAAEhgKFFBBQ0tFVF9LSU5EX0VOVkVMT1BFEAESEwoPUEFDS0VUX0tJTkRfQUNLEAISGAoUUEFDS0VUX0tJTkRfTUVTSF9BQ0sQAxIaChZQQUNLRVRfS0lORF9NRVNIX0NIVU5LEAQSGQoVUEFDS0VUX0tJTkRfRVBIRU1FUkFMEAUSFQoRUEFDS0VUX0tJTkRfSEVMTE8QBipBCgpQYWNrZXRGbGFnEhsKF1BBQ0tFVF9GTEFHX1VOU1BFQ0lGSUVEEAASFgoSUEFDS0VUX0ZMQUdfVVJHRU5UEAFiBnByb3RvMw");
+  fileDesc("ChhwaW5nZG9zdC92MS9wYWNrZXQucHJvdG8SC3Bpbmdkb3N0LnYxItsBCg9UcmFuc3BvcnRQYWNrZXQSDwoHdmVyc2lvbhgBIAEoDRIRCglwYWNrZXRfaWQYAiABKAwSJQoEa2luZBgDIAEoDjIXLnBpbmdkb3N0LnYxLlBhY2tldEtpbmQSCwoDZHN0GAQgASgMEhUKDWNyZWF0ZWRfYXRfbXMYBSABKAMSFQoNZXhwaXJlc19hdF9tcxgGIAEoAxISCgpob3BfYnVkZ2V0GAcgASgNEg0KBWZsYWdzGAggASgNEg8KB3BheWxvYWQYCSABKAwSDgoGY29waWVzGAogASgNIhsKA0FjaxIUCgxlbnZlbG9wZV9pZHMYASADKAwq/QEKClBhY2tldEtpbmQSGwoXUEFDS0VUX0tJTkRfVU5TUEVDSUZJRUQQABIYChRQQUNLRVRfS0lORF9FTlZFTE9QRRABEhMKD1BBQ0tFVF9LSU5EX0FDSxACEhgKFFBBQ0tFVF9LSU5EX01FU0hfQUNLEAMSGgoWUEFDS0VUX0tJTkRfTUVTSF9DSFVOSxAEEhkKFVBBQ0tFVF9LSU5EX0VQSEVNRVJBTBAFEhUKEVBBQ0tFVF9LSU5EX0hFTExPEAYSHQoZUEFDS0VUX0tJTkRfTUVTSF9FTlZFTE9QRRAHEhwKGFBBQ0tFVF9LSU5EX01FU0hfU1VNTUFSWRAIKkEKClBhY2tldEZsYWcSGwoXUEFDS0VUX0ZMQUdfVU5TUEVDSUZJRUQQABIWChJQQUNLRVRfRkxBR19VUkdFTlQQAWIGcHJvdG8z");
 
 /**
  * @generated from message pingdost.v1.TransportPacket
@@ -85,6 +85,15 @@ export type TransportPacket = Message<"pingdost.v1.TransportPacket"> & {
    * @generated from field: bytes payload = 9;
    */
   payload: Uint8Array;
+
+  /**
+   * Mesh packets only: the copies the holder may still hand to other relays (binary
+   * spray-and-wait, ADR 0025). 1 means "deliver to the recipient only". Relays change it, so
+   * it is not signed; receivers bound it.
+   *
+   * @generated from field: uint32 copies = 10;
+   */
+  copies: number;
 };
 
 /**
@@ -169,6 +178,21 @@ export enum PacketKind {
    * @generated from enum value: PACKET_KIND_HELLO = 6;
    */
   HELLO = 6,
+
+  /**
+   * payload: MeshEnvelope, an E2EE envelope relayed over the mesh (ADR 0025). `dst` is the
+   * recipient device's routing token, never its device ID.
+   *
+   * @generated from enum value: PACKET_KIND_MESH_ENVELOPE = 7;
+   */
+  MESH_ENVELOPE = 7,
+
+  /**
+   * payload: MeshSummary, hop-local: the sender's routing tokens and delivered packet IDs.
+   *
+   * @generated from enum value: PACKET_KIND_MESH_SUMMARY = 8;
+   */
+  MESH_SUMMARY = 8,
 }
 
 /**

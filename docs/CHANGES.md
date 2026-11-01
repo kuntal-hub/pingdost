@@ -4,6 +4,20 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-01 — Phase 23: mesh store-and-forward relay (ADR 0025, ADR 0026)
+1. **"Boot restart" is a notification, not a service start.** The plan asked for an optional, best-effort restart at boot. The relay's logic runs in the app's JavaScript, which Android does not start at boot, so a service started then would hold Bluetooth without relaying anything. With "Remind me to turn it back on" (Settings → Nearby relay, off by default), a `BOOT_COMPLETED` receiver posts "Nearby is paused since the restart"; opening PingDost starts nearby and relaying again.
+   - *Affects:* 23 (done), 27 (a headless start, if wanted; the Play declaration for `RECEIVE_BOOT_COMPLETED`).
+2. **Delivered-ID lists are not authenticated.** Holders drop copies that a peer says were delivered, so a malicious peer can make others drop copies; it could already drop what it carries itself. The sender never drops its own copy on such a list: only the E2EE receipt, or sending it another way, settles the message.
+   - *Affects:* 23 (done), 27 (an authenticated delivery proof if abuse appears).
+3. **Relay-visible data** (REQ §11.3 allows routing identifiers): daily routing tokens for the recipient and the sender, packet ID, times, hop budget, copies, size, crypto type, and for group traffic the group ID and Megolm session ID. A phone announces its tokens for the whole TTL window to every phone it links to, so the daily rotation hides little from a relay that meets it. No device IDs, names or contents. The Nearby relay screen says this.
+   - *Affects:* 23 (done), 27 (privacy notice).
+4. **Relaying is part of nearby messaging.** It needs nearby messaging on and is its own opt-in, off by default. The foreground service runs while nearby is on, and its notification reads "PingDost nearby relay active" while relaying. Turning relaying off stops taking and passing on other people's packets at once; packets already held stay until they expire or the user clears the relay cache.
+   - *Affects:* 23 (done).
+5. **The simulation harness is `packages/message-engine/src/mesh/`**, not `packages/mesh-protocol/test/sim/`: the scenarios need real engines, and `mesh-protocol` sits below the engine.
+   - *Affects:* 23 (done).
+6. **Nearby recognition stays key-based (ADR 0026).** Contact-only recognition would need a new protocol (A10). Strangers in range can recognise a phone's public device key, as ADR 0024 already says.
+   - *Affects:* 23 (done), 27, 30.
+
 ### 2026-11-01 — Phase 22: direct nearby messaging (ADR 0024)
 1. **After the recipient's phone acknowledges a message over Bluetooth, the state is `sent_to_server`, with the path recorded on the delivery row.** REQ §8.3's names have no state for "the recipient's own phone took it over Bluetooth". The state machine already means "the next hop holds it; only the E2EE receipt delivers it", so the state is reused. Labels and message info name the path ("Sent over Bluetooth to the recipient's phone — not yet delivered") and never show the raw name.
    - *Reason:* a new state would touch the shared enum, both stores, history sync and both UIs, for the same meaning.

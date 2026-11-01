@@ -28,7 +28,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 20 | [Deployment (staging)](phases/phase-20-deployment-staging.md) | 12, 14 | 🔄 |
 | 21 | [Nearby spike (Android BLE; no Nearby Connections)](phases/phase-21-nearby-spike.md) | 03 | 🔄 |
 | 22 | [Direct nearby messaging](phases/phase-22-nearby-direct.md) | 10, 21 | 🔄 |
-| 23 | [Mesh store-and-forward relay](phases/phase-23-mesh-relay.md) | 22 | ⬜ |
+| 23 | [Mesh store-and-forward relay](phases/phase-23-mesh-relay.md) | 22 | 🔄 |
 | 24 | [Mesh file transfer](phases/phase-24-mesh-files.md) | 15, 23 | ⬜ |
 | 25 | [Calls A: TURN, signaling, web calls](phases/phase-25-calls-web.md) | 17, 20 | ⬜ |
 | 26 | [Calls B: Android calls](phases/phase-26-calls-android.md) | 12, 25 | ⬜ |

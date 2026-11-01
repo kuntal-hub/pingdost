@@ -1,12 +1,17 @@
 // PingDost wire protocol v1: nearby and mesh relay messages (REQ §11.3, §11.4).
 //
-// Placeholders: Phase 22 defines the nearby handshake and Phase 23 fills out MeshHeader
-// (routing tokens, integrity metadata). Both extend these messages by adding fields only.
+// Phase 22 defined the nearby handshake (ADR 0024) and Phase 23 the relay (ADR 0025). A
+// relayed packet is a TransportPacket of kind MESH_ENVELOPE: its own fields are the mesh
+// header (packet ID, creation time, absolute expiry, the recipient's routing token as `dst`,
+// hop budget, spray copies) and its payload a MeshEnvelope. Extend by adding fields only.
 syntax = "proto3";
 
 package pingdost.v1;
 
-// What a relay sees and checks before storing or forwarding a packet.
+import "pingdost/v1/envelope.proto";
+
+// Unused: the relay header is the TransportPacket's own fields (ADR 0025). Kept so that its
+// field numbers are never reused.
 message MeshHeader {
   // UUIDv7, 16 bytes; the seen-packet cache key.
   bytes packet_id = 1;
@@ -36,9 +41,52 @@ message MeshChunk {
   bytes data = 2;
 }
 
-// Payload of PACKET_KIND_MESH_ACK: a relay accepted the packet (`relayed`, REQ §8.3).
+// Payload of PACKET_KIND_MESH_ACK, hop-local: what the next holder did with one mesh packet.
+// ACCEPTED from a relay is `relayed` (REQ §8.3), never delivery.
 message MeshAck {
   bytes packet_id = 1;
+  MeshAckStatus status = 2;
+  // Ed25519 by the answering device's identity key (the one it proved in its Hello) over
+  // meshAckMessage(the other side's link token, packet ID, status), 64 bytes.
+  bytes signature = 3;
+}
+
+enum MeshAckStatus {
+  MESH_ACK_STATUS_UNSPECIFIED = 0;
+  // A relay stored it and will carry it on.
+  MESH_ACK_STATUS_ACCEPTED = 1;
+  // The recipient device stored it: relays drop their copies.
+  MESH_ACK_STATUS_DELIVERED = 2;
+  // Already seen here: nothing changed.
+  MESH_ACK_STATUS_DUPLICATE = 3;
+  // Not taken (relaying off or paused, full, over a quota or rate, expired, out of hops, or
+  // failed the recipient's check).
+  MESH_ACK_STATUS_REFUSED = 4;
+}
+
+// Payload of PACKET_KIND_MESH_ENVELOPE. The Envelope's fields without its two device IDs: the
+// recipient is the packet's `dst` token, and the sender is `origin_token`, which only devices
+// holding the sender's directory can resolve (ADR 0025).
+message MeshEnvelope {
+  // routingToken(sender device ID, UTC day of created_at_ms), 16 bytes.
+  bytes origin_token = 1;
+  // The Envelope's ID: the recipient dedupes on it across the Internet and mesh paths.
+  bytes envelope_id = 2;
+  CryptoType crypto_type = 3;
+  optional bytes group_id = 4;
+  string megolm_session_id = 5;
+  bytes ciphertext = 6;
+  // Ed25519 by the sender device's identity key over meshEnvelopeMessage(packet ID, created,
+  // expires, dst, this message's other fields), 64 bytes. Only the recipient can check it.
+  bytes signature = 7;
+}
+
+// Payload of PACKET_KIND_MESH_SUMMARY, hop-local, sent once each side's Hello is proved.
+message MeshSummary {
+  // This device's routing tokens for every day a live packet to it can have been made on.
+  repeated bytes routing_tokens = 1;
+  // Packet IDs this device knows were delivered: holders drop their copies.
+  repeated bytes delivered = 2;
 }
 
 // Payload of PACKET_KIND_HELLO: the nearby peer handshake (ADR 0024). Each side sends two:

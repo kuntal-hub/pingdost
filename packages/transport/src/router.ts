@@ -2,7 +2,9 @@
  * Chooses a transport per packet (REQ §4.3, §11.1 mode 3; ADR 0024):
  * 1. the first online transport that reaches every device: the Internet (WebSocket);
  * 2. otherwise the first online transport that reaches the recipient device now: nearby;
- * 3. otherwise `NO_ROUTE` when some transport is up (the packet waits for a nearby route), or
+ * 3. otherwise the first online transport that carries it into the mesh (ADR 0025: held on
+ *    this device and handed to relays);
+ * 4. otherwise `NO_ROUTE` when some transport is up (the packet waits for a nearby route), or
  *    `OFFLINE` when none is.
  * `onRoutesChanged` fires whenever a route may have appeared, so the sender flushes then. The
  * same envelope may still travel both ways (a nearby ACK lost, then the Internet back): the
@@ -14,6 +16,7 @@ import { bytesToUuid, UUID_BYTES, type TransportPacket } from '@pingdost/protoco
 import { Listeners, ValueStream, type ReadonlyValueStream } from './stream';
 import type {
   PacketListener,
+  RelayedEvent,
   Route,
   SendResult,
   Transport,
@@ -33,6 +36,7 @@ export class TransportRouter {
   readonly #typing = new Listeners<[TypingSignal]>();
   readonly #ephemeral = new Listeners<[TransportPacket]>();
   readonly #routes = new Listeners<[]>();
+  readonly #relayed = new Listeners<[RelayedEvent]>();
   readonly #unsubscribe: Unsubscribe[] = [];
 
   /** `transports` in order of preference. */
@@ -55,6 +59,9 @@ export class TransportRouter {
       if (transport.onReachability) {
         this.#unsubscribe.push(transport.onReachability(() => this.#routes.emit()));
       }
+      if (transport.onRelayed) {
+        this.#unsubscribe.push(transport.onRelayed((event) => this.#relayed.emit(event)));
+      }
     }
     this.#updateStatus();
   }
@@ -71,7 +78,20 @@ export class TransportRouter {
 
   /** How a packet to `deviceId` would go now. */
   route(deviceId: string): Route {
-    return this.#pick(deviceId)?.kind ?? (this.#anyOnline() ? 'unreachable' : 'offline');
+    const picked = this.#pick(deviceId);
+    if (picked) return picked.mesh ? 'mesh' : picked.transport.kind;
+    return this.#anyOnline() ? 'unreachable' : 'offline';
+  }
+
+  /** Relays accepted an envelope that a transport holds for the mesh. */
+  onRelayed(listener: (event: RelayedEvent) => void): Unsubscribe {
+    return this.#relayed.add(listener);
+  }
+
+  /** The sender is done with these envelopes: every transport drops what it still holds. */
+  withdraw(envelopeIds: readonly string[]): void {
+    if (envelopeIds.length === 0) return;
+    for (const transport of this.#transports) transport.withdraw?.(envelopeIds);
   }
 
   /** Fires when a transport's status or nearby reach changes: queued packets may go now. */
@@ -82,10 +102,10 @@ export class TransportRouter {
   /** Over the preferred transport that reaches `packet.dst`; the result names the path. */
   async send(packet: TransportPacket): Promise<SendResult> {
     const deviceId = packet.dst.length === UUID_BYTES ? bytesToUuid(packet.dst) : undefined;
-    const transport = this.#pick(deviceId);
-    if (!transport) return this.#anyOnline() ? NO_ROUTE : OFFLINE;
-    const result = await transport.send(packet);
-    return result.ok ? { ...result, via: transport.kind } : result;
+    const picked = this.#pick(deviceId);
+    if (!picked) return this.#anyOnline() ? NO_ROUTE : OFFLINE;
+    const result = await picked.transport.send(packet);
+    return result.ok ? { ...result, via: result.via ?? picked.transport.kind } : result;
   }
 
   onPacket(listener: PacketListener): Unsubscribe {
@@ -119,13 +139,16 @@ export class TransportRouter {
     for (const unsubscribe of this.#unsubscribe.splice(0)) unsubscribe();
   }
 
-  /** Transports that reach every device first, then those that reach this one. */
-  #pick(deviceId: string | undefined): Transport | undefined {
+  /** Transports that reach every device first, then those that reach this one, then the mesh. */
+  #pick(deviceId: string | undefined): { transport: Transport; mesh: boolean } | undefined {
     const online = this.#transports.filter((t) => t.status$.value === 'online');
-    return (
-      online.find((t) => t.reaches === undefined) ??
-      (deviceId === undefined ? undefined : online.find((t) => t.reaches?.(deviceId) === true))
-    );
+    const everywhere = online.find((t) => t.reaches === undefined);
+    if (everywhere) return { transport: everywhere, mesh: false };
+    if (deviceId === undefined) return undefined;
+    const direct = online.find((t) => t.reaches?.(deviceId) === true);
+    if (direct) return { transport: direct, mesh: false };
+    const mesh = online.find((t) => t.carries?.(deviceId) === true);
+    return mesh ? { transport: mesh, mesh: true } : undefined;
   }
 
   #anyOnline(): boolean {

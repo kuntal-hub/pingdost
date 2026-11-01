@@ -24,6 +24,12 @@ export const SIGNING_CONTEXTS = {
   primaryTransferPayload: 'pingdost/primary-transfer-payload/v1',
   /** Signed by a device's ed25519 key in the nearby handshake (ADR 0024). */
   nearbyHello: 'pingdost/nearby-hello/v1',
+  /** Hashed (not signed) with a device ID and a day into a mesh routing token (ADR 0025). */
+  meshRoute: 'pingdost/mesh-route/v1',
+  /** Signed by the sender device's ed25519 key for each relayed envelope (ADR 0025). */
+  meshEnvelope: 'pingdost/mesh-envelope/v1',
+  /** Signed by the answering device's ed25519 key for each mesh ACK (ADR 0025). */
+  meshAck: 'pingdost/mesh-ack/v1',
 } as const;
 
 export const KEY_BYTES = 32;
@@ -201,6 +207,97 @@ export function nearbyHelloMessage(
     peerToken,
     exactBytes(identityKey, KEY_BYTES, 'identity_key'),
     caps,
+  ]);
+}
+
+/** A routing token or link token in a mesh statement: exactly 16 bytes. */
+export const MESH_TOKEN_BYTES = 16;
+
+function fixed(bytes: Uint8Array, length: number, field: string): Uint8Array {
+  if (bytes.length !== length) {
+    throw new ProtocolError('INVALID_FIELD', `${field} must be ${length} bytes`, field);
+  }
+  return bytes;
+}
+
+function uint(value: number | bigint, bytes: 2 | 4 | 8, field: string): Uint8Array {
+  const out = new Uint8Array(bytes);
+  const view = new DataView(out.buffer);
+  const max = bytes === 8 ? 0xffff_ffff_ffff_ffffn : BigInt(2 ** (bytes * 8) - 1);
+  const big = BigInt(value);
+  if (big < 0n || big > max) {
+    throw new ProtocolError('INVALID_FIELD', `${field} must fit in ${bytes} bytes`, field);
+  }
+  if (bytes === 8) view.setBigUint64(0, big);
+  else if (bytes === 4) view.setUint32(0, Number(big));
+  else view.setUint16(0, Number(big));
+  return out;
+}
+
+/** The fields of a relayed envelope that its sender signs (ADR 0025). */
+export interface MeshEnvelopeStatement {
+  packetId: Uint8Array;
+  createdAtMs: bigint;
+  expiresAtMs: bigint;
+  /** The recipient's routing token (`TransportPacket.dst`). */
+  dst: Uint8Array;
+  originToken: Uint8Array;
+  envelopeId: Uint8Array;
+  cryptoType: number;
+  groupId?: Uint8Array | undefined;
+  megolmSessionId: string;
+  ciphertext: Uint8Array;
+}
+
+/**
+ * context ‖ packet ID (16) ‖ created (8) ‖ expires (8) ‖ dst (16) ‖ origin token (16) ‖
+ * envelope ID (16) ‖ crypto type (4) ‖ has group (1) ‖ group ID (16 or none) ‖ session ID
+ * length (2) ‖ session ID (UTF-8) ‖ ciphertext, integers big-endian. Everything a relay must not
+ * change; the hop budget and spray copies are left out because relays change them.
+ */
+export function meshEnvelopeMessage(statement: MeshEnvelopeStatement): Uint8Array {
+  const session = encoder.encode(statement.megolmSessionId);
+  return concat([
+    context(SIGNING_CONTEXTS.meshEnvelope),
+    fixed(statement.packetId, UUID_BYTES, 'packet_id'),
+    uint(statement.createdAtMs, 8, 'created_at_ms'),
+    uint(statement.expiresAtMs, 8, 'expires_at_ms'),
+    fixed(statement.dst, MESH_TOKEN_BYTES, 'dst'),
+    fixed(statement.originToken, MESH_TOKEN_BYTES, 'origin_token'),
+    fixed(statement.envelopeId, UUID_BYTES, 'envelope_id'),
+    uint(statement.cryptoType, 4, 'crypto_type'),
+    statement.groupId === undefined
+      ? Uint8Array.of(0)
+      : concat([Uint8Array.of(1), fixed(statement.groupId, UUID_BYTES, 'group_id')]),
+    uint(session.length, 2, 'megolm_session_id'),
+    session,
+    statement.ciphertext,
+  ]);
+}
+
+/**
+ * context ‖ the other side's link token (16) ‖ packet ID (16) ‖ status (4, big-endian): this
+ * device answered this packet so, on exactly this link (ADR 0025).
+ */
+export function meshAckMessage(
+  linkToken: Uint8Array,
+  packetId: Uint8Array,
+  status: number,
+): Uint8Array {
+  return concat([
+    context(SIGNING_CONTEXTS.meshAck),
+    fixed(linkToken, HELLO_TOKEN_BYTES, 'link_token'),
+    fixed(packetId, UUID_BYTES, 'packet_id'),
+    uint(status, 4, 'status'),
+  ]);
+}
+
+/** The bytes hashed into a routing token: context ‖ device ID (16) ‖ UTC day (4, big-endian). */
+export function meshRouteInput(deviceId: string | Uint8Array, day: number): Uint8Array {
+  return concat([
+    context(SIGNING_CONTEXTS.meshRoute),
+    deviceIdBytes(deviceId),
+    uint(day, 4, 'day'),
   ]);
 }
 

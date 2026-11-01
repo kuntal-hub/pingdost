@@ -20,6 +20,7 @@
     "@pingdost/config": "workspace:*",
     "@pingdost/crypto": "workspace:*",
     "@pingdost/crypto-native": "workspace:*",
+    "@pingdost/mesh-protocol": "workspace:*",
     "@pingdost/message-engine": "workspace:*",
     "@pingdost/protocol": "workspace:*",
     "@pingdost/shared-types": "workspace:*",

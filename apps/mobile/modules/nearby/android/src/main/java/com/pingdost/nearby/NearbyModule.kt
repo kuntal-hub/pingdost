@@ -113,5 +113,16 @@ class NearbyModule : Module() {
     }
 
     AsyncFunction("stopForegroundService") { promise: Promise -> BleEngine.stopForegroundService(reply(promise)) }
+
+    // Phase 23 (ADR 0025): the notification names relaying while it runs.
+    Function("setRelayNotification") { relay: Boolean ->
+      NearbyService.relay = relay
+      appContext.reactContext?.let { NearbyService.refresh(it.applicationContext) }
+    }
+
+    // Phase 23: the optional notification after a restart (BootReceiver).
+    Function("setRestartReminder") { enabled: Boolean ->
+      appContext.reactContext?.let { BootReceiver.setReminder(it.applicationContext, enabled) }
+    }
   }
 }

@@ -6,9 +6,13 @@
  * looked up on the server: an unknown peer stays unknown.
  */
 import type { CryptoProvider, OlmAccount } from '@pingdost/crypto/core';
+import { meshRoutingToken } from '@pingdost/protocol';
 import type { HelloCheck, NearbyIdentity } from '@pingdost/transport';
 
 import type { EngineStore } from '../store';
+
+const toHex = (bytes: Uint8Array) =>
+  Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 
 export interface NearbyIdentityOptions {
   self: { userId: string; deviceId: string };
@@ -23,10 +27,46 @@ export interface NearbyIdentityOptions {
 export function createNearbyIdentity(options: NearbyIdentityOptions): NearbyIdentity {
   const { crypto, account, store, self } = options;
   const identityKey = account.identityKeys().ed25519;
+  /** Routing tokens of directory devices, per day (hashing is cheap, but packets repeat). */
+  const tokens = new Map<string, string>();
+  const tokenOf = (deviceId: string, day: number) => {
+    const key = `${deviceId}/${day}`;
+    let token = tokens.get(key);
+    if (token === undefined) {
+      if (tokens.size > 4_096) tokens.clear();
+      token = toHex(meshRoutingToken(deviceId, day));
+      tokens.set(key, token);
+    }
+    return token;
+  };
   return {
     deviceId: self.deviceId,
     identityKey,
     sign: (message) => account.sign(message),
+    verify(key, message, signature) {
+      try {
+        return crypto.verifyEd25519(key, message, signature);
+      } catch {
+        return false;
+      }
+    },
+    /**
+     * The mesh (ADR 0025): a relayed envelope names its sender only by a routing token. It
+     * counts only if a cached, verified directory lists that device; blocked users' do not.
+     */
+    async resolveOrigin(token, day) {
+      const wanted = toHex(token);
+      for (const directory of await store.listDirectories()) {
+        if (directory.userId !== self.userId && options.blocked?.(directory.userId)) continue;
+        for (const device of directory.devices) {
+          if (device.deviceId === self.deviceId) continue;
+          if (tokenOf(device.deviceId, day) === wanted) {
+            return { deviceId: device.deviceId, ed25519: device.ed25519 };
+          }
+        }
+      }
+      return undefined;
+    },
     async check(key, message, signature): Promise<HelloCheck> {
       let valid: boolean;
       try {

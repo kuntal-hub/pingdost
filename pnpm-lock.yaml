@@ -83,6 +83,9 @@ importers:
       '@pingdost/crypto-native':
         specifier: workspace:*
         version: link:../../packages/crypto-native
+      '@pingdost/mesh-protocol':
+        specifier: workspace:*
+        version: link:../../packages/mesh-protocol
       '@pingdost/message-engine':
         specifier: workspace:*
         version: link:../../packages/message-engine
@@ -641,10 +644,20 @@ importers:
         version: 0.31.0-6
 
   packages/mesh-protocol:
+    dependencies:
+      '@pingdost/config':
+        specifier: workspace:*
+        version: link:../config
+      '@pingdost/protocol':
+        specifier: workspace:*
+        version: link:../protocol
     devDependencies:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/message-engine:
     dependencies:
@@ -657,6 +670,9 @@ importers:
       '@pingdost/crypto':
         specifier: workspace:*
         version: link:../crypto
+      '@pingdost/mesh-protocol':
+        specifier: workspace:*
+        version: link:../mesh-protocol
       '@pingdost/protocol':
         specifier: workspace:*
         version: link:../protocol
@@ -732,6 +748,9 @@ importers:
 
   packages/transport:
     dependencies:
+      '@pingdost/mesh-protocol':
+        specifier: workspace:*
+        version: link:../mesh-protocol
       '@pingdost/protocol':
         specifier: workspace:*
         version: link:../protocol

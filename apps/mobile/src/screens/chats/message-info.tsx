@@ -19,8 +19,8 @@ export function MessageInfoScreen({ messageId }: { messageId: string }) {
   const runtime = useChatRuntime();
   const online = useConnectionStatus() === 'online';
   const readReceipts = useReadReceipts();
-  const label = (state: DeliveryRecord['state'], via?: DeliveryRecord['via']) =>
-    stateLabel(shownState(state, readReceipts), online, via);
+  const label = (state: DeliveryRecord['state'], via?: DeliveryRecord['via'], relays?: number) =>
+    stateLabel(shownState(state, readReceipts), online, via, relays);
   const [info, setInfo] = useState<{
     message: MessageRecord;
     deliveries: DeliveryRecord[];
@@ -58,8 +58,10 @@ export function MessageInfoScreen({ messageId }: { messageId: string }) {
   const own = deliveries.filter((d) => d.own);
   // Every recipient device took it over Bluetooth: say so in the summary too.
   const allNearby = recipients.length > 0 && recipients.every((d) => d.via === 'nearby');
+  // Relayed: the most relays any recipient device has ("Forwarded by N devices").
+  const relays = Math.max(0, ...recipients.map((d) => d.relays ?? 0));
   const overall = message.state
-    ? label(message.state, allNearby ? 'nearby' : undefined)
+    ? label(message.state, allNearby ? 'nearby' : undefined, relays || undefined)
     : undefined;
   const pathOf = (d: DeliveryRecord) => {
     const path = pathLabel(d.via);
@@ -90,8 +92,8 @@ export function MessageInfoScreen({ messageId }: { messageId: string }) {
           {recipients.map((d, index) => (
             <ListRow
               key={d.deviceId}
-              title={`Device ${index + 1}: ${label(d.state, d.via).short}`}
-              subtitle={`${label(d.state, d.via).long}${pathOf(d)} Updated ${at(d.updatedAt)}.`}
+              title={`Device ${index + 1}: ${label(d.state, d.via, d.relays).short}`}
+              subtitle={`${label(d.state, d.via, d.relays).long}${pathOf(d)} Updated ${at(d.updatedAt)}.`}
             />
           ))}
         </ListSection>

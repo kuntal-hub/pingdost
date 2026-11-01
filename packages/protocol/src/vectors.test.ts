@@ -90,6 +90,8 @@ describe('golden protocol vectors (test-fixtures/protocol/v1.json)', () => {
       'mesh-ack',
       'mesh-chunk',
       'hello',
+      'mesh-envelope',
+      'mesh-summary',
       'mesh-header',
     ];
     expect(expected.filter((name) => !names.has(name))).toEqual([]);

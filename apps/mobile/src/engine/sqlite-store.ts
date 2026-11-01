@@ -61,6 +61,8 @@ const CHAT_TABLES = [
   'group_held',
   'attachments',
   'seen_mesh_packets',
+  // Other people's relayed packets (migration 008): nothing to carry once signed out.
+  'mesh_relay_packets',
   'device_sync_state',
   'messages_fts',
   'message_ops',
@@ -122,8 +124,10 @@ interface DeliveryRow {
   own: number;
   state: string;
   updated_at: number;
-  /** Migration 007: `internet` | `nearby`, once a next hop accepted it. */
+  /** Migration 007: `internet` | `nearby` (008: `mesh`), once a next hop accepted it. */
   via: string | null;
+  /** Migration 008: mesh relays that accepted it. */
+  relays: number | null;
 }
 
 interface OutboxRow {
@@ -263,7 +267,8 @@ const toDelivery = (r: DeliveryRow): DeliveryRecord => ({
   own: r.own === 1,
   state: r.state as MessageState,
   updatedAt: r.updated_at,
-  ...(r.via === 'internet' || r.via === 'nearby' ? { via: r.via } : {}),
+  ...(r.via === 'internet' || r.via === 'nearby' || r.via === 'mesh' ? { via: r.via } : {}),
+  ...(r.relays === null || r.relays === undefined ? {} : { relays: r.relays }),
 });
 
 /** Blobs may come back as other views; the engine compares and re-encodes them as bytes. */
@@ -583,9 +588,18 @@ export class SqliteEngineStore implements EngineStore {
       for (const d of b.deliveries ?? []) {
         await db.runAsync(
           `INSERT OR REPLACE INTO delivery_state
-             (message_id, device_id, user_id, own, state, updated_at, via)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [d.messageId, d.deviceId, d.userId, d.own ? 1 : 0, d.state, d.updatedAt, d.via ?? null],
+             (message_id, device_id, user_id, own, state, updated_at, via, relays)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            d.messageId,
+            d.deviceId,
+            d.userId,
+            d.own ? 1 : 0,
+            d.state,
+            d.updatedAt,
+            d.via ?? null,
+            d.relays ?? null,
+          ],
         );
       }
       for (const id of b.deleteOutbox ?? []) {

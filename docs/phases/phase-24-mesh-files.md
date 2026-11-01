@@ -42,6 +42,19 @@ Web nearby (browsers can't do this); iOS (30).
 - `pnpm lint typecheck test` passes.
 
 ## Handoff notes
+**From Phase 23 (ADR 0025):**
+- **Reuse the relay.** `MeshRelay` (`packages/transport/src/mesh.ts`) already has:
+  - routing tokens: `dst` = the recipient's daily token, `origin_token` = the sender's;
+  - the signed-statement pattern (`meshEnvelopeMessage`), signed link-bound `MeshAck`s and `MeshSummary` (tokens plus delivered IDs);
+  - binary spray-and-wait (`TransportPacket.copies`), the seen-cache and `RelayStore` (cap, eviction, per-origin quotas, `mesh_relay_packets`);
+  - rate limits and the relaying switch with its pause rules.
+  - `PACKET_KIND_MESH_CHUNK` and `MeshChunk`/`MeshChunkRef` are still unused. Give chunks the same header fields and a signature, and check `chunk_sha256` at relays (they can, unlike the envelope signature).
+- **Pipelining.** Offers go one at a time per link and wait for the signed ACK (stop-and-wait), which is fine for text and too slow for 10 MB. Add a window, or acknowledge by transfer ID plus a range/bitmap (one signature per batch).
+- **Store use.** Chunks count against the same 250 MB relay store and per-origin quotas (1,000 packets / 25 MiB per origin by default): a 10 MB file is about 160 chunks of 64 KiB. Raise the per-origin byte quota for transfers, or give chunks their own budget. Eviction drops the oldest received first.
+- **States.** The engine's mesh tier answers `held` and keeps the device item. A file's manifest Content travels as an envelope like any message. Only the receipt after full verification delivers it; `relayed`/`relays` already show "Forwarded by N devices".
+- **Delivered lists** are unauthenticated hints (holders drop copies; the sender never does). Fine for chunks too.
+- **Simulation.** `MeshSim` (`packages/message-engine/src/mesh/sim.ts`) gives virtual phones with real engines, `meet`/`part` and a mobility schedule (`run`). Add chunk scenarios there.
+
 **From Phase 22 (ADR 0024):**
 - `NearbyPeerTransport.send` takes only `ENVELOPE` packets. Each one waits for the recipient's `Ack`, up to 256 envelope IDs per ACK and a 15 s timeout. For chunks, add a chunk path with its own ACK (by transfer ID and index) rather than one envelope ACK per chunk.
 - `TransportRouter.route(deviceId)` says which path reaches a device now. Use it to choose between staged upload (Internet) and a direct transfer.

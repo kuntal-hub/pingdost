@@ -45,9 +45,24 @@ function primaryReplaced(change: DirectoryChange): boolean {
   );
 }
 
+/** States that would show a relayed message as not yet handed over (ADR 0025). */
+const RELAYED_HOLDS: readonly MessageState[] = [
+  'local_queued',
+  'sending',
+  'waiting_for_nearby_route',
+];
+
 export type EngineTransport = Pick<
   Transport,
-  'status$' | 'send' | 'onPacket' | 'sendTyping' | 'onTyping' | 'sendEphemeral' | 'onEphemeral'
+  | 'status$'
+  | 'send'
+  | 'onPacket'
+  | 'sendTyping'
+  | 'onTyping'
+  | 'sendEphemeral'
+  | 'onEphemeral'
+  | 'withdraw'
+  | 'onRelayed'
 > & {
   /**
    * How a packet to this device would go now (`TransportRouter`, ADR 0024). Without it,
@@ -260,6 +275,8 @@ export class EngineCore {
       for (const session of batch.inboundGroupSessions ?? []) this.groupSessions.forget(session);
       throw error;
     }
+    // Done with these items (accepted, a receipt, a revocation): copies held for the mesh go.
+    if (batch.deleteOutbox?.length) this.options.transport.withdraw?.(batch.deleteOutbox);
     for (const message of batch.messages ?? []) {
       const event: ConversationEvent = { type: 'message', message };
       this.#conversationListeners.get(message.conversationId)?.emit(event);
@@ -373,6 +390,8 @@ export class EngineCore {
 
   /** A delivery row moved to `state`, if the transition is legal. */
   static moved(row: DeliveryRecord, state: MessageState, now: number): DeliveryRecord | undefined {
+    // Relays hold it: another attempt (the Internet back, a retry) does not unsay that.
+    if (row.state === 'relayed' && RELAYED_HOLDS.includes(state)) return undefined;
     const next = nextMessageState(row.state, [{ ...row, own: false, state }]);
     return next === row.state ? undefined : { ...row, state: next, updatedAt: now };
   }

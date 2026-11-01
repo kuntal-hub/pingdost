@@ -23,7 +23,16 @@ import {
   type SyncMessage,
 } from './gen/pingdost/v1/content_pb';
 import { CryptoType, EnvelopeSchema, type Envelope } from './gen/pingdost/v1/envelope_pb';
-import { HelloSchema, type Hello } from './gen/pingdost/v1/mesh_pb';
+import {
+  HelloSchema,
+  MeshAckSchema,
+  MeshEnvelopeSchema,
+  MeshSummarySchema,
+  type Hello,
+  type MeshAck,
+  type MeshEnvelope,
+  type MeshSummary,
+} from './gen/pingdost/v1/mesh_pb';
 import {
   AckSchema,
   PacketKind,
@@ -46,7 +55,7 @@ import {
   type CodecOptions,
 } from './limits';
 import { encodePaddedContent } from './padding';
-import { HELLO_TOKEN_BYTES, KEY_BYTES } from './signing';
+import { HELLO_TOKEN_BYTES, KEY_BYTES, MESH_TOKEN_BYTES } from './signing';
 
 /** Longest `ContentHeader.conversation_id` (a 16-byte ID, or a 32-byte hash). */
 const MAX_CONVERSATION_ID_BYTES = 32;
@@ -157,7 +166,11 @@ function checkTransportPacket(
     throw new ProtocolError('EXPIRED', 'the packet has expired', `${path}expires_at_ms`);
   }
   const maxPayload =
-    packet.kind === PacketKind.MESH_CHUNK ? MESH_CHUNK_MAX_BYTES : limitsFor(options).envelope;
+    packet.kind === PacketKind.MESH_CHUNK
+      ? MESH_CHUNK_MAX_BYTES
+      : packet.kind === PacketKind.MESH_ENVELOPE
+        ? limitsFor(options).envelope + MESH_ENVELOPE_OVERHEAD_BYTES
+        : limitsFor(options).envelope;
   if (packet.payload.length > maxPayload) {
     throw new ProtocolError('OVERSIZED', `payload exceeds ${maxPayload} bytes`, `${path}payload`);
   }
@@ -267,6 +280,108 @@ export function encodeAck(ack: Ack): Uint8Array {
 export function decodeAck(bytes: Uint8Array): Ack {
   const ack = parse(AckSchema, bytes, MAX_ACK_IDS * (UUID_BYTES + 2) + 16);
   checkAck(ack);
+  return ack;
+}
+
+// Mesh relay (ADR 0025)
+
+/**
+ * A MeshEnvelope is the Envelope less its two device IDs (32 bytes) plus an origin token (16)
+ * and a signature (64), with their tags: it fits in the envelope limit plus this.
+ */
+export const MESH_ENVELOPE_OVERHEAD_BYTES = 128;
+/** Most routing tokens in one summary (a 30-day TTL is 32 days of tokens). */
+export const MAX_MESH_SUMMARY_TOKENS = 40;
+/** Most delivered packet IDs in one summary. */
+export const MAX_MESH_SUMMARY_DELIVERED = 256;
+const MESH_ACK_MAX_BYTES = 128;
+const MESH_SUMMARY_MAX_BYTES =
+  MAX_MESH_SUMMARY_TOKENS * (MESH_TOKEN_BYTES + 2) +
+  MAX_MESH_SUMMARY_DELIVERED * (UUID_BYTES + 2) +
+  16;
+
+function checkMeshEnvelope(envelope: MeshEnvelope): void {
+  if (envelope.originToken.length !== MESH_TOKEN_BYTES) {
+    throw invalid('origin_token', `must be ${MESH_TOKEN_BYTES} bytes`);
+  }
+  checkId(envelope.envelopeId, 'envelope_id');
+  checkEnumSet(envelope.cryptoType, 'crypto_type');
+  checkOptionalId(envelope.groupId, 'group_id');
+  if (envelope.cryptoType === CryptoType.MEGOLM) {
+    checkId(envelope.groupId, 'group_id');
+    checkText(envelope.megolmSessionId, 'megolm_session_id');
+  }
+  if (envelope.ciphertext.length === 0) throw missing('ciphertext');
+  if (envelope.signature.length !== ED25519_SIGNATURE_BYTES) {
+    throw invalid('signature', `must be ${ED25519_SIGNATURE_BYTES} bytes`);
+  }
+}
+
+/** The payload of a `PACKET_KIND_MESH_ENVELOPE` packet. */
+export function encodeMeshEnvelope(envelope: MeshEnvelope, options: CodecOptions = {}): Uint8Array {
+  checkMeshEnvelope(envelope);
+  return serialize(
+    MeshEnvelopeSchema,
+    envelope,
+    limitsFor(options).envelope + MESH_ENVELOPE_OVERHEAD_BYTES,
+  );
+}
+
+export function decodeMeshEnvelope(bytes: Uint8Array, options: CodecOptions = {}): MeshEnvelope {
+  const envelope = parse(
+    MeshEnvelopeSchema,
+    bytes,
+    limitsFor(options).envelope + MESH_ENVELOPE_OVERHEAD_BYTES,
+  );
+  checkMeshEnvelope(envelope);
+  return envelope;
+}
+
+function checkMeshSummary(summary: MeshSummary): void {
+  if (summary.routingTokens.length > MAX_MESH_SUMMARY_TOKENS) {
+    throw invalid('routing_tokens', `must hold at most ${MAX_MESH_SUMMARY_TOKENS} tokens`);
+  }
+  for (const token of summary.routingTokens) {
+    if (token.length !== MESH_TOKEN_BYTES) {
+      throw invalid('routing_tokens', `must be ${MESH_TOKEN_BYTES} bytes each`);
+    }
+  }
+  if (summary.delivered.length > MAX_MESH_SUMMARY_DELIVERED) {
+    throw invalid('delivered', `must hold at most ${MAX_MESH_SUMMARY_DELIVERED} IDs`);
+  }
+  for (const id of summary.delivered) checkId(id, 'delivered');
+}
+
+/** The payload of a `PACKET_KIND_MESH_SUMMARY` packet. */
+export function encodeMeshSummary(summary: MeshSummary): Uint8Array {
+  checkMeshSummary(summary);
+  return serialize(MeshSummarySchema, summary, MESH_SUMMARY_MAX_BYTES);
+}
+
+export function decodeMeshSummary(bytes: Uint8Array): MeshSummary {
+  const summary = parse(MeshSummarySchema, bytes, MESH_SUMMARY_MAX_BYTES);
+  checkMeshSummary(summary);
+  return summary;
+}
+
+function checkMeshAck(ack: MeshAck): void {
+  checkId(ack.packetId, 'packet_id');
+  // A status this build does not know is kept: the transport treats it as REFUSED.
+  checkEnumSet(ack.status, 'status');
+  if (ack.signature.length !== ED25519_SIGNATURE_BYTES) {
+    throw invalid('signature', `must be ${ED25519_SIGNATURE_BYTES} bytes`);
+  }
+}
+
+/** The payload of a `PACKET_KIND_MESH_ACK` packet. */
+export function encodeMeshAck(ack: MeshAck): Uint8Array {
+  checkMeshAck(ack);
+  return serialize(MeshAckSchema, ack, MESH_ACK_MAX_BYTES);
+}
+
+export function decodeMeshAck(bytes: Uint8Array): MeshAck {
+  const ack = parse(MeshAckSchema, bytes, MESH_ACK_MAX_BYTES);
+  checkMeshAck(ack);
   return ack;
 }
 

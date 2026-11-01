@@ -47,8 +47,16 @@ import {
   type TransportPacket,
 } from '@pingdost/protocol';
 
+import { MeshRelay, type MeshIdentity, type MeshRelayOptions } from './mesh';
 import { Listeners, ValueStream, type ReadonlyValueStream } from './stream';
-import type { PacketListener, SendResult, Transport, TransportStatus, Unsubscribe } from './types';
+import type {
+  PacketListener,
+  RelayedEvent,
+  SendResult,
+  Transport,
+  TransportStatus,
+  Unsubscribe,
+} from './types';
 
 // REQ §11.2's platform interface. Android implements it on the BLE module (ADR 0023).
 
@@ -107,6 +115,10 @@ export interface NearbyIdentity {
   sign(message: Uint8Array): string;
   /** Checks the signature, then looks the key up among the verified directories. */
   check(identityKey: string, message: Uint8Array, signature: string): Promise<HelloCheck>;
+  /** A plain Ed25519 check (mesh ACKs and relayed envelopes; needed for the mesh). */
+  verify?: MeshIdentity['verify'];
+  /** The cached directory device behind a routing token (needed for the mesh). */
+  resolveOrigin?: MeshIdentity['resolveOrigin'];
 }
 
 export interface NearbySummary {
@@ -133,10 +145,13 @@ export interface NearbyPeerTransportOptions {
   random?: (length: number) => Uint8Array;
   /** States and counts only, never keys or packet contents (ARCHITECTURE A10). */
   log?: (message: string, fields?: Record<string, string | number | boolean>) => void;
+  /**
+   * The mesh relay (ADR 0025): packets for devices out of range are held and handed to relays,
+   * and, while relaying is on, other people's packets are carried. Without it, only direct.
+   */
+  mesh?: MeshRelayOptions;
 }
 
-/** What this build does over a nearby link. */
-const CAPABILITIES = HelloCapability.DIRECT;
 /** HELLO and ACK are hop-local: their `dst` names no device. */
 const LINK_LOCAL = Uint8Array.of(0);
 /** Invalid proofs on one link before it is closed. */
@@ -155,6 +170,9 @@ interface LinkState {
   peerToken: Uint8Array | null;
   /** The peer token our proof was made for. */
   provedFor: Uint8Array | null;
+  /** The key the peer proved, and the capabilities it signed. */
+  peerKey: string | null;
+  capabilities: number;
   status: 'handshake' | 'known' | 'unknown';
   peer: NearbyPeer | null;
   invalidProofs: number;
@@ -180,9 +198,10 @@ export class NearbyPeerTransport implements Transport {
   readonly #unsubscribe: Unsubscribe[];
   readonly #self: Uint8Array;
   readonly #options: Required<
-    Omit<NearbyPeerTransportOptions, 'links' | 'identity' | 'envelopeMaxBytes' | 'log'>
+    Omit<NearbyPeerTransportOptions, 'links' | 'identity' | 'envelopeMaxBytes' | 'log' | 'mesh'>
   > &
     Pick<NearbyPeerTransportOptions, 'envelopeMaxBytes' | 'log'>;
+  readonly #mesh: MeshRelay | undefined;
 
   constructor(private readonly config: NearbyPeerTransportOptions) {
     this.#options = {
@@ -197,6 +216,34 @@ export class NearbyPeerTransport implements Transport {
       ...(config.log === undefined ? {} : { log: config.log }),
     };
     this.#self = uuidToBytes(config.identity.deviceId);
+    const { identity } = config;
+    if (config.mesh) {
+      const { verify, resolveOrigin } = identity;
+      if (!verify || !resolveOrigin) throw new Error('the mesh needs verify and resolveOrigin');
+      this.#mesh = new MeshRelay(
+        {
+          identity: {
+            deviceId: identity.deviceId,
+            sign: (m) => identity.sign(m),
+            verify,
+            resolveOrigin,
+          },
+          now: () => this.#options.now(),
+          ...(config.envelopeMaxBytes === undefined
+            ? {}
+            : { envelopeMaxBytes: config.envelopeMaxBytes }),
+          sendBytes: (linkId, bytes) => {
+            const link = this.#links.get(linkId);
+            return link
+              ? this.config.links.send(link.connection, bytes)
+              : Promise.reject(new Error('link_down'));
+          },
+          deliver: (packet, ack) => this.#packets.emit(packet, ack),
+          ...(config.log === undefined ? {} : { log: config.log }),
+        },
+        config.mesh,
+      );
+    }
     const { links } = config;
     this.#unsubscribe = [
       links.onConnection((connection) => this.#onConnection(connection)),
@@ -214,8 +261,14 @@ export class NearbyPeerTransport implements Transport {
     return this.#summary;
   }
 
+  /** The mesh relay, when configured: its status, the relaying switch and the cache. */
+  get mesh(): MeshRelay | undefined {
+    return this.#mesh;
+  }
+
   /** Starts looking for peers; packets may wait for a nearby route from now on. */
   async start(): Promise<void> {
+    await this.#mesh?.start();
     await this.config.links.startDiscovery();
     this.#status.set('online');
   }
@@ -231,10 +284,24 @@ export class NearbyPeerTransport implements Transport {
     this.#status.set('offline');
     for (const unsubscribe of this.#unsubscribe.splice(0)) unsubscribe();
     for (const id of [...this.#links.keys()]) this.#onDisconnect(id);
+    this.#mesh?.dispose();
   }
 
   reaches(deviceId: string): boolean {
     return this.#status.value === 'online' && this.#linkFor(deviceId) !== undefined;
+  }
+
+  /** With the mesh, every device out of direct range can wait in it for relays. */
+  carries(): boolean {
+    return this.#status.value === 'online' && this.#mesh !== undefined;
+  }
+
+  withdraw(envelopeIds: readonly string[]): void {
+    this.#mesh?.withdraw(envelopeIds);
+  }
+
+  onRelayed(listener: (event: RelayedEvent) => void): Unsubscribe {
+    return this.#mesh?.onRelayed(listener) ?? (() => undefined);
   }
 
   onReachability(listener: () => void): Unsubscribe {
@@ -245,14 +312,17 @@ export class NearbyPeerTransport implements Transport {
     return this.#packets.add(listener);
   }
 
-  /** Sends one envelope to its recipient device's link and waits for that device's ACK. */
+  /**
+   * Sends one envelope to its recipient device's link and waits for that device's ACK. With
+   * no such link, the mesh holds it for relays (`held`) when it is configured.
+   */
   async send(packet: TransportPacket): Promise<SendResult> {
     if (this.#status.value !== 'online') return OFFLINE;
     if (packet.kind !== PacketKind.ENVELOPE || packet.dst.length !== UUID_BYTES) {
       return { ok: false, code: 'INVALID', retryable: false };
     }
     const link = this.#linkFor(bytesToUuid(packet.dst));
-    if (!link) return NO_ROUTE;
+    if (!link) return this.#mesh ? this.#mesh.send(packet) : NO_ROUTE;
     let bytes: Uint8Array;
     let key: string;
     try {
@@ -313,6 +383,8 @@ export class NearbyPeerTransport implements Transport {
       provedFor: null,
       status: 'handshake',
       peer: null,
+      peerKey: null,
+      capabilities: 0,
       invalidProofs: 0,
       timer: undefined,
       acks: [],
@@ -334,6 +406,7 @@ export class NearbyPeerTransport implements Transport {
     if (!link) return;
     this.#links.delete(id);
     clearTimeout(link.timer);
+    this.#mesh?.linkDown(id);
     // It may or may not have arrived: the sender tries again and the recipient dedupes.
     for (const entry of [...this.#pending.values()]) {
       if (entry.linkId === id) entry.resolve(TIMEOUT);
@@ -373,8 +446,14 @@ export class NearbyPeerTransport implements Transport {
       case PacketKind.ACK:
         this.#onAck(link, packet.payload);
         break;
+      case PacketKind.MESH_ENVELOPE:
+      case PacketKind.MESH_ACK:
+      case PacketKind.MESH_SUMMARY:
+        // Only from a peer that proved a key on this link (ADR 0025).
+        if (link.peerKey !== null) this.#mesh?.onPacket(link.connection.linkId, packet);
+        break;
       default:
-        // Relay and file chunks arrive with Phases 23 and 24.
+        // File chunks arrive with Phase 24.
         break;
     }
   }
@@ -395,6 +474,8 @@ export class NearbyPeerTransport implements Transport {
         const wasKnown = link.status === 'known';
         link.status = 'handshake';
         link.peer = null;
+        link.peerKey = null;
+        this.#mesh?.linkDown(link.connection.linkId);
         this.#changed(wasKnown);
         this.#sendHello(link, false);
       }
@@ -432,6 +513,8 @@ export class NearbyPeerTransport implements Transport {
       return;
     }
     clearTimeout(link.timer);
+    link.peerKey = identityKey;
+    link.capabilities = hello.capabilities;
     if (result.status === 'known' && (hello.capabilities & HelloCapability.DIRECT) !== 0) {
       link.status = 'known';
       link.peer = result.peer;
@@ -442,6 +525,16 @@ export class NearbyPeerTransport implements Transport {
       link.peer = null;
       this.#log('nearby peer unknown');
       this.#changed(false);
+    }
+    if (link.peerToken) {
+      this.#mesh?.linkReady({
+        id: link.connection.linkId,
+        ownToken: link.ownToken,
+        peerToken: link.peerToken,
+        peerKey: identityKey,
+        capabilities: hello.capabilities,
+        peerDeviceId: link.peer?.deviceId ?? null,
+      });
     }
   }
 
@@ -491,11 +584,17 @@ export class NearbyPeerTransport implements Transport {
     });
   }
 
+  /** What this device does over a nearby link: direct always, relaying while it is on. */
+  #capabilities(): number {
+    return HelloCapability.DIRECT | (this.#mesh?.relaying ? HelloCapability.RELAY : 0);
+  }
+
   #sendHello(link: LinkState, withProof: boolean): void {
+    const capabilities = this.#capabilities();
     const hello = create(HelloSchema, {
       protocolVersion: PROTOCOL_VERSION,
       peerToken: link.ownToken,
-      capabilities: CAPABILITIES,
+      capabilities,
     });
     if (withProof && link.peerToken) {
       const { identity } = this.config;
@@ -503,7 +602,7 @@ export class NearbyPeerTransport implements Transport {
         link.ownToken,
         link.peerToken,
         identity.identityKey,
-        CAPABILITIES,
+        capabilities,
       );
       hello.proof = create(HelloProofSchema, {
         identityKey: fromBase64(identity.identityKey),

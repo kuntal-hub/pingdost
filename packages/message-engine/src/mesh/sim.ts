@@ -1,0 +1,181 @@
+/**
+ * The mesh simulation harness (Phase 23, ADR 0025): virtual phones, each a real engine with
+ * real vodozemac, the real router, `NearbyPeerTransport` with its `MeshRelay`, an in-memory
+ * radio and an in-memory relay store. A mobility schedule says who is in range of whom, and
+ * when. The Internet is the fake server, switched off for "airplane mode".
+ */
+import type { CryptoProvider } from '@pingdost/crypto';
+import { MemoryMeshPersistence, type MeshPolicy } from '@pingdost/mesh-protocol';
+import { NearbyPeerTransport, TransportRouter, type MeshStatus } from '@pingdost/transport';
+import { connectFakeLinks, FakeLinks } from '@pingdost/transport/testing';
+
+import { createNearbyIdentity } from '../routing/identity';
+import { createTestClient, FakeServer, type TestClient } from '../testing';
+
+export interface SimPhone {
+  name: string;
+  client: TestClient;
+  nearby: NearbyPeerTransport;
+  radio: FakeLinks;
+  persistence: MemoryMeshPersistence;
+  /** Relay log lines (states and counts only). */
+  log: string[];
+}
+
+export interface SimPhoneOptions {
+  relaying?: boolean;
+  /** A relay store to start from (e.g. with a tampered packet in it). */
+  persistence?: MemoryMeshPersistence;
+  policy?: Partial<MeshPolicy>;
+  blocked?: (userId: string) => boolean;
+}
+
+/** One step of a mobility schedule, `at` milliseconds after it starts. */
+export type MobilityStep =
+  | { at: number; meet: [SimPhone, SimPhone] }
+  | { at: number; part: [SimPhone, SimPhone] }
+  | { at: number; run: () => unknown };
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export class MeshSim {
+  readonly phones: SimPhone[] = [];
+  readonly #links = new Map<string, { radio: FakeLinks; id: number }>();
+  readonly #started = new Set<SimPhone>();
+  #airplane = false;
+
+  constructor(
+    private readonly crypto: CryptoProvider,
+    readonly server = new FakeServer(),
+  ) {}
+
+  async phone(name: string, options: SimPhoneOptions = {}): Promise<SimPhone> {
+    const radio = new FakeLinks();
+    const persistence = options.persistence ?? new MemoryMeshPersistence();
+    const log: string[] = [];
+    let nearby: NearbyPeerTransport | undefined;
+    const down = this.server.apiDown;
+    this.server.apiDown = false; // registering needs the server
+    const client = await createTestClient(this.server, this.crypto, {
+      ...(options.blocked ? { blocked: options.blocked } : {}),
+      ...(process.env.ENGINE_LOG
+        ? { log: (level, message, fields) => console.log(name, level, message, fields ?? '') }
+        : {}),
+      transport: ({ internet, userId, deviceId, account, store }) => {
+        nearby = new NearbyPeerTransport({
+          links: radio,
+          identity: createNearbyIdentity({
+            self: { userId, deviceId },
+            crypto: this.crypto,
+            account,
+            store,
+            ...(options.blocked ? { blocked: options.blocked } : {}),
+          }),
+          ackTimeoutMs: 300,
+          handshakeTimeoutMs: 1_000,
+          log: (message, fields) => {
+            log.push(fields ? `${message} ${JSON.stringify(fields)}` : message);
+            if (process.env.ENGINE_LOG) console.log(name, message, fields ?? '');
+          },
+          mesh: {
+            persistence,
+            relaying: options.relaying ?? false,
+            policy: { ackTimeoutMs: 1_000, ...options.policy },
+          },
+        });
+        return new TransportRouter([internet, nearby]);
+      },
+    });
+    this.server.apiDown = down;
+    if (!nearby) throw new Error('no nearby transport');
+    const phone: SimPhone = { name, client, nearby, radio, persistence, log };
+    this.phones.push(phone);
+    if (this.#airplane) await this.#offline(phone);
+    return phone;
+  }
+
+  /** Online once together: each caches the others' verified directories (and fallback keys). */
+  async introduce(...phones: SimPhone[]): Promise<void> {
+    this.server.apiDown = false;
+    for (const p of phones) await this.#online(p);
+    for (const p of phones) {
+      for (const other of phones) {
+        if (other !== p) await p.client.engine.refreshDevices(other.client.userId);
+      }
+    }
+    if (this.#airplane) {
+      this.server.apiDown = true;
+      for (const p of phones) await this.#offline(p);
+    }
+  }
+
+  /** Airplane mode with Bluetooth on, for every phone: no socket, no REST, nearby looking. */
+  async airplane(): Promise<void> {
+    this.#airplane = true;
+    this.server.apiDown = true;
+    for (const p of this.phones) await this.#offline(p);
+  }
+
+  async #offline(p: SimPhone): Promise<void> {
+    await this.#online(p);
+    p.client.transport.disconnect();
+    await p.nearby.start();
+  }
+
+  /** The Internet is back for these phones. */
+  internet(...phones: SimPhone[]): void {
+    this.#airplane = false;
+    this.server.apiDown = false;
+    for (const p of phones) p.client.transport.connect();
+  }
+
+  meet(a: SimPhone, b: SimPhone): void {
+    const [idA] = connectFakeLinks(a.radio, b.radio);
+    this.#links.set(this.#key(a, b), { radio: a.radio, id: idA });
+  }
+
+  part(a: SimPhone, b: SimPhone): void {
+    const key = this.#key(a, b);
+    const link = this.#links.get(key);
+    if (!link) return;
+    this.#links.delete(key);
+    link.radio.drop(link.id);
+  }
+
+  /** Runs a mobility schedule; resolves after its last step. */
+  async run(schedule: MobilityStep[]): Promise<void> {
+    const start = Date.now();
+    for (const step of [...schedule].sort((x, y) => x.at - y.at)) {
+      const wait = step.at - (Date.now() - start);
+      if (wait > 0) await sleep(wait);
+      if ('meet' in step) this.meet(...step.meet);
+      else if ('part' in step) this.part(...step.part);
+      else await step.run();
+    }
+  }
+
+  meshOf(p: SimPhone): MeshStatus {
+    const status = p.nearby.mesh?.status$.value;
+    if (!status) throw new Error('no mesh');
+    return status;
+  }
+
+  async stop(): Promise<void> {
+    for (const p of this.phones.splice(0)) {
+      p.nearby.dispose();
+      await p.client.engine.stop();
+    }
+  }
+
+  async #online(p: SimPhone): Promise<void> {
+    p.client.transport.connect();
+    if (!this.#started.has(p)) {
+      this.#started.add(p);
+      await p.client.engine.start();
+    }
+  }
+
+  #key(a: SimPhone, b: SimPhone): string {
+    return [a.name, b.name].sort().join('|');
+  }
+}

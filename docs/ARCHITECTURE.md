@@ -133,6 +133,12 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Each device's packet goes over the Internet if it is up. Otherwise it goes over nearby if that device proved its key on a link; otherwise it waits as `waiting_for_nearby_route` until a route appears.
   - `NearbyPeerTransport` handshake: two `Hello`s per side, the second signing both link tokens with the device's Ed25519 key (`nearbyHelloMessage`). Peers are recognised only from cached, certified directories; strangers learn the public key, never the device ID.
   - A nearby `Ack` from the recipient's phone makes the delivery `sent_to_server` with `via: nearby`; only the E2EE receipt delivers it. Duplicates across paths are dropped by envelope and message ID.
+- **Mesh relay (ADR 0025):**
+  - The router's third tier is `mesh`: a device out of direct range gets a `MESH_ENVELOPE` packet held by this phone's relay (`held`). Its `dst` is the recipient's daily routing token (SHA-256 of context ‖ device ID ‖ UTC day, 16 bytes), never a device ID. The payload is the Envelope without device IDs plus the sender's token and its Ed25519 signature, which only the recipient checks.
+  - Binary spray-and-wait: 8 copies, half handed to each new relay-capable peer; hop budget `MESH_PACKET_MAX_HOPS`, TTL `MESH_PACKET_TTL_SECONDS`.
+  - Every offer gets a link-bound signed `MeshAck` (ACCEPTED/DELIVERED/DUPLICATE/REFUSED). ACCEPTED from relays makes the row `relayed` (`via: mesh`, `relays: N`). Peers trade routing tokens and delivered IDs in a hop-local `MeshSummary`.
+  - The sender keeps its outbox item: the same packet still goes over the Internet or a direct link. Settled items are withdrawn from the relay.
+  - Limits, the seen-cache and the relay store live in `@pingdost/mesh-protocol`; the relay runs in `@pingdost/transport` (`MeshRelay`).
 - **Edits, deletes, reactions (ADR 0014):** E2EE ops applied with the same rules on every device:
   - last-write-wins on (header time, op ID);
   - edit and delete for everyone only by the sender, inside the 24 h windows in `DEFAULT_LIMITS`;
@@ -182,7 +188,8 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Never restore a device Olm account, Olm sessions or outbound Megolm sessions. A restored device is a new device certified by the identity key.
   - (ADR 0022) The user-held `.pdbk` file: Argon2id (in the Rust crate) of a 24-word BIP39 phrase keys the attachment STREAM; the body holds the history, contacts' verified keys, the account key and Megolm inbound sessions (exported), never device state. Nothing is uploaded.
   - (ADR 0022) Replacing the primary: the old phone approves (a check code, then the account key sealed over a one-off Olm session), or a backup plus an email code, or a fresh account key plus an email code (every device revoked). A recent login, audit events and budgets on every path. A same-key phone change shows "moved to a new phone" and keeps verification.
-- **Mesh first contact:** clients cache contacts' device identity and fallback keys while online, so Olm prekey messages can be created offline (done in Phase 22: a nearby route with no session uses the cached, signature-checked fallback key; ADR 0024). A contact never seen online cannot be reached offline, and the app says so.
+- **Mesh first contact:** clients cache contacts' device identity and fallback keys while online, so Olm prekey messages can be created offline (done in Phase 22: a nearby route with no session uses the cached, signature-checked fallback key; ADR 0024). A contact never seen online cannot be reached offline, and the app says so. The mesh route (ADR 0025) does the same.
+- **Nearby recognition (ADR 0026):** the handshake stays key-based. Strangers in range can recognise a phone's public device key again; contact-only tags would need a new protocol (A10).
 - **Local at rest:**
   - **Mobile:** SQLCipher DB key, Olm pickle key, the account identity key secret and the session tokens in `expo-secure-store` (Android Keystore; ADR 0009).
   - **Web:** a non-extractable AES-GCM `CryptoKey` stored in IndexedDB encrypts sensitive records and pickles. The docs must state that browser protection is weaker than native.
@@ -218,8 +225,9 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - ⚠ Phase 15 (ADR 0018): expo-file-system 58.0.10, expo-document-picker 58.0.4, expo-audio 58.0.9, expo-video 58.0.12, expo-sharing 58.0.19. Video compression, metadata and preview frames come from the local Kotlin module `modules/pingdost-media` on AndroidX Media3 Transformer 1.9.1, instead of react-native-compressor (CHANGES 2026-10-20).
   - Phase 16: QR pairing reuses expo-camera (installed in Phase 10).
   - ⚠ Phase 21 (ADR 0023): the local module `modules/nearby` (Kotlin, Android's own BLE APIs): GATT links with framing and credit flow control, a rotating random advert token, a `connectedDevice` foreground service. **No Google Play services / Nearby Connections** (user decision; CHANGES 2026-10-31). Nearby needs Android 8.0+ (the app's minSdk stays 24).
+  - Phase 23 (ADR 0025, no new dependency): `@pingdost/mesh-protocol` gets its first code. Migration 008 adds `mesh_relay_packets` and `delivery_state.relays`; the relay cache sits in the SQLCipher database apart from chats.
   - Phase 26: react-native-webrtc.
-- **Background:** FCM high-priority data messages wake the app for fetch. The mesh relay runs in an Android foreground service (`connectedDevice`) while relaying is enabled.
+- **Background:** FCM high-priority data messages wake the app for fetch. Nearby and the mesh relay run under the `connectedDevice` foreground service while nearby messaging is on. Its notification reads "PingDost nearby relay active" while relaying. The service starts only from the foreground; after a reboot an optional notification asks the user to open the app (ADR 0025: the relay logic is JavaScript, which Android does not start at boot).
 
 ## A7. Web
 - **Stack:** Vite + React + TS. React Router, TanStack Query, Zustand. Tailwind v4 + shadcn/ui with `@pingdost/ui-tokens`. Dexie (IndexedDB); never localStorage for history.

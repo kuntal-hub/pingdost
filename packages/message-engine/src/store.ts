@@ -250,8 +250,13 @@ export interface DeliveryRecord {
   own: boolean;
   state: MessageState;
   updatedAt: number;
-  /** The path that carried it to the next hop, once one accepted it (ADR 0024). */
-  via?: 'internet' | 'nearby';
+  /**
+   * The path that carried it to the next hop, once one accepted it (ADR 0024); `mesh` once a
+   * relay accepted it (ADR 0025).
+   */
+  via?: 'internet' | 'nearby' | 'mesh';
+  /** Relays that accepted it from this device (`relayed`, "Forwarded by N devices"). */
+  relays?: number;
 }
 
 interface OutboxBase {

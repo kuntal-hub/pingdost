@@ -17,6 +17,73 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-01 — Phase 23: Mesh store-and-forward relay — 🔄 partial (device checks open)
+Started with Phases 15 and 22 still 🔄 (only their device checks are open); the user said to proceed, and to do the open device checks of 10–22 later.
+
+**Done (ADR 0025, ADR 0026):**
+- **Protocol** (add-only, v1; `buf breaking` clean):
+  - `PACKET_KIND_MESH_ENVELOPE` (7) and `MESH_SUMMARY` (8); `TransportPacket.copies`;
+  - `MeshEnvelope` (the Envelope without device IDs, plus origin token and signature), `MeshSummary`, and `MeshAck.status`/`signature`;
+  - `meshRoutingToken(s)`, `meshEnvelopeMessage`, `meshAckMessage`, codecs, conversions; 4 new golden vectors (additions only).
+- **`@pingdost/mesh-protocol`** (first code): `MeshPolicy` (REQ §17 defaults; spray 8, quotas, rates), `checkMeshPacket`, `splitCopies`, `SeenCache`, `RelayStore` (250 MB cap, expired-then-oldest eviction, per-origin quotas), `RateLimiter`, `MeshPersistence` plus a memory version.
+- **Transport:**
+  - `MeshRelay`: summaries after the handshake; holding own packets; spray-and-wait to relay-capable peers; carrying for others (relaying on); handing over to the recipient; signed link-bound ACKs; the recipient's origin resolution and signature check; delivered lists; withdrawal; `status$`.
+  - `NearbyPeerTransport` gets the `mesh` option, `carries`, `withdraw`, `onRelayed` and the RELAY capability. The router gets the `mesh` tier, `withdraw`, `onRelayed` and `via` from the transport. Types: `held`, `TransportPath`, `Route` `mesh`.
+- **Engine:**
+  - route `mesh` (no key claim; browsers wait for the Internet);
+  - `held` keeps the item, parked, as `waiting_for_nearby_route`;
+  - `Outbox.relayed` → `relayed` with `via: mesh`, `relays: N`;
+  - relayed rows never move back; `commit` withdraws deleted items;
+  - `createNearbyIdentity` adds `verify` and `resolveOrigin`;
+  - `DeliveryRecord.relays`; store contract.
+  - `MeshSim` harness plus 8 scenarios in `src/mesh/`.
+- **chat-core:** `relayedLabel` ("Forwarded by N devices — not yet delivered…"); `stateLabel(…, via, relays)`.
+- **Android:**
+  - migration 008 (`mesh_relay_packets`, `delivery_state.relays`), `SqliteMeshPersistence`, wiped at sign-out;
+  - `relay.ts` (prefs, pause rules: off, nearby off, battery below 20% unless charging, saver, only while charging, free storage below 1 GB);
+  - the service applies relaying, checks every minute, and sets the notification text;
+  - Settings → **Nearby relay** (opt-in "Allow this device to relay messages", what relays see, battery and storage, pause rules, restart reminder, cache with counters, clear, when relaying stops);
+  - Storage → Nearby relay cache (size, its own clear);
+  - message info names the mesh path and the relay count.
+  - Native: `NearbyService` notification "PingDost nearby relay active" (`setRelayNotification`); `BootReceiver` and `setRestartReminder` (`RECEIVE_BOOT_COMPLETED`).
+- **Docs:** ADR 0025, ADR 0026, CHANGES 2026-11-01 (six items), ARCHITECTURE A4/A5/A6, decisions index, Phase 24/27/30 handoffs, CLAUDE.md.
+
+**Remaining (needs phones; nothing was attached this session):**
+- [ ] Build and install on two phones: `pnpm --filter @pingdost/mobile android` (new Kotlin: notification text, boot receiver; migration 008). Turn on Nearby messaging on both, and on phone B Settings → Nearby relay → Allow.
+- [ ] **Done when (device):**
+  - relay opt-in, opt-out and Clear relay cache on a device (Settings → Nearby relay, Storage → Nearby relay cache), and the notification text switching to "PingDost nearby relay active";
+  - receipt UI with 2 phones: A sends to a contact C who is not in range. A shows "Queued", then "Forwarded" once B accepted it, with message info "Forwarded by 1 device — not yet delivered".
+  - With a 3rd phone: a physical A → B → C run (B walks from A to C), C reads it, A shows Delivered once the receipt comes back. Otherwise it stays pending.
+  - pause rules (battery saver on; "Only while charging" unplugged): the Settings row says "Paused — …" and B refuses new packets.
+  - restart reminder: turn it on, reboot, see the notification.
+- [ ] Phases 21/22's two-phone checks come first (the relay rides on those links).
+
+**Deviations / decisions:** ADR 0025, ADR 0026; CHANGES 2026-11-01 (Phase 23): boot restart is a notification; unauthenticated delivered lists never drop the sender's copy; relay-visible data listed; relaying needs nearby on; the simulation lives in the engine package; recognition stays key-based.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 56/56 tasks. New tests:
+  - protocol 119 (+14: mesh 10, vectors 4);
+  - mesh-protocol 11 (new);
+  - engine 123 (+8 mesh scenarios with real vodozemac);
+  - chat-core +1; mobile 99 (+4: relay rules 3, SQLite relay store 1);
+  - transport 34 (unchanged, passing).
+- `pnpm format:check` clean. `buf lint` and `buf breaking` against main clean.
+- `:nearby:compileDebugKotlin` and `:nearby:testDebugUnitTest` pass; `:app:processDebugMainManifest` merges `BootReceiver` and `RECEIVE_BOOT_COMPLETED`.
+- `npx expo export --platform android` bundles (2,456 modules, the new routes included). Typed routes regenerated.
+- `pnpm --filter @pingdost/server test:int` (Docker Desktop started, `pnpm infra:up`): 150 passed, 2 skipped, as before.
+- **Not run:** anything on a phone.
+
+**Known issues / tech debt:**
+- Offers are stop-and-wait per link (one signed ACK each): fine for text, slow for files (Phase 24 pipelines).
+- A peer learns that we relay only from a new link's Hello; turning relaying on does not re-handshake existing links.
+- Sybil strangers defeat per-origin and per-neighbour quotas; the store cap bounds the damage (ADR 0025).
+- The relay cache in SQLCipher is not vacuumed after clearing (Phase 27).
+- Group messages over the mesh show group and session IDs to relays and are not tested end to end.
+- Receipts, edits and reactions sent into the mesh have no receipt of their own: their outbox items stay (parked) until the Internet takes them or they expire, and the recipient drops the duplicate.
+- Phase 22's direct-path issue (a peer that proved a contact's key may ACK and drop) still holds for the direct path.
+
+**Next:** Phase 24 (mesh file transfer), then the open device checks of 10–23.
+
 ## 2026-11-01 — Phase 22: Direct nearby messaging — 🔄 partial (device checks open)
 Started with Phases 10 and 21 still 🔄 (only their device checks were open); the user said to proceed.
 

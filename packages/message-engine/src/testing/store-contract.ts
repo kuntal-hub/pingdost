@@ -208,6 +208,11 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
       expect(await store.listDeliveries(messageId)).toEqual([nearby]);
       await store.apply({ deliveries: [{ ...nearby, via: 'internet' }] });
       expect((await store.listDeliveries(messageId))[0]?.via).toBe('internet');
+      // Mesh relays and their count (ADR 0025).
+      const relayed: DeliveryRecord = { ...b, state: 'relayed', via: 'mesh', relays: 2 };
+      await store.apply({ deliveries: [relayed] });
+      expect(await store.listDeliveries(messageId)).toEqual([relayed]);
+      expect(await store.listDeliveriesTo(b.deviceId, ['relayed'])).toEqual([relayed]);
     });
 
     it('keeps every outbox item type, bytes included, oldest first', async () => {

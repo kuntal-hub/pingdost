@@ -17,6 +17,7 @@
     "@pingdost/attachments": "workspace:*",
     "@pingdost/config": "workspace:*",
     "@pingdost/crypto": "workspace:*",
+    "@pingdost/mesh-protocol": "workspace:*",
     "@pingdost/protocol": "workspace:*",
     "@pingdost/shared-types": "workspace:*",
     "@pingdost/transport": "workspace:*"
