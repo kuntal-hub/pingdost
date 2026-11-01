@@ -93,6 +93,13 @@
           "color": "#0B7A64",
           "defaultChannel": "messages"
         }
+      ],
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "PingDost uses the camera during video calls, and when you take a photo or video to send.",
+          "microphonePermission": "PingDost uses the microphone during calls, and while you record a video or a voice note."
+        }
       ]
     ],
     "experiments": {

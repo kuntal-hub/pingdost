@@ -17,6 +17,38 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-01 — Phase 26: Calls B: Android calls — 🔄 partial (the device test matrix is open)
+Started right after Phase 25 (both 🔄 on device/VPS checks only), as the user asked for 25 and 26 together.
+
+**Done (ADR 0029):**
+- **WebRTC:** react-native-webrtc 155.0.1 + @config-plugins/react-native-webrtc 15.0.2 (MIT; `app.json` permission texts). `src/calls/platform.ts` implements `CallPlatform` (permissions first, 720p front camera, Force relay, camera flip).
+- **Native module `modules/pingdost-calls`** (Kotlin, no dependency): CallStyle incoming notification with full-screen intent (`pingdost://call`), ringtone (`FLAG_INSISTENT`, 45 s), Decline via broadcast; `CallService` (`phoneCall` + microphone/camera FGS, `MANAGE_OWN_CALLS`), "Ongoing call" with Hang up; `CallAudio` (communication mode, focus, earpiece/speaker/headset/Bluetooth, devices appearing mid-call, proximity wake lock, in-app ring, GSM-call check); lock-screen and keep-screen-on flags; full-screen-intent permission state and settings.
+- **Runtime** `src/calls/runtime.ts` (started with the engine): ring in app or by notification, foreground service and audio on dial/answer, proximity rule, ICE restart on network change, busy during a GSM call, local history, missed-call notification (`missed_calls`). The socket stays open in the background during a call (engine runtime, push wake). `{"t":"call"}` → `handleCallWake` (`src/calls/wake.ts`, `push/task.ts`).
+- **UI:** voice/video buttons in direct chats only (`callActionsFor`), `/call` full-screen modal, **Calls tab** (history, call back, full-screen permission, Force relay). Phase 12's `calls` channel replaced (`incoming_calls`, `ongoing_calls`, `missed_calls`).
+- **Fix (Phase 22 bug found on the emulator):** `useNearbyStatus` built a new object per render, so the offline banner (chats, onboarding) crashed with "Maximum update depth exceeded"; now `useShallow` + `useMemo`.
+- **Docs:** ADR 0029, CHANGES (4 items), ARCHITECTURE A6, Phase 27 handoff, CLAUDE.md.
+
+**Remaining (needs phones; record the results here):**
+- [ ] New dev build on the phone: `pnpm --filter @pingdost/mobile android` (native module + WebRTC).
+- [ ] **Test matrix:** phone↔phone same Wi-Fi; phone on mobile data ↔ phone on Wi-Fi; TURN-forced (Calls tab → Force relay); phone↔web; a Wi-Fi ↔ data switch mid-call ("Reconnecting", then back); a locked-screen incoming call (full-screen UI); the app swiped away before the call (push wake rings). Also: speaker/earpiece/Bluetooth, proximity at the ear, busy while in a call and during a GSM call, missed-call notification.
+  - With one phone: `pnpm --filter @pingdost/sim-client peer` answers your calls (echo), and `--dial-user <your user ID> [--video]` rings the phone. Dev TURN for a phone: `PINGDOST_TURN_IP=<PC LAN IP>` for coturn and the LAN IP in the `TURN_URLS`/`STUN_URLS` of `.env`.
+  - `apps/mobile/.env` still points at 192.168.1.2; this PC was 192.168.1.3 today.
+
+**Deviations / decisions:** ADR 0029; CHANGES 2026-11-01 (Phase 26): no ConnectionService (full-screen-intent notification), GSM call read from the audio mode, a Calls tab, channels replaced.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 59/59 (mobile 107 tests, +5: call actions with groups excluded, push kind, wording, missed-call privacy, proximity). `pnpm format:check` clean.
+- Gradle: `:pingdost-calls:compileDebugKotlin` and `:react-native-webrtc:compileDebugJavaWithJavac` pass; **`app:assembleDebug` for x86_64 builds (13 m 56 s)**.
+- Emulator (Pixel 8, API 35): the APK installs; the bundle (2,670 modules) loads with react-native-webrtc and `PingdostCalls` in it and JS runs (no native crash). That run found the Phase 22 crash above. After the fix the emulator hung under memory pressure (Docker + Metro + API + emulator on this PC), so **no call was placed on Android here**.
+- **Not run:** any call on a phone or emulator; the matrix above.
+
+**Known issues / tech debt:**
+- No system call log, car or headset-button integration (no ConnectionService).
+- A GSM call starting during a PingDost call is not detected.
+- The Phase 22 crash means the 21–24 device checks would have failed on that build: rebuild before running them.
+
+**Next:** the device checks of 10–26, then Phase 27 (hardening and release).
+
 ## 2026-11-01 — Phase 25: Calls A: TURN, signaling, web calls — 🔄 partial (staging coturn and cross-network checks open)
 Started with Phases 17 and 20 still 🔄 (device checks and VPS steps only); the user asked for Phases 25 and 26 in one go.
 

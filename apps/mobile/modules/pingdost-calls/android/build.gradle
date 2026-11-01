@@ -1,0 +1,18 @@
+// Calls on Android (Phase 26, ADR 0029): the incoming-call notification with a full-screen
+// intent, the `phoneCall` foreground service, audio routing and the proximity screen-off, on
+// Android's own APIs (no library). Local module: autolinked from apps/mobile/modules.
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.pingdost.calls'
+version = '0.1.0'
+
+android {
+  namespace "com.pingdost.calls"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}

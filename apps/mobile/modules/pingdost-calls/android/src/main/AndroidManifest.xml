@@ -1,0 +1,27 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Calls (Phase 26, ADR 0029). -->
+  <!-- The incoming call over the lock screen. Android 14+ grants it to calling apps; the user
+       can turn it off (Settings → Calls shows the state). -->
+  <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+  <!-- The foreground service during a call: `phoneCall` needs MANAGE_OWN_CALLS (a normal
+       permission) on Android 14+; microphone and camera types are added when granted. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+  <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+  <!-- Speaker/earpiece/Bluetooth routing, the proximity screen-off, the ring's vibration. -->
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.VIBRATE" />
+
+  <application>
+    <service
+      android:name="com.pingdost.calls.CallService"
+      android:exported="false"
+      android:foregroundServiceType="phoneCall|microphone|camera" />
+    <receiver
+      android:name="com.pingdost.calls.CallActionReceiver"
+      android:exported="false" />
+  </application>
+</manifest>

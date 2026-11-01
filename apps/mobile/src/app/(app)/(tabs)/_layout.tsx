@@ -15,6 +15,10 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf="bubble.left.and.bubble.right" md="chat" />
         <NativeTabs.Trigger.Label>Chats</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="(calls)">
+        <NativeTabs.Trigger.Icon sf="phone" md="call" />
+        <NativeTabs.Trigger.Label>Calls</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(settings)">
         <NativeTabs.Trigger.Icon sf="gearshape" md="settings" />
         <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>

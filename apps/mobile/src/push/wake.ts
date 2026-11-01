@@ -7,6 +7,7 @@ import { AppState } from 'react-native';
 
 import { authStore } from '@/api';
 import { stageOf } from '@/auth/auth-store';
+import { callInProgress } from '@/calls/runtime';
 import { startChat } from '@/engine/runtime';
 import type { MessageEngine } from '@pingdost/message-engine';
 import type { Transport } from '@pingdost/transport';
@@ -41,7 +42,8 @@ async function wake(): Promise<void> {
   transport.start();
   await drained(engine, transport);
   await engine.idle();
-  if (AppState.currentState !== 'active') transport.stop();
+  // A call that rings or runs keeps the socket (ADR 0029).
+  if (AppState.currentState !== 'active' && !callInProgress()) transport.stop();
 }
 
 /** Resolves once the mailbox has gone quiet, the socket never came up, or time ran out. */

@@ -33,6 +33,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0026](0026-nearby-recognition.md) | Nearby recognition stays key-based (no contact-only tags) | 23 | Accepted |
 | [0027](0027-mesh-file-transfer.md) | Files over the mesh: signed chunks, resume bitmaps, receipt after verification | 24 | Accepted (device checks pending) |
 | [0028](0028-calls-signaling-turn-web.md) | Calls: E2EE ephemeral signaling, call pushes, TURN credentials, coturn, web calls | 25 | Accepted (staging and cross-network checks pending) |
+| [0029](0029-android-calls-incoming-ux.md) | Android calls: react-native-webrtc, a local calls module, full-screen-intent incoming calls | 26 | Accepted (device matrix pending) |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ ยง7.2 license/dependency matrix).
 
@@ -54,5 +55,5 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ ย
 | Mesh routing, relay policy & routing tokens | 23 | No (done: 0025) |
 | Nearby recognition (contact-only tags or not) | 23 | No (done: 0026) |
 | Mesh file transfer & Wi-Fi bulk path | 24 | No (done: 0027) |
-| Incoming-call UX on Android | 26 | No |
+| Incoming-call UX on Android | 26 | No (done: 0029) |
 | Project license | 01 | **Yes** (done: 0001) |

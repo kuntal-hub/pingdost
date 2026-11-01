@@ -86,3 +86,8 @@ Make the product release-worthy: security and privacy audits, full acceptance tr
 - The privacy notes must say what nearby messaging shows to PingDost phones in range: that a PingDost phone is near, and this device's public Ed25519 key, which is stable.
 - Declare the Bluetooth permissions and the `connectedDevice` foreground service in Play Console. The text the app shows is in `screens/settings/nearby.tsx`.
 - `[nearby]` logs run only under `__DEV__`. Keep it that way: they carry states and counts, never keys.
+**From Phases 25–26 (ADR 0028, 0029):**
+- Play Console: declare `USE_FULL_SCREEN_INTENT` (calling app) and the `phoneCall` foreground service type, with the reasons.
+- Decide TURN over TLS (5349) for production (runbook step exists; off on staging).
+- Privacy notice: the server learns that a call invite went to an offline device (it sends the `call` push), and TURN usernames carry the user ID.
+- Optional: a self-managed `ConnectionService` (system call log, car, headset buttons); a lost history entry when a browser tab closes mid-call.

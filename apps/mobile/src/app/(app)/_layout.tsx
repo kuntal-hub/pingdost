@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
+import { useCalls } from '@/calls/runtime';
 import { conversationOf } from '@/push/notifications';
 import { usePhoneRequests } from '@/recovery/approvals';
 
@@ -34,10 +35,25 @@ function usePhoneRequestPrompt(): void {
   }, [next, router]);
 }
 
+/** An incoming call (ADR 0029) opens the call screen once while the app is on screen. */
+function useIncomingCallScreen(): void {
+  const router = useRouter();
+  const ringing = useCalls((state) =>
+    state.call?.state === 'incoming' ? state.call.callId : undefined,
+  );
+  const shown = useRef(new Set<string>());
+  useEffect(() => {
+    if (!ringing || shown.current.has(ringing)) return;
+    shown.current.add(ringing);
+    router.push('/call');
+  }, [ringing, router]);
+}
+
 /** The signed-in app: the tabs, with chats and contacts pushed over them (no tab bar there). */
 export default function AppStack() {
   useNotificationTaps();
   usePhoneRequestPrompt();
+  useIncomingCallScreen();
   return (
     <Stack screenOptions={{ headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -58,6 +74,10 @@ export default function AppStack() {
       <Stack.Screen name="send-attachment" options={{ title: 'Send', presentation: 'modal' }} />
       <Stack.Screen name="media/[messageId]" options={{ title: '' }} />
       <Stack.Screen name="approve-phone" options={{ title: 'New phone', presentation: 'modal' }} />
+      <Stack.Screen
+        name="call"
+        options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }}
+      />
     </Stack>
   );
 }

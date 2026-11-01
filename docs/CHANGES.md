@@ -4,6 +4,16 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-01 — Phase 26: Android calls (ADR 0029)
+1. **Incoming calls use a full-screen-intent call notification and a local module, not a `ConnectionService`.** The phase asked to choose; react-native-callkeep (self-managed ConnectionService) was evaluated and not taken (Telecom coupling, unverified on the new architecture), notifee is unmaintained since 2024. So there is no system call log, car or headset-button integration.
+   - *Affects:* 26 (done), 27 (a ConnectionService if wanted; Play Console declarations for `USE_FULL_SCREEN_INTENT` and the `phoneCall` foreground service).
+2. **"A call while a GSM call is active" is read from the audio mode** (in a call or ringing), so no `READ_PHONE_STATE` permission is asked. Such a call answers new PingDost invites busy. A GSM call that starts during a PingDost call is not detected; Android's audio focus decides.
+   - *Affects:* 26 (done).
+3. **A Calls tab** (not in the plan) holds the phone's local call history, call back, the full-screen permission state and Force relay (TURN).
+   - *Affects:* 26 (done).
+4. **Phase 12's `calls` notification channel is replaced** by the native `incoming_calls` channel (it plays the ringtone), `ongoing_calls`, and `missed_calls`; the old channel is deleted on start.
+   - *Affects:* 26 (done).
+
 ### 2026-11-01 — Phase 25: calls, TURN and web calls (ADR 0028)
 1. **The server learns that a call invite was meant for an offline device.** Signaling is E2EE (REQ §12.2 asks only for authenticated signaling), but an invite carries `PacketFlag.RING` so the gateway can send that device a content-free `{"t":"call"}` push. The server keeps only the time of the last call push per device, in memory, for 15 s. Without it, a callee whose app is closed could not ring.
    - *Affects:* 25 (done), 26 (the phone's call wake), 27 (privacy notice).

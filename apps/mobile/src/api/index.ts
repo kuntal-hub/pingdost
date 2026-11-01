@@ -8,6 +8,7 @@ import {
   accountApi,
   attachmentsApi,
   authApi,
+  callsApi,
   createApiClient,
   devicesApi,
   groupsApi,
@@ -36,6 +37,7 @@ export const api = {
   attachments: attachmentsApi(client),
   pairing: pairingApi(client),
   recovery: recoveryApi(client),
+  calls: callsApi(client),
 };
 
 export const authStore = createAuthStore({

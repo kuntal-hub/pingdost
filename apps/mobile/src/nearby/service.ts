@@ -15,9 +15,11 @@
 import { Paths } from 'expo-file-system';
 import * as Network from 'expo-network';
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { useMemo } from 'react';
 import { AppState, PermissionsAndroid, type Permission } from 'react-native';
 import { z } from 'zod';
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 
 import { getCryptoContext } from '@/crypto/bootstrap';
 import { readSetting, SETTING_KEYS, writeSetting } from '@/db/settings';
@@ -121,17 +123,19 @@ export function useRelay(): {
 
 /** The current state, as one value the screens switch on. */
 export function useNearbyStatus(): NearbyStatus {
-  return useNearby((state) =>
-    nearbyStatus({
-      available: PingdostNearby !== null,
+  // The inputs, compared shallowly, then the status from them: a selector that built a new
+  // object on every call made zustand re-render without end ("Maximum update depth").
+  const inputs = useNearby(
+    useShallow((state) => ({
       enabled: state.enabled,
       native: state.native,
       running: state.running,
       error: state.error,
       airplane: state.airplane,
       peers: state.summary.peers.length,
-    }),
+    })),
   );
+  return useMemo(() => nearbyStatus({ available: PingdostNearby !== null, ...inputs }), [inputs]);
 }
 
 /** Whether a contact's phone is linked and proved its key now (the chat header's "nearby"). */

@@ -13,9 +13,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@config-plugins/react-native-webrtc": "15.0.2",
     "@pingdost/api-client": "workspace:*",
     "@pingdost/attachments": "workspace:*",
     "@pingdost/backup": "workspace:*",
+    "@pingdost/call-engine": "workspace:*",
     "@pingdost/chat-core": "workspace:*",
     "@pingdost/config": "workspace:*",
     "@pingdost/crypto": "workspace:*",
@@ -65,6 +67,7 @@
     "react-native-reanimated": "4.7.1",
     "react-native-safe-area-context": "5.10.1",
     "react-native-screens": "4.30.0",
+    "react-native-webrtc": "155.0.1",
     "react-native-worklets": "0.13.0",
     "zod": "catalog:",
     "zustand": "5.0.15"

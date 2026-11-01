@@ -13,8 +13,10 @@ import { notificationContent, shouldNotify } from './content';
 import { useNotificationPrefs } from './prefs';
 
 export const MESSAGES_CHANNEL = 'messages';
-/** Phase 26 (calls) uses it; created now so the user sees both in system settings. */
-export const CALLS_CHANNEL = 'calls';
+/** Missed calls (ADR 0029). Ringing uses the native `incoming_calls` channel (modules/pingdost-calls). */
+export const MISSED_CALLS_CHANNEL = 'missed_calls';
+/** Phase 12's placeholder for calls, replaced by the native channels: removed. */
+const OLD_CALLS_CHANNEL = 'calls';
 
 Notifications.setNotificationHandler({
   handleNotification: () =>
@@ -38,12 +40,13 @@ export function ensureChannels(): Promise<void> {
       importance: Notifications.AndroidImportance.HIGH,
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
     });
-    await Notifications.setNotificationChannelAsync(CALLS_CHANNEL, {
-      name: 'Calls',
-      description: 'Incoming calls',
-      importance: Notifications.AndroidImportance.MAX,
-      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    await Notifications.setNotificationChannelAsync(MISSED_CALLS_CHANNEL, {
+      name: 'Missed calls',
+      description: 'Calls you did not answer',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
     });
+    await Notifications.deleteNotificationChannelAsync(OLD_CALLS_CHANNEL).catch(() => undefined);
   })().catch((error: unknown) => {
     channels = undefined;
     throw error;

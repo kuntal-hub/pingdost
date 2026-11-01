@@ -1,12 +1,15 @@
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
+import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { pick, PickError, usePendingSend, type PickSource } from '@/attachments/pick';
 import { makeDraft, SendError, sendDraft } from '@/attachments/send';
+import { callActionsFor } from '@/calls/logic';
+import { dial, useCalls } from '@/calls/runtime';
 import { ActionSheet, type SheetAction } from '@/components/action-sheet';
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
@@ -628,6 +631,7 @@ export function ChatScreen({
   const contact = useContact(peerUserId);
   const group = useGroup(isGroup ? conversationId : undefined);
   const blocked = useIsBlocked(peerUserId);
+  const palette = usePalette();
   const people = useNames();
   const name = isGroup ? group?.name || 'this group' : contactName(contact);
   const [selected, setSelected] = useState<MessageRecord>();
@@ -825,14 +829,45 @@ export function ChatScreen({
               <HeaderTitle peerUserId={peerUserId} />
             ),
           headerRight: () => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Search this chat"
-              onPress={() => router.push({ pathname: '/search', params: { conversationId } })}
-              className="min-h-[44px] justify-center px-2 active:opacity-70"
-            >
-              <Text className="text-base text-primary">Search</Text>
-            </Pressable>
+            <View className="flex-row items-center">
+              {/* Direct chats only: groups have no call actions (REQ §19.5). */}
+              {callActionsFor(conversation, { blocked }).map((kind) => (
+                <Pressable
+                  key={kind}
+                  accessibilityRole="button"
+                  accessibilityLabel={kind === 'video' ? 'Video call' : 'Voice call'}
+                  disabled={!peerUserId}
+                  onPress={() => {
+                    if (!peerUserId) return;
+                    void dial(peerUserId, kind === 'video').then((started) => {
+                      if (started) router.push('/call');
+                      else if (useCalls.getState().notice) {
+                        Alert.alert('Call', useCalls.getState().notice ?? '');
+                      }
+                    });
+                  }}
+                  className="min-h-[44px] min-w-[44px] items-center justify-center px-1 active:opacity-70"
+                >
+                  <SymbolView
+                    name={
+                      kind === 'video'
+                        ? { ios: 'video', android: 'videocam' }
+                        : { ios: 'phone', android: 'call' }
+                    }
+                    size={22}
+                    tintColor={palette.primary}
+                  />
+                </Pressable>
+              ))}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Search this chat"
+                onPress={() => router.push({ pathname: '/search', params: { conversationId } })}
+                className="min-h-[44px] justify-center px-2 active:opacity-70"
+              >
+                <Text className="text-base text-primary">Search</Text>
+              </Pressable>
+            </View>
           ),
         }}
       />

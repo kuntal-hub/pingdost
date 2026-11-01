@@ -23,6 +23,7 @@ import { AttachmentRepo } from '@/attachments/repo';
 import { wipeAttachmentFiles } from '@/attachments/storage';
 import { startTransfers } from '@/attachments/transfers';
 import { clearPlaintext, watchPlaintext } from '@/attachments/view';
+import { callInProgress, startCalls } from '@/calls/runtime';
 import { publicConfig } from '@/config';
 import { getCryptoContext } from '@/crypto/bootstrap';
 import { getOrCreateSecret, SECRET_ITEMS, SECURE_STORE_OPTIONS } from '@/crypto/secrets';
@@ -194,7 +195,15 @@ async function boot(): Promise<ChatRuntime> {
   const background = () => {
     transport.setPresence(false);
     clearTimeout(backgroundTimer);
-    backgroundTimer = setTimeout(() => transport.stop(), BACKGROUND_GRACE_MS);
+    // A ringing or live call keeps the socket (signaling, ICE restarts; ADR 0029).
+    const stopUnlessInCall = () => {
+      if (callInProgress()) {
+        backgroundTimer = setTimeout(stopUnlessInCall, BACKGROUND_GRACE_MS);
+        return;
+      }
+      transport.stop();
+    };
+    backgroundTimer = setTimeout(stopUnlessInCall, BACKGROUND_GRACE_MS);
   };
 
   cleanup.push(
@@ -297,6 +306,8 @@ async function boot(): Promise<ChatRuntime> {
     }),
     // Files over the nearby mesh (ADR 0027), after the attachment context exists.
     startMeshFiles(db, nearby),
+    // Calls (ADR 0029): invites arrive as soon as the engine runs, also in a push wake.
+    startCalls({ engine, userId, deviceId }),
   );
   // Nearby starts with the app on screen (`foreground`), not in a push wake: the foreground
   // service it needs can only start from there.

@@ -4,6 +4,9 @@
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 
+import { pushKind } from '@/calls/logic';
+import { handleCallWake } from '@/calls/wake';
+
 import { handleWake } from './wake';
 
 export const PUSH_WAKE_TASK = 'pingdost-push-wake';
@@ -13,8 +16,10 @@ TaskManager.defineTask<Notifications.NotificationTaskPayload>(PUSH_WAKE_TASK, as
   if (!data || 'actionIdentifier' in data) {
     return Notifications.BackgroundNotificationTaskResult.NoData;
   }
-  // Every data message from our server is a wake; it carries nothing else to read.
-  await handleWake();
+  // Our server sends only `{"t":"wake"}` (fetch the mailbox) or `{"t":"call"}` (an E2EE call
+  // invite is waiting, ADR 0029); neither carries anything else.
+  if (pushKind(data) === 'call') await handleCallWake();
+  else await handleWake();
   return Notifications.BackgroundNotificationTaskResult.NewData;
 });
 
