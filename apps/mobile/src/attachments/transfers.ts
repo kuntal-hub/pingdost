@@ -37,7 +37,7 @@ interface TransferStore {
 
 export const useTransferStore = create<TransferStore>()(() => ({ progress: {}, revisions: {} }));
 
-function touched(messageId: string): void {
+export function touched(messageId: string): void {
   useTransferStore.setState((state) => ({
     revisions: { ...state.revisions, [messageId]: (state.revisions[messageId] ?? 0) + 1 },
   }));
@@ -255,10 +255,13 @@ async function fill(): Promise<void> {
   const rows = await context.repo.inStates(['transferring']);
   const uploads = new Map<string, AttachmentRow[]>();
   for (const row of rows) {
+    if (row.via === 'mesh') continue;
     if (row.direction === 'up')
       uploads.set(row.messageId, [...(uploads.get(row.messageId) ?? []), row]);
   }
   for (const row of rows) {
+    // Files over the nearby mesh move in `nearby/files.ts` (ADR 0027).
+    if (row.via === 'mesh') continue;
     const key = keyOf(row);
     if (jobs.has(key)) continue;
     const ids =
@@ -321,7 +324,8 @@ async function newRows(message: MessageRecord): Promise<AttachmentRow[]> {
     conversationId: message.conversationId,
     role,
     direction: 'down',
-    state: autoFetch(role, policy, network) ? 'transferring' : 'pending',
+    // Over the mesh it comes when it comes (no data cost): take it as it arrives.
+    state: info.mesh || autoFetch(role, policy, network) ? 'transferring' : 'pending',
     ciphertextSize,
     transferred: 0,
     localPath: null,
@@ -329,6 +333,7 @@ async function newRows(message: MessageRecord): Promise<AttachmentRow[]> {
     recipients: null,
     createdAt: now,
     updatedAt: now,
+    via: info.mesh ? 'mesh' : null,
   });
   const rows = [row('file', info.ciphertextSize, info.attachmentId)];
   if (info.thumbnail)

@@ -25,6 +25,21 @@ export {
   WAVEFORM_MAX,
 } from './manifest';
 export type { CheckedManifest, MediaDetails } from './manifest';
+export {
+  chunkHashListDigest,
+  DEFAULT_MESH_FILE_MAX_BYTES,
+  MESH_CHUNK_BYTES,
+  meshChunkRange,
+  meshTimeEstimate,
+  verifyMeshFile,
+} from './mesh';
+export { MemoryChunkStorage, MeshFileReceiver } from './mesh-receiver';
+export type {
+  MeshChunkStorage,
+  MeshFileInput,
+  MeshReceiverHooks,
+  MeshReceiveStatus,
+} from './mesh-receiver';
 export { asRecordedAudio, sniffMime, SNIFF_BYTES } from './mime';
 export type { AttachmentCategory, SniffedType } from './mime';
 export {

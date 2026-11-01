@@ -119,6 +119,10 @@ message AttachmentManifest {
   uint32 duration_ms = 16;
   // A voice note's loudness envelope: up to 64 samples, 0–255 each. Empty for other files.
   bytes waveform = 17;
+  // The file travels over the nearby mesh in MESH_CHUNK packets, not through the server
+  // (ADR 0027). The recipient sends its delivery receipt only once the whole file is
+  // assembled and verified (REQ §19.3).
+  bool mesh = 18;
 }
 
 // Group membership and info changes, E2EE so the server stores no group name or avatar.

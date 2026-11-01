@@ -33,6 +33,15 @@ describe('SqliteMeshPersistence', () => {
       ['02', 4],
     ]);
     expect(await persistence.readPayload('02')).toEqual(Uint8Array.of(4, 5, 6));
+    // File chunks keep their transfer and index (migration 009, ADR 0027).
+    await persistence.putPacket(
+      meta('03', { receivedAt: NOW + 2, kind: 'chunk', transfer: 'cc'.repeat(16), index: 7 }),
+      Uint8Array.of(7),
+    );
+    const chunk = (await persistence.loadPackets()).find((m) => m.id === '03');
+    expect(chunk).toMatchObject({ kind: 'chunk', transfer: 'cc'.repeat(16), index: 7 });
+    expect((await persistence.loadPackets()).find((m) => m.id === '01')?.kind).toBeUndefined();
+    await persistence.deletePackets(['03']);
 
     await persistence.saveSeen(
       [

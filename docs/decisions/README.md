@@ -49,5 +49,6 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ Â
 | Nearby handshake & transport routing | 22 | No (done: 0024) |
 | Mesh routing, relay policy & routing tokens | 23 | No (done: 0025) |
 | Nearby recognition (contact-only tags or not) | 23 | No (done: 0026) |
+| Mesh file transfer & Wi-Fi bulk path | 24 | No (done: 0027) |
 | Incoming-call UX on Android | 26 | No |
 | Project license | 01 | **Yes** (done: 0001) |

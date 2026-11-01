@@ -46,6 +46,8 @@ export interface AttachmentRow {
   recipients: string[] | null;
   createdAt: number;
   updatedAt: number;
+  /** Migration 009: `mesh` when the file goes over the nearby mesh (ADR 0027). */
+  via?: 'mesh' | null;
 }
 
 interface Row {
@@ -62,6 +64,7 @@ interface Row {
   recipients: string | null;
   created_at: number;
   updated_at: number;
+  via: string | null;
 }
 
 const fromRow = (r: Row): AttachmentRow => ({
@@ -78,6 +81,7 @@ const fromRow = (r: Row): AttachmentRow => ({
   recipients: r.recipients ? (JSON.parse(r.recipients) as string[]) : null,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
+  via: r.via === 'mesh' ? 'mesh' : null,
 });
 
 const COLUMNS: Record<keyof AttachmentRow, string> = {
@@ -94,6 +98,7 @@ const COLUMNS: Record<keyof AttachmentRow, string> = {
   recipients: 'recipients',
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+  via: 'via',
 };
 
 const placeholders = (n: number) => Array.from({ length: n }, () => '?').join(', ');
@@ -128,8 +133,8 @@ export class AttachmentRepo {
         await this.db.runAsync(
           `INSERT INTO attachments (attachment_id, message_id, conversation_id, role, direction,
              state, ciphertext_size, transferred, local_path, error, recipients, created_at,
-             updated_at)
-           VALUES (${placeholders(13)}) ON CONFLICT (attachment_id) DO NOTHING`,
+             updated_at, via)
+           VALUES (${placeholders(14)}) ON CONFLICT (attachment_id) DO NOTHING`,
           [
             row.attachmentId,
             row.messageId,
@@ -144,6 +149,7 @@ export class AttachmentRepo {
             row.recipients ? JSON.stringify(row.recipients) : null,
             row.createdAt,
             row.updatedAt,
+            row.via ?? null,
           ],
         );
       }

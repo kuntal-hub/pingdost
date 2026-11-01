@@ -13,6 +13,7 @@
  */
 import { uuidToBytes, uuidv7, type AttachmentManifest } from '@pingdost/protocol';
 import { MessageState } from '@pingdost/shared-types';
+import type { Route } from '@pingdost/transport';
 
 import { attachmentContentFor, readAttachment } from './attachments';
 import { buildContent, textContentFor } from './content';
@@ -456,6 +457,63 @@ export class MessageEngine {
   }
 
   /**
+   * An incoming file sent over the mesh is assembled and fully verified (REQ §19.3, ADR 0027):
+   * only now does its sender get the delivery receipt (and a read receipt, if it was read and
+   * read receipts are on). Idempotent.
+   */
+  async confirmMeshFile(messageId: string): Promise<void> {
+    const core = this.#core;
+    const queued = await core.mutex.run(async () => {
+      const message = await core.store.getMessage(messageId);
+      const info = message?.attachment;
+      if (!message || message.direction !== 'in' || !info?.mesh || info.meshConfirmed) return false;
+      const now = core.now();
+      const outbox: ReceiptItem[] = [];
+      const receipt = (type: 'delivered' | 'read'): ReceiptItem => ({
+        type: 'receipt',
+        receipt: type,
+        id: `receipt:${type}:${message.messageId}:${message.senderDeviceId}`,
+        messageId: message.messageId,
+        recipientUserId: message.senderUserId,
+        recipientDeviceId: message.senderDeviceId,
+        createdAt: now,
+        expiresAt: now + core.settings.maxRetentionMs,
+        attempts: 0,
+        nextAttemptAt: now,
+      });
+      if (message.senderDeviceId !== '') {
+        if (core.options.receipts?.('delivered') ?? true) outbox.push(receipt('delivered'));
+        if (message.readAt !== null && (core.options.receipts?.('read') ?? false)) {
+          outbox.push(receipt('read'));
+        }
+      }
+      await core.commit({
+        messages: [{ ...message, attachment: { ...info, meshConfirmed: true } }],
+        outbox,
+      });
+      return outbox.length > 0;
+    });
+    if (queued) this.#outbox.kick();
+  }
+
+  /**
+   * How a packet to each of `userId`'s cached devices would go now (ADR 0024, 0025): the app
+   * sends a file over the mesh only when none is reachable over the Internet. Browsers are left
+   * out: they are never in Bluetooth range.
+   */
+  async routesTo(userId: string): Promise<{ deviceId: string; route: Route }[]> {
+    const core = this.#core;
+    const directory = await core.store.getDirectory(userId);
+    if (!directory) return [];
+    return directory.devices
+      .filter((device) => device.platform !== 'web' && device.deviceId !== core.self.deviceId)
+      .map((device) => ({
+        deviceId: device.deviceId,
+        route: core.options.transport.route?.(device.deviceId) ?? 'internet',
+      }));
+  }
+
+  /**
    * The user has the conversation open: its messages are read, the unread count resets and,
    * with read receipts on, each sending device gets a (coalesced) read receipt.
    */
@@ -471,6 +529,8 @@ export class MessageEngine {
       const outbox: ReceiptItem[] = [];
       for (const message of unread) {
         if (!sendReceipts || message.senderDeviceId === '' || message.kind === 'deleted') continue;
+        // A mesh file not yet assembled: its read receipt waits for `confirmMeshFile`.
+        if (message.attachment?.mesh && !message.attachment.meshConfirmed) continue;
         outbox.push({
           type: 'receipt',
           receipt: 'read',

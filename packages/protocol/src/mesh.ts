@@ -13,7 +13,18 @@ import { sha256 } from '@noble/hashes/sha2.js';
 
 import { EnvelopeSchema, type Envelope } from './gen/pingdost/v1/envelope_pb';
 import { MeshEnvelopeSchema, type MeshEnvelope } from './gen/pingdost/v1/mesh_pb';
-import { MESH_TOKEN_BYTES, meshRouteInput } from './signing';
+import { UUID_BYTES } from './ids';
+import { MESH_TOKEN_BYTES, meshChunkIdInput, meshRouteInput } from './signing';
+
+/** A chunk's packet ID: the same for every copy, so seen-caches dedupe it (ADR 0027). */
+export function meshChunkPacketId(transferId: Uint8Array, index: number): Uint8Array {
+  return sha256(meshChunkIdInput(transferId, index)).slice(0, UUID_BYTES);
+}
+
+/** SHA-256 of one ciphertext chunk, as `MeshChunkRef.chunk_sha256` and the manifest's list. */
+export function meshChunkDigest(data: Uint8Array): Uint8Array {
+  return sha256(data);
+}
 
 export const DAY_MS = 86_400_000;
 

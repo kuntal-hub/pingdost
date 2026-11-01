@@ -68,6 +68,13 @@ Make the product release-worthy: security and privacy audits, full acceptance tr
 - Approving from the old phone moves no history: consider an online hand-over over the Phase 18 sync channel.
 - Keep old `.pdbk` files readable: a fixture backup from this version restored by every later build.
 - Device checks of the phone-change flows on two real phones (see the Phase 19 PROGRESS entry).
+**From Phase 24 (ADR 0027; CHANGES 2026-11-01):**
+- Wi-Fi Aware as a bulk path for mesh files once ADR 0023's matrix is measured on two phones (platform API; `NEARBY_WIFI_DEVICES` on Android 13+). Then reconsider the 25 MB default limit.
+- The web client should fetch `mesh` attachments from the phone first (`fetchFromPhone`) instead of trying the server.
+- A mesh file whose sender gets the Internet back mid-transfer still completes only over the mesh: consider staging it then.
+- Pipelined chunk offers (a window, or range ACKs) if the device measurements show the stop-and-wait ACK costs much airtime; measure JavaScript SHA-256 per chunk on low-end phones.
+- Groups and the sender's other phones get no mesh files yet.
+
 **From Phase 23 (ADR 0025, 0026; CHANGES 2026-11-01):**
 - Privacy notice: relays see daily routing tokens, packet IDs, times, hop budget, copies, size, crypto type, and for groups the group and Megolm session IDs. Phones in range can recognise a phone's public device key (ADR 0026). The Nearby relay screen says so already; reuse its wording.
 - Play Console: declare `RECEIVE_BOOT_COMPLETED` (the optional reminder after a restart) beside the `connectedDevice` service. Decide whether a headless start at boot is wanted (the relay is JavaScript; ADR 0025).

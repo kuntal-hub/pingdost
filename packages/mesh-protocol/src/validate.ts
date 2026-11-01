@@ -4,10 +4,15 @@
  * checked here: only the recipient holds the sender's key (ADR 0025).
  */
 import {
+  bytesEqual,
+  decodeMeshChunk,
   decodeMeshEnvelope,
   MESH_TOKEN_BYTES,
+  meshChunkDigest,
+  meshChunkPacketId,
   PacketKind,
   ProtocolError,
+  type MeshChunk,
   type MeshEnvelope,
   type TransportPacket,
 } from '@pingdost/protocol';
@@ -32,23 +37,13 @@ export type MeshCheck = { ok: true; envelope: MeshEnvelope } | { ok: false; reas
  */
 export function checkMeshPacket(
   packet: TransportPacket,
-  policy: Pick<MeshPolicy, 'maxHops' | 'ttlMs' | 'maxCopies' | 'clockSkewMs'>,
+  policy: HeaderPolicy,
   nowMs: number,
   envelopeMaxBytes?: number,
 ): MeshCheck {
   if (packet.kind !== PacketKind.MESH_ENVELOPE) return { ok: false, reason: 'wrong_kind' };
-  if (packet.dst.length !== MESH_TOKEN_BYTES) return { ok: false, reason: 'malformed' };
-  const created = Number(packet.createdAtMs);
-  const expires = Number(packet.expiresAtMs);
-  if (expires <= nowMs) return { ok: false, reason: 'expired' };
-  if (created > nowMs + policy.clockSkewMs) return { ok: false, reason: 'from_future' };
-  if (expires - created > policy.ttlMs + policy.clockSkewMs) {
-    return { ok: false, reason: 'ttl_too_long' };
-  }
-  if (packet.hopBudget > policy.maxHops) return { ok: false, reason: 'over_budget' };
-  if (packet.copies < 1 || packet.copies > policy.maxCopies) {
-    return { ok: false, reason: 'bad_copies' };
-  }
+  const header = checkHeader(packet, policy, nowMs);
+  if (header) return { ok: false, reason: header };
   try {
     const envelope = decodeMeshEnvelope(
       packet.payload,
@@ -59,6 +54,58 @@ export function checkMeshPacket(
     const oversized = error instanceof ProtocolError && error.code === 'OVERSIZED';
     return { ok: false, reason: oversized ? 'oversized' : 'malformed' };
   }
+}
+
+type HeaderPolicy = Pick<MeshPolicy, 'maxHops' | 'ttlMs' | 'maxCopies' | 'clockSkewMs'>;
+
+/** The relay header rules every mesh packet follows. */
+function checkHeader(
+  packet: TransportPacket,
+  policy: HeaderPolicy,
+  nowMs: number,
+): MeshRejection | undefined {
+  if (packet.dst.length !== MESH_TOKEN_BYTES) return 'malformed';
+  const created = Number(packet.createdAtMs);
+  const expires = Number(packet.expiresAtMs);
+  if (expires <= nowMs) return 'expired';
+  if (created > nowMs + policy.clockSkewMs) return 'from_future';
+  if (expires - created > policy.ttlMs + policy.clockSkewMs) return 'ttl_too_long';
+  if (packet.hopBudget > policy.maxHops) return 'over_budget';
+  if (packet.copies < 1 || packet.copies > policy.maxCopies) return 'bad_copies';
+  return undefined;
+}
+
+export type MeshChunkCheck =
+  { ok: true; chunk: MeshChunk } | { ok: false; reason: MeshRejection | 'corrupt' };
+
+/**
+ * Checks a decoded `MESH_CHUNK` packet (ADR 0027): the header rules, the payload, the packet ID
+ * (`meshChunkPacketId` of its transfer and index) and the data against its own hash, so a
+ * holder drops a corrupt chunk instead of carrying it. Only the recipient checks the signature.
+ */
+export function checkMeshChunkPacket(
+  packet: TransportPacket,
+  policy: HeaderPolicy,
+  nowMs: number,
+): MeshChunkCheck {
+  if (packet.kind !== PacketKind.MESH_CHUNK) return { ok: false, reason: 'wrong_kind' };
+  const header = checkHeader(packet, policy, nowMs);
+  if (header) return { ok: false, reason: header };
+  let chunk: MeshChunk;
+  try {
+    chunk = decodeMeshChunk(packet.payload);
+  } catch (error) {
+    const oversized = error instanceof ProtocolError && error.code === 'OVERSIZED';
+    return { ok: false, reason: oversized ? 'oversized' : 'malformed' };
+  }
+  const ref = chunk.ref!;
+  if (!bytesEqual(meshChunkPacketId(ref.transferId, ref.index), packet.packetId)) {
+    return { ok: false, reason: 'malformed' };
+  }
+  if (!bytesEqual(meshChunkDigest(chunk.data), ref.chunkSha256)) {
+    return { ok: false, reason: 'corrupt' };
+  }
+  return { ok: true, chunk };
 }
 
 /** Binary spray-and-wait: hand half the copies on, keep the rest (at least one). */

@@ -3,7 +3,8 @@
 // previous version. Migration 002 adds the chat tables (Phase 10), 003 the chat features and
 // the search index (Phase 11), 004 the group tables (Phase 13), 005 attachment messages
 // (Phase 14), 006 local attachment files and searchable captions (Phase 15), 007 the path of
-// each delivery (Phase 22), 008 the mesh relay store and relay counts (Phase 23).
+// each delivery (Phase 22), 008 the mesh relay store and relay counts (Phase 23), 009 files over
+// the mesh (Phase 24).
 //
 // The transaction is `BEGIN IMMEDIATE` on the same connection, never expo-sqlite's
 // `withExclusiveTransactionAsync`: that opens a second connection which has no SQLCipher
@@ -16,6 +17,7 @@ import { ATTACHMENTS_SCHEMA } from './migrations/005-attachments';
 import { ATTACHMENT_FILES_SCHEMA } from './migrations/006-attachment-files';
 import { NEARBY_SCHEMA } from './migrations/007-nearby';
 import { MESH_RELAY_SCHEMA } from './migrations/008-mesh-relay';
+import { MESH_FILES_SCHEMA } from './migrations/009-mesh-files';
 
 export interface Migration {
   version: number;
@@ -47,6 +49,7 @@ export const migrations: readonly Migration[] = [
   { version: 6, name: '006_attachment_files', sql: ATTACHMENT_FILES_SCHEMA },
   { version: 7, name: '007_nearby', sql: NEARBY_SCHEMA },
   { version: 8, name: '008_mesh_relay', sql: MESH_RELAY_SCHEMA },
+  { version: 9, name: '009_mesh_files', sql: MESH_FILES_SCHEMA },
 ];
 
 /** The subset of `SQLiteDatabase` the runner needs (keeps it testable without native code). */

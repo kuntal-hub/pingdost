@@ -35,7 +35,13 @@ export interface MeshPolicy {
   deliveredMax: number;
   /** No answer to an offered packet in this long: try it elsewhere. */
   ackTimeoutMs: number;
+  /** Copies of each file chunk (ADR 0027): fewer than messages, chunks are big. */
+  chunkCopies: number;
+  /** Stored file-chunk bytes from one origin token: room for one 100 MB file. */
+  perOriginMaxChunkBytes: number;
   rates: {
+    /** File chunks taken from one neighbour. */
+    chunkPerPeer: Rate;
     /** Own packets handed to the mesh. */
     create: Rate;
     /** Packets taken from one neighbour. */
@@ -59,7 +65,10 @@ export const DEFAULT_MESH_POLICY: MeshPolicy = {
   seenCacheMax: 20_000,
   deliveredMax: 256,
   ackTimeoutMs: 15_000,
+  chunkCopies: 4,
+  perOriginMaxChunkBytes: 110 * 1_048_576,
   rates: {
+    chunkPerPeer: { perMinute: 600, burst: 300 },
     create: { perMinute: 120, burst: 120 },
     relayPerPeer: { perMinute: 120, burst: 60 },
     relayPerOrigin: { perMinute: 60, burst: 60 },
@@ -88,9 +97,12 @@ export function meshPolicy(overrides: Partial<MeshPolicy> = {}): MeshPolicy {
     'seenCacheMax',
     'deliveredMax',
     'ackTimeoutMs',
+    'chunkCopies',
+    'perOriginMaxChunkBytes',
   ] as const) {
     if (!(policy[key] > 0)) throw new RangeError(`${key} must be positive`);
   }
   if (policy.sprayCopies > policy.maxCopies) throw new RangeError('sprayCopies > maxCopies');
+  if (policy.chunkCopies > policy.maxCopies) throw new RangeError('chunkCopies > maxCopies');
   return policy;
 }

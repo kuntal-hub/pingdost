@@ -26,10 +26,12 @@ import { CryptoType, EnvelopeSchema, type Envelope } from './gen/pingdost/v1/env
 import {
   HelloSchema,
   MeshAckSchema,
+  MeshChunkSchema,
   MeshEnvelopeSchema,
   MeshSummarySchema,
   type Hello,
   type MeshAck,
+  type MeshChunk,
   type MeshEnvelope,
   type MeshSummary,
 } from './gen/pingdost/v1/mesh_pb';
@@ -48,6 +50,7 @@ import {
 } from './gen/pingdost/v1/ws_pb';
 import { UUID_BYTES } from './ids';
 import {
+  ATTACHMENT_CHUNK_CIPHERTEXT_BYTES,
   limitsFor,
   MAX_DST_BYTES,
   MESH_CHUNK_MAX_BYTES,
@@ -294,10 +297,15 @@ export const MESH_ENVELOPE_OVERHEAD_BYTES = 128;
 export const MAX_MESH_SUMMARY_TOKENS = 40;
 /** Most delivered packet IDs in one summary. */
 export const MAX_MESH_SUMMARY_DELIVERED = 256;
+/** Most file transfers in one summary (ADR 0027). */
+export const MAX_MESH_SUMMARY_TRANSFERS = 16;
+/** Most chunks in one mesh transfer: a 100 MB file is 1,601 (ADR 0027). */
+export const MAX_MESH_TRANSFER_CHUNKS = 4_096;
 const MESH_ACK_MAX_BYTES = 128;
 const MESH_SUMMARY_MAX_BYTES =
   MAX_MESH_SUMMARY_TOKENS * (MESH_TOKEN_BYTES + 2) +
   MAX_MESH_SUMMARY_DELIVERED * (UUID_BYTES + 2) +
+  MAX_MESH_SUMMARY_TRANSFERS * (UUID_BYTES + MAX_MESH_TRANSFER_CHUNKS / 8 + 16) +
   16;
 
 function checkMeshEnvelope(envelope: MeshEnvelope): void {
@@ -350,6 +358,48 @@ function checkMeshSummary(summary: MeshSummary): void {
     throw invalid('delivered', `must hold at most ${MAX_MESH_SUMMARY_DELIVERED} IDs`);
   }
   for (const id of summary.delivered) checkId(id, 'delivered');
+  if (summary.transfers.length > MAX_MESH_SUMMARY_TRANSFERS) {
+    throw invalid('transfers', `must hold at most ${MAX_MESH_SUMMARY_TRANSFERS} transfers`);
+  }
+  for (const transfer of summary.transfers) {
+    checkId(transfer.transferId, 'transfers.transfer_id');
+    if (transfer.have.length > MAX_MESH_TRANSFER_CHUNKS / 8) {
+      throw invalid('transfers.have', `must be at most ${MAX_MESH_TRANSFER_CHUNKS / 8} bytes`);
+    }
+  }
+}
+
+function checkMeshChunk(chunk: MeshChunk): void {
+  const { ref } = chunk;
+  if (ref === undefined) throw missing('ref');
+  checkId(ref.transferId, 'ref.transfer_id');
+  if (ref.count < 1 || ref.count > MAX_MESH_TRANSFER_CHUNKS) {
+    throw invalid('ref.count', `must be 1..${MAX_MESH_TRANSFER_CHUNKS}`);
+  }
+  if (ref.index >= ref.count) throw invalid('ref.index', 'must be below count');
+  if (ref.chunkSha256.length !== 32) throw invalid('ref.chunk_sha256', 'must be 32 bytes');
+  if (chunk.data.length === 0) throw missing('data');
+  if (chunk.data.length > ATTACHMENT_CHUNK_CIPHERTEXT_BYTES) {
+    throw new ProtocolError('OVERSIZED', 'a chunk is one ciphertext chunk at most', 'data');
+  }
+  if (chunk.originToken.length !== MESH_TOKEN_BYTES) {
+    throw invalid('origin_token', `must be ${MESH_TOKEN_BYTES} bytes`);
+  }
+  if (chunk.signature.length !== ED25519_SIGNATURE_BYTES) {
+    throw invalid('signature', `must be ${ED25519_SIGNATURE_BYTES} bytes`);
+  }
+}
+
+/** The payload of a `PACKET_KIND_MESH_CHUNK` packet (ADR 0027). */
+export function encodeMeshChunk(chunk: MeshChunk): Uint8Array {
+  checkMeshChunk(chunk);
+  return serialize(MeshChunkSchema, chunk, MESH_CHUNK_MAX_BYTES);
+}
+
+export function decodeMeshChunk(bytes: Uint8Array): MeshChunk {
+  const chunk = parse(MeshChunkSchema, bytes, MESH_CHUNK_MAX_BYTES);
+  checkMeshChunk(chunk);
+  return chunk;
 }
 
 /** The payload of a `PACKET_KIND_MESH_SUMMARY` packet. */

@@ -40,6 +40,7 @@ function infoFrom(checked: CheckedManifest): AttachmentInfo {
     ...(checked.height > 0 ? { height: checked.height } : {}),
     ...(checked.durationMs > 0 ? { durationMs: checked.durationMs } : {}),
     ...(checked.waveform.length > 0 ? { waveform: toBase64(checked.waveform) } : {}),
+    ...(checked.mesh ? { mesh: true } : {}),
   };
 }
 
@@ -89,6 +90,7 @@ export function manifestFrom(info: AttachmentInfo, caption: string): AttachmentM
     height: info.height ?? 0,
     durationMs: info.durationMs ?? 0,
     waveform: info.waveform ? fromBase64(info.waveform) : new Uint8Array(0),
+    mesh: info.mesh ?? false,
   });
 }
 

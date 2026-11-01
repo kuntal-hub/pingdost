@@ -139,6 +139,10 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Every offer gets a link-bound signed `MeshAck` (ACCEPTED/DELIVERED/DUPLICATE/REFUSED). ACCEPTED from relays makes the row `relayed` (`via: mesh`, `relays: N`). Peers trade routing tokens and delivered IDs in a hop-local `MeshSummary`.
   - The sender keeps its outbox item: the same packet still goes over the Internet or a direct link. Settled items are withdrawn from the relay.
   - Limits, the seen-cache and the relay store live in `@pingdost/mesh-protocol`; the relay runs in `@pingdost/transport` (`MeshRelay`).
+- **Files over the mesh (ADR 0027):**
+  - With no Internet route to the contact, a file's manifest says `mesh`. Its STREAM ciphertext chunks travel as `MESH_CHUNK`s: one 64 KiB chunk each, its SHA-256 checked by every holder, the sender's signature checked by the recipient, and packet IDs fixed per (transfer, chunk).
+  - The recipient's `MeshSummary` carries a bitmap per incoming transfer, so holders resume with what is missing; "complete" makes them drop the rest.
+  - The recipient's delivery receipt waits until the file is assembled and fully verified (`confirmMeshFile`). BLE only, with no Wi-Fi bulk path yet.
 - **Edits, deletes, reactions (ADR 0014):** E2EE ops applied with the same rules on every device:
   - last-write-wins on (header time, op ID);
   - edit and delete for everyone only by the sender, inside the 24 h windows in `DEFAULT_LIMITS`;
@@ -226,6 +230,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Phase 16: QR pairing reuses expo-camera (installed in Phase 10).
   - ⚠ Phase 21 (ADR 0023): the local module `modules/nearby` (Kotlin, Android's own BLE APIs): GATT links with framing and credit flow control, a rotating random advert token, a `connectedDevice` foreground service. **No Google Play services / Nearby Connections** (user decision; CHANGES 2026-10-31). Nearby needs Android 8.0+ (the app's minSdk stays 24).
   - Phase 23 (ADR 0025, no new dependency): `@pingdost/mesh-protocol` gets its first code. Migration 008 adds `mesh_relay_packets` and `delivery_state.relays`; the relay cache sits in the SQLCipher database apart from chats.
+  - Phase 24 (ADR 0027, no new dependency): migration 009 adds `attachments.via`, chunk columns on `mesh_relay_packets`, and `mesh_incoming`/`mesh_incoming_chunks` for files being received. `nearby/files.ts` moves rows with `via = 'mesh'`, which the server runner skips.
   - Phase 26: react-native-webrtc.
 - **Background:** FCM high-priority data messages wake the app for fetch. Nearby and the mesh relay run under the `connectedDevice` foreground service while nearby messaging is on. Its notification reads "PingDost nearby relay active" while relaying. The service starts only from the foreground; after a reboot an optional notification asks the user to open the app (ADR 0025: the relay logic is JavaScript, which Android does not start at boot).
 

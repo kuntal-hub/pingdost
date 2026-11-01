@@ -3,6 +3,15 @@
 import type { NearbyLinkDown, NearbyTransport, PeerConnection } from './nearby';
 import { Listeners } from './stream';
 
+/**
+ * A tick later, in order. `setImmediate` where there is one (Node): `setTimeout(0)` waits for
+ * the timer resolution (about 15 ms on Windows), which made file-transfer tests crawl.
+ */
+const later: (run: () => void) => void =
+  typeof setImmediate === 'function'
+    ? (run) => void setImmediate(run)
+    : (run) => void setTimeout(run, 0);
+
 export const fakeConnection = (linkId: number): PeerConnection => ({
   linkId,
   peer: { address: `AA:${linkId}`, token: null },
@@ -48,11 +57,11 @@ export class FakeLinks implements NearbyTransport {
     if (!remote) return Promise.reject(new Error('link_down'));
     this.sent.push({ linkId: connection.linkId, packet });
     if (!this.mute) {
-      setTimeout(() => {
+      later(() => {
         if (remote.other.remotes.has(remote.otherId)) {
           remote.other.packets.emit(packet, fakeConnection(remote.otherId));
         }
-      }, 0);
+      });
     }
     return Promise.resolve();
   }

@@ -19,7 +19,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file pingdost/v1/mesh.proto.
  */
 export const file_pingdost_v1_mesh: GenFile = /*@__PURE__*/
-  fileDesc("ChZwaW5nZG9zdC92MS9tZXNoLnByb3RvEgtwaW5nZG9zdC52MSLAAQoKTWVzaEhlYWRlchIRCglwYWNrZXRfaWQYASABKAwSFQoNY3JlYXRlZF9hdF9tcxgCIAEoAxIVCg1leHBpcmVzX2F0X21zGAMgASgDEhkKEWRzdF9yb3V0aW5nX3Rva2VuGAQgASgMEhIKCmhvcF9idWRnZXQYBSABKA0SFAoMb3JpZ2luX3Rva2VuGAYgASgMEiwKCWNodW5rX3JlZhgHIAEoCzIZLnBpbmdkb3N0LnYxLk1lc2hDaHVua1JlZiJXCgxNZXNoQ2h1bmtSZWYSEwoLdHJhbnNmZXJfaWQYASABKAwSDQoFaW5kZXgYAiABKA0SDQoFY291bnQYAyABKA0SFAoMY2h1bmtfc2hhMjU2GAQgASgMIkEKCU1lc2hDaHVuaxImCgNyZWYYASABKAsyGS5waW5nZG9zdC52MS5NZXNoQ2h1bmtSZWYSDAoEZGF0YRgCIAEoDCJbCgdNZXNoQWNrEhEKCXBhY2tldF9pZBgBIAEoDBIqCgZzdGF0dXMYAiABKA4yGi5waW5nZG9zdC52MS5NZXNoQWNrU3RhdHVzEhEKCXNpZ25hdHVyZRgDIAEoDCLNAQoMTWVzaEVudmVsb3BlEhQKDG9yaWdpbl90b2tlbhgBIAEoDBITCgtlbnZlbG9wZV9pZBgCIAEoDBIsCgtjcnlwdG9fdHlwZRgDIAEoDjIXLnBpbmdkb3N0LnYxLkNyeXB0b1R5cGUSFQoIZ3JvdXBfaWQYBCABKAxIAIgBARIZChFtZWdvbG1fc2Vzc2lvbl9pZBgFIAEoCRISCgpjaXBoZXJ0ZXh0GAYgASgMEhEKCXNpZ25hdHVyZRgHIAEoDEILCglfZ3JvdXBfaWQiOAoLTWVzaFN1bW1hcnkSFgoOcm91dGluZ190b2tlbnMYASADKAwSEQoJZGVsaXZlcmVkGAIgAygMInMKBUhlbGxvEhgKEHByb3RvY29sX3ZlcnNpb24YASABKA0SEgoKcGVlcl90b2tlbhgCIAEoDBIUCgxjYXBhYmlsaXRpZXMYAyABKA0SJgoFcHJvb2YYBCABKAsyFy5waW5nZG9zdC52MS5IZWxsb1Byb29mIjUKCkhlbGxvUHJvb2YSFAoMaWRlbnRpdHlfa2V5GAEgASgMEhEKCXNpZ25hdHVyZRgCIAEoDCqpAQoNTWVzaEFja1N0YXR1cxIfChtNRVNIX0FDS19TVEFUVVNfVU5TUEVDSUZJRUQQABIcChhNRVNIX0FDS19TVEFUVVNfQUNDRVBURUQQARIdChlNRVNIX0FDS19TVEFUVVNfREVMSVZFUkVEEAISHQoZTUVTSF9BQ0tfU1RBVFVTX0RVUExJQ0FURRADEhsKF01FU0hfQUNLX1NUQVRVU19SRUZVU0VEEAQqbAoPSGVsbG9DYXBhYmlsaXR5EiAKHEhFTExPX0NBUEFCSUxJVFlfVU5TUEVDSUZJRUQQABIbChdIRUxMT19DQVBBQklMSVRZX0RJUkVDVBABEhoKFkhFTExPX0NBUEFCSUxJVFlfUkVMQVkQAmIGcHJvdG8z", [file_pingdost_v1_envelope]);
+  fileDesc("ChZwaW5nZG9zdC92MS9tZXNoLnByb3RvEgtwaW5nZG9zdC52MSLAAQoKTWVzaEhlYWRlchIRCglwYWNrZXRfaWQYASABKAwSFQoNY3JlYXRlZF9hdF9tcxgCIAEoAxIVCg1leHBpcmVzX2F0X21zGAMgASgDEhkKEWRzdF9yb3V0aW5nX3Rva2VuGAQgASgMEhIKCmhvcF9idWRnZXQYBSABKA0SFAoMb3JpZ2luX3Rva2VuGAYgASgMEiwKCWNodW5rX3JlZhgHIAEoCzIZLnBpbmdkb3N0LnYxLk1lc2hDaHVua1JlZiJXCgxNZXNoQ2h1bmtSZWYSEwoLdHJhbnNmZXJfaWQYASABKAwSDQoFaW5kZXgYAiABKA0SDQoFY291bnQYAyABKA0SFAoMY2h1bmtfc2hhMjU2GAQgASgMImoKCU1lc2hDaHVuaxImCgNyZWYYASABKAsyGS5waW5nZG9zdC52MS5NZXNoQ2h1bmtSZWYSDAoEZGF0YRgCIAEoDBIUCgxvcmlnaW5fdG9rZW4YAyABKAwSEQoJc2lnbmF0dXJlGAQgASgMIlsKB01lc2hBY2sSEQoJcGFja2V0X2lkGAEgASgMEioKBnN0YXR1cxgCIAEoDjIaLnBpbmdkb3N0LnYxLk1lc2hBY2tTdGF0dXMSEQoJc2lnbmF0dXJlGAMgASgMIs0BCgxNZXNoRW52ZWxvcGUSFAoMb3JpZ2luX3Rva2VuGAEgASgMEhMKC2VudmVsb3BlX2lkGAIgASgMEiwKC2NyeXB0b190eXBlGAMgASgOMhcucGluZ2Rvc3QudjEuQ3J5cHRvVHlwZRIVCghncm91cF9pZBgEIAEoDEgAiAEBEhkKEW1lZ29sbV9zZXNzaW9uX2lkGAUgASgJEhIKCmNpcGhlcnRleHQYBiABKAwSEQoJc2lnbmF0dXJlGAcgASgMQgsKCV9ncm91cF9pZCJrCgtNZXNoU3VtbWFyeRIWCg5yb3V0aW5nX3Rva2VucxgBIAMoDBIRCglkZWxpdmVyZWQYAiADKAwSMQoJdHJhbnNmZXJzGAMgAygLMh4ucGluZ2Rvc3QudjEuTWVzaFRyYW5zZmVyU3RhdGUiSAoRTWVzaFRyYW5zZmVyU3RhdGUSEwoLdHJhbnNmZXJfaWQYASABKAwSDAoEaGF2ZRgCIAEoDBIQCghjb21wbGV0ZRgDIAEoCCJzCgVIZWxsbxIYChBwcm90b2NvbF92ZXJzaW9uGAEgASgNEhIKCnBlZXJfdG9rZW4YAiABKAwSFAoMY2FwYWJpbGl0aWVzGAMgASgNEiYKBXByb29mGAQgASgLMhcucGluZ2Rvc3QudjEuSGVsbG9Qcm9vZiI1CgpIZWxsb1Byb29mEhQKDGlkZW50aXR5X2tleRgBIAEoDBIRCglzaWduYXR1cmUYAiABKAwqqQEKDU1lc2hBY2tTdGF0dXMSHwobTUVTSF9BQ0tfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHAoYTUVTSF9BQ0tfU1RBVFVTX0FDQ0VQVEVEEAESHQoZTUVTSF9BQ0tfU1RBVFVTX0RFTElWRVJFRBACEh0KGU1FU0hfQUNLX1NUQVRVU19EVVBMSUNBVEUQAxIbChdNRVNIX0FDS19TVEFUVVNfUkVGVVNFRBAEKmwKD0hlbGxvQ2FwYWJpbGl0eRIgChxIRUxMT19DQVBBQklMSVRZX1VOU1BFQ0lGSUVEEAASGwoXSEVMTE9fQ0FQQUJJTElUWV9ESVJFQ1QQARIaChZIRUxMT19DQVBBQklMSVRZX1JFTEFZEAJiBnByb3RvMw", [file_pingdost_v1_envelope]);
 
 /**
  * Unused: the relay header is the TransportPacket's own fields (ADR 0025). Kept so that its
@@ -114,7 +114,9 @@ export const MeshChunkRefSchema: GenMessage<MeshChunkRef> = /*@__PURE__*/
   messageDesc(file_pingdost_v1_mesh, 1);
 
 /**
- * Payload of PACKET_KIND_MESH_CHUNK.
+ * Payload of PACKET_KIND_MESH_CHUNK (ADR 0027): one ciphertext chunk of an attachment whose
+ * manifest says `mesh`. The packet's `dst` is the recipient's routing token and its packet ID
+ * meshChunkPacketId(transfer, index), so every copy of a chunk dedupes.
  *
  * @generated from message pingdost.v1.MeshChunk
  */
@@ -125,11 +127,27 @@ export type MeshChunk = Message<"pingdost.v1.MeshChunk"> & {
   ref?: MeshChunkRef | undefined;
 
   /**
-   * One ciphertext chunk.
+   * One ciphertext chunk (the attachment format's own 64 KiB chunk plus its tag).
    *
    * @generated from field: bytes data = 2;
    */
   data: Uint8Array;
+
+  /**
+   * routingToken(sender device ID, UTC day of created_at_ms), 16 bytes.
+   *
+   * @generated from field: bytes origin_token = 3;
+   */
+  originToken: Uint8Array;
+
+  /**
+   * Ed25519 by the sender device over meshChunkMessage(packet ID, created, expires, dst,
+   * origin token, ref), 64 bytes. Relays check `chunk_sha256` against `data`; only the
+   * recipient can check this.
+   *
+   * @generated from field: bytes signature = 4;
+   */
+  signature: Uint8Array;
 };
 
 /**
@@ -249,6 +267,14 @@ export type MeshSummary = Message<"pingdost.v1.MeshSummary"> & {
    * @generated from field: repeated bytes delivered = 2;
    */
   delivered: Uint8Array[];
+
+  /**
+   * File transfers to this device (ADR 0027): which chunks it holds, so holders send only the
+   * missing ones; or complete, so holders drop every chunk of it.
+   *
+   * @generated from field: repeated pingdost.v1.MeshTransferState transfers = 3;
+   */
+  transfers: MeshTransferState[];
 };
 
 /**
@@ -257,6 +283,39 @@ export type MeshSummary = Message<"pingdost.v1.MeshSummary"> & {
  */
 export const MeshSummarySchema: GenMessage<MeshSummary> = /*@__PURE__*/
   messageDesc(file_pingdost_v1_mesh, 5);
+
+/**
+ * @generated from message pingdost.v1.MeshTransferState
+ */
+export type MeshTransferState = Message<"pingdost.v1.MeshTransferState"> & {
+  /**
+   * The attachment ID, 16 bytes.
+   *
+   * @generated from field: bytes transfer_id = 1;
+   */
+  transferId: Uint8Array;
+
+  /**
+   * Bit i (byte i / 8, bit i % 8, least significant first) set: chunk i is held.
+   *
+   * @generated from field: bytes have = 2;
+   */
+  have: Uint8Array;
+
+  /**
+   * Assembled and verified: no chunk of it is needed any more.
+   *
+   * @generated from field: bool complete = 3;
+   */
+  complete: boolean;
+};
+
+/**
+ * Describes the message pingdost.v1.MeshTransferState.
+ * Use `create(MeshTransferStateSchema)` to create a new message.
+ */
+export const MeshTransferStateSchema: GenMessage<MeshTransferState> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_mesh, 6);
 
 /**
  * Payload of PACKET_KIND_HELLO: the nearby peer handshake (ADR 0024). Each side sends two:
@@ -301,7 +360,7 @@ export type Hello = Message<"pingdost.v1.Hello"> & {
  * Use `create(HelloSchema)` to create a new message.
  */
 export const HelloSchema: GenMessage<Hello> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_mesh, 6);
+  messageDesc(file_pingdost_v1_mesh, 7);
 
 /**
  * The sender holds a device identity key. It names the key, not the device or the account:
@@ -331,7 +390,7 @@ export type HelloProof = Message<"pingdost.v1.HelloProof"> & {
  * Use `create(HelloProofSchema)` to create a new message.
  */
 export const HelloProofSchema: GenMessage<HelloProof> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_mesh, 7);
+  messageDesc(file_pingdost_v1_mesh, 8);
 
 /**
  * @generated from enum pingdost.v1.MeshAckStatus

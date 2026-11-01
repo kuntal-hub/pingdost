@@ -22,6 +22,7 @@ import {
 } from '@/attachments/transfers';
 import { displayName, openPlaintext, releasePlaintext } from '@/attachments/view';
 import { attachmentType } from '@/engine/labels';
+import { cancelMesh, pauseMesh, resumeMesh, useMeshFiles } from '@/nearby/files';
 import { usePalette } from '@/theme/theme-root';
 import { formatSize } from '@pingdost/attachments';
 import type { AttachmentInfo, MessageRecord } from '@pingdost/message-engine';
@@ -38,6 +39,13 @@ const ACTION_LABELS: Record<TransferAction, string> = {
 };
 
 async function act(action: TransferAction, row: AttachmentRow): Promise<void> {
+  // Files over the nearby mesh (ADR 0027) have their own controls.
+  if (row.via === 'mesh') {
+    if (action === 'pause') return pauseMesh(row);
+    if (action === 'resume' || action === 'retry') return resumeMesh(row);
+    if (action === 'cancel') return cancelMesh(row);
+    return;
+  }
   switch (action) {
     case 'download':
     case 'retry':
@@ -372,8 +380,15 @@ export function AttachmentContent({
   const info = message.attachment;
   const rows = useAttachmentRows(message);
   const thumbnail = useThumbnail(message, rows.thumbnail);
+  const mesh = useMeshFiles((state) =>
+    rows.file?.via === 'mesh'
+      ? rows.file.direction === 'up'
+        ? state.outgoing[rows.file.attachmentId]
+        : state.incoming[rows.file.attachmentId]
+      : undefined,
+  );
   if (!info) return null;
-  const status = transferStatus(rows.file, rows.fileProgress, info.plaintextSize);
+  const status = transferStatus(rows.file, rows.fileProgress, info.plaintextSize, mesh);
   const media = info.mimeType.startsWith('image/') || info.mimeType.startsWith('video/');
   const audio = info.mimeType.startsWith('audio/');
   const busy = rows.file?.state === 'transferring' && rows.file.direction === 'down';

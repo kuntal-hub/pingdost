@@ -17,7 +17,8 @@ export interface RelayUsage {
 type StorePolicy = Pick<
   MeshPolicy,
   'storageLimitBytes' | 'perOriginMaxPackets' | 'perOriginMaxBytes'
->;
+> &
+  Partial<Pick<MeshPolicy, 'perOriginMaxChunkBytes'>>;
 
 export class RelayStore {
   readonly #index = new Map<string, RelayPacketMeta>();
@@ -69,16 +70,22 @@ export class RelayStore {
     return this.#serial(async () => {
       if (this.#index.has(meta.id)) return 'duplicate';
       const { storageLimitBytes, perOriginMaxBytes, perOriginMaxPackets } = this.policy;
+      // File chunks (ADR 0027) have their own per-origin byte budget and no packet count.
+      const chunk = meta.kind === 'chunk';
+      const maxBytes = chunk
+        ? (this.policy.perOriginMaxChunkBytes ?? perOriginMaxBytes)
+        : perOriginMaxBytes;
       const size = payload.length;
-      if (size > storageLimitBytes || size > perOriginMaxBytes) return 'too_large';
+      if (size > storageLimitBytes || size > maxBytes) return 'too_large';
       let originBytes = 0;
       let originPackets = 0;
       for (const other of this.#index.values()) {
         if (other.origin !== meta.origin || other.expiresAt <= nowMs) continue;
+        if ((other.kind === 'chunk') !== chunk) continue;
         originBytes += other.size;
         originPackets++;
       }
-      if (originPackets + 1 > perOriginMaxPackets || originBytes + size > perOriginMaxBytes) {
+      if ((!chunk && originPackets + 1 > perOriginMaxPackets) || originBytes + size > maxBytes) {
         return 'origin_quota';
       }
       await this.#makeRoom(size, nowMs);

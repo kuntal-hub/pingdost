@@ -4,6 +4,8 @@
 // plaintext copies the app made (picker copies, compression output) are deleted afterwards.
 import { File } from 'expo-file-system';
 
+import { meshRecipients, sendMeshRows } from '@/nearby/files';
+import { useNearby } from '@/nearby/service';
 import {
   asRecordedAudio,
   buildManifest,
@@ -203,7 +205,16 @@ export function sendDraft(
       const main = await encryptToVault(provider, final);
       vault.push(main);
       const isDocument = category === 'document' || (category === 'audio' && !draft.voice);
+      // No Internet and the contact reachable over nearby: the file goes over the mesh, with no
+      // staged upload (ADR 0027).
+      const meshDevices = await meshRecipients(
+        conversationId,
+        main.encrypted.ciphertextSize,
+        useNearby.getState().fileMaxMb * 1_048_576,
+      ).catch(() => null);
+      const mesh = meshDevices !== null;
       const manifest = buildManifest({
+        mesh,
         attachmentId: main.attachmentId,
         encrypted: main.encrypted,
         mimeType,
@@ -215,6 +226,7 @@ export function sendDraft(
                 encrypted: thumb.encrypted,
                 mimeType: 'image/jpeg',
                 media: { width: preview.width, height: preview.height },
+                mesh,
               }),
             }
           : {}),
@@ -224,7 +236,8 @@ export function sendDraft(
       if (cancelled) throw new SendError('Cancelled.');
 
       const message = await engine.sendAttachment(conversationId, manifest, {
-        held: true,
+        // Staged uploads hold the message until the file is on the server; the mesh does not.
+        held: !mesh,
         ...(choice.replyTo ? { replyTo: choice.replyTo } : {}),
       });
       const now = Date.now();
@@ -239,11 +252,14 @@ export function sendDraft(
         transferred: 0,
         localPath: entry.attachmentId,
         error: null,
-        recipients: null,
+        recipients: meshDevices,
         createdAt: now,
         updatedAt: now,
+        via: mesh ? 'mesh' : null,
       });
-      await repo.insert([row(main, 'file'), ...(thumb ? [row(thumb, 'thumbnail')] : [])]);
+      const rows = [row(main, 'file'), ...(thumb ? [row(thumb, 'thumbnail')] : [])];
+      await repo.insert(rows);
+      if (mesh) await sendMeshRows(rows);
       vault.length = 0; // kept: the rows point at them now
       discardDraft(draft);
       void kick();

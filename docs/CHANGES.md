@@ -4,6 +4,18 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-01 — Phase 24: files over the mesh (ADR 0027)
+1. **No Wi-Fi bulk path yet: files move over BLE only.** The plan had an optional Wi-Fi Aware or Wi-Fi Direct path. It was evaluated (ADR 0027) but not built: it cannot be tested without two phones, and Wi-Fi Aware hardware support varies. The default mesh file limit is therefore **25 MB** (configurable 10–100 MB in Settings → Nearby messaging, with a time estimate), not REQ's 100 MB.
+   - *Affects:* 24 (done), 27 (Wi-Fi Aware once measured), 30.
+2. **"Acknowledged after full verification" is the ordinary E2EE delivery receipt, held back.** The manifest says `mesh`; the recipient sends its delivery (and read) receipt only after assembling the file and checking the chunk-hash list, every AEAD tag and the whole-file hash. Per-chunk mesh ACKs only hand storage over from one holder to the next.
+   - *Affects:* 24 (done).
+3. **Mesh files go only to the contact's phones in a direct chat.** Groups, the sender's other phones and linked browsers are not sent the file over the mesh. A browser fetches it from the phone once online (ADR 0021). If the Internet returns mid-transfer, the file still completes over the mesh only.
+   - *Affects:* 24 (done), 27.
+4. **Per-chunk integrity is the chunk's own hash (checked by relays) plus the sender's signature (checked by the recipient)**, not a hash list sent ahead. The manifest's list hash is still checked at the end.
+   - *Affects:* 24 (done).
+5. **The simulation harness is in `packages/message-engine/src/mesh/`** and the key files moved accordingly (`packages/attachments/src/mesh*.ts`, `apps/mobile/src/nearby/files.ts`, `chunk-store.ts`), not `packages/mesh-protocol/src/chunks/*`.
+   - *Affects:* 24 (done).
+
 ### 2026-11-01 — Phase 23: mesh store-and-forward relay (ADR 0025, ADR 0026)
 1. **"Boot restart" is a notification, not a service start.** The plan asked for an optional, best-effort restart at boot. The relay's logic runs in the app's JavaScript, which Android does not start at boot, so a service started then would hold Bluetooth without relaying anything. With "Remind me to turn it back on" (Settings → Nearby relay, off by default), a `BOOT_COMPLETED` receiver posts "Nearby is paused since the restart"; opening PingDost starts nearby and relaying again.
    - *Affects:* 23 (done), 27 (a headless start, if wanted; the Play declaration for `RECEIVE_BOOT_COMPLETED`).

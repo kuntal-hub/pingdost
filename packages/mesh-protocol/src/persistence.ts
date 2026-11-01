@@ -23,6 +23,11 @@ export interface RelayPacketMeta {
   /** Payload bytes. */
   size: number;
   receivedAt: number;
+  /** What it carries: an envelope (Phase 23; the default) or a file chunk (ADR 0027). */
+  kind?: 'envelope' | 'chunk';
+  /** Chunks: the transfer (attachment) ID, hex, and the chunk index. */
+  transfer?: string;
+  index?: number;
 }
 
 export interface MeshPersistence {

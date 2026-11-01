@@ -8,6 +8,7 @@ import { ListRow, ListSection } from '@/components/list-row';
 import { Screen } from '@/components/screen';
 import {
   refreshNearby,
+  setMeshFileLimit,
   setNearbyEnabled,
   startNearby,
   useNearby,
@@ -15,6 +16,7 @@ import {
 } from '@/nearby/service';
 import { describeNearby } from '@/nearby/status';
 import { usePalette } from '@/theme/theme-root';
+import { meshTimeEstimate } from '@pingdost/attachments';
 
 export function openBluetoothSettings(): void {
   void Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS').catch(() =>
@@ -66,6 +68,7 @@ export function NearbyMessagingScreen() {
   const palette = usePalette();
   const enabled = useNearby((state) => state.enabled);
   const unknown = useNearby((state) => state.summary.unknown);
+  const fileMaxMb = useNearby((state) => state.fileMaxMb);
   const status = useNearbyStatus();
   const text = describeNearby(status);
   const available = status.kind !== 'unavailable';
@@ -132,7 +135,30 @@ export function NearbyMessagingScreen() {
         </Text>
       )}
 
+      {enabled && (
+        <ListSection title="Largest file to send without internet">
+          {FILE_LIMITS.map((mb) => (
+            <ListRow
+              key={mb}
+              title={`${mb} MB`}
+              subtitle={`${meshTimeEstimate(mb * 1_048_576)} per phone it passes`}
+              onPress={() => void setMeshFileLimit(mb).catch(() => undefined)}
+              accessory={fileMaxMb === mb ? <Text className="text-foreground">✓</Text> : undefined}
+            />
+          ))}
+        </ListSection>
+      )}
+      {enabled && (
+        <Text className="text-muted">
+          Without internet, a photo, video or file goes over Bluetooth in pieces, directly or
+          through phones that relay. It shows &quot;Delivered&quot; only after the recipient&apos;s
+          phone has every piece and has checked the whole file. Larger files wait for the internet.
+        </Text>
+      )}
+
       <NearbyExplainer />
     </Screen>
   );
 }
+
+const FILE_LIMITS = [10, 25, 50, 100] as const;

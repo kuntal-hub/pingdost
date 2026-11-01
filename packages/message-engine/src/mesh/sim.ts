@@ -4,11 +4,14 @@
  * radio and an in-memory relay store. A mobility schedule says who is in range of whom, and
  * when. The Internet is the fake server, switched off for "airplane mode".
  */
+import { MemoryChunkStorage, MeshFileReceiver } from '@pingdost/attachments';
 import type { CryptoProvider } from '@pingdost/crypto';
 import { MemoryMeshPersistence, type MeshPolicy } from '@pingdost/mesh-protocol';
+import { fromBase64 } from '@pingdost/protocol';
 import { NearbyPeerTransport, TransportRouter, type MeshStatus } from '@pingdost/transport';
 import { connectFakeLinks, FakeLinks } from '@pingdost/transport/testing';
 
+import { attachmentDecryptInput } from '../attachments';
 import { createNearbyIdentity } from '../routing/identity';
 import { createTestClient, FakeServer, type TestClient } from '../testing';
 
@@ -20,9 +23,18 @@ export interface SimPhone {
   persistence: MemoryMeshPersistence;
   /** Relay log lines (states and counts only). */
   log: string[];
+  /** With `files`: the receiver, its chunk store, and verified files' ciphertext by ID. */
+  receiver?: MeshFileReceiver;
+  chunks?: MemoryChunkStorage;
+  files: Map<string, Uint8Array>;
 }
 
 export interface SimPhoneOptions {
+  /**
+   * Receive mesh files (ADR 0027): a `MeshFileReceiver` over in-memory chunks that confirms
+   * each verified file to the engine and keeps its ciphertext in `files`.
+   */
+  files?: boolean;
   relaying?: boolean;
   /** A relay store to start from (e.g. with a tampered packet in it). */
   persistence?: MemoryMeshPersistence;
@@ -53,6 +65,31 @@ export class MeshSim {
     const radio = new FakeLinks();
     const persistence = options.persistence ?? new MemoryMeshPersistence();
     const log: string[] = [];
+    const files = new Map<string, Uint8Array>();
+    // Files: attachment ID → message ID, learnt from incoming mesh manifests.
+    const messageOf = new Map<string, string>();
+    // Set once the client exists; the receiver's hooks run later.
+    const refs: { engine?: TestClient['engine']; nearby?: NearbyPeerTransport } = {};
+    const chunks = options.files ? new MemoryChunkStorage() : undefined;
+    const receiver = chunks
+      ? new MeshFileReceiver(this.crypto, chunks, {
+          verified: async (transferId, read) => {
+            const parts: Uint8Array[] = [];
+            for await (const part of read()) parts.push(part);
+            const whole = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+            let offset = 0;
+            for (const part of parts) {
+              whole.set(part, offset);
+              offset += part.length;
+            }
+            files.set(transferId, whole);
+            const messageId = messageOf.get(transferId);
+            if (messageId) await refs.engine?.confirmMeshFile(messageId);
+          },
+          // Paused, cancelled or complete: holders hear it at once.
+          settled: () => refs.nearby?.mesh?.transfersChanged(),
+        })
+      : undefined;
     let nearby: NearbyPeerTransport | undefined;
     const down = this.server.apiDown;
     this.server.apiDown = false; // registering needs the server
@@ -81,6 +118,7 @@ export class MeshSim {
             persistence,
             relaying: options.relaying ?? false,
             policy: { ackTimeoutMs: 1_000, ...options.policy },
+            ...(receiver ? { files: receiver } : {}),
           },
         });
         return new TransportRouter([internet, nearby]);
@@ -88,7 +126,32 @@ export class MeshSim {
     });
     this.server.apiDown = down;
     if (!nearby) throw new Error('no nearby transport');
-    const phone: SimPhone = { name, client, nearby, radio, persistence, log };
+    refs.engine = client.engine;
+    refs.nearby = nearby;
+    if (receiver) {
+      // The app's part: an incoming mesh manifest tells the receiver what to check against.
+      client.engine.subscribeAll((_, event) => {
+        if (event.type !== 'message') return;
+        const info = event.message.attachment;
+        if (event.message.direction !== 'in' || !info?.mesh) return;
+        messageOf.set(info.attachmentId, event.message.messageId);
+        receiver.expect(info.attachmentId, {
+          ...attachmentDecryptInput(info),
+          chunkHashListSha256: fromBase64(info.chunkHashListSha256),
+        });
+      });
+    }
+    const phone: SimPhone = {
+      name,
+      client,
+      nearby,
+      radio,
+      persistence,
+      log,
+      files,
+      ...(receiver ? { receiver } : {}),
+      ...(chunks ? { chunks } : {}),
+    };
     this.phones.push(phone);
     if (this.#airplane) await this.#offline(phone);
     return phone;

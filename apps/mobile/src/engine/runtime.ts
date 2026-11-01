@@ -27,6 +27,7 @@ import { publicConfig } from '@/config';
 import { getCryptoContext } from '@/crypto/bootstrap';
 import { getOrCreateSecret, SECRET_ITEMS, SECURE_STORE_OPTIONS } from '@/crypto/secrets';
 import { readSetting, SETTING_KEYS, writeSetting } from '@/db/settings';
+import { startMeshFiles } from '@/nearby/files';
 import { createNearby, disposeNearby, startNearby } from '@/nearby/service';
 import { installNotifier } from '@/push/notifications';
 import { onPhoneRequested, refreshPhoneRequests } from '@/recovery/approvals';
@@ -294,6 +295,8 @@ async function boot(): Promise<ChatRuntime> {
       api: api.attachments,
       deviceId,
     }),
+    // Files over the nearby mesh (ADR 0027), after the attachment context exists.
+    startMeshFiles(db, nearby),
   );
   // Nearby starts with the app on screen (`foreground`), not in a push wake: the foreground
   // service it needs can only start from there.

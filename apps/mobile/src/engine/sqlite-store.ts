@@ -63,6 +63,8 @@ const CHAT_TABLES = [
   'seen_mesh_packets',
   // Other people's relayed packets (migration 008): nothing to carry once signed out.
   'mesh_relay_packets',
+  'mesh_incoming',
+  'mesh_incoming_chunks',
   'device_sync_state',
   'messages_fts',
   'message_ops',

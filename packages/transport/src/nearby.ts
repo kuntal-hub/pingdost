@@ -447,13 +447,13 @@ export class NearbyPeerTransport implements Transport {
         this.#onAck(link, packet.payload);
         break;
       case PacketKind.MESH_ENVELOPE:
+      case PacketKind.MESH_CHUNK:
       case PacketKind.MESH_ACK:
       case PacketKind.MESH_SUMMARY:
-        // Only from a peer that proved a key on this link (ADR 0025).
+        // Only from a peer that proved a key on this link (ADR 0025, 0027).
         if (link.peerKey !== null) this.#mesh?.onPacket(link.connection.linkId, packet);
         break;
       default:
-        // File chunks arrive with Phase 24.
         break;
     }
   }

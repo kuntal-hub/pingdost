@@ -16,6 +16,10 @@ interface PacketRow {
   flags: number;
   size: number;
   received_at: number;
+  /** Migration 009. */
+  kind: string;
+  transfer: string | null;
+  chunk_index: number | null;
 }
 
 const toMeta = (r: PacketRow): RelayPacketMeta => ({
@@ -29,6 +33,13 @@ const toMeta = (r: PacketRow): RelayPacketMeta => ({
   flags: r.flags,
   size: r.size,
   receivedAt: r.received_at,
+  ...(r.kind === 'chunk'
+    ? {
+        kind: 'chunk' as const,
+        ...(r.transfer ? { transfer: r.transfer } : {}),
+        ...(r.chunk_index === null ? {} : { index: r.chunk_index }),
+      }
+    : {}),
 });
 
 const asBytes = (value: unknown): Uint8Array | undefined =>
@@ -47,7 +58,7 @@ export class SqliteMeshPersistence implements MeshPersistence {
   async loadPackets(): Promise<RelayPacketMeta[]> {
     const rows = await this.db.getAllAsync<PacketRow>(
       `SELECT packet_id, dst, origin, created_at, expires_at, hop_budget, copies, flags, size,
-              received_at
+              received_at, kind, transfer, chunk_index
          FROM mesh_relay_packets ORDER BY received_at`,
       [],
     );
@@ -66,8 +77,8 @@ export class SqliteMeshPersistence implements MeshPersistence {
     await this.db.runAsync(
       `INSERT OR REPLACE INTO mesh_relay_packets
          (packet_id, dst, origin, created_at, expires_at, hop_budget, copies, flags, size,
-          received_at, payload)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          received_at, payload, kind, transfer, chunk_index)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         meta.id,
         meta.dst,
@@ -80,6 +91,9 @@ export class SqliteMeshPersistence implements MeshPersistence {
         meta.size,
         meta.receivedAt,
         payload,
+        meta.kind ?? 'envelope',
+        meta.transfer ?? null,
+        meta.index ?? null,
       ],
     );
   }

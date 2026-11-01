@@ -129,6 +129,11 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
     - The router's `mesh` tier answers `held`: the engine keeps the item and marks rows `relayed` with `relays: N` on `onRelayed`.
     - Simulation: `pnpm --filter @pingdost/message-engine exec vitest run src/mesh` (`MeshSim`: virtual phones with real engines, `meet`/`part`, mobility schedules; A→B→C, tamper, duplicates, hops, expiry, quotas, rates).
     - Android: `src/nearby/relay*.ts` (pause rules, `SqliteMeshPersistence` on migration 008's `mesh_relay_packets`), Settings → **Nearby relay** (off by default; needs Nearby messaging on), Storage → Nearby relay cache. Native: `setRelayNotification`, `setRestartReminder` (`BootReceiver`); a new build is needed for them.
+  - **Files over the mesh (ADR 0027):**
+    - A `mesh` manifest plus signed `MESH_CHUNK`s (one STREAM chunk each). `MeshRelay.sendFile`/`withdrawFile`, `MeshFileReceiver` (`@pingdost/attachments`: bitmaps, durable chunks, `verifyMeshFile`), `engine.confirmMeshFile` (the receipt waits for full verification), `engine.routesTo`.
+    - Tests: `pnpm --filter @pingdost/message-engine exec vitest run src/mesh/files.test.ts` (10 MB A→B→C with drops and resume, corrupt chunk, quota, pause/cancel; `MeshSim` phones with `files: true`).
+    - Android: `src/nearby/files.ts` (send decision `meshRecipients`, rows `via = 'mesh'`, pause/resume/cancel) and `chunk-store.ts` (migration 009); the limit is in Settings → Nearby messaging (default 25 MB).
+    - Compare large byte arrays in tests with `Buffer.equals`, not `toEqual` (vitest's element-wise diff of 10 MB took 40 s).
 - **Staging deployment** (ADR 0013; runbooks in `docs/ops/`: `vps-setup.md`, `deploy.md`, `alerts.md`, `mobile-release.md`):
   - Image: `docker build -f apps/server/Dockerfile --platform linux/amd64 -t pingdost-server:local .` from the repo root (about 6 minutes; `.dockerignore` keeps `.env` and build output out).
   - Stack: `deploy/compose.staging.yml` + `deploy/Caddyfile` + a `.env` from `deploy/env.staging.example`. To rehearse locally, use another project name (`-p pingdost-stage`; the dev stack is also `pingdost`), an override that swaps in the local image and maps Caddy to `8088:80`, `API_DOMAIN=http://localhost`, and send `Host: localhost` (Caddy answers other hosts with an empty 200).

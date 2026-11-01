@@ -164,6 +164,13 @@ export interface AttachmentInfo {
   durationMs?: number;
   /** A voice note's loudness samples (0–255), base64. */
   waveform?: string;
+  /**
+   * The file comes over the nearby mesh, not the server (ADR 0027). Incoming: the delivery
+   * receipt waits until the app assembled and verified it (`confirmMeshFile`).
+   */
+  mesh?: boolean;
+  /** Incoming mesh file: assembled and verified, receipts sent. */
+  meshConfirmed?: boolean;
 }
 
 /** One user's reaction to a message; the newest event per user wins (ADR 0014). */

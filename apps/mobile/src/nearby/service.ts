@@ -29,6 +29,7 @@ import {
   type NearbyTransport,
 } from '@pingdost/transport';
 
+import { meshFileSink } from './files';
 import {
   DEFAULT_RELAY_PREFS,
   relayDecision,
@@ -55,11 +56,20 @@ const START_OPTIONS: StartOptions = {
   advertiseInterval: 'medium',
 };
 
-const NearbyPrefsSchema = z.object({ enabled: z.boolean() });
+const NearbyPrefsSchema = z.object({
+  enabled: z.boolean(),
+  /** Largest file sent over nearby without the Internet, MB (ADR 0027). */
+  fileMaxMb: z.number().int().positive().optional(),
+});
+
+/** Default largest file over nearby: BLE moves about 50–150 KB/s (ADR 0023, 0027). */
+export const DEFAULT_MESH_FILE_MAX_MB = 25;
 export type NearbyPrefs = z.infer<typeof NearbyPrefsSchema>;
 
 interface NearbyStore {
   enabled: boolean;
+  /** Largest file over nearby, MB. */
+  fileMaxMb: number;
   loaded: boolean;
   native: NearbyState | null;
   summary: NearbySummary;
@@ -79,10 +89,12 @@ const EMPTY_MESH: MeshStatus = {
   own: 0,
   carried: 0,
   handedOver: 0,
+  files: 0,
 };
 
 export const useNearby = create<NearbyStore>()(() => ({
   enabled: false,
+  fileMaxMb: DEFAULT_MESH_FILE_MAX_MB,
   loaded: false,
   native: null,
   summary: { peers: [], unknown: 0, pending: 0 },
@@ -141,13 +153,14 @@ let queue: Promise<void> = Promise.resolve();
 
 async function loadPrefs(): Promise<NearbyPrefs> {
   const state = useNearby.getState();
-  if (state.loaded) return { enabled: state.enabled };
+  if (state.loaded) return { enabled: state.enabled, fileMaxMb: state.fileMaxMb };
   const { db } = (await getCryptoContext()).database;
   const stored = await readSetting(db, SETTING_KEYS.nearby, NearbyPrefsSchema);
   const relay = await readSetting(db, SETTING_KEYS.relay, RelayPrefsSchema);
   const prefs = stored ?? { enabled: false };
   useNearby.setState({
     enabled: prefs.enabled,
+    fileMaxMb: prefs.fileMaxMb ?? DEFAULT_MESH_FILE_MAX_MB,
     relay: relay ?? DEFAULT_RELAY_PREFS,
     loaded: true,
   });
@@ -187,7 +200,8 @@ export function createNearby(
   const transport = new NearbyPeerTransport({
     links,
     identity,
-    mesh: { persistence: new SqliteMeshPersistence(db), relaying: false },
+    // Files over the mesh come to `meshFileSink` (ADR 0027).
+    mesh: { persistence: new SqliteMeshPersistence(db), relaying: false, files: meshFileSink },
     ...(__DEV__
       ? {
           log: (message: string, fields?: object) =>
@@ -278,6 +292,17 @@ async function apply(): Promise<void> {
   }
 }
 
+/** Settings → Nearby messaging: the largest file sent over nearby without the Internet. */
+export async function setMeshFileLimit(fileMaxMb: number): Promise<void> {
+  await loadPrefs();
+  useNearby.setState({ fileMaxMb });
+  const { db } = (await getCryptoContext()).database;
+  await writeSetting(db, SETTING_KEYS.nearby, {
+    enabled: useNearby.getState().enabled,
+    fileMaxMb,
+  } satisfies NearbyPrefs);
+}
+
 /** Settings → Nearby relay: the opt-in and its pause rules. Applied at once. */
 export async function setRelayPrefs(change: Partial<RelayPrefs>): Promise<void> {
   await loadPrefs();
@@ -306,7 +331,10 @@ export async function setNearbyEnabled(enabled: boolean): Promise<void> {
   await loadPrefs();
   useNearby.setState({ enabled });
   const { db } = (await getCryptoContext()).database;
-  await writeSetting(db, SETTING_KEYS.nearby, { enabled } satisfies NearbyPrefs);
+  await writeSetting(db, SETTING_KEYS.nearby, {
+    enabled,
+    fileMaxMb: useNearby.getState().fileMaxMb,
+  } satisfies NearbyPrefs);
   await startNearby();
 }
 

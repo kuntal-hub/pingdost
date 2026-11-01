@@ -34,11 +34,19 @@ message MeshChunkRef {
   bytes chunk_sha256 = 4;
 }
 
-// Payload of PACKET_KIND_MESH_CHUNK.
+// Payload of PACKET_KIND_MESH_CHUNK (ADR 0027): one ciphertext chunk of an attachment whose
+// manifest says `mesh`. The packet's `dst` is the recipient's routing token and its packet ID
+// meshChunkPacketId(transfer, index), so every copy of a chunk dedupes.
 message MeshChunk {
   MeshChunkRef ref = 1;
-  // One ciphertext chunk.
+  // One ciphertext chunk (the attachment format's own 64 KiB chunk plus its tag).
   bytes data = 2;
+  // routingToken(sender device ID, UTC day of created_at_ms), 16 bytes.
+  bytes origin_token = 3;
+  // Ed25519 by the sender device over meshChunkMessage(packet ID, created, expires, dst,
+  // origin token, ref), 64 bytes. Relays check `chunk_sha256` against `data`; only the
+  // recipient can check this.
+  bytes signature = 4;
 }
 
 // Payload of PACKET_KIND_MESH_ACK, hop-local: what the next holder did with one mesh packet.
@@ -87,6 +95,18 @@ message MeshSummary {
   repeated bytes routing_tokens = 1;
   // Packet IDs this device knows were delivered: holders drop their copies.
   repeated bytes delivered = 2;
+  // File transfers to this device (ADR 0027): which chunks it holds, so holders send only the
+  // missing ones; or complete, so holders drop every chunk of it.
+  repeated MeshTransferState transfers = 3;
+}
+
+message MeshTransferState {
+  // The attachment ID, 16 bytes.
+  bytes transfer_id = 1;
+  // Bit i (byte i / 8, bit i % 8, least significant first) set: chunk i is held.
+  bytes have = 2;
+  // Assembled and verified: no chunk of it is needed any more.
+  bool complete = 3;
 }
 
 // Payload of PACKET_KIND_HELLO: the nearby peer handshake (ADR 0024). Each side sends two:

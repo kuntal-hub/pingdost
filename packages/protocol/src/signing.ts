@@ -30,6 +30,10 @@ export const SIGNING_CONTEXTS = {
   meshEnvelope: 'pingdost/mesh-envelope/v1',
   /** Signed by the answering device's ed25519 key for each mesh ACK (ADR 0025). */
   meshAck: 'pingdost/mesh-ack/v1',
+  /** Signed by the sender device's ed25519 key for each file chunk over the mesh (ADR 0027). */
+  meshChunk: 'pingdost/mesh-chunk/v1',
+  /** Hashed (not signed) with a transfer ID and chunk index into its packet ID (ADR 0027). */
+  meshChunkId: 'pingdost/mesh-chunk-id/v1',
 } as const;
 
 export const KEY_BYTES = 32;
@@ -289,6 +293,48 @@ export function meshAckMessage(
     fixed(linkToken, HELLO_TOKEN_BYTES, 'link_token'),
     fixed(packetId, UUID_BYTES, 'packet_id'),
     uint(status, 4, 'status'),
+  ]);
+}
+
+/** The fields of a file chunk over the mesh that its sender signs (ADR 0027). */
+export interface MeshChunkStatement {
+  packetId: Uint8Array;
+  createdAtMs: bigint;
+  expiresAtMs: bigint;
+  dst: Uint8Array;
+  originToken: Uint8Array;
+  transferId: Uint8Array;
+  index: number;
+  count: number;
+  chunkSha256: Uint8Array;
+}
+
+/**
+ * context ‖ packet ID (16) ‖ created (8) ‖ expires (8) ‖ dst (16) ‖ origin token (16) ‖
+ * transfer ID (16) ‖ index (4) ‖ count (4) ‖ chunk SHA-256 (32), big-endian. The data is bound
+ * through its hash, which every holder checks.
+ */
+export function meshChunkMessage(statement: MeshChunkStatement): Uint8Array {
+  return concat([
+    context(SIGNING_CONTEXTS.meshChunk),
+    fixed(statement.packetId, UUID_BYTES, 'packet_id'),
+    uint(statement.createdAtMs, 8, 'created_at_ms'),
+    uint(statement.expiresAtMs, 8, 'expires_at_ms'),
+    fixed(statement.dst, MESH_TOKEN_BYTES, 'dst'),
+    fixed(statement.originToken, MESH_TOKEN_BYTES, 'origin_token'),
+    fixed(statement.transferId, UUID_BYTES, 'transfer_id'),
+    uint(statement.index, 4, 'index'),
+    uint(statement.count, 4, 'count'),
+    fixed(statement.chunkSha256, 32, 'chunk_sha256'),
+  ]);
+}
+
+/** The bytes hashed into a chunk's packet ID: context ‖ transfer ID (16) ‖ index (4). */
+export function meshChunkIdInput(transferId: Uint8Array, index: number): Uint8Array {
+  return concat([
+    context(SIGNING_CONTEXTS.meshChunkId),
+    fixed(transferId, UUID_BYTES, 'transfer_id'),
+    uint(index, 4, 'index'),
   ]);
 }
 

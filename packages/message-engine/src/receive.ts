@@ -709,7 +709,10 @@ export class Receiver {
         unreadCount: conversation.unreadCount + (unread ? 1 : 0),
       },
     ];
-    if (!own && (core.options.receipts?.('delivered') ?? true)) {
+    // A file over the mesh is delivered only once it is assembled and verified (REQ §19.3,
+    // ADR 0027): the app calls `confirmMeshFile` then.
+    const meshPending = message.attachment?.mesh === true && !message.attachment.meshConfirmed;
+    if (!own && !meshPending && (core.options.receipts?.('delivered') ?? true)) {
       const receipt: ReceiptItem = {
         type: 'receipt',
         receipt: 'delivered',

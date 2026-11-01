@@ -17,6 +17,63 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-01 — Phase 24: Mesh / nearby file transfer — 🔄 partial (device checks open)
+Started with Phases 15 and 23 still 🔄 (device checks only); the user said to proceed.
+
+**Done (ADR 0027):**
+- **Protocol** (add-only; `buf breaking` clean):
+  - `AttachmentManifest.mesh`;
+  - `MeshChunk.origin_token`/`signature`, `MeshSummary.transfers` (`MeshTransferState`: bitmap or complete);
+  - `meshChunkMessage`, `meshChunkPacketId`, `meshChunkDigest`, `encodeMeshChunk`/`decodeMeshChunk` (4,096 chunks max).
+- **mesh-protocol:** `ChunkBitmap`; `checkMeshChunkPacket` (header, packet ID, hash: relays drop corrupt chunks); chunk metadata and their own per-origin byte budget in `RelayStore`; `chunkCopies` 4, `perOriginMaxChunkBytes` 110 MiB, chunk rate 600/min.
+- **attachments:** `mesh` in manifests; `meshChunkRange`, `meshTimeEstimate`, `chunkHashListDigest`, `verifyMeshFile`; `MeshFileReceiver` (bitmaps, durable chunks before the ACK, chunks before the manifest, whole-file check, pause/resume/cancel, hooks) and `MemoryChunkStorage`.
+- **Transport `MeshRelay`:**
+  - `sendFile`/`withdrawFile`/`fileProgress`/`onFileProgress`;
+  - chunks straight to the linked recipient, minus its bitmap, and spray to relays;
+  - relays store, deliver and spray chunks, and drop complete transfers;
+  - the recipient checks the signature and hands chunks to the sink; `transfersChanged` sends summaries at once.
+  - `NearbyPeerTransport` passes `MESH_CHUNK` to the relay. The test radio uses `setImmediate`.
+- **Engine:** `AttachmentInfo.mesh`/`meshConfirmed`; no delivery or read receipt for an unconfirmed mesh file; `confirmMeshFile`; `routesTo`. `MeshSim` gains `files: true` phones.
+- **Android:**
+  - migration 009 (relay chunk columns, `attachments.via`, `mesh_incoming*`);
+  - `nearby/files.ts`: send decision, offers, receiver wiring, vault write, `confirmMeshFile`, restart recovery, settle on receipt, pause/resume/cancel;
+  - `chunk-store.ts`;
+  - the runner skips mesh rows; incoming mesh rows start automatically;
+  - the bubble shows chunk progress, "Forwarded by N devices" and a BLE time estimate;
+  - Settings → Nearby messaging → largest file without internet (10/25/50/100 MB).
+- **Docs:** ADR 0027 (incl. the Wi-Fi Aware / Wi-Fi Direct evaluation), CHANGES 2026-11-01 (five items), ARCHITECTURE A4/A6, decisions index, ROADMAP mesh note, Phase 27/30 handoffs, CLAUDE.md.
+
+**Remaining (needs two phones):**
+- [ ] Build and install on both phones (`pnpm --filter @pingdost/mobile android`; JS plus migration 009, no new native code since Phase 23).
+- [ ] **Done when (device):** both in airplane mode with Bluetooth on and nearby messaging on, linked once online before:
+  - send a 10 MB+ file (e.g. a PDF, or a photo sent as original); the bubble counts chunks on both sides;
+  - walk out of range mid-transfer and back: it resumes from where it was;
+  - the sender shows Delivered only after the recipient has opened the file;
+  - optional: a third phone as relay (A → B → C).
+- [ ] Then, if 21–24's device checks all pass: ROADMAP "Offline-mesh launch requirement met on Android".
+
+**Deviations / decisions:** ADR 0027; CHANGES 2026-11-01 (Phase 24): BLE only, 25 MB default; the held E2EE receipt is the acknowledgement; direct chats and the contact's phones only; chunk hash plus signature; files in other places than planned.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 56/56 tasks. New tests:
+  - protocol 123 (+4); mesh-protocol 14 (+3); attachments 21 (+4);
+  - engine 127 (+4 file scenarios; the 10 MB one runs in about 3 s);
+  - mobile 102 (+3: the chunk store under the receiver 1, mesh status wording 2; the relay store test also covers the chunk columns).
+- `pnpm --filter @pingdost/server test:int`: 150 passed, 2 skipped. `pnpm format:check` clean. `buf lint` and `buf breaking` against main clean.
+- `npx expo export --platform android` bundles (2,462 modules).
+- **Not run:** anything on a phone.
+
+**Known issues / tech debt:**
+- No Wi-Fi bulk path (ADR 0027): 100 MB over BLE is slow.
+- Browsers try the server first for `mesh` manifests before the phone.
+- An Internet return mid-transfer does not switch the file to staging.
+- Offers are stop-and-wait per link.
+- Mesh files only for direct chats and the contact's phones.
+- JS SHA-256 per chunk is unmeasured on phones.
+- Chunks that arrive before their manifest are kept for at most 16 unknown transfers.
+
+**Next:** the open device checks of 10–24 (the user's list in the session of 2026-11-01), then Phase 25 (calls A).
+
 ## 2026-11-01 — Phase 23: Mesh store-and-forward relay — 🔄 partial (device checks open)
 Started with Phases 15 and 22 still 🔄 (only their device checks are open); the user said to proceed, and to do the open device checks of 10–22 later.
 

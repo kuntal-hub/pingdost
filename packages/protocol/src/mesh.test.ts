@@ -6,35 +6,42 @@ import { describe, expect, it } from 'vitest';
 
 import {
   decodeMeshAck,
+  decodeMeshChunk,
   decodeMeshEnvelope,
   decodeMeshSummary,
   decodeTransportPacket,
   encodeMeshAck,
+  encodeMeshChunk,
   encodeMeshEnvelope,
   encodeMeshSummary,
   encodeTransportPacket,
   MAX_MESH_SUMMARY_TOKENS,
+  MAX_MESH_TRANSFER_CHUNKS,
 } from './codec';
 import { ProtocolError } from './errors';
 import { CryptoType, EnvelopeSchema } from './gen/pingdost/v1/envelope_pb';
 import {
   MeshAckSchema,
   MeshAckStatus,
+  MeshChunkRefSchema,
+  MeshChunkSchema,
   MeshEnvelopeSchema,
   MeshSummarySchema,
 } from './gen/pingdost/v1/mesh_pb';
 import { PacketKind, TransportPacketSchema } from './gen/pingdost/v1/packet_pb';
 import { uuidToBytes, uuidv7Bytes } from './ids';
-import { DEFAULT_ENVELOPE_MAX_BYTES } from './limits';
+import { ATTACHMENT_CHUNK_CIPHERTEXT_BYTES, DEFAULT_ENVELOPE_MAX_BYTES } from './limits';
 import {
   DAY_MS,
   fromMeshEnvelope,
+  meshChunkDigest,
+  meshChunkPacketId,
   meshDay,
   meshRoutingToken,
   meshRoutingTokens,
   toMeshEnvelope,
 } from './mesh';
-import { meshAckMessage, meshEnvelopeMessage, SIGNING_CONTEXTS } from './signing';
+import { meshAckMessage, meshChunkMessage, meshEnvelopeMessage, SIGNING_CONTEXTS } from './signing';
 
 const DEVICE = '01890a5d-ac96-774b-bcce-b302099a8057';
 const OTHER = '01890a5d-ac96-774b-bcce-b302099a8058';
@@ -172,6 +179,108 @@ describe('MeshSummary and MeshAck', () => {
     expect(() => encodeMeshAck(create(MeshAckSchema, { ...ack, signature: bytes(1, 1) }))).toThrow(
       ProtocolError,
     );
+  });
+});
+
+describe('MeshChunk (ADR 0027)', () => {
+  const chunk = (overrides = {}) =>
+    create(MeshChunkSchema, {
+      ref: create(MeshChunkRefSchema, {
+        transferId: uuidv7Bytes(),
+        index: 3,
+        count: 10,
+        chunkSha256: new Uint8Array(32).fill(1),
+      }),
+      data: bytes(ATTACHMENT_CHUNK_CIPHERTEXT_BYTES, 7),
+      originToken: bytes(16, 2),
+      signature: bytes(64, 3),
+      ...overrides,
+    });
+
+  it('round-trips a full chunk inside a MESH_CHUNK packet', () => {
+    const payload = encodeMeshChunk(chunk());
+    expect(decodeMeshChunk(payload).ref?.index).toBe(3);
+    const now = Date.now();
+    const packet = create(TransportPacketSchema, {
+      version: 1,
+      packetId: uuidv7Bytes(),
+      kind: PacketKind.MESH_CHUNK,
+      dst: bytes(16, 4),
+      createdAtMs: BigInt(now),
+      expiresAtMs: BigInt(now + 60_000),
+      hopBudget: 8,
+      copies: 4,
+      payload,
+    });
+    expect(decodeTransportPacket(encodeTransportPacket(packet)).kind).toBe(PacketKind.MESH_CHUNK);
+  });
+
+  it('rejects a missing ref, bad counts, a bad hash, oversized data, bad tokens or signatures', () => {
+    const ref = (fields: object) =>
+      create(MeshChunkRefSchema, {
+        transferId: uuidv7Bytes(),
+        index: 0,
+        count: 1,
+        chunkSha256: bytes(32, 1),
+        ...fields,
+      });
+    for (const bad of [
+      { ref: undefined },
+      { ref: ref({ index: 1, count: 1 }) },
+      { ref: ref({ count: MAX_MESH_TRANSFER_CHUNKS + 1 }) },
+      { ref: ref({ chunkSha256: bytes(31, 1) }) },
+      { data: new Uint8Array(0) },
+      { data: bytes(ATTACHMENT_CHUNK_CIPHERTEXT_BYTES + 1, 1) },
+      { originToken: bytes(15, 1) },
+      { signature: bytes(63, 1) },
+    ]) {
+      expect(() => encodeMeshChunk(chunk(bad))).toThrow(ProtocolError);
+    }
+  });
+
+  it('gives every copy of a chunk one packet ID, and summaries carry transfer bitmaps', () => {
+    const transfer = uuidv7Bytes();
+    expect(meshChunkPacketId(transfer, 2)).toEqual(meshChunkPacketId(transfer, 2));
+    expect(meshChunkPacketId(transfer, 2)).not.toEqual(meshChunkPacketId(transfer, 3));
+    expect(meshChunkPacketId(transfer, 2)).toHaveLength(16);
+    expect(meshChunkDigest(Uint8Array.of(1))).toEqual(
+      new Uint8Array(createHash('sha256').update(Uint8Array.of(1)).digest()),
+    );
+    const summary = create(MeshSummarySchema, {
+      transfers: [{ transferId: transfer, have: Uint8Array.of(0b101), complete: false }],
+    });
+    expect(decodeMeshSummary(encodeMeshSummary(summary)).transfers[0]?.have).toEqual(
+      Uint8Array.of(0b101),
+    );
+    expect(() =>
+      encodeMeshSummary(
+        create(MeshSummarySchema, {
+          transfers: [
+            { transferId: transfer, have: new Uint8Array(MAX_MESH_TRANSFER_CHUNKS / 8 + 1) },
+          ],
+        }),
+      ),
+    ).toThrow(ProtocolError);
+  });
+
+  it('signs the chunk header with its hash, not the data', () => {
+    const statement = {
+      packetId: bytes(16, 1),
+      createdAtMs: 1n,
+      expiresAtMs: 2n,
+      dst: bytes(16, 2),
+      originToken: bytes(16, 3),
+      transferId: bytes(16, 4),
+      index: 5,
+      count: 6,
+      chunkSha256: bytes(32, 7),
+    };
+    const message = meshChunkMessage(statement);
+    expect(message.length).toBe(
+      'pingdost/mesh-chunk/v1'.length + 1 + 16 + 8 + 8 + 16 + 16 + 16 + 4 + 4 + 32,
+    );
+    expect(meshChunkMessage({ ...statement, index: 4 })).not.toEqual(message);
+    expect(meshChunkMessage({ ...statement, chunkSha256: bytes(32, 8) })).not.toEqual(message);
   });
 });
 

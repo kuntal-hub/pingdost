@@ -22,7 +22,9 @@
  *   another way). Delivered-ID lists are not authenticated, so they never remove an own copy.
  */
 import {
+  checkMeshChunkPacket,
   checkMeshPacket,
+  ChunkBitmap,
   fromHex,
   meshPolicy,
   RateLimiter,
@@ -43,6 +45,7 @@ import {
   decodeMeshSummary,
   encodeEnvelope,
   encodeMeshAck,
+  encodeMeshChunk,
   encodeMeshEnvelope,
   encodeMeshSummary,
   encodeTransportPacket,
@@ -50,16 +53,23 @@ import {
   fromMeshEnvelope,
   HelloCapability,
   MAX_MESH_SUMMARY_DELIVERED,
+  MAX_MESH_SUMMARY_TRANSFERS,
   MeshAckSchema,
   MeshAckStatus,
+  MeshChunkRefSchema,
+  MeshChunkSchema,
   MeshSummarySchema,
   meshAckMessage,
+  meshChunkDigest,
+  meshChunkMessage,
+  meshChunkPacketId,
   meshDay,
   meshEnvelopeMessage,
   meshRoutingToken,
   meshRoutingTokens,
   PacketKind,
   PROTOCOL_VERSION,
+  ProtocolError,
   toBase64,
   toMeshEnvelope,
   TransportPacketSchema,
@@ -67,6 +77,7 @@ import {
   uuidToBytes,
   uuidv7Bytes,
   type CodecOptions,
+  type MeshChunk,
   type MeshEnvelope,
   type TransportPacket,
 } from '@pingdost/protocol';
@@ -95,6 +106,51 @@ export interface MeshRelayOptions {
   policy?: Partial<MeshPolicy>;
   /** Relay for others from the start (the app's toggle and its battery/storage policy). */
   relaying?: boolean;
+  /** Receives file chunks addressed to this device (ADR 0027); without it they are refused. */
+  files?: MeshFileSink;
+}
+
+/** A file this device sends over the mesh (ADR 0027): its STREAM ciphertext, chunk by chunk. */
+export interface MeshFileOffer {
+  /** The attachment ID. */
+  transferId: string;
+  recipientDeviceId: string;
+  /** Ciphertext chunks (`AttachmentManifest.chunk_count`). */
+  count: number;
+  createdAt: number;
+  expiresAt: number;
+  /** Reads ciphertext chunk `index` from the local copy. */
+  read(index: number): Promise<Uint8Array>;
+}
+
+/** A chunk for this device whose sender's signature and hash checked out. */
+export interface MeshFileChunk {
+  transferId: string;
+  index: number;
+  count: number;
+  data: Uint8Array;
+  senderDeviceId: string;
+}
+
+/** The receiving side of mesh file transfers (the app's assembler). */
+export interface MeshFileSink {
+  /** Transfers to this device: chunks held (bitmap, `ChunkBitmap` layout) or complete. */
+  progress(): { transferId: string; have: Uint8Array; complete: boolean }[];
+  /** False to refuse chunks of this transfer now (paused or cancelled). */
+  accepts?(transferId: string): boolean;
+  /** Store the chunk durably, then call `ack`. */
+  chunk(chunk: MeshFileChunk, ack: () => void): void;
+}
+
+/** How far an own file got: chunks the recipient took, and relays that took any. */
+export interface MeshFileProgress {
+  transferId: string;
+  recipientDeviceId: string;
+  count: number;
+  /** Chunks the recipient's device stored (from this phone, or as its summary says). */
+  delivered: number;
+  /** Distinct relays that accepted chunks of it from this phone. */
+  relays: number;
 }
 
 /** One proved link, as the relay sees it. */
@@ -123,6 +179,8 @@ export interface MeshStatus {
   carried: number;
   /** Packets handed to their recipient since start. */
   handedOver: number;
+  /** Own files being sent over the mesh. */
+  files: number;
 }
 
 export interface MeshHost {
@@ -146,10 +204,29 @@ interface OwnEntry {
   relays: Set<string>;
 }
 
+interface OwnFile {
+  offer: MeshFileOffer;
+  transfer: Uint8Array;
+  /** Hex of the transfer ID. */
+  transferHex: string;
+  dst: Uint8Array;
+  origin: Uint8Array;
+  expiresAt: number;
+  /** Spray copies left per chunk. */
+  copies: number[];
+  /** Per chunk: peer keys that have it. */
+  given: Set<string>[];
+  /** Chunks the recipient holds. */
+  delivered: ChunkBitmap;
+  relays: Set<string>;
+}
+
 interface LinkMesh {
   link: MeshLink;
   /** The peer's routing tokens (hex), once its summary arrived. */
   tokens: Set<string> | null;
+  /** The peer's own incoming transfers (hex ID → held chunks), from its summary. */
+  transfers: Map<string, { have: Uint8Array; complete: boolean }>;
   /** Packet IDs offered on this link already. */
   offered: Set<string>;
   pending: Map<string, (status: MeshAckStatus | 'timeout') => void>;
@@ -160,13 +237,22 @@ interface LinkMesh {
 
 type Offer =
   | { kind: 'own'; entry: OwnEntry }
+  | { kind: 'ownChunk'; file: OwnFile; index: number; deliver: boolean }
   | { kind: 'deliver'; meta: RelayPacketMeta }
   | { kind: 'spray'; meta: RelayPacketMeta };
+
+/** Bit i of a `MeshTransferState.have` bitmap. */
+const holds = (have: Uint8Array | undefined, index: number) =>
+  have !== undefined && (((have[index >> 3] ?? 0) >> (index & 7)) & 1) === 1;
+/** Complete transfers remembered and passed on, so holders drop their chunks. */
+const COMPLETE_MAX = 64;
 
 const HELD: SendResult = { ok: true, status: 'held', via: 'mesh' };
 const unpadded = (bytes: Uint8Array) => toBase64(bytes).replace(/=+$/, '');
 /** Summaries to one link at most this often, besides the first. */
 const SUMMARY_INTERVAL_MS = 10_000;
+/** A transfer change goes out this soon after the link's last summary (peers allow 3 in a row). */
+const TRANSFER_SUMMARY_GAP_MS = 2_000;
 const PRUNE_INTERVAL_MS = 60_000;
 
 export class MeshRelay {
@@ -185,14 +271,22 @@ export class MeshRelay {
   readonly #perPeer: RateLimiter;
   readonly #perOrigin: RateLimiter;
   readonly #summaries: RateLimiter;
+  readonly #chunks: RateLimiter;
   readonly #relayed = new Listeners<[RelayedEvent]>();
+  readonly #fileProgress = new Listeners<[MeshFileProgress]>();
   readonly #status: ValueStream<MeshStatus>;
+  /** Own files over the mesh, by transfer and recipient device. */
+  readonly #ownFiles = new Map<string, OwnFile>();
+  /** Transfers known complete (hex): holders drop their chunks, and pass it on. */
+  readonly #complete: string[] = [];
+  readonly #sink: MeshFileSink | undefined;
   #relaying: boolean;
   #started: Promise<void> | undefined;
   #carried = 0;
   #handedOver = 0;
   #tokens: { day: number; hex: Set<string>; bytes: Uint8Array[] } | undefined;
   #summaryTimer: ReturnType<typeof setTimeout> | undefined;
+  #transfersTimer: ReturnType<typeof setTimeout> | undefined;
   #pruneTimer: ReturnType<typeof setInterval> | undefined;
   #disposed = false;
 
@@ -209,8 +303,89 @@ export class MeshRelay {
     this.#perPeer = new RateLimiter(rates.relayPerPeer);
     this.#perOrigin = new RateLimiter(rates.relayPerOrigin);
     this.#summaries = new RateLimiter(rates.summaryPerPeer);
+    this.#chunks = new RateLimiter(rates.chunkPerPeer);
+    this.#sink = options.files;
     this.#status = new ValueStream<MeshStatus>(this.#snapshot());
     this.#persistence = options.persistence;
+  }
+
+  // Files (ADR 0027)
+
+  /**
+   * Sends a file's ciphertext over the mesh, chunk by chunk: straight to the recipient's
+   * device when it is linked, and as spray copies to relays. Kept until `withdrawFile`.
+   */
+  sendFile(offer: MeshFileOffer): void {
+    const key = `${offer.transferId}/${offer.recipientDeviceId}`;
+    if (this.#ownFiles.has(key)) return;
+    const day = meshDay(offer.createdAt);
+    const transfer = uuidToBytes(offer.transferId);
+    this.#ownFiles.set(key, {
+      offer,
+      transfer,
+      transferHex: toHex(transfer),
+      dst: meshRoutingToken(offer.recipientDeviceId, day),
+      origin: meshRoutingToken(this.host.identity.deviceId, day),
+      expiresAt: Math.min(offer.expiresAt, offer.createdAt + this.#policy.ttlMs),
+      copies: Array.from({ length: offer.count }, () => this.#policy.chunkCopies),
+      given: Array.from({ length: offer.count }, () => new Set<string>()),
+      delivered: new ChunkBitmap(offer.count),
+      relays: new Set(),
+    });
+    this.host.log?.('mesh file queued', { chunks: offer.count });
+    this.#changed();
+    this.#pumpAll();
+  }
+
+  /** Stops sending a file (delivered, cancelled or paused): its chunks are no longer offered. */
+  withdrawFile(transferId: string): void {
+    let changed = false;
+    for (const [key, file] of this.#ownFiles) {
+      if (file.offer.transferId !== transferId) continue;
+      this.#ownFiles.delete(key);
+      changed = true;
+    }
+    if (changed) this.#changed();
+  }
+
+  fileProgress(transferId: string): MeshFileProgress[] {
+    return [...this.#ownFiles.values()]
+      .filter((file) => file.offer.transferId === transferId)
+      .map((file) => this.#progressOf(file));
+  }
+
+  onFileProgress(listener: (progress: MeshFileProgress) => void): Unsubscribe {
+    return this.#fileProgress.add(listener);
+  }
+
+  /**
+   * The sink's transfers changed (a file completed, or was paused or cancelled): tell linked
+   * peers now, so holders stop sending and drop chunks of finished files. A link that had a
+   * summary in the last 2 s gets it with the next scheduled round.
+   */
+  transfersChanged(): void {
+    clearTimeout(this.#transfersTimer);
+    this.#transfersTimer = undefined;
+    const now = this.host.now();
+    let wait = 0;
+    for (const state of this.#links.values()) {
+      const since = now - state.lastSummaryAt;
+      if (since >= TRANSFER_SUMMARY_GAP_MS) this.#sendSummary(state);
+      else wait = Math.max(wait, TRANSFER_SUMMARY_GAP_MS - since);
+    }
+    if (wait > 0 && !this.#disposed) {
+      this.#transfersTimer = setTimeout(() => this.transfersChanged(), wait);
+    }
+  }
+
+  #progressOf(file: OwnFile): MeshFileProgress {
+    return {
+      transferId: file.offer.transferId,
+      recipientDeviceId: file.offer.recipientDeviceId,
+      count: file.offer.count,
+      delivered: file.delivered.held,
+      relays: file.relays.size,
+    };
   }
 
   get status$(): ReadonlyValueStream<MeshStatus> {
@@ -237,6 +412,7 @@ export class MeshRelay {
     this.#disposed = true;
     clearInterval(this.#pruneTimer);
     clearTimeout(this.#summaryTimer);
+    clearTimeout(this.#transfersTimer);
     for (const id of [...this.#links.keys()]) this.linkDown(id);
   }
 
@@ -354,6 +530,7 @@ export class MeshRelay {
     const state: LinkMesh = {
       link,
       tokens: null,
+      transfers: new Map(),
       offered: new Set(),
       pending: new Map(),
       pumping: false,
@@ -378,6 +555,9 @@ export class MeshRelay {
       switch (packet.kind) {
         case PacketKind.MESH_ENVELOPE:
           await this.#onEnvelope(state, packet);
+          break;
+        case PacketKind.MESH_CHUNK:
+          await this.#onChunk(state, packet);
           break;
         case PacketKind.MESH_ACK:
           this.#onAck(state, packet.payload);
@@ -458,6 +638,139 @@ export class MeshRelay {
     this.host.log?.('mesh packet carried', { hops: packet.hopBudget - 1 });
     this.#changed();
     this.#pumpAll();
+  }
+
+  /** A file chunk (ADR 0027): for this device to the sink; for others into the relay store. */
+  async #onChunk(state: LinkMesh, packet: TransportPacket): Promise<void> {
+    const now = this.host.now();
+    const { link } = state;
+    if (!this.#chunks.take(link.peerKey, now)) {
+      this.#answer(state, packet.packetId, MeshAckStatus.REFUSED);
+      return;
+    }
+    const check = checkMeshChunkPacket(packet, this.#policy, now);
+    if (!check.ok) {
+      this.host.log?.('mesh chunk rejected', { reason: check.reason });
+      this.#answer(state, packet.packetId, MeshAckStatus.REFUSED);
+      return;
+    }
+    const { chunk } = check;
+    const ref = chunk.ref!;
+    const id = toHex(packet.packetId);
+    const dst = toHex(packet.dst);
+    const transferHex = toHex(ref.transferId);
+    if (this.#ownTokens(now).hex.has(dst)) {
+      await this.#receiveChunk(state, packet, chunk, id);
+      return;
+    }
+    if (!this.#relaying) {
+      this.#answer(state, packet.packetId, MeshAckStatus.REFUSED);
+      return;
+    }
+    if (this.#seen.has(id, now) || this.#store.has(id) || this.#complete.includes(transferHex)) {
+      this.#answer(state, packet.packetId, MeshAckStatus.DUPLICATE);
+      return;
+    }
+    if (packet.hopBudget < 1) {
+      this.#answer(state, packet.packetId, MeshAckStatus.REFUSED);
+      return;
+    }
+    const result = await this.#store.put(
+      {
+        id,
+        dst,
+        origin: toHex(chunk.originToken),
+        createdAt: Number(packet.createdAtMs),
+        expiresAt: Number(packet.expiresAtMs),
+        hopBudget: packet.hopBudget - 1,
+        copies: packet.copies,
+        flags: packet.flags,
+        size: packet.payload.length,
+        receivedAt: now,
+        kind: 'chunk',
+        transfer: transferHex,
+        index: ref.index,
+      },
+      packet.payload,
+      now,
+    );
+    if (result === 'duplicate') {
+      this.#answer(state, packet.packetId, MeshAckStatus.DUPLICATE);
+      return;
+    }
+    if (result !== 'stored') {
+      this.host.log?.('mesh chunk not stored', { reason: result });
+      this.#answer(state, packet.packetId, MeshAckStatus.REFUSED);
+      return;
+    }
+    await this.#remember(id, Number(packet.expiresAtMs));
+    this.#fromPeer.set(id, link.peerKey);
+    this.#given.set(id, new Set([link.peerKey]));
+    this.#carried++;
+    this.#answer(state, packet.packetId, MeshAckStatus.ACCEPTED);
+    this.#changed();
+    this.#pumpAll();
+  }
+
+  /** A chunk for this device: the sender's signature, then the sink stores it. */
+  async #receiveChunk(
+    state: LinkMesh,
+    packet: TransportPacket,
+    chunk: MeshChunk,
+    id: string,
+  ): Promise<void> {
+    const ref = chunk.ref!;
+    const transferId = bytesToUuid(ref.transferId);
+    const sink = this.#sink;
+    if (!sink || sink.accepts?.(transferId) === false) {
+      this.#answer(state, packet.packetId, MeshAckStatus.REFUSED);
+      return;
+    }
+    if (this.#seen.has(id, this.host.now())) {
+      this.#answer(state, packet.packetId, MeshAckStatus.DELIVERED);
+      return;
+    }
+    const { identity } = this.host;
+    const origin = await identity.resolveOrigin(chunk.originToken, meshDay(packet.createdAtMs));
+    const valid =
+      origin !== undefined &&
+      identity.verify(
+        origin.ed25519,
+        meshChunkMessage({
+          packetId: packet.packetId,
+          createdAtMs: packet.createdAtMs,
+          expiresAtMs: packet.expiresAtMs,
+          dst: packet.dst,
+          originToken: chunk.originToken,
+          transferId: ref.transferId,
+          index: ref.index,
+          count: ref.count,
+          chunkSha256: ref.chunkSha256,
+        }),
+        unpadded(chunk.signature),
+      );
+    if (!origin || !valid) {
+      this.host.log?.(origin ? 'mesh chunk failed its check' : 'mesh chunk from an unknown sender');
+      this.#answer(state, packet.packetId, MeshAckStatus.REFUSED);
+      return;
+    }
+    let acked = false;
+    sink.chunk(
+      {
+        transferId,
+        index: ref.index,
+        count: ref.count,
+        data: chunk.data,
+        senderDeviceId: origin.deviceId,
+      },
+      () => {
+        if (acked) return;
+        acked = true;
+        void this.#remember(id, Number(packet.expiresAtMs)).then(() =>
+          this.#answer(state, packet.packetId, MeshAckStatus.DELIVERED),
+        );
+      },
+    );
   }
 
   /** A packet for this device: check who sent it and that nothing changed, then open it. */
@@ -562,6 +875,33 @@ export class MeshRelay {
     state.tokens = new Set(summary.routingTokens.map(toHex));
     // Holders drop what was delivered. Never an own copy: these lists are not authenticated.
     const held = summary.delivered.map(toHex).filter((id) => this.#store.has(id));
+    // Files (ADR 0027): which chunks the peer holds; complete ones need no chunk any more.
+    state.transfers = new Map(
+      summary.transfers.map((t) => [toHex(t.transferId), { have: t.have, complete: t.complete }]),
+    );
+    const done = [...state.transfers].filter(([, t]) => t.complete).map(([hex]) => hex);
+    for (const meta of this.#store.all()) {
+      if (meta.kind === 'chunk' && meta.transfer && done.includes(meta.transfer))
+        held.push(meta.id);
+    }
+    for (const hex of done) {
+      // Passed on only by holders, so a stranger cannot spread a made-up one far.
+      if (held.length > 0 && !this.#complete.includes(hex)) {
+        this.#complete.push(hex);
+        if (this.#complete.length > COMPLETE_MAX) this.#complete.shift();
+      }
+    }
+    // The recipient's own word, on a proved link, counts for an own file's progress.
+    for (const file of this.#ownFiles.values()) {
+      if (state.link.peerDeviceId !== file.offer.recipientDeviceId) continue;
+      const peer = state.transfers.get(file.transferHex);
+      if (!peer) continue;
+      let moved = false;
+      for (let i = 0; i < file.offer.count; i++) {
+        if ((peer.complete || holds(peer.have, i)) && file.delivered.set(i)) moved = true;
+      }
+      if (moved) this.#fileProgress.emit(this.#progressOf(file));
+    }
     if (held.length > 0) {
       await this.#store.remove(held);
       for (const id of held) this.#markDelivered(id);
@@ -592,8 +932,7 @@ export class MeshRelay {
           if (this.#links.get(state.link.id) !== state || this.#disposed) return;
           const offer = this.#nextOffer(state);
           if (!offer) break;
-          const id = offer.kind === 'own' ? offer.entry.meta.id : offer.meta.id;
-          state.offered.add(id);
+          state.offered.add(this.#offerId(offer));
           await this.#offer(state, offer);
         }
       } while (state.again);
@@ -602,17 +941,49 @@ export class MeshRelay {
     }
   }
 
+  #offerId(offer: Offer): string {
+    if (offer.kind === 'own') return offer.entry.meta.id;
+    if (offer.kind === 'ownChunk')
+      return toHex(meshChunkPacketId(offer.file.transfer, offer.index));
+    return offer.meta.id;
+  }
+
+  /** A stored chunk the peer said it holds, or of a transfer it finished: not to send it. */
+  #peerHas(state: LinkMesh, meta: RelayPacketMeta): boolean {
+    if (meta.kind !== 'chunk' || !meta.transfer) return false;
+    const peer = state.transfers.get(meta.transfer);
+    return peer !== undefined && (peer.complete || holds(peer.have, meta.index ?? -1));
+  }
+
+  /**
+   * What to offer this link next, small before big: stored packets for the peer itself,
+   * own file chunks for the peer itself, own messages to relays, own chunks to relays, then
+   * other people's packets to relays.
+   */
   #nextOffer(state: LinkMesh): Offer | undefined {
     const now = this.host.now();
     const { link, tokens, offered } = state;
     if (tokens === null) return undefined;
     const relayPeer = (link.capabilities & HelloCapability.RELAY) !== 0;
-    if (this.#relaying) {
-      // The recipient is on this link: hand it over.
-      for (const meta of this.#store.all()) {
-        if (!offered.has(meta.id) && meta.expiresAt > now && tokens.has(meta.dst)) {
+    const stored = this.#relaying ? this.#store.all() : [];
+    // The recipient is on this link: hand it over (messages first).
+    for (const chunks of [false, true]) {
+      for (const meta of stored) {
+        if ((meta.kind === 'chunk') !== chunks || offered.has(meta.id)) continue;
+        if (meta.expiresAt > now && tokens.has(meta.dst) && !this.#peerHas(state, meta)) {
           return { kind: 'deliver', meta };
         }
+      }
+    }
+    // Own files straight to their recipient's device, missing chunks only.
+    for (const file of this.#ownFiles.values()) {
+      if (link.peerDeviceId !== file.offer.recipientDeviceId || file.expiresAt <= now) continue;
+      const peer = state.transfers.get(file.transferHex);
+      if (peer?.complete) continue;
+      for (let i = 0; i < file.offer.count; i++) {
+        if (file.delivered.has(i) || holds(peer?.have, i)) continue;
+        const offer: Offer = { kind: 'ownChunk', file, index: i, deliver: true };
+        if (!offered.has(this.#offerId(offer))) return offer;
       }
     }
     if (!relayPeer) return undefined;
@@ -623,31 +994,107 @@ export class MeshRelay {
       if (link.peerDeviceId === entry.dstDevice || entry.given.has(link.peerKey)) continue;
       return { kind: 'own', entry };
     }
-    if (!this.#relaying) return undefined;
-    for (const meta of this.#store.all()) {
-      if (offered.has(meta.id) || meta.expiresAt <= now) continue;
-      if (meta.copies < 2 || meta.hopBudget < 1) continue;
-      if (this.#fromPeer.get(meta.id) === link.peerKey) continue;
-      if (this.#given.get(meta.id)?.has(link.peerKey)) continue;
-      return { kind: 'spray', meta };
+    for (const file of this.#ownFiles.values()) {
+      if (link.peerDeviceId === file.offer.recipientDeviceId || file.expiresAt <= now) continue;
+      for (let i = 0; i < file.offer.count; i++) {
+        if (file.delivered.has(i) || (file.copies[i] ?? 0) < 2) continue;
+        if (file.given[i]?.has(link.peerKey)) continue;
+        const offer: Offer = { kind: 'ownChunk', file, index: i, deliver: false };
+        if (!offered.has(this.#offerId(offer))) return offer;
+      }
+    }
+    for (const chunks of [false, true]) {
+      for (const meta of stored) {
+        if ((meta.kind === 'chunk') !== chunks) continue;
+        if (offered.has(meta.id) || meta.expiresAt <= now) continue;
+        if (meta.copies < 2 || meta.hopBudget < 1) continue;
+        if (this.#fromPeer.get(meta.id) === link.peerKey) continue;
+        if (this.#given.get(meta.id)?.has(link.peerKey)) continue;
+        return { kind: 'spray', meta };
+      }
     }
     return undefined;
   }
 
+  /** An own file's chunk as a signed MESH_CHUNK payload and its header. */
+  async #ownChunk(
+    file: OwnFile,
+    index: number,
+  ): Promise<{ meta: RelayPacketMeta; payload: Uint8Array }> {
+    const data = await file.offer.read(index);
+    const packetId = meshChunkPacketId(file.transfer, index);
+    const ref = create(MeshChunkRefSchema, {
+      transferId: file.transfer,
+      index,
+      count: file.offer.count,
+      chunkSha256: meshChunkDigest(data),
+    });
+    const signature = fromBase64(
+      this.host.identity.sign(
+        meshChunkMessage({
+          packetId,
+          createdAtMs: BigInt(file.offer.createdAt),
+          expiresAtMs: BigInt(file.expiresAt),
+          dst: file.dst,
+          originToken: file.origin,
+          transferId: file.transfer,
+          index,
+          count: file.offer.count,
+          chunkSha256: ref.chunkSha256,
+        }),
+      ),
+    );
+    const payload = encodeMeshChunk(
+      create(MeshChunkSchema, { ref, data, originToken: file.origin, signature }),
+    );
+    return {
+      meta: {
+        id: toHex(packetId),
+        dst: toHex(file.dst),
+        origin: toHex(file.origin),
+        createdAt: file.offer.createdAt,
+        expiresAt: file.expiresAt,
+        hopBudget: this.#policy.maxHops,
+        copies: file.copies[index] ?? 1,
+        flags: 0,
+        size: payload.length,
+        receivedAt: file.offer.createdAt,
+        kind: 'chunk',
+        transfer: file.transferHex,
+        index,
+      },
+      payload,
+    };
+  }
+
   async #offer(state: LinkMesh, offer: Offer): Promise<void> {
-    const meta = offer.kind === 'own' ? offer.entry.meta : offer.meta;
-    const payload =
-      offer.kind === 'own' ? offer.entry.payload : await this.#store.readPayload(meta.id);
+    let meta: RelayPacketMeta;
+    let payload: Uint8Array | undefined;
+    if (offer.kind === 'own') {
+      meta = offer.entry.meta;
+      payload = offer.entry.payload;
+    } else if (offer.kind === 'ownChunk') {
+      try {
+        ({ meta, payload } = await this.#ownChunk(offer.file, offer.index));
+      } catch {
+        this.host.log?.('mesh file chunk unreadable');
+        return; // the local copy is gone or unreadable
+      }
+    } else {
+      meta = offer.meta;
+      payload = await this.#store.readPayload(meta.id);
+    }
     if (!payload) return;
     const { give } = splitCopies(meta.copies);
-    const copies = offer.kind === 'deliver' ? 1 : give;
+    const deliver = offer.kind === 'deliver' || (offer.kind === 'ownChunk' && offer.deliver);
+    const copies = deliver ? 1 : give;
     let bytes: Uint8Array;
     try {
       bytes = encodeTransportPacket(
         create(TransportPacketSchema, {
           version: PROTOCOL_VERSION,
           packetId: fromHex(meta.id),
-          kind: PacketKind.MESH_ENVELOPE,
+          kind: meta.kind === 'chunk' ? PacketKind.MESH_CHUNK : PacketKind.MESH_ENVELOPE,
           dst: fromHex(meta.dst),
           createdAtMs: BigInt(meta.createdAt),
           expiresAtMs: BigInt(meta.expiresAt),
@@ -658,11 +1105,19 @@ export class MeshRelay {
         }),
         this.#codec(),
       );
-    } catch {
-      return; // expired meanwhile
+    } catch (error) {
+      // Expired meanwhile (or too large to send at all).
+      this.host.log?.('mesh offer dropped', {
+        reason: error instanceof ProtocolError ? error.code : 'error',
+      });
+      return;
     }
     const status = await this.#request(state, meta.id, bytes);
     const peer = state.link.peerKey;
+    if (offer.kind === 'ownChunk') {
+      this.#settleOwnChunk(offer, status, peer, copies);
+      return;
+    }
     switch (status) {
       case MeshAckStatus.ACCEPTED: {
         if (offer.kind === 'deliver') break;
@@ -697,6 +1152,28 @@ export class MeshRelay {
         break; // refused or no answer: not on this link again
     }
     this.#changed();
+  }
+
+  #settleOwnChunk(
+    offer: Extract<Offer, { kind: 'ownChunk' }>,
+    status: MeshAckStatus | 'timeout',
+    peer: string,
+    copies: number,
+  ): void {
+    const { file, index } = offer;
+    if (status === MeshAckStatus.DELIVERED && offer.deliver) {
+      // Signed by the key the recipient's device proved on this link.
+      file.delivered.set(index);
+    } else if (status === MeshAckStatus.ACCEPTED && !offer.deliver) {
+      file.copies[index] = (file.copies[index] ?? 1) - copies;
+      file.given[index]?.add(peer);
+      file.relays.add(peer);
+    } else if (status === MeshAckStatus.DUPLICATE) {
+      file.given[index]?.add(peer);
+    } else {
+      return;
+    }
+    this.#fileProgress.emit(this.#progressOf(file));
   }
 
   #request(state: LinkMesh, id: string, bytes: Uint8Array): Promise<MeshAckStatus | 'timeout'> {
@@ -735,9 +1212,26 @@ export class MeshRelay {
         create(MeshSummarySchema, {
           routingTokens: this.#ownTokens(state.lastSummaryAt).bytes,
           delivered: this.#delivered.map(fromHex),
+          transfers: this.#transferStates(),
         }),
       ),
     );
+  }
+
+  /** Own incoming transfers first (so holders resume them), then complete ones passed on. */
+  #transferStates(): { transferId: Uint8Array; have: Uint8Array; complete: boolean }[] {
+    const out: { transferId: Uint8Array; have: Uint8Array; complete: boolean }[] = [];
+    const seen = new Set<string>();
+    for (const t of this.#sink?.progress() ?? []) {
+      const transferId = uuidToBytes(t.transferId);
+      seen.add(toHex(transferId));
+      out.push({ transferId, have: t.complete ? new Uint8Array(0) : t.have, complete: t.complete });
+    }
+    for (const hex of [...this.#complete].reverse()) {
+      if (!seen.has(hex))
+        out.push({ transferId: fromHex(hex), have: new Uint8Array(0), complete: true });
+    }
+    return out.slice(0, MAX_MESH_SUMMARY_TRANSFERS);
   }
 
   #sendControl(state: LinkMesh, kind: PacketKind, payload: Uint8Array): void {
@@ -768,6 +1262,11 @@ export class MeshRelay {
     if (this.#delivered.length > Math.min(this.#policy.deliveredMax, MAX_MESH_SUMMARY_DELIVERED)) {
       this.#delivered.shift();
     }
+    this.#scheduleSummaries();
+  }
+
+  /** New summaries to every linked peer, at most one per link per interval. */
+  #scheduleSummaries(): void {
     if (this.#summaryTimer !== undefined) return;
     this.#summaryTimer = setTimeout(() => {
       this.#summaryTimer = undefined;
@@ -807,6 +1306,9 @@ export class MeshRelay {
       this.#own.delete(id);
       this.#ownByEnvelope.delete(entry.envelopeId);
     }
+    for (const [key, file] of this.#ownFiles) {
+      if (file.expiresAt <= now) this.#ownFiles.delete(key);
+    }
     this.#changed();
   }
 
@@ -837,6 +1339,7 @@ export class MeshRelay {
       own: this.#own.size,
       carried: this.#carried,
       handedOver: this.#handedOver,
+      files: this.#ownFiles.size,
     };
   }
 

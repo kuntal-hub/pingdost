@@ -10,25 +10,25 @@ Encrypted attachments move between devices without the Internet: direct or multi
 - ADRs: attachment AEAD, nearby transport, mesh routing
 
 ## Tasks
-- [ ] **Chunking:** split the already-encrypted attachment ciphertext into mesh chunks sized for the link: 64 KiB, the attachment format's own chunk (one BLE link packet holds up to 128 KiB, ADR 0023); larger only on a Wi-Fi path, if one is added.
+- [x] **Chunking:** split the already-encrypted attachment ciphertext into mesh chunks sized for the link: 64 KiB, the attachment format's own chunk (one BLE link packet holds up to 128 KiB, ADR 0023); larger only on a Wi-Fi path, if one is added.
   - Chunk packets carry the transfer ID, index, count and **chunk hash in the outer header**, so relays can drop corrupt chunks.
   - The manifest, with all chunk hashes, rides inside the E2EE message.
-- [ ] **Receiver assembly:** a bitmap of received chunks; per-chunk hash verification; **missing-chunk requests** (resume) after reconnecting; full-file SHA-256 + AEAD verification before marking it complete. **Only then** send the delivered ACK/receipt (REQ §19.3).
-- [ ] **Relays:** store chunks under the relay quota; forward with the Phase 23 policy; drop chunks after the mesh ACK for the transfer.
-- [ ] **Direct bulk path (optional):** Nearby Connections is out (no Play Services; CHANGES 2026-10-31).
+- [x] **Receiver assembly:** a bitmap of received chunks; per-chunk hash verification; **missing-chunk requests** (resume) after reconnecting; full-file SHA-256 + AEAD verification before marking it complete. **Only then** send the delivered ACK/receipt (REQ §19.3).
+- [x] **Relays:** store chunks under the relay quota; forward with the Phase 23 policy; drop chunks after the mesh ACK for the transfer.
+- [x] **Direct bulk path (optional):** evaluated in ADR 0027, not built (BLE only; Wi-Fi Aware first once two phones and measurements exist). Nearby Connections is out (no Play Services; CHANGES 2026-10-31).
   - Evaluate Android's own **Wi-Fi Aware** first: platform API, and iOS 26 supports it (Phase 30).
   - Then **Wi-Fi Direct**, with the group name and passphrase exchanged over the BLE link (API 29+, no invitation dialog).
   - Use it between phones that both support it, fall back to BLE, and record the choice in an ADR. Check `NEARBY_WIFI_DEVICES` (Android 13+) and the license of any library.
-- [ ] **Limits and UX:**
+- [x] **Limits and UX:**
   - the mesh max file size is configurable (default per ADR measurements; REQ allows up to 100 MB, but show a realistic time estimate for BLE);
   - progress "12 / 200 chunks received", pause/resume, cancel;
   - the sender sees relayed vs delivered.
-- [ ] **Tests:**
+- [x] **Tests:**
   - simulation: a 10 MB file across A→B→C with random link drops and resume;
   - a corrupt chunk injected → re-requested;
   - the final ACK only after full verification;
   - the relay quota respected.
-- [ ] **Device test:** direct transfer of a 10 MB+ file between 2 phones in airplane mode with interruptions (walk out of range and back). Run multi-hop if a 3rd phone is available.
+- [ ] **Device test** (open: needs two phones; PROGRESS 2026-11-01): direct transfer of a 10 MB+ file between 2 phones in airplane mode with interruptions (walk out of range and back). Run multi-hop if a 3rd phone is available.
 
 ## Key files
 `packages/mesh-protocol/src/chunks/*`, `packages/attachments/src/mesh.ts`, `apps/mobile/src/nearby/files*`
@@ -40,6 +40,9 @@ Web nearby (browsers can't do this); iOS (30).
 - The REQ §19.3 last bullet is satisfied in simulation and on 2 devices (direct).
 - ROADMAP notes **"Offline-mesh launch requirement met on Android"**.
 - `pnpm lint typecheck test` passes.
+
+## Done in Phase 24 (ADR 0027)
+- Deviations (CHANGES 2026-11-01, Phase 24): BLE only (25 MB default limit); the held E2EE receipt is the file's acknowledgement; direct chats and the contact's phones only; per-chunk hash plus signature instead of a hash list sent ahead; the key files are `packages/attachments/src/mesh*.ts`, `apps/mobile/src/nearby/files.ts` and `chunk-store.ts`.
 
 ## Handoff notes
 **From Phase 23 (ADR 0025):**

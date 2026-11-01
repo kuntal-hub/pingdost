@@ -54,6 +54,8 @@ export interface CheckedManifest extends MediaDetails {
   thumbnail: CheckedManifest | undefined;
   /** Text shown with the attachment (empty for none). */
   caption: string;
+  /** The file comes over the nearby mesh, not the server (ADR 0027). */
+  mesh: boolean;
 }
 
 /** Longest caption: like a text message. */
@@ -78,6 +80,8 @@ export function buildManifest(fields: {
   thumbnail?: AttachmentManifest;
   caption?: string;
   media?: Partial<MediaDetails>;
+  /** Sent over the nearby mesh in chunks, with no staged upload (ADR 0027). */
+  mesh?: boolean;
 }): AttachmentManifest {
   const { encrypted, media } = fields;
   const fileName = safeFileName(fields.fileName);
@@ -104,6 +108,7 @@ export function buildManifest(fields: {
         ? Math.min(Math.round(media.durationMs), 0xffff_ffff)
         : 0,
     waveform: media?.waveform?.subarray(0, WAVEFORM_MAX) ?? new Uint8Array(0),
+    mesh: fields.mesh ?? false,
   });
 }
 
@@ -156,5 +161,6 @@ export function readManifest(
     height: manifest.height,
     durationMs: manifest.durationMs,
     waveform: manifest.waveform,
+    mesh: manifest.mesh,
   };
 }
