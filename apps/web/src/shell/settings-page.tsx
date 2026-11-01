@@ -10,6 +10,7 @@ import { useChat } from '@/chat/store';
 import { Button } from '@/components/ui/button';
 import { Alert, Card, CardTitle } from '@/components/ui/card';
 import { Toggle } from '@/components/ui/input';
+import { CallsCard } from '@/features/calls/calls-card';
 import { disablePush, enablePush, pushState, type PushState } from '@/push/push';
 import { api, unlink, useSession } from '@/session/session';
 import { HistorySyncCard } from '@/sync/sync-status';
@@ -118,6 +119,7 @@ export function SettingsPage() {
 
       <HistorySyncCard />
       <StorageCard />
+      <CallsCard />
 
       <Card className="flex flex-col gap-3">
         <CardTitle>This browser</CardTitle>

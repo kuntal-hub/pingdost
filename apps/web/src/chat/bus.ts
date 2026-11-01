@@ -3,6 +3,7 @@
 // structured-cloned, so only plain data crosses (errors as `WireError`).
 import type { TransferStatus } from '@/attachments/transfers';
 import type { ConversationEvent, EngineEvent, HistorySyncStatus } from '@pingdost/message-engine';
+import type { IncomingCallSignal } from '@pingdost/protocol';
 import type { PrivacyPrefs } from '@pingdost/shared-types';
 import type { TransportStatus } from '@pingdost/transport';
 
@@ -40,6 +41,8 @@ export type BusMessage =
   | { type: 'sync'; status: HistorySyncStatus }
   /** An attachment download or upload in the leader tab. */
   | { type: 'transfer'; status: TransferStatus }
+  /** A call signal for this device (ADR 0028): every tab runs its own call manager. */
+  | { type: 'call_signal'; signal: IncomingCallSignal }
   /** A follower changed privacy settings or blocks: the leader reloads them. */
   | { type: 'prefs_changed' }
   | { type: 'signed_out'; notice?: string };
@@ -65,6 +68,7 @@ export class RemoteChat {
   readonly #engine = new Set<(event: EngineEvent) => void>();
   readonly #sync = new Set<(status: HistorySyncStatus) => void>();
   readonly #transfer = new Set<(status: TransferStatus) => void>();
+  readonly #callSignal = new Set<(signal: IncomingCallSignal) => void>();
 
   constructor(
     private readonly channel: BroadcastChannel,
@@ -109,6 +113,12 @@ export class RemoteChat {
         this.#transfer.add(listener);
         return () => {
           this.#transfer.delete(listener);
+        };
+      },
+      onCallSignal: (listener) => {
+        this.#callSignal.add(listener);
+        return () => {
+          this.#callSignal.delete(listener);
         };
       },
     };
@@ -184,6 +194,9 @@ export class RemoteChat {
         break;
       case 'transfer':
         for (const listener of this.#transfer) listener(message.status);
+        break;
+      case 'call_signal':
+        for (const listener of this.#callSignal) listener(message.signal);
         break;
       default:
         break;

@@ -43,3 +43,9 @@ iOS CallKit (29).
 - `PushService.wake(deviceId, urgent)` already skips the throttle when `urgent`, but always sends `{"t":"wake"}`: add the `{"t":"call"}` payload (`PUSH_WAKE` / `PushPayload` in `@pingdost/shared-types`) for call invites.
 - The `calls` notification channel (max importance) already exists (`apps/mobile/src/push/notifications.ts`); the headless task treats every data message as a wake today (`push/task.ts`).
 **From Phase 13 (ADR 0016):** group screens have no call action; keep it that way (REQ §8.2).
+**From Phase 25 (ADR 0028):**
+- `@pingdost/call-engine` is platform-neutral: implement `CallPlatform` with react-native-webrtc (`createPeer` opens media and adds tracks, maps `connectionstatechange`; `iceServers` = `callsApi(api).turnCredentials()`). Use `incomingPolicy` for a GSM call (`'busy'`).
+- The phone already receives invites: `engine.onCallSignal`; invites to an offline phone trigger `{"t":"call"}` (FCM HIGH, `collapse_key: call`, TTL 60 s), at most one per 15 s. The caller re-sends the invite every 3 s for 45 s, so a woken phone that connects gets it.
+- Record history with `engine.recordCall` (the web runtime's `onEnded` shows the mapping).
+- Single-phone checks: `pnpm --filter @pingdost/sim-client peer` answers calls with a werift echo (`--relay`, `--answer-after`, `--dial-user <user ID> [--video]` to ring the phone).
+- Dev TURN: `docker compose --profile calls up -d --wait` with `PINGDOST_TURN_IP=<PC LAN IP>`, and the TURN URLs in `.env` pointing at that IP.

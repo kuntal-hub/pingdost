@@ -3,6 +3,7 @@
 // stubs that those phases extend.
 export * from './attachments';
 export * from './auth';
+export * from './calls';
 export * from './common';
 export * from './devices';
 export * from './errors';

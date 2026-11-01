@@ -29,6 +29,10 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0022](0022-backup-recovery-primary-replacement.md) | Backup format, recovery phrase and replacing the primary phone | 19 | Accepted |
 | [0023](0023-nearby-transport.md) | Nearby transport: BLE GATT on platform APIs, rotating tokens, a connectedDevice foreground service | 21 | Accepted (device matrix pending) |
 | [0024](0024-direct-nearby-messaging.md) | Direct nearby messaging: signed two-step Hello by device key, per-device routing, `waiting_for_nearby_route`, delivery path | 22 | Accepted (device checks pending) |
+| [0025](0025-mesh-relay.md) | Mesh store-and-forward relay: routing tokens, spray-and-wait, signed packets | 23 | Accepted (device checks pending) |
+| [0026](0026-nearby-recognition.md) | Nearby recognition stays key-based (no contact-only tags) | 23 | Accepted |
+| [0027](0027-mesh-file-transfer.md) | Files over the mesh: signed chunks, resume bitmaps, receipt after verification | 24 | Accepted (device checks pending) |
+| [0028](0028-calls-signaling-turn-web.md) | Calls: E2EE ephemeral signaling, call pushes, TURN credentials, coturn, web calls | 25 | Accepted (staging and cross-network checks pending) |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 

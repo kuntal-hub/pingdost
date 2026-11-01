@@ -38,6 +38,9 @@ enum PacketFlag {
   PACKET_FLAG_UNSPECIFIED = 0;
   // Time-critical (an incoming call): the server may send a call-priority push wake.
   PACKET_FLAG_URGENT = 1;
+  // An EPHEMERAL call invite (ADR 0028): when the recipient device is offline, the server
+  // sends it a content-free `call` push, so it connects and gets the next copy of the invite.
+  PACKET_FLAG_RING = 2;
 }
 
 message TransportPacket {

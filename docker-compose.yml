@@ -97,7 +97,59 @@ services:
       start_period: 20s
       start_interval: 1s
 
+  # STUN/TURN for calls (ADR 0028), dev only: the dev secret below must match the server's
+  # TURN_SHARED_SECRET (.env.example, "Calls"). Relay addresses are advertised as
+  # PINGDOST_TURN_IP (default 127.0.0.1; set the PC's LAN IP to call from a phone), which is
+  # the one non-public peer address allowed; staging uses deploy/coturn/turnserver.conf.
+  coturn:
+    image: coturn/coturn:4.18.0
+    profiles: ['calls']
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --external-ip=${PINGDOST_TURN_IP:-127.0.0.1}
+      - --allowed-peer-ip=${PINGDOST_TURN_IP:-127.0.0.1}
+      # Relay to relay: coturn maps the advertised address back to its own container address
+      # on Docker's bridge, which the private-range rule below would refuse. Dev only; on the
+      # VPS the relay address is the public one.
+      - --allowed-peer-ip=172.16.0.0-172.31.255.255
+    ports:
+      - '3478:3478/udp'
+      - '3478:3478/tcp'
+      - '49160-49200:49160-49200/udp'
+    configs:
+      - source: coturn-dev
+        target: /etc/coturn/turnserver.conf
+    healthcheck:
+      # A STUN binding request to itself.
+      test: ['CMD-SHELL', 'turnutils_stunclient 127.0.0.1 > /dev/null 2>&1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+      start_interval: 1s
+
 configs:
+  coturn-dev:
+    content: |
+      listening-port=3478
+      min-port=49160
+      max-port=49200
+      realm=pingdost.localhost
+      use-auth-secret
+      static-auth-secret=pingdost-dev-only-turn-shared-secret-0123456789
+      fingerprint
+      no-multicast-peers
+      denied-peer-ip=0.0.0.0-0.255.255.255
+      denied-peer-ip=10.0.0.0-10.255.255.255
+      denied-peer-ip=100.64.0.0-100.127.255.255
+      denied-peer-ip=127.0.0.0-127.255.255.255
+      denied-peer-ip=169.254.0.0-169.254.255.255
+      denied-peer-ip=172.16.0.0-172.31.255.255
+      denied-peer-ip=192.168.0.0-192.168.255.255
+      no-tls
+      log-file=stdout
+      simple-log
   seaweedfs-s3:
     content: |
       {

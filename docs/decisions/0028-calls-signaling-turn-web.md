@@ -1,0 +1,48 @@
+# 0028 — Calls: E2EE ephemeral signaling, call pushes, TURN credentials, coturn, web calls
+
+- **Status:** Accepted (the staging coturn and the cross-network checks are pending; see Evidence)
+- **Date:** 2026-11-01
+- **Phase:** 25
+- **Approved by user:** n.a.
+
+## Context
+REQ §12 asks for one-to-one audio and video calls over WebRTC: media direct where possible and through TURN otherwise, signaling authenticated and bound to the two devices, offers and ICE state that expire quickly, short-lived TURN credentials, no call recording and no call records (REQ §5.2), and pushes without content. REQ §19.5: calls between web and mobile, direct and via TURN; no group call actions. ARCHITECTURE A4 already made call signaling *ephemeral*: the gateway relays EPHEMERAL packets in memory to online devices only (ADR 0021). ADR 0013 puts coturn on the one VPS.
+
+## Options considered
+| Question | Option | Pros | Cons |
+|---|---|---|---|
+| Signaling channel | **E2EE `CallSignal` Content over Olm in EPHEMERAL packets** | Server never sees SDP or ICE; reuses the sync channel; nothing stored | The callee device must be online when a signal is sent |
+| | Plain-text signaling on the gateway | Simpler | SDP and candidates (IP addresses) visible to the server; breaks A10 |
+| Several callee devices | **Invite every device with one offer; the first answer wins; the others get a hang-up** (Matrix VoIP style) | Rings on phone and browser; one round trip | An offer per device |
+| | Invite without SDP, offer after "accept" | One offer | An extra round trip on every call |
+| Offline callee | **RING flag on the invite: the gateway sends a content-free `call` push; the caller re-sends the invite every 3 s until the ring timeout** | Server keeps nothing; no new store | The server learns that an invite went to an offline device (metadata) |
+| | Store the invite in the mailbox | Survives a longer wake | A stored call record; offers would outlive the ring |
+| Glare | **The call with the lower call ID survives; the other caller hangs up its own ("replaced") and answers** | Deterministic, no extra signal | — |
+| ICE restarts | **Only the caller makes offers; the callee asks with an empty RENEGOTIATE** | No offer glare | One extra hop when the callee notices first |
+| Browser tabs | **A call manager in every tab, on the leader's engine; the tab that answers or dials holds the `pingdost-call` Web Lock** | The call runs where the user is; the engine stays in one tab | Two tabs ring at once |
+| | Calls only in the leader tab | Simple | The ringing tab may be hidden; media cannot cross tabs |
+| TURN | **coturn 4.18.0 (BSD-3-Clause) on the VPS, `use-auth-secret`, host networking** | Free on the VPS; standard REST credentials | Relayed calls use the VPS's monthly transfer |
+| Headless test peer | **werift 0.25.2 (MIT, pure TypeScript WebRTC) in `tools/sim-client` only** | Real WebRTC in Node: automated calls through the real server and coturn; a call partner for single-phone checks | A dev dependency (its media dependency mediabunny is MPL-2.0, OSI) |
+
+## Decision
+1. **Wire (add-only, `buf breaking` clean).** `CallSignal` gains RENEGOTIATE, RINGING and MEDIA_STATE, a hang-up `Reason`, both call devices (`caller_device_id`, `callee_device_id`), the invite's `expires_at_ms`, batched `ice_candidates`, `ice_restart`, `muted`, `camera_off`. `PacketFlag.RING` (2) marks an invite. `@pingdost/protocol` `calls.ts` turns it into plain `CallSignalData` and back, with size limits (SDP 32 KiB, 64 candidates of 1 KiB).
+2. **Engine.** The ephemeral channel (ADR 0021) accepts any sender the verified directory resolves, never a blocked user; history sync still takes own devices only. `MessageEngine.callDevices`, `sendCallSignal` (RING on offers), `onCallSignal`; a signal is dropped unless its two devices are the envelope's sender and this device. `callHistory`/`recordCall`/`clearCallHistory` keep at most 200 entries in a sealed engine setting on the device (no migration; never synced or uploaded).
+3. **`@pingdost/call-engine`** (platform-neutral): the state machine `idle → outgoing | incoming → ringing → connecting → connected ⇄ reconnecting → ended` with outcomes completed, rejected, busy, no_answer, missed, cancelled, failed, answered_elsewhere, declined_elsewhere; `CallManager` with ring 45 s (and the invite's expiry), offer re-send 3 s, connect 30 s, reconnect 30 s, ICE restart after 2 s of lost connection or at once on a network change or `failed`, candidate batches of 40 ms, busy while in a call, glare as above, an `incomingPolicy` hook (`ring`/`busy`/`ignore`). Remote candidates are added in the background, never in front of the answer. Platforms implement `CallPlatform` (the W3C `RTCPeerConnection` subset plus local media).
+4. **Server.** `GET /v1/calls/turn-credentials` (device session, 60 per 15 min per IP, `no-store`): STUN, then TURN with `username = <expiry>:<user ID>`, `credential = base64(HMAC-SHA1(TURN_SHARED_SECRET, username))`, TTL `TURN_CREDENTIAL_TTL_SECONDS`. The gateway answers an EPHEMERAL invite for an offline device `RECIPIENT_OFFLINE` and, unless the sender is blocked, calls `PushNotifier.ring`: `{"t":"call"}` at most once per device per 15 s, with a 60 s provider TTL. The per-device push times are the only call state, in memory. No call record is written anywhere.
+5. **coturn.** Dev: Compose profile `calls` (relay ports 49160–49200, a dev secret, `PINGDOST_TURN_IP` as the advertised address, Docker's bridge allowed as a peer so relay-to-relay works there). Staging: `deploy/compose.staging.yml` service with host networking, `deploy/coturn/turnserver.conf` (relay 49160–49400, `denied-peer-ip` for every private, loopback, link-local, CGNAT, documentation, multicast and IPv6 local range, `user-quota=12`, `total-quota=600`, `max-bps=400000`, one log line per problem), secret/realm/public IP as flags from `.env`. TLS on 5349 is optional and off until a certificate copy is set up (runbook).
+6. **Web.** `features/calls`: `WebCallPlatform` (getUserMedia with the chosen devices, `RTCPeerConnection` with `iceTransportPolicy: 'relay'` under "Force relay (TURN)", `replaceTrack` to switch microphone/camera, `setSinkId` for the speaker, `getStats` for the path and bytes), the per-tab runtime (Web Lock, `claimed` over a BroadcastChannel, `online`/`connection.change` → ICE restart, `pagehide` → hang up, an in-tab "Incoming call" notice when hidden, a Web Audio ring), the overlay (incoming dialog, in-call screen, "Call ended"), voice/video buttons in **direct chats only**, a Calls page (local history), Settings → Calls (Force relay; "Test media (dev)" in dev builds: a generated tone and picture). The service worker shows a generic "Incoming call" for `{"t":"call"}`.
+7. **Sim client.** `simCalls`/`echoPlatform` (werift): `sim-client peer` answers calls and sends back what it receives; `--relay`, `--answer-after`, `--dial-user`.
+
+## Consequences
+- The server sees: that a device asked for TURN credentials, that an invite went to an offline device (it sends the push), and the size and timing of ephemeral packets. It never sees SDP, candidates, who answered or how long a call lasted. coturn sees the two relay endpoints while it relays.
+- Media is DTLS-SRTP end to end; TURN relays ciphertext. A relayed call costs VPS transfer (measured below); 4 TB/month on KVM 1.
+- Phase 26 implements `CallPlatform` with react-native-webrtc, handles `{"t":"call"}` in the push task, and chooses the incoming-call UI (its own ADR). The phone already gets invites, RING pushes and the shared call manager.
+- Known gaps: closing or reloading a tab mid-call can lose that call's history entry; the in-call path badge reads "relayed" from the policy when relaying is forced; no TLS on 5349 yet; group calls never.
+
+## Evidence
+- Unit: call-engine 35 tests (every state × event; ring, multi-device, reject, busy, policy, timeouts, offline re-invite, glare, ICE restart, failures, media errors, media state, Force relay, binding, tab dismissal). Engine 4 (ringing every device with RING, binding, blocks, offline, history). Protocol 2. Server: TURN vector (computed independently with .NET `HMACSHA1`), call pushes and TTL.
+- `apps/server/test/calls.int.test.ts`: the route; **the returned pair allocates a relay on coturn 4.18.0, and tampered or expired pairs are refused** (coturn: "time-limited username timestamp is in the past"); one content-free push per window; none for a blocked sender.
+- `apps/server/test/calls-webrtc.int.test.ts` (werift ↔ werift through a listening server): direct **267 ms** from answer to connected; TURN-forced **212 ms**; no SDP/ICE text in any WebSocket frame of either client; no Mongo write but the one-time-key claim that opens the Olm session.
+- Chrome (dev build, test media) ↔ sim peer, this PC, 2026-11-01: direct "host/host · udp", **622 ms** from answer to connected (first try 20.6 s: werift waited 10 s per Chrome mDNS candidate, and the manager added candidates before answering; fixed); TURN-forced "Relayed (TURN) · udp", **306 ms**, **0.7 MB in 29 s** for a 320×240 test picture plus audio both ways (about 190 kbit/s). coturn refused to relay to this PC's LAN address (192.168.1.3), the SSRF rule working.
+- Pending (needs the VPS and real networks): web↔web and phone↔web across networks (a phone hotspot), TURN-forced through **staging** coturn, and the bandwidth of a real camera call.
+- Checked 2026-11-01: coturn 4.18.0 (Docker Hub, 2026-09-08); werift 0.25.2 (MIT, npm, 2026-10-24); react-native-webrtc 155.0.1 (MIT) and @config-plugins/react-native-webrtc 15.0.2 (MIT, Expo ≥ 56) for Phase 26.

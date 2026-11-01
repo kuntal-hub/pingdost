@@ -6,6 +6,8 @@ export { attachmentsApi } from './attachments';
 export type { AttachmentsApi } from './attachments';
 export { authApi } from './auth';
 export type { AuthApi } from './auth';
+export { callsApi } from './calls';
+export type { CallsApi } from './calls';
 export { createApiClient } from './client';
 export type { ApiClient, ApiClientOptions, HttpMethod, RequestOptions } from './client';
 export { ApiError } from './errors';

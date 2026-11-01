@@ -104,6 +104,8 @@ export async function startLeader(
     engine.onConversationListChanged(() => post({ type: 'list' })),
     engine.onEvent((event: EngineEvent) => post({ type: 'engine', event })),
     engine.onHistorySync((status) => post({ type: 'sync', status })),
+    // Calls run in whichever tab the user uses (ADR 0028): every tab gets the signals.
+    engine.onCallSignal((signal) => post({ type: 'call_signal', signal })),
     router.status$.subscribe(
       (status) => {
         useChat.setState({ status });
@@ -166,6 +168,7 @@ export async function startLeader(
     onListChanged: (listener) => engine.onConversationListChanged(listener),
     onEngineEvent: (listener) => engine.onEvent(listener),
     onHistorySync: (listener) => engine.onHistorySync(listener),
+    onCallSignal: (listener) => engine.onCallSignal(listener),
     onTransfer: (listener) => {
       transferListeners.add(listener);
       return () => {

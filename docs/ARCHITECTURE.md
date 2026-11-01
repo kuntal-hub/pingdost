@@ -74,6 +74,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Payloads are a **content-free wake** (`{"t":"wake"}` or `{"t":"call"}`), coalesced per device.
   - (ADR 0015) `push_tokens` holds one address per device. FCM v1 is called over `fetch` with a `jose`-signed OAuth grant (no Firebase SDK). At most one wake per device per `PUSH_WAKE_THROTTLE_SECONDS`, plus one deferred wake at the window's end. Rejected tokens are deleted.
   - The phone fetches, decrypts and shows a **local** notification itself. Previews, sender name and mute are device settings.
+  - (ADR 0028) `{"t":"call"}` goes to a callee device that is offline when an E2EE call invite (EPHEMERAL with `PacketFlag.RING`) arrives for it: at most one per device per 15 s, provider TTL 60 s, never for a blocked sender.
 - **Attachment staging (ADR 0017):** an `AttachmentStore` interface with two adapters:
   - `fs` (VPS disk, REQ §22; signed HMAC URL tokens served by the API with range support). **Production uses it.**
   - `s3` (AWS SDK v3; R2- and S3-compatible; presigned multipart). R2 stays opt-in because it needs a card.
@@ -85,6 +86,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - **Avatars:** Cloudinary (free) for **user profile avatars only**, using signed client uploads. ⚠ Group name, avatar and description travel **E2EE inside group control messages**; the server stores none of them.
 - **User discovery:** **exact-match username lookup only**, rate-limited. No contact upload and no fuzzy search.
 - **Groups (ADR 0016):** `groups` keeps members, roles and a `version` as routing metadata (`GROUP_MAX_MEMBERS`). Envelopes that carry `group_id` (Megolm messages, room keys) pass only between current members (`NOT_A_MEMBER`). Every change sends `GroupChanged` to members' sockets.
+- **Calls (ADR 0028):** `GET /v1/calls/turn-credentials` returns STUN plus short-lived TURN credentials (TURN REST API: `<expiry>:<user ID>` and base64 HMAC-SHA1 with `TURN_SHARED_SECRET`). Signaling is E2EE and ephemeral (A4); the server stores **no call record**. coturn 4.18.0 runs in the VPS stack with host networking, refusing to relay to private and reserved ranges.
 - **Blocks and reports (ADR 0014):** `blocks` (`blocker:blocked`, at most 1,000 per user) and `abuse_reports` (TTL `ABUSE_REPORT_RETENTION_SECONDS`).
   - A send to a user who blocked the sender is answered `Accepted{STORED}` and dropped, so the sender learns nothing.
   - Presence and typing stop both ways; lookups still work.
@@ -152,6 +154,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - **Presence (ADR 0012):** in memory on the gateway only. Clients name the users they watch (`Presence.watch_user_ids`, at most 32); it is reciprocal and follows `privacy.lastSeen`. The server keeps no contact list.
 - **Ephemeral relay.** Call signaling, history-sync chunks and typing are **ephemeral**: the server relays them in memory to online devices only and never writes them to Redis or Mongo. Ephemeral envelopes travel as `PACKET_KIND_EPHEMERAL`.
   - A relayed packet is answered `Accepted{DELIVERED_TRANSPORT}`, an offline (or too slow) recipient `RECIPIENT_OFFLINE`. Budgets: 250 packets and 8 MiB per socket per 10 s (ADR 0021).
+- **Call signaling (ADR 0028):** `CallSignal` Contents over Olm between the two call devices (contacts only, never across a block), each naming both devices. The caller invites every callee device with one offer and re-sends it to offline ones (`PacketFlag.RING` → a `call` push) until the 45 s ring timeout; the first answer wins, the others get a hang-up. Glare keeps the lower call ID; only the caller makes (ICE-restart) offers.
 - **History sync (ADR 0021):** the phone sends a linked browser its recent window (default 30 days, at most 500 messages per conversation) as `SyncChunk` batches over Olm between own devices, ephemeral only. Batches are bounded and hashed and acknowledged one at a time, a manifest checks the per-conversation counts, and the cursor is a sealed engine setting on both sides, so a killed tab resumes. Older messages and files sent before pairing come from the phone on request (files up to 25 MB, configurable).
 - **Limits:** `ENVELOPE_MAX_BYTES` (default 64 KiB). Decoders reject oversized, expired or unknown-major-version packets.
 - **Details (ADR 0006):**
@@ -247,6 +250,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Web Push: VAPID, a service worker that shows only "New message". The PWA's offline shell is precached.
   - Shared chat wording: `@pingdost/chat-core`.
   - Versions: Vite 8.3.4, React 19.3.0, React Router 8.5.0, TanStack Query 5.104.5, Tailwind 4.3.3, Dexie 4.4.6.
+  - (ADR 0028) Calls: every tab runs a `CallManager` (`@pingdost/call-engine`) on the leader's engine; the tab that answers or dials holds the Web Lock `pingdost-call` and the others stop ringing. Browser WebRTC with `iceTransportPolicy: 'relay'` under Settings → Calls → Force relay (TURN). Call buttons in direct chats only. The call history is local (a sealed engine setting).
 - **Hosting:** Cloudflare Pages (free), with a strict CSP.
 
 ## A8. Conventions
@@ -330,6 +334,7 @@ WEB_ORIGIN=http://localhost:5173
 SYNC_RECENT_DAYS=30
 ```
 - Facebook variables stay optional and unused (deferred).
+- (ADR 0028) Calls use REQ §17's `STUN_URLS`, `TURN_URLS`, `TURN_SHARED_SECRET` and `TURN_CREDENTIAL_TTL_SECONDS` unchanged. coturn alone reads `TURN_REALM` and `TURN_EXTERNAL_IP` (staging `.env`) and, in dev, `PINGDOST_TURN_IP` (docker-compose).
 - Each phase adds its variables to `packages/config`, `.env.example` and this list.
 
 ## A12. Platform scope

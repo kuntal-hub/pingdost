@@ -17,6 +17,40 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-01 — Phase 25: Calls A: TURN, signaling, web calls — 🔄 partial (staging coturn and cross-network checks open)
+Started with Phases 17 and 20 still 🔄 (device checks and VPS steps only); the user asked for Phases 25 and 26 in one go.
+
+**Done (ADR 0028):**
+- **Protocol** (add-only, `buf breaking` clean): `CallSignal` gains RENEGOTIATE/RINGING/MEDIA_STATE, `Reason`, both call device IDs, `expires_at_ms`, batched candidates, `ice_restart`, `muted`/`camera_off`; `PacketFlag.RING`; `calls.ts` (`CallSignalData` ⇄ proto with limits, `CallOutcome`).
+- **Engine:** the ephemeral channel takes contacts' devices too (blocks dropped; sync still own devices only); `callDevices`, `sendCallSignal` (RING on offers), `onCallSignal` with device binding; local call history (`callHistory`/`recordCall`/`clearCallHistory`, sealed setting, 200 entries).
+- **`packages/call-engine`** (new): state machine; `CallManager` (multi-device invite, first answer wins, offline re-invite, ring/connect/reconnect timeouts, glare, busy, ICE restart from the caller, candidate batching, media state, tab dismissal, incoming policy); `testing.ts` fakes.
+- **Server:** `GET /v1/calls/turn-credentials`; `PushNotifier.ring` (`{"t":"call"}`, 15 s window, 60 s TTL); gateway rings offline devices for RING invites (not for blocked senders); `pingdost_call_pushes_total`; rate limit `turnCredentials`.
+- **coturn:** dev Compose profile `calls`; staging service (host networking) + `deploy/coturn/turnserver.conf` (SSRF deny list, quotas, bandwidth cap); deploy workflow copies it; env example, runbook (ports, DNS-only `turn`, checks, optional TLS).
+- **Web:** `features/calls` (platform, per-tab runtime with Web Lock, overlay, call buttons in direct chats only, Calls page, Settings → Calls with Force relay and dev test media, ring tone); service worker "Incoming call"; bus `call_signal`.
+- **Sim client:** werift 0.25.2 echo platform; `peer` answers/dials calls.
+- **Docs:** ADR 0028, decisions index (+0025–0027 rows that were missing), CHANGES (8 items), ARCHITECTURE A2/A4/A7/A11, Phase 26 handoff, CLAUDE.md.
+
+**Remaining (user steps; needs the VPS and real networks):**
+- [ ] Staging: set `TURN_*`, `STUN_URLS`, `TURN_REALM`, `TURN_EXTERNAL_IP` in `/srv/pingdost/.env`, open UDP/TCP 3478 and UDP 49160–49400 in hPanel, add the DNS-only `turn` record, deploy (`docs/ops/vps-setup.md` → "Calls").
+- [ ] **Done when:** web↔web audio and video, direct and with Force relay through **staging** coturn; one browser on a phone hotspot (other network). Record setup times and the MB a relayed camera call uses per minute (the badge shows it).
+
+**Deviations / decisions:** ADR 0028; CHANGES 2026-11-01 (Phase 25): RING metadata, ring every device, TLS optional/off, host networking, user ID in the TURN username, per-device history, calls in any tab, werift dev dependency.
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test`: 59/59 tasks (call-engine 35 new; engine +4; protocol +2; server +5).
+- `pnpm --filter @pingdost/server test:int`: 156 passed, 2 skipped (with the dev coturn up). New: `calls.int.test.ts` (credentials allocate on coturn 4.18.0; tampered/expired refused; call pushes), `calls-webrtc.int.test.ts` (werift ↔ werift: direct 267 ms, TURN-forced 212 ms answer→connected; no SDP/ICE in frames; no call writes).
+- `pnpm format:check` clean; `buf lint` and `buf breaking` against main clean; both coturn configs parse in 4.18.0 without warnings.
+- Chrome (dev, test media) ↔ sim echo peer on this PC: direct host/host 622 ms, TURN-forced 306 ms, 0.7 MB in 29 s (320×240 test video); echo video seen; Calls page lists the calls; coturn refused to relay to the LAN address (SSRF rule).
+- **Not run:** anything across networks, staging coturn, a real camera.
+
+**Known issues / tech debt:**
+- Reloading or closing a tab mid-call can lose that call's history entry.
+- With Force relay on, the path badge says "Relayed" from the policy (Chrome may name the pair's local side prflx).
+- werift (sim peer only) waits 10 s on each Chrome mDNS candidate; harmless now that candidates are added in the background.
+- No TURN over TLS yet.
+
+**Next:** Phase 26 (Android calls). The staging checks above can be done any time after.
+
 ## 2026-11-01 — Phase 24: Mesh / nearby file transfer — 🔄 partial (device checks open)
 Started with Phases 15 and 23 still 🔄 (device checks only); the user said to proceed.
 

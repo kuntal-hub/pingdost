@@ -31,6 +31,7 @@ import { Bubble, type BubbleActions } from './bubble';
 import { groupName, groupPictureUri } from './format';
 import { AttachmentView } from '../attachments/attachment-view';
 import { SendFileDialog } from '../attachments/send-file-dialog';
+import { CallButtons } from '../calls/call-buttons';
 
 const MAX_TEXT = 4_000;
 const START_INDEX = 1_000_000;
@@ -77,6 +78,8 @@ function Header({ conversation }: { conversation: ConversationRecord }) {
           {subtitle && <span className="block text-sm text-muted">{subtitle}</span>}
         </span>
       </Link>
+      {/* 1:1 chats only: groups have no call actions (REQ §19.5). */}
+      {!isGroup && <CallButtons peerUserId={conversation.peerUserId} />}
       <Link
         to={`/search?c=${conversation.conversationId}`}
         className="rounded p-2 hover:bg-surface"

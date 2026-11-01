@@ -11,11 +11,18 @@
  *   user's other devices as control Contents (`features/ops.ts`, ADR 0014).
  * - Read receipts go out when the user opens the chat, only while the toggle is on.
  */
-import { uuidToBytes, uuidv7, type AttachmentManifest } from '@pingdost/protocol';
+import {
+  uuidToBytes,
+  uuidv7,
+  type AttachmentManifest,
+  type CallSignalData,
+  type IncomingCallSignal,
+} from '@pingdost/protocol';
 import { MessageState } from '@pingdost/shared-types';
-import type { Route } from '@pingdost/transport';
+import type { Route, SendResult } from '@pingdost/transport';
 
 import { attachmentContentFor, readAttachment } from './attachments';
+import { CallSignals, type CallHistoryEntry } from './calls';
 import { buildContent, textContentFor } from './content';
 import { EngineCore, type ConversationEvent, type EngineEvent, type EngineOptions } from './core';
 import { MessageActionError } from './errors';
@@ -79,6 +86,7 @@ export class MessageEngine {
   readonly #receiver: Receiver;
   readonly #groups: GroupManager;
   readonly #sync: HistorySync;
+  readonly #calls: CallSignals;
   readonly #unsubscribe: (() => void)[] = [];
   #sweepTimer: ReturnType<typeof setInterval> | undefined;
   readonly #typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -98,6 +106,7 @@ export class MessageEngine {
           void this.#receiver.retryHeld(groupId).catch(() => undefined);
       },
     });
+    this.#calls = new CallSignals(this.#core, this.#sync.channel);
   }
 
   get self(): EngineOptions['self'] {
@@ -122,7 +131,11 @@ export class MessageEngine {
       this.#unsubscribe.push(transport.onTyping((typing) => void this.#onTyping(typing)));
     }
     if (transport.onEphemeral) {
-      this.#unsubscribe.push(transport.onEphemeral((packet) => this.#sync.receive(packet)));
+      this.#unsubscribe.push(
+        transport.onEphemeral((packet) =>
+          this.#sync.receive(packet, (received) => this.#calls.handle(received)),
+        ),
+      );
     }
     if (transport.onRoutesChanged) {
       // The Internet came back or a nearby contact proved its key (ADR 0024).
@@ -220,6 +233,36 @@ export class MessageEngine {
 
   onHistorySendProgress(listener: () => void): () => void {
     return this.#sync.source.onProgress(listener);
+  }
+
+  // Calls (ADR 0028)
+
+  /** The devices a call to `userId` rings (all of them; the first to answer takes it). */
+  callDevices(userId: string): Promise<string[]> {
+    return this.#calls.devices(userId);
+  }
+
+  /** E2EE call signaling to one device of a direct contact, relayed in memory only. */
+  sendCallSignal(userId: string, deviceId: string, signal: CallSignalData): Promise<SendResult> {
+    return this.#calls.send(userId, deviceId, signal);
+  }
+
+  /** Signals from contacts' devices, already bound to this device and the sender's. */
+  onCallSignal(listener: (signal: IncomingCallSignal) => void): () => void {
+    return this.#calls.on(listener);
+  }
+
+  /** This device's call history, newest first (it never leaves the device). */
+  callHistory(): Promise<CallHistoryEntry[]> {
+    return this.#calls.history();
+  }
+
+  recordCall(entry: CallHistoryEntry): Promise<void> {
+    return this.#calls.record(entry);
+  }
+
+  clearCallHistory(): Promise<void> {
+    return this.#calls.clearHistory();
   }
 
   // Events

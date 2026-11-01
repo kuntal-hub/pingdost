@@ -37,6 +37,7 @@ import { authCollections, authIndexes } from './modules/auth/repo';
 import { authRoutes } from './modules/auth/routes';
 import { AuthService } from './modules/auth/service';
 import { AccessTokens } from './modules/auth/tokens';
+import { callRoutes } from './modules/calls/routes';
 import {
   MongoMailbox,
   pendingEnvelopeIndexes,
@@ -373,6 +374,16 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
   });
   await app.register(pushRoutes, { tokens: pushTokens, authenticate, limits });
   await app.register(groupRoutes, { groups, authenticate, limits });
+  await app.register(callRoutes, {
+    settings: {
+      stunUrls: config.STUN_URLS ?? [],
+      ...(config.turn ? { turn: config.turn } : {}),
+      ttlSeconds: config.TURN_CREDENTIAL_TTL_SECONDS,
+    },
+    authenticate,
+    limits,
+    clock,
+  });
   const attachments = createAttachmentService(config, {
     db,
     clock,

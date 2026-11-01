@@ -90,6 +90,29 @@ services:
     logging: *logging
     networks: [edge]
 
+  # STUN/TURN for calls (ADR 0028). Host networking: Docker's port publishing would add one
+  # proxy per relay port, so coturn binds the VPS's ports itself (ufw applies to them; open
+  # them in Hostinger's panel too). The secret, realm and public IP come from .env as flags;
+  # turnserver.conf blocks relaying to private and reserved ranges.
+  coturn:
+    image: coturn/coturn:4.18.0
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --static-auth-secret=${TURN_SHARED_SECRET:?set TURN_SHARED_SECRET in .env}
+      - --realm=${TURN_REALM:?set TURN_REALM in .env}
+      - --external-ip=${TURN_EXTERNAL_IP:?set TURN_EXTERNAL_IP (the VPS public IPv4) in .env}
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    read_only: true
+    tmpfs: [/var/tmp, /var/lib/coturn]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 128m
+    logging: *logging
+
 networks:
   # Valkey and the server only, with no route out.
   internal:

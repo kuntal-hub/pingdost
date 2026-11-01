@@ -15,6 +15,7 @@
   "dependencies": {
     "@pingdost/api-client": "workspace:*",
     "@pingdost/attachments": "workspace:*",
+    "@pingdost/call-engine": "workspace:*",
     "@pingdost/chat-core": "workspace:*",
     "@pingdost/config": "workspace:*",
     "@pingdost/crypto": "workspace:*",

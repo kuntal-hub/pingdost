@@ -30,7 +30,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 22 | [Direct nearby messaging](phases/phase-22-nearby-direct.md) | 10, 21 | 🔄 |
 | 23 | [Mesh store-and-forward relay](phases/phase-23-mesh-relay.md) | 22 | 🔄 |
 | 24 | [Mesh file transfer](phases/phase-24-mesh-files.md) | 15, 23 | 🔄 |
-| 25 | [Calls A: TURN, signaling, web calls](phases/phase-25-calls-web.md) | 17, 20 | ⬜ |
+| 25 | [Calls A: TURN, signaling, web calls](phases/phase-25-calls-web.md) | 17, 20 | 🔄 |
 | 26 | [Calls B: Android calls](phases/phase-26-calls-android.md) | 12, 25 | ⬜ |
 | 27 | [Hardening & release readiness](phases/phase-27-hardening-release.md) | 18, 19, 24, 26 | ⬜ |
 | 28 | [iOS: build, crypto, core chat](phases/phase-28-ios-core.md) | 27 | ⏸ |

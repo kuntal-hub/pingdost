@@ -17,11 +17,13 @@
   "dependencies": {
     "@pingdost/api-client": "workspace:*",
     "@pingdost/backup": "workspace:*",
+    "@pingdost/call-engine": "workspace:*",
     "@pingdost/crypto": "workspace:*",
     "@pingdost/message-engine": "workspace:*",
     "@pingdost/protocol": "workspace:*",
     "@pingdost/shared-types": "workspace:*",
-    "@pingdost/transport": "workspace:*"
+    "@pingdost/transport": "workspace:*",
+    "werift": "0.25.2"
   },
   "devDependencies": {
     "@types/node": "catalog:",

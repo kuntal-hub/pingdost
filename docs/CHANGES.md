@@ -4,6 +4,24 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-01 — Phase 25: calls, TURN and web calls (ADR 0028)
+1. **The server learns that a call invite was meant for an offline device.** Signaling is E2EE (REQ §12.2 asks only for authenticated signaling), but an invite carries `PacketFlag.RING` so the gateway can send that device a content-free `{"t":"call"}` push. The server keeps only the time of the last call push per device, in memory, for 15 s. Without it, a callee whose app is closed could not ring.
+   - *Affects:* 25 (done), 26 (the phone's call wake), 27 (privacy notice).
+2. **A call rings every device of the callee, linked browsers included; the first to answer takes it**, the others are told "answered elsewhere". A reject or busy on any device ends the call. REQ says nothing about several devices.
+   - *Affects:* 25 (done), 26.
+3. **TURN over TLS (5349) is optional and off on staging.** coturn runs as `nobody` and cannot read Caddy's root-only certificate files; the runbook describes a copy step. Plain TURN on 3478 UDP/TCP is set up.
+   - *Affects:* 25 (done), 27 (decide for production).
+4. **coturn uses host networking on the VPS**, not Docker-published ports (one proxy per relay port would be heavy). Its ports must be opened in Hostinger's panel firewall (and in ufw, if it is on). The dev Compose profile allows Docker's bridge as a relay peer so relay-to-relay works on one PC; staging refuses every private range.
+   - *Affects:* 20, 25 (done).
+5. **The TURN username carries the user ID** (`<expiry>:<user ID>`, as planned). coturn logs a line only for problems; those lines can name it with the client's address, and rotate with the other container logs (about a week).
+   - *Affects:* 25 (done), 27.
+6. **The call history is per device**, a sealed engine setting (at most 200 entries), never synced to linked browsers or uploaded.
+   - *Affects:* 25 (done), 26.
+7. **Web calls run in whichever tab the user uses**, not only in the tab that holds the connection: every tab runs a call manager on the leader's engine, and the Web Lock `pingdost-call` keeps one call per browser.
+   - *Affects:* 25 (done).
+8. **New dev dependency: werift 0.25.2** (MIT; its media dependency mediabunny is MPL-2.0, an OSI license) in `tools/sim-client` only, so a headless peer can make and answer real WebRTC calls (tests, and single-phone checks in Phase 26).
+   - *Affects:* 25 (done), 26.
+
 ### 2026-11-01 — Phase 24: files over the mesh (ADR 0027)
 1. **No Wi-Fi bulk path yet: files move over BLE only.** The plan had an optional Wi-Fi Aware or Wi-Fi Direct path. It was evaluated (ADR 0027) but not built: it cannot be tested without two phones, and Wi-Fi Aware hardware support varies. The default mesh file limit is therefore **25 MB** (configurable 10–100 MB in Settings → Nearby messaging, with a time estimate), not REQ's 100 MB.
    - *Affects:* 24 (done), 27 (Wi-Fi Aware once measured), 30.

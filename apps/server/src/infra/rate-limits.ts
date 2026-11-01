@@ -67,6 +67,8 @@ export const DEFAULT_ROUTE_LIMITS = {
   replaceOtp: { max: 10, timeWindow: HOUR },
   replace: { max: 20, timeWindow: HOUR },
   metrics: { max: 120, timeWindow: 15 * MINUTE },
+  /** One fetch per call (ADR 0028), plus retries. */
+  turnCredentials: { max: 60, timeWindow: 15 * MINUTE },
 } satisfies Record<string, RouteLimit>;
 
 export type RouteLimitName = keyof typeof DEFAULT_ROUTE_LIMITS;

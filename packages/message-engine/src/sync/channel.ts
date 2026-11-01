@@ -1,9 +1,11 @@
 /**
- * The encrypted channel between this user's own devices for ephemeral content (ADR 0021): an
- * Olm session per device pair, carried in EPHEMERAL packets that the server relays in memory
- * to online devices only. Nothing of it is stored anywhere but the advanced Olm session.
+ * The encrypted channel for ephemeral content (ADR 0021, 0028): an Olm session per device
+ * pair, carried in EPHEMERAL packets that the server relays in memory to online devices only.
+ * Nothing of it is stored anywhere but the advanced Olm session.
  *
- * - Only devices of this user, from the verified own directory, are accepted either way.
+ * - History sync uses it between this user's own devices (from the verified own directory),
+ *   call signaling between the two call devices of a direct contact. Senders resolve through
+ *   the verified directory; blocked users are dropped. Callers check which kind they accept.
  * - A device with no session yet gets one from a claimed one-time (or fallback) key, as in
  *   the outbox; that session then serves ordinary messages too.
  * - Incoming packets are handled one at a time, in arrival order.
@@ -42,14 +44,17 @@ const PACKET_TTL_MS = 60_000;
 /** `RATE_LIMITED` sends are tried again after 1 s, 2 s and 3 s. */
 const RATE_LIMIT_RETRIES = 3;
 
-export interface OwnContent {
+export interface EphemeralContent {
   content: Content;
   sender: RemoteDevice & { device: DirectoryDeviceRecord };
 }
 
+/** From one of this user's own devices (history sync checks the sender is). */
+export type OwnContent = EphemeralContent;
+
 const UNSUPPORTED: SendResult = { ok: false, code: 'UNSUPPORTED', retryable: false };
 
-export class OwnDeviceChannel {
+export class EphemeralChannel {
   #queue: Promise<void> = Promise.resolve();
 
   constructor(
@@ -67,7 +72,20 @@ export class OwnDeviceChannel {
   }
 
   /** Encrypts `body` for one own device and relays it. Never throws. */
-  async send(device: DirectoryDeviceRecord, body: Body): Promise<SendResult> {
+  send(device: DirectoryDeviceRecord, body: Body): Promise<SendResult> {
+    return this.sendTo(this.core.self.userId, device, body);
+  }
+
+  /**
+   * Encrypts `body` for one device of `userId` (this user, or the direct contact the Content
+   * is addressed to) and relays it with `flags`. Never throws.
+   */
+  async sendTo(
+    userId: string,
+    device: DirectoryDeviceRecord,
+    body: Body,
+    flags = 0,
+  ): Promise<SendResult> {
     const { core } = this;
     const transport = core.options.transport;
     if (!transport.sendEphemeral) return UNSUPPORTED;
@@ -76,24 +94,23 @@ export class OwnDeviceChannel {
     }
     let packet: TransportPacket | undefined;
     try {
-      const self = core.self.userId;
       const content = buildContent(
         {
           messageId: uuidv7(),
-          conversationId: core.directConversationId(self),
-          senderUserId: self,
-          recipientUserId: self,
+          conversationId: core.directConversationId(userId),
+          senderUserId: core.self.userId,
+          recipientUserId: userId,
           sentAt: core.now(),
         },
         body,
         core.settings.envelopeMaxBytes,
       );
-      const remote: RemoteDevice = { ...device, userId: self };
-      packet = await core.mutex.run(() => this.#encrypt(remote, content));
+      const remote: RemoteDevice = { ...device, userId };
+      packet = await core.mutex.run(() => this.#encrypt(remote, content, flags));
       if (!packet) {
         const key = await this.#claim(device);
         if (!key) return { ok: false, code: 'NO_KEYS', retryable: true };
-        packet = await core.mutex.run(() => this.#encrypt(remote, content, key));
+        packet = await core.mutex.run(() => this.#encrypt(remote, content, flags, key));
       }
     } catch (error) {
       core.log('warn', 'ephemeral content not sent', { code: errorCode(error) ?? 'error' });
@@ -109,7 +126,7 @@ export class OwnDeviceChannel {
     }
   }
 
-  /** Queues an incoming packet; `handle` gets its checked content from an own device. */
+  /** Queues an incoming packet; `handle` gets its checked content and authenticated sender. */
   receive(packet: TransportPacket, handle: (received: OwnContent) => Promise<void>): void {
     this.#queue = this.#queue
       .then(async () => {
@@ -129,6 +146,7 @@ export class OwnDeviceChannel {
   async #encrypt(
     remote: RemoteDevice,
     content: Uint8Array,
+    flags: number,
     oneTimeKey?: string,
   ): Promise<TransportPacket | undefined> {
     const { core } = this;
@@ -159,7 +177,7 @@ export class OwnDeviceChannel {
       createdAtMs: BigInt(now),
       expiresAtMs: BigInt(now + PACKET_TTL_MS),
       hopBudget: 0,
-      flags: 0,
+      flags,
       payload,
     });
   }
@@ -178,7 +196,7 @@ export class OwnDeviceChannel {
     return undefined;
   }
 
-  async #open(packet: TransportPacket): Promise<OwnContent | undefined> {
+  async #open(packet: TransportPacket): Promise<EphemeralContent | undefined> {
     const { core } = this;
     if (packet.kind !== PacketKind.EPHEMERAL) return undefined;
     let envelope;
@@ -193,8 +211,8 @@ export class OwnDeviceChannel {
     if (envelope.cryptoType === CryptoType.MEGOLM) return undefined;
     const senderDeviceId = bytesToUuid(envelope.senderDeviceId);
     const owner = await core.ownerOf(senderDeviceId);
-    // Own devices only (calls, Phase 25, will widen this to contacts).
-    if (owner.status !== 'ok' || owner.userId !== core.self.userId) return undefined;
+    if (owner.status !== 'ok') return undefined;
+    if (owner.userId !== core.self.userId && core.isBlocked(owner.userId)) return undefined;
     const sender = {
       deviceId: senderDeviceId,
       userId: owner.userId,
@@ -234,3 +252,6 @@ export class OwnDeviceChannel {
     return { content, sender };
   }
 }
+
+/** History sync's name for it. */
+export type OwnDeviceChannel = EphemeralChannel;

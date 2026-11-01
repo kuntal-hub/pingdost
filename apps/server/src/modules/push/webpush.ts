@@ -1,13 +1,13 @@
 /**
  * Web Push sender (RFC 8030 + VAPID, via `web-push`; ADR 0015). The browser's push service
- * only relays the encrypted `{"t":"wake"}`; the `topic` makes queued wakes replace each other.
- * Phase 17 adds the web client's subscription.
+ * only relays the encrypted `{"t":"wake"}` or `{"t":"call"}` (ADR 0028); the `topic` makes
+ * queued pushes of one kind replace each other. Phase 17 adds the web client's subscription.
  */
 import webpush from 'web-push';
 
 import type { PushPayload } from '@pingdost/shared-types';
 
-import { retryAfterMs, type PushSender, type SendOutcome } from './notifier';
+import { pushTtlSeconds, retryAfterMs, type PushSender, type SendOutcome } from './notifier';
 import type { PushTarget } from './repo';
 
 export interface WebPushSenderOptions {
@@ -34,7 +34,7 @@ export class WebPushSender implements PushSender {
     try {
       await this.#send({ endpoint: target.address, keys: target.keys }, JSON.stringify(payload), {
         vapidDetails: { subject, publicKey: vapidPublicKey, privateKey: vapidPrivateKey },
-        TTL: ttlSeconds,
+        TTL: pushTtlSeconds(payload, ttlSeconds),
         urgency: 'high',
         topic: payload.t,
         timeout: this.options.timeoutMs ?? 10_000,

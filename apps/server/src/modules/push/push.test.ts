@@ -8,7 +8,12 @@ import webpush from 'web-push';
 import { PUSH_WAKE, type PushPayload } from '@pingdost/shared-types';
 
 import { FcmSender, fcmMessage, isInvalidToken, parseServiceAccount } from './fcm';
-import type { PushSender, SendOutcome } from './notifier';
+import {
+  CALL_PUSH_TTL_SECONDS,
+  pushTtlSeconds,
+  type PushSender,
+  type SendOutcome,
+} from './notifier';
 import type { PushTarget } from './repo';
 import { PushService, type WakeResult } from './service';
 import { WebPushSender } from './webpush';
@@ -283,6 +288,31 @@ describe('PushService', () => {
     await vi.waitFor(() => expect(sends).toHaveLength(3));
     expect(sends[2]?.deviceId).toBe('d1');
     await service.close();
+  });
+
+  it('sends one content-free call push per device per call window (ADR 0028)', async () => {
+    const { service, sends } = setup();
+    service.ring('d1');
+    service.ring('d1'); // the caller re-sent its invite
+    service.ring('d2');
+    service.wake('d1', false); // a message wake is separate
+    await service.idle();
+    expect(sends).toEqual([
+      { deviceId: 'd1', payload: { t: 'call' } },
+      { deviceId: 'd2', payload: { t: 'call' } },
+      { deviceId: 'd1', payload: { t: 'wake' } },
+    ]);
+    await service.close();
+  });
+
+  it('gives call pushes a short provider TTL', () => {
+    expect(pushTtlSeconds({ t: 'call' }, 1_209_600)).toBe(CALL_PUSH_TTL_SECONDS);
+    expect(pushTtlSeconds({ t: 'wake' }, 1_209_600)).toBe(1_209_600);
+    expect(fcmMessage(TOKEN, { t: 'call' }, 60).message.android).toEqual({
+      priority: 'HIGH',
+      collapse_key: 'call',
+      ttl: '60s',
+    });
   });
 
   it('skips the deferred wake when the device connected, and lets urgent wakes through', async () => {

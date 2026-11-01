@@ -563,6 +563,11 @@ export class Connection implements PresencePeer {
         : false;
       if (!sent) {
         metrics.ephemeralRelayed.inc({ outcome: 'offline' });
+        // A call invite (ADR 0028): the device gets a content-free `call` push, connects and
+        // takes the caller's next copy. Never for a blocked sender.
+        if (!blocked && (packet.flags & PacketFlag.RING) !== 0) {
+          this.d.push.ring(record.recipientDeviceId);
+        }
         this.#error(requestId, 'RECIPIENT_OFFLINE', 'the recipient device is offline');
         return;
       }

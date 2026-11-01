@@ -1,12 +1,14 @@
 // The linked browser's app frame (ADR 0020): a rail with chats and settings, the connection
 // state, and chat itself, started here for this tab (the engine in one tab per browser).
 // Shortcuts: Ctrl+K searches, Alt+N starts a new chat.
-import { MessageSquare, Settings } from 'lucide-react';
+import { MessageSquare, Phone, Settings } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 
 import { startChat } from '@/chat/start';
 import { useChat } from '@/chat/store';
+import { CallOverlay } from '@/features/calls/call-overlay';
+import { startCalls } from '@/features/calls/runtime';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/session/session';
 import type { TransportStatus } from '@pingdost/transport';
@@ -35,6 +37,13 @@ export function AppShell() {
   const error = useChat((state) => state.error);
 
   useEffect(() => startChat(), []);
+  // Calls in this tab (ADR 0028), on whichever chat client the tab has.
+  const userId = device?.userId;
+  const deviceId = device?.deviceId;
+  useEffect(() => {
+    if (!userId || !deviceId) return;
+    return startCalls({ userId, deviceId });
+  }, [userId, deviceId]);
 
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
@@ -67,6 +76,9 @@ export function AppShell() {
         >
           <MessageSquare aria-hidden size={18} /> Chats
         </Link>
+        <NavLink to="/calls" className={railClass}>
+          <Phone aria-hidden size={18} /> Calls
+        </NavLink>
         <NavLink to="/settings" className={railClass}>
           <Settings aria-hidden size={18} /> Settings
         </NavLink>
@@ -100,6 +112,7 @@ export function AppShell() {
         )}
         <Outlet />
       </main>
+      <CallOverlay />
     </div>
   );
 }

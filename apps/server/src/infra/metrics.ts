@@ -102,6 +102,12 @@ export class Metrics {
     labelNames: ['result'] as const,
     registers: [this.registry],
   });
+  readonly callPushes = new Counter({
+    name: 'pingdost_call_pushes_total',
+    help: 'Content-free call pushes to offline callee devices (ADR 0028), by outcome.',
+    labelNames: ['result'] as const,
+    registers: [this.registry],
+  });
   readonly wsConnections = new Gauge({
     name: 'pingdost_ws_connections',
     help: 'Authenticated WebSocket connections on this instance.',

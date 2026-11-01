@@ -1,7 +1,7 @@
 // Routes by stage (ADR 0019, 0020): the pairing screen until this browser is linked, then the
 // app: chats (list and conversation), new chat and group, contact and group info, message info,
-// search and settings. The app's code (engine, protocol, chat screens) loads on demand, so the
-// pairing screen opens fast.
+// search, calls and settings. The app's code (engine, protocol, chat screens) loads on demand,
+// so the pairing screen opens fast.
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
@@ -81,6 +81,10 @@ const router = createBrowserRouter([
       {
         path: 'search',
         ...page(() => import('@/features/chats/search-page').then((m) => m.SearchPage)),
+      },
+      {
+        path: 'calls',
+        ...page(() => import('@/features/calls/calls-page').then((m) => m.CallsPage)),
       },
       {
         path: 'settings',

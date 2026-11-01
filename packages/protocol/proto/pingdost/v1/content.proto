@@ -356,26 +356,70 @@ message SyncReaction {
   bytes id = 5;
 }
 
-// WebRTC call signaling, relayed as an ephemeral packet. Phase 25 extends it.
+// WebRTC call signaling (ADR 0028), relayed only as an EPHEMERAL packet over Olm between the
+// two call devices: the server stores none of it and sees no SDP or ICE. Every signal names
+// both devices, and receivers drop one whose devices do not match the envelope's.
 message CallSignal {
   enum Type {
     TYPE_UNSPECIFIED = 0;
+    // Caller → each of the callee's devices: the invite, with the caller's SDP offer.
     TYPE_OFFER = 1;
+    // Callee → caller: accepted, with the SDP answer (also the answer to a RENEGOTIATE).
     TYPE_ANSWER = 2;
     TYPE_ICE_CANDIDATE = 3;
+    // Either side ends the call (`reason`); the caller also sends it to the callee devices
+    // that did not answer.
     TYPE_HANGUP = 4;
     TYPE_REJECT = 5;
+    // The callee device is in another call.
     TYPE_BUSY = 6;
+    // In a call: a new offer (`sdp`, e.g. an ICE restart). With no `sdp`, the callee asks the
+    // caller to send one; only the caller makes offers.
+    TYPE_RENEGOTIATE = 7;
+    // Callee → caller: the invite arrived and is ringing on this device.
+    TYPE_RINGING = 8;
+    // Either side: its microphone or camera was turned off or on.
+    TYPE_MEDIA_STATE = 9;
+  }
+
+  enum Reason {
+    REASON_UNSPECIFIED = 0;
+    // A user hung up (or the caller cancelled before an answer).
+    REASON_NORMAL = 1;
+    // Another of the callee's devices answered.
+    REASON_ANSWERED_ELSEWHERE = 2;
+    // Nobody answered in time.
+    REASON_NO_ANSWER = 3;
+    // The connection could not be made or restored.
+    REASON_FAILED = 4;
+    // Both users called each other; this call gave way to the other one.
+    REASON_REPLACED = 5;
+    // Another of the callee's devices declined, or was busy.
+    REASON_DECLINED_ELSEWHERE = 6;
   }
 
   // UUIDv7, 16 bytes.
   bytes call_id = 1;
   Type type = 2;
   bool video = 3;
-  // SDP for OFFER and ANSWER.
+  // SDP for OFFER, ANSWER and RENEGOTIATE.
   string sdp = 4;
-  // An ICE candidate as JSON (RTCIceCandidateInit) for ICE_CANDIDATE.
+  // Unused: candidates travel in `ice_candidates`.
   string ice_candidate = 5;
+  // The caller's and the callee's devices (16 bytes each).
+  bytes caller_device_id = 6;
+  bytes callee_device_id = 7;
+  // OFFER: the invite lapses at this time (epoch ms); later it is ignored.
+  int64 expires_at_ms = 8;
+  // ICE_CANDIDATE: candidates as JSON (RTCIceCandidateInit), in the order gathered.
+  repeated string ice_candidates = 9;
+  // RENEGOTIATE: the offer restarts ICE.
+  bool ice_restart = 10;
+  // HANGUP.
+  Reason reason = 11;
+  // MEDIA_STATE (and OFFER/ANSWER: the state at the start).
+  bool muted = 12;
+  bool camera_off = 13;
 }
 
 // Asks the peer device to start a new Olm session, e.g. after an undecryptable message.

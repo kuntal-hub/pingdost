@@ -8,7 +8,7 @@ import { importPKCS8, SignJWT, type CryptoKey } from 'jose';
 
 import type { PushPayload } from '@pingdost/shared-types';
 
-import { retryAfterMs, type PushSender, type SendOutcome } from './notifier';
+import { pushTtlSeconds, retryAfterMs, type PushSender, type SendOutcome } from './notifier';
 import type { PushTarget } from './repo';
 import type { Clock } from '../../infra/clock';
 
@@ -116,7 +116,9 @@ export class FcmSender implements PushSender {
             authorization: `Bearer ${accessToken}`,
             'content-type': 'application/json',
           },
-          body: JSON.stringify(fcmMessage(target.address, payload, this.options.ttlSeconds)),
+          body: JSON.stringify(
+            fcmMessage(target.address, payload, pushTtlSeconds(payload, this.options.ttlSeconds)),
+          ),
           signal: AbortSignal.timeout(this.#timeoutMs),
         },
       );

@@ -25,8 +25,10 @@ export const PushTokenRequestSchema = z.discriminatedUnion('provider', [
 export type PushTokenRequest = z.infer<typeof PushTokenRequestSchema>;
 
 /**
- * The whole push payload (ARCHITECTURE A2): `wake` fetches the mailbox, `call` (Phase 26)
- * rings. Nothing else may be added; the content stays in the E2EE mailbox.
+ * The whole push payload (ARCHITECTURE A2): `wake` fetches the mailbox; `call` (ADR 0028) says
+ * an E2EE call invite is waiting, so the device connects at once and shows the incoming call
+ * when the invite arrives. No caller, no SDP. Nothing else may be added.
  */
 export type PushPayload = { t: 'wake' } | { t: 'call' };
 export const PUSH_WAKE: PushPayload = Object.freeze({ t: 'wake' });
+export const PUSH_CALL: PushPayload = Object.freeze({ t: 'call' });

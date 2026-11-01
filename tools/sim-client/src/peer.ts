@@ -12,11 +12,18 @@
  *
  * With `--offline-after N` it disconnects N seconds after start (to test queued delivery) and
  * reconnects when Enter is pressed.
+ *
+ * Calls (Phase 25, ADR 0028): it answers incoming voice and video calls after
+ * `--answer-after` seconds (default 1; a negative value declines them) and sends back what it
+ * receives (werift echo), so the caller hears and sees itself. `--relay` forces TURN on its
+ * side; `--dial-user <user ID> [--video]` calls that user 5 s after start. `--calls false`
+ * turns this off.
  */
 import { parseArgs } from 'node:util';
 
 import { createWasmCryptoProvider } from '@pingdost/crypto';
 
+import { simCalls } from './calls';
 import { SimClient } from './client';
 
 const { values } = parseArgs({
@@ -24,6 +31,11 @@ const { values } = parseArgs({
     api: { type: 'string', default: 'http://127.0.0.1:3000' },
     mailpit: { type: 'string', default: 'http://127.0.0.1:8025' },
     'offline-after': { type: 'string', default: '0' },
+    calls: { type: 'string', default: 'true' },
+    'answer-after': { type: 'string', default: '1' },
+    relay: { type: 'boolean', default: false },
+    'dial-user': { type: 'string' },
+    video: { type: 'boolean', default: false },
   },
 });
 const api = values.api.replace(/\/+$/, '');
@@ -39,6 +51,22 @@ async function main(): Promise<void> {
   // Online for anyone who watches (the app watches the open chat's peer).
   peer.transport.setPresence(true);
   console.log(`echo peer ready: username ${peer.username} (user ${peer.userId})`);
+  if (values.calls !== 'false') {
+    const calls = simCalls(peer, {
+      answerAfterMs: Number(values['answer-after']) * 1_000,
+      relayOnly: values.relay,
+    });
+    console.log(`answers calls${values.relay ? ' (relay forced)' : ''}`);
+    const dialUser = values['dial-user'];
+    if (dialUser) {
+      setTimeout(() => {
+        console.log(`calling ${dialUser}…`);
+        void calls.dial(dialUser, { video: values.video }).catch((error: unknown) => {
+          console.log(`call failed: ${String(error)}`);
+        });
+      }, 5_000);
+    }
+  }
 
   const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const answered = new Set<string>();

@@ -73,6 +73,8 @@ jobs:
           # The stack's files come from the tagged commit; .env stays on the VPS only.
           scp -q deploy/compose.staging.yml deploy/Caddyfile "$target:/srv/pingdost/"
           scp -q deploy/scripts/*.sh "$target:/srv/pingdost/scripts/"
+          ssh "$target" "mkdir -p /srv/pingdost/coturn"
+          scp -q deploy/coturn/turnserver.conf "$target:/srv/pingdost/coturn/"
           ssh "$target" "set -e
             cd /srv/pingdost
             chmod 755 scripts/*.sh

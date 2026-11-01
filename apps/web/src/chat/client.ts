@@ -9,6 +9,7 @@ import type {
   HistorySyncStatus,
   MessageEngine,
 } from '@pingdost/message-engine';
+import type { IncomingCallSignal } from '@pingdost/protocol';
 
 export const ENGINE_METHODS = [
   'listConversations',
@@ -48,6 +49,11 @@ export const ENGINE_METHODS = [
   'pauseHistorySync',
   'resumeHistorySync',
   'loadOlderFromPhone',
+  'callDevices',
+  'sendCallSignal',
+  'callHistory',
+  'recordCall',
+  'clearCallHistory',
 ] as const satisfies readonly (keyof MessageEngine)[];
 
 export type EngineMethod = (typeof ENGINE_METHODS)[number];
@@ -87,6 +93,8 @@ export interface ChatEvents {
   onEngineEvent(listener: (event: EngineEvent) => void): () => void;
   onHistorySync(listener: (status: HistorySyncStatus) => void): () => void;
   onTransfer(listener: (status: TransferStatus) => void): () => void;
+  /** E2EE call signals for this device (ADR 0028), in every tab. */
+  onCallSignal(listener: (signal: IncomingCallSignal) => void): () => void;
 }
 
 export type ChatClient = ChatApi & ChatEvents;

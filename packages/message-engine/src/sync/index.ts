@@ -8,7 +8,7 @@ import type { TransportPacket } from '@pingdost/protocol';
 
 import type { EngineCore } from '../core';
 import type { RemoteDevice } from '../sessions';
-import { OwnDeviceChannel } from './channel';
+import { EphemeralChannel, type EphemeralContent } from './channel';
 import { SyncSink } from './sink';
 import { SyncSource, type SyncFiles, type SyncWindow } from './source';
 
@@ -24,19 +24,19 @@ export interface HistorySyncOptions {
 }
 
 export class HistorySync {
-  readonly channel: OwnDeviceChannel;
+  readonly channel: EphemeralChannel;
   readonly source: SyncSource;
   readonly sink: SyncSink;
 
   constructor(
-    core: EngineCore,
+    private readonly core: EngineCore,
     options: HistorySyncOptions,
     hooks: {
       undecryptable: (sender: RemoteDevice, sessionId?: string) => Promise<void>;
       groupsArrived: (groupIds: string[]) => void;
     },
   ) {
-    this.channel = new OwnDeviceChannel(core, hooks.undecryptable);
+    this.channel = new EphemeralChannel(core, hooks.undecryptable);
     this.source = new SyncSource(core, this.channel, options.files);
     this.sink = new SyncSink(core, this.channel, {
       autoStart: options.autoStart ?? false,
@@ -46,11 +46,18 @@ export class HistorySync {
     });
   }
 
-  /** An EPHEMERAL packet from the transport. */
-  receive(packet: TransportPacket): void {
+  /**
+   * An EPHEMERAL packet from the transport. Sync chunks are taken from own devices only;
+   * anything else (call signaling, ADR 0028) goes to `other`.
+   */
+  receive(packet: TransportPacket, other: (received: EphemeralContent) => Promise<void>): void {
     this.channel.receive(packet, async (received) => {
       const body = received.content.body;
-      if (body.case !== 'syncChunk') return; // call signaling arrives in Phase 25
+      if (body.case !== 'syncChunk') {
+        await other(received);
+        return;
+      }
+      if (received.sender.userId !== this.core.self.userId) return;
       switch (body.value.op.case) {
         case 'request':
         case 'ack':
@@ -76,4 +83,5 @@ export class HistorySync {
 
 export { DEFAULT_SYNC_WINDOW, FILE_PART_BYTES } from './source';
 export type { SyncFiles, SyncSendProgress, SyncWindow } from './source';
+export type { EphemeralContent } from './channel';
 export type { HistorySyncState, HistorySyncStatus } from './sink';

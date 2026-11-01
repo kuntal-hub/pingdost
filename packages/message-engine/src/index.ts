@@ -2,6 +2,8 @@
 // §8): outbox, REQ §8.3 states, retries, dedupe, multi-device fan-out, Olm sessions and repair,
 // E2EE receipts. Storage is an `EngineStore`; SQLite (Android) and Dexie (web) implement it.
 export { attachmentContentFor, attachmentDecryptInput, readAttachment } from './attachments';
+export { CALL_HISTORY_MAX } from './calls';
+export type { CallHistoryEntry } from './calls';
 export { checkGroupHeader, checkHeader, textContentFor } from './content';
 export { DEFAULT_ENGINE_SETTINGS } from './core';
 export type {

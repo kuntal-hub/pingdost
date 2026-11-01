@@ -3,6 +3,7 @@
 export { create } from '@bufbuild/protobuf';
 export type { MessageInitShape } from '@bufbuild/protobuf';
 
+export * from './calls';
 export * from './codec';
 export * from './errors';
 export * from './gen/pingdost/v1/content_pb';
