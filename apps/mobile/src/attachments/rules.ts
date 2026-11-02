@@ -51,10 +51,15 @@ export interface DraftPlan {
   rejected?: string;
 }
 
-/** The send options for a picked file (REQ §10.1). */
+/**
+ * The send options for a picked file (REQ §10.1). `videoCompression` is false where the
+ * platform has no video encoder yet (iOS until Phase 28 adds one): videos are then sent as
+ * they are, if they fit.
+ */
 export function planDraft(
   facts: DraftFacts,
   maxBytes: number = DEFAULT_LIMITS.attachmentMaxBytes,
+  options: { videoCompression?: boolean } = {},
 ): DraftPlan {
   const limit = formatSize(maxBytes);
   const check = canSend(facts, { maxBytes });
@@ -75,6 +80,18 @@ export function planDraft(
       compressible: true,
       compressByDefault: !fits || compressByDefault(facts.mimeType),
       originalAllowed: fits,
+    };
+  }
+  if (facts.category === 'video' && options.videoCompression === false) {
+    return {
+      compressible: false,
+      compressByDefault: false,
+      originalAllowed: fits,
+      ...(fits
+        ? {}
+        : {
+            rejected: `This video is ${formatSize(facts.size)}. Videos over ${limit} can't be made smaller on this device yet.`,
+          }),
     };
   }
   if (facts.category === 'video') {

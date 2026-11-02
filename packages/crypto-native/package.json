@@ -15,7 +15,8 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "build:android": "ubrn build jsi2 android --config ubrn.config.yaml --release --and-generate"
+    "build:android": "ubrn build jsi2 android --config ubrn.config.yaml --release --and-generate",
+    "build:ios": "ubrn build jsi2 ios --config ubrn.config.yaml --release --and-generate"
   },
   "dependencies": {
     "@pingdost/crypto": "workspace:*",

@@ -1,0 +1,49 @@
+name: iOS build (simulator, unsigned)
+
+# Phase 28 groundwork: proves the iOS app compiles without a Mac or an Apple Developer account.
+# Builds the Rust crypto crate into pingdost_crypto.xcframework (ubrn jsi2), checks the
+# generated bindings match the commit, generates the iOS project with Expo prebuild and builds
+# it for the simulator with signing off. Manual only: macOS minutes are free for public
+# repositories but count 10x on private ones. Not yet run (written on Windows, 2026-11-03).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  simulator:
+    name: Simulator build
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2.9.2
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Rust targets
+        run: rustup target add aarch64-apple-ios aarch64-apple-ios-sim
+      - name: Build the crypto xcframework and regenerate the jsi2 binding
+        run: pnpm --filter @pingdost/crypto-native build:ios
+      - name: Generated TypeScript matches the commit
+        run: git diff --exit-code -- 'packages/crypto-native/src/generated/*.ts'
+      - name: Expo prebuild (iOS) and CocoaPods
+        working-directory: apps/mobile
+        env:
+          # Public values only; the simulator build does not bundle JS (Debug uses Metro).
+          EXPO_PUBLIC_API_URL: https://api.pingdost.com
+          EXPO_PUBLIC_WS_URL: wss://api.pingdost.com/v1/ws
+        run: npx expo prebuild --platform ios --clean
+      - name: xcodebuild (simulator, no signing)
+        working-directory: apps/mobile/ios
+        run: >-
+          xcodebuild -workspace PingDost.xcworkspace -scheme PingDost
+          -configuration Debug -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO build
+          | tail -n 80
+          ; test "${PIPESTATUS[0]}" -eq 0

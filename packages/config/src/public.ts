@@ -54,6 +54,12 @@ export interface PublicConfig {
    * sign-in.
    */
   googleWebClientId?: string;
+  /**
+   * iOS only (Phase 28): the OAuth "iOS" client ID. The native Google SDK needs it, and the
+   * build needs its reversed form as a URL scheme (app.config.js). Absent hides Google sign-in
+   * on iOS. Public, not a secret.
+   */
+  googleIosClientId?: string;
   /** The server's VAPID public key (Web Push, ADR 0020); absent hides web notifications. */
   webPushPublicKey?: string;
 }
@@ -62,6 +68,10 @@ const publicEnvSchema = z.object({
   API_URL: z.url({ protocol: /^https?$/, error: 'must be an http(s) URL' }),
   WS_URL: z.url({ protocol: /^wss?$/, error: 'must be a ws(s) URL' }),
   GOOGLE_WEB_CLIENT_ID: z
+    .string()
+    .regex(/\.apps\.googleusercontent\.com$/, 'must end with .apps.googleusercontent.com')
+    .optional(),
+  GOOGLE_IOS_CLIENT_ID: z
     .string()
     .regex(/\.apps\.googleusercontent\.com$/, 'must end with .apps.googleusercontent.com')
     .optional(),
@@ -92,11 +102,13 @@ export function loadPublicConfig(
   if (!parsed.success) {
     throw new ConfigError('public', formatZodIssues(parsed.error, input, prefix));
   }
-  const { API_URL, WS_URL, GOOGLE_WEB_CLIENT_ID, WEB_PUSH_PUBLIC_KEY } = parsed.data;
+  const { API_URL, WS_URL, GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID, WEB_PUSH_PUBLIC_KEY } =
+    parsed.data;
   return {
     apiUrl: API_URL,
     wsUrl: WS_URL,
     ...(GOOGLE_WEB_CLIENT_ID === undefined ? {} : { googleWebClientId: GOOGLE_WEB_CLIENT_ID }),
+    ...(GOOGLE_IOS_CLIENT_ID === undefined ? {} : { googleIosClientId: GOOGLE_IOS_CLIENT_ID }),
     ...(WEB_PUSH_PUBLIC_KEY === undefined ? {} : { webPushPublicKey: WEB_PUSH_PUBLIC_KEY }),
   };
 }

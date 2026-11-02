@@ -84,6 +84,18 @@ describe('planDraft (REQ §10.1)', () => {
     expect(small).toMatchObject({ compressible: false, originalAllowed: true });
   });
 
+  it('sends videos as they are where the platform has no encoder (iOS for now)', () => {
+    const facts = { category: 'video', mimeType: 'video/mp4', durationMs: 60_000 } as const;
+    expect(planDraft({ ...facts, size: 40 * MB }, undefined, { videoCompression: false })).toEqual({
+      compressible: false,
+      compressByDefault: false,
+      originalAllowed: true,
+    });
+    const big = planDraft({ ...facts, size: 400 * MB }, undefined, { videoCompression: false });
+    expect(big.rejected).toMatch(/can't be made smaller on this device yet/);
+    expect(big.video).toBeUndefined();
+  });
+
   it('rejects documents over the limit and empty files, and never compresses documents', () => {
     expect(
       planDraft({ category: 'document', mimeType: 'application/pdf', size: 101 * MB }),

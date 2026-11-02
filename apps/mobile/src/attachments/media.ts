@@ -43,14 +43,22 @@ export function imageThumbnail(uri: string): Promise<ImageOutput> {
   return compressImage(uri, THUMBNAIL_PRESET);
 }
 
+/** Whether this build has the video module (metadata, preview frames, compression). */
+export const videoToolsAvailable = PingdostMedia !== null;
+
+function media() {
+  if (!PingdostMedia) throw new Error('video tools are not available on this platform');
+  return PingdostMedia;
+}
+
 export function videoInfo(uri: string): Promise<VideoInfo> {
-  return PingdostMedia.videoInfo(uri);
+  return media().videoInfo(uri);
 }
 
 /** A JPEG of the video's first frame, preview-sized. */
 export async function videoThumbnail(uri: string): Promise<ImageOutput> {
   const file = workFile(`${uuidv7()}.jpg`);
-  const { width, height } = await PingdostMedia.videoFrame(uri, file.uri, {
+  const { width, height } = await media().videoFrame(uri, file.uri, {
     maxSize: THUMBNAIL_PRESET.maxDimension,
     quality: Math.round(THUMBNAIL_PRESET.quality * 100),
   });
@@ -70,15 +78,17 @@ export function compressVideo(
 ): VideoJob {
   const id = uuidv7();
   const file = workFile(`${id}.mp4`);
-  const subscription = PingdostMedia.addListener('onCompressProgress', (event) => {
+  const module = media();
+  const subscription = module.addListener('onCompressProgress', (event) => {
     if (event.id === id) onProgress(event.progress);
   });
-  const result = PingdostMedia.compressVideo(id, uri, file.uri, {
-    shortSide: plan.height,
-    videoBitrate: plan.videoBitrate,
-    audioBitrate: plan.audioBitrate,
-  })
+  const result = module
+    .compressVideo(id, uri, file.uri, {
+      shortSide: plan.height,
+      videoBitrate: plan.videoBitrate,
+      audioBitrate: plan.audioBitrate,
+    })
     .then(() => file)
     .finally(() => subscription.remove());
-  return { result, cancel: () => void PingdostMedia.cancelCompression(id).catch(() => undefined) };
+  return { result, cancel: () => void module.cancelCompression(id).catch(() => undefined) };
 }

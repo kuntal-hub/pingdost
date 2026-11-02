@@ -17,6 +17,36 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-03 — Phase 28: iOS: build, crypto, core chat — 🔄 groundwork only (blocked on the Apple account, an iPhone and a macOS build)
+Phase 28 was ⏸ with prerequisites the user has not met (Apple Developer Program US$99/yr, an iPhone, a Mac or macOS CI/EAS). The user asked to start it, so only the no-cost groundwork was done; **nothing was paid or signed up for**.
+
+**Done (ADR 0031):**
+- The Rust crate passes clippy for `aarch64-apple-ios` and `aarch64-apple-ios-sim` (also added to CI).
+- ubrn iOS config + `pnpm --filter @pingdost/crypto-native build:ios` (xcframework, git-ignored; the existing podspec vendors it).
+- `.github/workflows/ios.yml` (manual, macOS runner): xcframework, bindings drift check, Expo prebuild + CocoaPods, unsigned simulator `xcodebuild`. **Written, not run.**
+- iOS prebuild verified in a Linux container: every config plugin applies; SQLCipher on; iOS 16.4; usage strings now name calls (also for Android's prompts); expo-secure-store's Face ID string removed (`app.json`, committed with Phase 27).
+- `npx expo export --platform ios`: the iOS JS bundle builds.
+- `PingdostMedia` loads optionally; `planDraft(…, { videoCompression: false })` on iOS (send ≤ 100 MB as is, refuse larger with a message) + test.
+- Google Sign-In on iOS: `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` (public config + test), `app.config.js` adds the plugin with `iosUrlScheme` only when set; hidden on iOS otherwise.
+
+**Remaining (in order; needs the user):**
+- [ ] Decide: Apple Developer Program (**US$99/yr**) and an iPhone; then EAS Build or a signed CI archive for device builds.
+- [ ] Push to GitHub, run **iOS build (simulator, unsigned)** in Actions, fix what it finds (first macOS build ever).
+- [ ] Exclude the SQLCipher DB and attachment vault from iCloud/iTunes backups (small native step); check the Keychain access group.
+- [ ] Crypto conformance on an iPhone; AVFoundation `PingdostMedia`; the iOS Google OAuth client; export compliance answer.
+- [ ] Parity tests (7, 10, 11, 13, 15, 16, 18, 19) iPhone ↔ Android ↔ web; TestFlight.
+
+**Deviations / decisions:** ADR 0031; CHANGES 2026-11-03 (4 items).
+
+**Verification results:**
+- `cargo clippy` for both iOS targets: pass. Linux `expo prebuild --platform ios --no-install`: pass. `expo export --platform ios`: pass.
+- `pnpm turbo run lint typecheck test` for mobile, config, crypto-native, web: 11/11 (mobile 109, config 76, web 16).
+- **Not run:** any macOS build, simulator or device.
+
+**Known issues / tech debt:** iOS without push wakes (Phase 29), CallKit (29), nearby (30); videos uncompressed on iOS.
+
+**Next:** the user decisions above; meanwhile the open device/VPS checks of Phases 10–27.
+
 ## 2026-11-03 — Phase 27: Hardening & release readiness — 🔄 partial (user steps open: Play account, VPS checks, device checks)
 Started with Phases 18, 19, 24 and 26 still 🔄 (device/VPS checks only); the user asked for Phases 27 and 28 in one go.
 

@@ -35,6 +35,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0028](0028-calls-signaling-turn-web.md) | Calls: E2EE ephemeral signaling, call pushes, TURN credentials, coturn, web calls | 25 | Accepted (staging and cross-network checks pending) |
 | [0029](0029-android-calls-incoming-ux.md) | Android calls: react-native-webrtc, a local calls module, full-screen-intent incoming calls | 26 | Accepted (device matrix pending) |
 | [0030](0030-release-hardening.md) | Release hardening: audit gates, mailbox budgets, batched migration, 64-bit only, no crash SDK, versioning | 27 | Accepted |
+| [0031](0031-ios-build-path.md) | iOS build path without a Mac (macOS CI, Linux prebuild checks) and iOS gaps until device work | 28 | Accepted (groundwork; device steps blocked) |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 

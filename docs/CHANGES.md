@@ -4,6 +4,16 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-03 — Phase 28: iOS groundwork without a Mac (ADR 0031)
+1. **Phase 28 started before its prerequisites** (Apple account, iPhone, Mac/EAS): the user asked to start it. Only no-cost groundwork was done; the phase stays 🔄 until the device steps.
+   - *Affects:* 28.
+2. **iOS builds go through a manual macOS GitHub Actions workflow** (unsigned simulator build) and Linux prebuild checks; device builds are decided once the Apple account exists (EAS or a signed CI archive).
+   - *Affects:* 28, 29, 30.
+3. **No video compression on iOS yet:** videos up to 100 MB are sent as they are; larger ones are refused with a message, until an AVFoundation module exists (REQ §10.1 allows sending originals that fit).
+   - *Affects:* 28.
+4. **Google Sign-In on iOS needs its own public variable** `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` (A11); without it iOS hides the button.
+   - *Affects:* 28.
+
 ### 2026-11-02 — Phase 27: hardening and release readiness (ADR 0030)
 1. **A per-sender mailbox budget** (REQ §18 asks to protect against never-delivered queues, without numbers): an account may leave at most 5,000 envelopes per recipient device and 32 MiB of ciphertext in the mailbox per 24 h; beyond that a `Send` is answered `RATE_LIMITED` and stays in the sender's outbox. Online deliveries are not counted.
    - *Affects:* 27 (done).

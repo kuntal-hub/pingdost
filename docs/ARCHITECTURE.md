@@ -342,4 +342,5 @@ SYNC_RECENT_DAYS=30
 ## A12. Platform scope
 - **Now:** Android + web.
 - **iOS:** deferred to Phases 28–30. Keep code platform-neutral where it costs nothing: Expo config for iOS present, no Android-only assumptions in shared packages.
+  - (ADR 0031, Phase 28 groundwork) The crate compiles for iOS targets (CI clippy); `build:ios` makes the xcframework on macOS only; `.github/workflows/ios.yml` builds an unsigned simulator app. Android-only native modules load optionally (`requireOptionalNativeModule`), so iOS degrades: no video compression, no nearby, no Android call UI. Google Sign-In on iOS needs `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`.
 - The user has 2+ Android phones and no Mac or iPhone. Mesh 3-device tests use the Node simulation until a third phone is available.

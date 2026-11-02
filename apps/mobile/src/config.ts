@@ -10,6 +10,7 @@ function load(): { config?: PublicConfig; error?: string } {
         EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
         EXPO_PUBLIC_WS_URL: process.env.EXPO_PUBLIC_WS_URL,
         EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+        EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
       },
       'EXPO_PUBLIC_',
     );

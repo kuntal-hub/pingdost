@@ -13,6 +13,11 @@ android:
   # autolinking expect a codegen spec this assets-only library does not have.
   packageName: com.pingdost.cryptonative
 
+ios:
+  # Phase 28: device and Apple-silicon simulator slices of pingdost_crypto.xcframework
+  # (ios/, git-ignored). Builds only on macOS with Xcode (.github/workflows/ios.yml).
+  targets: [aarch64-apple-ios, aarch64-apple-ios-sim]
+
 jsi2:
   ts: src/generated
   # The player ships only these two ABIs.

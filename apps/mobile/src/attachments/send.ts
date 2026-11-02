@@ -30,6 +30,7 @@ import {
   imageThumbnail,
   videoInfo,
   videoThumbnail,
+  videoToolsAvailable,
   type ImageOutput,
 } from './media';
 import { encryptToVault, type VaultEntry } from './pipeline';
@@ -85,14 +86,18 @@ export async function makeDraft(input: {
       durationMs = info.durationMs || durationMs;
     }
   }
-  const plan = planDraft({
-    category: sniffed.category,
-    mimeType: sniffed.mimeType,
-    size,
-    ...(durationMs ? { durationMs } : {}),
-    ...(width ? { width } : {}),
-    ...(height ? { height } : {}),
-  });
+  const plan = planDraft(
+    {
+      category: sniffed.category,
+      mimeType: sniffed.mimeType,
+      size,
+      ...(durationMs ? { durationMs } : {}),
+      ...(width ? { width } : {}),
+      ...(height ? { height } : {}),
+    },
+    undefined,
+    { videoCompression: videoToolsAvailable },
+  );
   return {
     uri: input.uri,
     name: input.name ?? undefined,

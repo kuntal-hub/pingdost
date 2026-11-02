@@ -1,6 +1,6 @@
 // The local `PingdostMedia` Expo module (modules/pingdost-media, Kotlin; ADR 0018): video
 // metadata, a preview frame and Media3 compression, all on the device before encryption.
-import { NativeModule, requireNativeModule } from 'expo';
+import { NativeModule, requireOptionalNativeModule } from 'expo';
 
 export interface VideoInfo {
   durationMs: number;
@@ -39,4 +39,5 @@ declare class PingdostMediaModule extends NativeModule<Events> {
   cancelCompression(id: string): Promise<void>;
 }
 
-export const PingdostMedia = requireNativeModule<PingdostMediaModule>('PingdostMedia');
+/** Null where the module is not built: iOS until Phase 28 adds an AVFoundation version. */
+export const PingdostMedia = requireOptionalNativeModule<PingdostMediaModule>('PingdostMedia');

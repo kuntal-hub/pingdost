@@ -45,6 +45,24 @@ describe('loadPublicConfig', () => {
     ).toThrow(/EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: must end with/);
   });
 
+  it('reads the optional Google iOS client ID (Phase 28)', () => {
+    const base = {
+      EXPO_PUBLIC_API_URL: 'http://192.168.1.10:3000',
+      EXPO_PUBLIC_WS_URL: 'ws://192.168.1.10:3000/ws',
+    };
+    const googleIosClientId = '1234-ios.apps.googleusercontent.com';
+    expect(
+      loadPublicConfig(
+        { ...base, EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: googleIosClientId },
+        'EXPO_PUBLIC_',
+      ),
+    ).toMatchObject({ googleIosClientId });
+    expect(loadPublicConfig(base, 'EXPO_PUBLIC_')).not.toHaveProperty('googleIosClientId');
+    expect(() =>
+      loadPublicConfig({ ...base, EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: 'nope' }, 'EXPO_PUBLIC_'),
+    ).toThrow(/EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: must end with/);
+  });
+
   it('reads the optional Web Push public key', () => {
     const webPushPublicKey = `B${'A'.repeat(86)}`;
     const base = {

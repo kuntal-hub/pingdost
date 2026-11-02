@@ -1,23 +1,32 @@
 // Google Sign-In through the free "Original" API of @react-native-google-signin/google-signin.
 // The app only needs an ID token for `POST /v1/auth/google`, requested for the Web client ID
 // that the server accepts (`GOOGLE_CLIENT_IDS`). Android needs no config plugin without
-// Firebase; iOS (Phase 28) adds the plugin with `iosUrlScheme`.
+// Firebase. iOS (Phase 28) also needs the iOS client ID (`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`),
+// whose reversed form app.config.js registers as a URL scheme; without it iOS hides Google.
 import {
   GoogleSignin,
   isCancelledResponse,
   isErrorWithCode,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
+import { Platform } from 'react-native';
 
 import { publicConfig } from '@/config';
 
-export const googleSignInAvailable = publicConfig?.googleWebClientId !== undefined;
+export const googleSignInAvailable =
+  publicConfig?.googleWebClientId !== undefined &&
+  (Platform.OS !== 'ios' || publicConfig.googleIosClientId !== undefined);
 
 let configured = false;
 
 function configure(): void {
   if (configured || !publicConfig?.googleWebClientId) return;
-  GoogleSignin.configure({ webClientId: publicConfig.googleWebClientId });
+  GoogleSignin.configure({
+    webClientId: publicConfig.googleWebClientId,
+    ...(Platform.OS === 'ios' && publicConfig.googleIosClientId
+      ? { iosClientId: publicConfig.googleIosClientId }
+      : {}),
+  });
   configured = true;
 }
 
