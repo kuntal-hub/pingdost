@@ -26,6 +26,10 @@ Each needs `dc up -d` afterwards (it re-reads `.env`).
 - Atlas password: Atlas → Database Access → edit user → new password → update `MONGODB_URI`.
 - Email token, FCM service account, VAPID keys: replace in `.env`. New VAPID keys also need a web rebuild (`VITE_WEB_PUSH_PUBLIC_KEY`), and browsers turn notifications on again.
 - The GitHub deploy key: make a new pair, put the public half in `authorized_keys`, the private half in the `staging` environment secret, then remove the old line.
+- `TURN_SHARED_SECRET` (server and coturn read the same value): change it in `.env`, then `dc up -d server coturn`. Credentials already handed out stop working at once; calls in progress keep their allocation until it ends, new ones fetch fresh credentials.
+- Cloudinary API secret: Cloudinary console → regenerate → `CLOUDINARY_API_SECRET`. Avatars already uploaded stay.
+- Android upload key (Play App Signing, Phase 27): Play Console → Setup → App signing → request an upload key reset with a new key's certificate; Google's app signing key (what users' phones check) does not change.
+- After a suspected compromise of the VPS itself: rotate **all** of the above, rebuild the VPS (below), and follow [incidents.md](incidents.md) → "Key or secret compromise".
 
 ## Rebuild on a new VPS
 Losing the VPS loses only what is still in transit: envelopes in the Valkey stage (up to 14 h) and staged attachments (ADR 0013). Accounts, devices and keys are in Atlas.
@@ -37,6 +41,7 @@ Losing the VPS loses only what is still in transit: envelopes in the Valkey stag
 6. Restore Mongo only if Atlas itself lost data: `docker run --rm -i -e URI="$(grep ^MONGODB_URI= .env | cut -d= -f2-)" -v /srv/pingdost/backups:/b mongo:8.0.34 sh -c 'mongorestore --uri="$URI" --gzip --archive=/b/mongo-YYYY-MM-DD.archive.gz'`.
 
 ## Backups and the privacy wording (REQ §18)
-- **Nightly Mongo dump** (`scripts/mongo-backup.sh`, 03:30 UTC, 7 days in `/srv/pingdost/backups`): account metadata and public keys only. It leaves out `pending_envelopes`, `primary_transfer_requests`, `pairing_requests` and `device_challenges`, so no undelivered message ciphertext is kept for 7 days.
+- **Nightly Mongo dump** (`scripts/mongo-backup.sh`, 03:30 UTC, 7 days in `/srv/pingdost/backups`): account metadata and public keys only. It leaves out `pending_envelopes`, `attachments`, `email_otps`, `job_locks`, `primary_transfer_requests`, `pairing_requests` and `device_challenges` (Phase 27), so no undelivered message ciphertext, delivery metadata or OTP hash is kept for 7 days. Security events and abuse reports can outlive their 90-day TTL by up to 7 days in a dump.
+- **Retention audit**: [retention-audit.md](retention-audit.md) checks that nothing temporary outlived its limit.
 - **Hostinger VPS backups** copy the whole disk, so they can hold the Valkey AOF (envelopes still in the hot stage) and staged attachments: **ciphertext only, for as long as Hostinger keeps the backup**. **Atlas snapshots** (if enabled) can hold `pending_envelopes` for up to 4 days. All of it is end-to-end encrypted and expires there, which is why the wording stays "no permanent server-side chat history", never "nothing touches our servers".
 - Take a snapshot in hPanel before risky changes (migrations, OS upgrades).

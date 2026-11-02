@@ -23,6 +23,8 @@ sha2 = "=0.11.1"
 # Backups (ADR 0022): Argon2id over the recovery phrase. No password-hash/getrandom: the salt
 # comes from the caller, and only the raw KDF is used.
 argon2 = { version = "=0.6.0", default-features = false, features = ["alloc", "zeroize"] }
+# Wipes pickle-key copies on drop (Phase 27); already in the tree through argon2 and dalek.
+zeroize = "=1.9.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # Randomness from Web Crypto (crypto.getRandomValues) in browsers and Node.

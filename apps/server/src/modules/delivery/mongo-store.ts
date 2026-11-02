@@ -28,6 +28,13 @@ export interface MongoMailboxStore {
   insert(record: EnvelopeRecord, stageChangedAt: number): Promise<void>;
   /** Reads back after a write, to verify it before the Redis copy is dropped. */
   has(envelopeId: string): Promise<boolean>;
+  /**
+   * `insert` for a batch in one unordered bulk write (Phase 27): Atlas Free counts it as one
+   * operation of its 100 per second, where one write per envelope capped the migration.
+   */
+  insertMany(records: readonly EnvelopeRecord[], stageChangedAt: number): Promise<void>;
+  /** Which of `ids` are stored, in one read (the batch's verification). */
+  existing(ids: readonly string[]): Promise<Set<string>>;
   /** The device's oldest unexpired envelopes. */
   list(deviceId: string, now: number, limit: number): Promise<EnvelopeRecord[]>;
   /** Deletes the device's envelopes among `ids`; returns how many. */
@@ -59,6 +66,21 @@ function toRecord(doc: PendingEnvelopeDoc): EnvelopeRecord {
   };
 }
 
+/** Idempotent: an existing document is left untouched. */
+function upsertOf(record: EnvelopeRecord, stageChangedAt: number) {
+  return {
+    $setOnInsert: {
+      senderDeviceId: record.senderDeviceId,
+      recipientDeviceId: record.recipientDeviceId,
+      packet: new Binary(record.packet),
+      createdAt: new Date(record.createdAt),
+      stageChangedAt: new Date(stageChangedAt),
+      expiresAt: new Date(record.expiresAt),
+      deliveryState: 'pending' as const,
+    },
+  };
+}
+
 export class MongoMailbox implements MongoMailboxStore {
   readonly #docs: Collection<PendingEnvelopeDoc>;
 
@@ -70,25 +92,35 @@ export class MongoMailbox implements MongoMailboxStore {
   }
 
   async insert(record: EnvelopeRecord, stageChangedAt: number): Promise<void> {
-    await this.#docs.updateOne(
-      { _id: record.envelopeId },
-      {
-        $setOnInsert: {
-          senderDeviceId: record.senderDeviceId,
-          recipientDeviceId: record.recipientDeviceId,
-          packet: new Binary(record.packet),
-          createdAt: new Date(record.createdAt),
-          stageChangedAt: new Date(stageChangedAt),
-          expiresAt: new Date(record.expiresAt),
-          deliveryState: 'pending',
+    await this.#docs.updateOne({ _id: record.envelopeId }, upsertOf(record, stageChangedAt), {
+      upsert: true,
+    });
+  }
+
+  async insertMany(records: readonly EnvelopeRecord[], stageChangedAt: number): Promise<void> {
+    if (records.length === 0) return;
+    await this.#docs.bulkWrite(
+      records.map((record) => ({
+        updateOne: {
+          filter: { _id: record.envelopeId },
+          update: upsertOf(record, stageChangedAt),
+          upsert: true,
         },
-      },
-      { upsert: true },
+      })),
+      { ordered: false },
     );
   }
 
   async has(envelopeId: string): Promise<boolean> {
     return (await this.#docs.countDocuments({ _id: envelopeId }, { limit: 1 })) > 0;
+  }
+
+  async existing(ids: readonly string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const docs = await this.#docs
+      .find({ _id: { $in: [...ids] } }, { projection: { _id: 1 } })
+      .toArray();
+    return new Set(docs.map((doc) => doc._id));
   }
 
   async list(deviceId: string, now: number, limit: number): Promise<EnvelopeRecord[]> {

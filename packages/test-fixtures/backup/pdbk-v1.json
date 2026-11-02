@@ -1,0 +1,35 @@
+{
+  "description": "Frozen backup fixture (Phase 27). Every later build must restore it; see packages/backup/src/compat.test.ts.",
+  "formatVersion": 1,
+  "phrase": "depend wheel hand fluid situate tongue drastic absurd order decrease fiction motion mosquito try lizard promote entry copper sound dinner cause obvious circle dance",
+  "userId": "01a19d7d-d917-7087-851b-3f30cbab89db",
+  "peerUserId": "01a19d7d-d918-7489-85c7-a407fc7bbc99",
+  "conversationId": "01a19d7d-d918-7489-85c7-ab6c8b1e8794",
+  "groupId": "01a19d7d-d918-7489-85c7-af2845872c6c",
+  "identitySecret": "XrS0okLgu7Gd43b3fw4ATa7QBykEZ2GoK0JgNvX17VU",
+  "accountIdentityKey": "JlXwSQooUxbAFqkt8+9y1fC1erM5k+fItDP1wVsLKjI",
+  "messages": [
+    {
+      "messageId": "01a19d7d-d91e-7497-8bcb-3e7fc3d29cd2",
+      "body": "fixture message 0"
+    },
+    {
+      "messageId": "01a19d7d-d91e-7497-8bcb-461d70f79d0d",
+      "body": "fixture message 1"
+    },
+    {
+      "messageId": "01a19d7d-d91e-7497-8bcb-4c84524fb26b",
+      "body": "fixture message 2"
+    },
+    {
+      "messageId": "01a19d7d-d91e-7497-8bcb-55251d723670",
+      "body": "fixture message 3"
+    },
+    {
+      "messageId": "01a19d7d-d91e-7497-8bcb-5f30693099ef",
+      "body": "fixture message 4"
+    }
+  ],
+  "megolmSessionId": "pHODfrRK7Mm1Zo3jmUCl1xDs+QvFedYaQV/ORcwBaQs",
+  "megolmSample": "AwgAEiC0Ldq8YZaDz2VoPVE6zWDn3rRuvoFFlsZt8NP3Me3APUud38dAhHfCJu5SVZv4h5FB2Vv7T0U5AowMK4erW26rF0pfZ8BLvJZUEvcMmwqpQ3Wkcu1QQPR5MPHBDLwT9tPVnPgkF1cIAQ=="
+}

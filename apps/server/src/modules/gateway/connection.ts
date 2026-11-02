@@ -455,7 +455,7 @@ export class Connection implements PresencePeer {
         this.#accepted(requestId, packet, record, Accepted_Status.DELIVERED_TRANSPORT);
         return;
       }
-      const outcome = await delivery.store(record);
+      const outcome = await delivery.store(record, this.#sender.userId);
       this.#accepted(requestId, packet, record, Accepted_Status.STORED);
       if (outcome !== 'duplicate') {
         push.wake(record.recipientDeviceId, (packet.flags & PacketFlag.URGENT) !== 0);

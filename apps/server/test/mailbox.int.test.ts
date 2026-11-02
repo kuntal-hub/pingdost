@@ -3,6 +3,8 @@
  * run directly here (the scheduler only adds a lease and an interval), and the test clock
  * stands in for the 14-hour stage and the 14-day retention.
  */
+import { randomBytes, randomUUID } from 'node:crypto';
+
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -72,9 +74,20 @@ function jobs(mongo: MongoMailboxStore = new MongoMailbox(server.mongo.db)) {
 /** A Mongo store with hooks around the real one. */
 function mongoWith(overrides: Partial<MongoMailboxStore>, target = server): MongoMailboxStore {
   const real = new MongoMailbox(target.mongo.db);
+  const insert = overrides.insert ?? ((record, at) => real.insert(record, at));
+  const has = overrides.has ?? ((id) => real.has(id));
   return {
-    insert: (record, at) => real.insert(record, at),
-    has: (id) => real.has(id),
+    insert,
+    has,
+    // The batch methods go through the per-envelope hooks, so the tests can intercept them.
+    insertMany: async (records, at) => {
+      for (const record of records) await insert(record, at);
+    },
+    existing: async (ids) => {
+      const found = new Set<string>();
+      for (const id of ids) if (await has(id)) found.add(id);
+      return found;
+    },
     list: (device, now, limit) => real.list(device, now, limit),
     remove: (device, ids) => real.remove(device, ids),
     removeOne: (id) => real.removeOne(id),
@@ -325,6 +338,39 @@ describe('mailbox (REQ §19.2)', () => {
 
     expect((await fetchAs(bob)).delivered).toEqual([first.envelopeId]);
     socket.close();
+  });
+
+  it('10. one job run drains a backlog larger than a batch (Phase 27)', async () => {
+    const redis = redisMailbox();
+    const recipient = randomUUID();
+    const now = server.clock.now();
+    const ids: string[] = [];
+    const count = server.mailbox.migrationBatchSize * 2 + 50;
+    for (let i = 0; i < count; i++) {
+      const envelopeId = randomUUID();
+      ids.push(envelopeId);
+      const record = {
+        envelopeId,
+        senderDeviceId: randomUUID(),
+        recipientDeviceId: recipient,
+        packet: new Uint8Array(randomBytes(300)),
+        createdAt: now,
+        expiresAt: now + RETENTION_MS,
+      };
+      await redis.store(record, now + STAGE_MS, STAGE_MS + server.mailbox.graceMs);
+    }
+    server.clock.advance(STAGE_MS + 1);
+
+    // One pass stops at the batch size; the job's drain takes the rest in the same run.
+    const { migrator } = jobs();
+    expect((await migrator.runOnce()).migrated).toBe(server.mailbox.migrationBatchSize);
+    const rest = await migrator.drain();
+    expect(rest.failed).toBe(0);
+    expect(rest.migrated).toBeGreaterThanOrEqual(count - server.mailbox.migrationBatchSize);
+    expect(await pending().countDocuments({ _id: { $in: ids } })).toBe(count);
+    expect(
+      await server.redis.client().zcard(`${server.mailbox.redisKeyPrefix}mbx:${recipient}`),
+    ).toBe(0);
   });
 });
 

@@ -18,6 +18,31 @@ allowBuilds:
   # postinstall only swaps the JS shim for the platform binary; the shim finds it anyway.
   '@bufbuild/buf': false
 
+# Security patches for transitive dependencies (Phase 27 audit; docs/security/audits.md).
+# Patch releases within the same major only; anything else is listed there as accepted.
+overrides:
+  # fastify's ajv-compiler (server runtime): URI parsing advisories.
+  'fast-uri@>=3.0.0 <3.1.9': 3.1.9
+  'fast-uri@>=4.0.0 <4.2.3': 4.2.3
+  # @expo/cli (dev and build tool only).
+  'node-forge@<1.4.1': 1.4.1
+  # nativewind's tailwindcss (build time only).
+  'postcss-selector-parser@>=6.0.0 <6.1.5': 6.1.5
+  # workbox-build's terser plugin (web build time only).
+  'serialize-javascript@>=7.0.0 <7.1.3': 7.1.3
+
+# Accepted advisories (`pnpm audit` gate in CI): all in dev or build tools that never ship in
+# the server image, the web bundle or the app, with no patch in the same major. Review each
+# release (docs/security/audits.md).
+auditConfig:
+  ignoreGhsas:
+    - GHSA-mrhx-c7xc-m3w5 # zod 3 inside @expo/cli
+    - GHSA-3g3m-2fjr-6pw4 # glob inside @expo/cli and workbox-build
+    - GHSA-g3hv-75wg-m249 # minimatch inside eslint, @expo/cli
+    - GHSA-w5hq-g745-h8pq # uuid 7 inside xcode (@expo/config-plugins)
+    - GHSA-gcqx-w48m-w2h4 # deepmerge inside @expo/config (no fixed version)
+    - GHSA-g7r4-m6w7-qqqr # esbuild dev server inside tsup (we never run its server)
+
 # Shared exact versions; packages reference them as "catalog:".
 catalog:
   '@types/node': 24.19.2

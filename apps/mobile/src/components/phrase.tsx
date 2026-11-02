@@ -1,6 +1,9 @@
 // The 24-word recovery phrase on screen (ADR 0022): shown as numbered words that cannot be
 // selected or copied, and typed back in one field with live checks. The keyboard is asked
-// not to learn or suggest the words (`visible-password`, no autocorrect, no autofill).
+// not to learn or suggest the words (`visible-password`, no autocorrect, no autofill). While either
+// is on screen, screenshots and screen recording are blocked (FLAG_SECURE; Phase 27, from the
+// Phase 19 handoff), which also hides the screen in the recent-apps overview.
+import { usePreventScreenCapture } from 'expo-screen-capture';
 import { Text, View } from 'react-native';
 
 import { isPhraseWord, normalizePhrase, PHRASE_WORDS, suggestWords } from '@pingdost/backup';
@@ -8,6 +11,7 @@ import { isPhraseWord, normalizePhrase, PHRASE_WORDS, suggestWords } from '@ping
 import { TextField } from './text-field';
 
 export function PhraseGrid({ words }: { words: readonly string[] }) {
+  usePreventScreenCapture('recovery-phrase-grid');
   return (
     <View
       accessible
@@ -61,6 +65,7 @@ export function PhraseInput({
   onChange: (text: string) => void;
   error?: string;
 }) {
+  usePreventScreenCapture('recovery-phrase-input');
   const problem = value.trim() ? phraseProblem(value) : null;
   return (
     <TextField

@@ -40,7 +40,7 @@ impl GroupSession {
 
     #[uniffi::constructor]
     pub fn from_pickle(pickle: String, pickle_key: Vec<u8>) -> Result<Self, CryptoError> {
-        let key = parse_pickle_key(&pickle_key)?;
+        let key = parse_pickle_key(pickle_key)?;
         let pickle = vz::GroupSessionPickle::from_encrypted(&pickle, &key)?;
         Ok(Self {
             inner: Mutex::new(vz::GroupSession::from_pickle(pickle)),
@@ -67,7 +67,7 @@ impl GroupSession {
     }
 
     pub fn pickle(&self, pickle_key: Vec<u8>) -> Result<String, CryptoError> {
-        let key = parse_pickle_key(&pickle_key)?;
+        let key = parse_pickle_key(pickle_key)?;
         Ok(lock(&self.inner)?.pickle().encrypt(&key))
     }
 }
@@ -100,7 +100,7 @@ impl InboundGroupSession {
 
     #[uniffi::constructor]
     pub fn from_pickle(pickle: String, pickle_key: Vec<u8>) -> Result<Self, CryptoError> {
-        let key = parse_pickle_key(&pickle_key)?;
+        let key = parse_pickle_key(pickle_key)?;
         let pickle = vz::InboundGroupSessionPickle::from_encrypted(&pickle, &key)?;
         Ok(Self {
             inner: Mutex::new(vz::InboundGroupSession::from_pickle(pickle)),
@@ -139,7 +139,7 @@ impl InboundGroupSession {
     }
 
     pub fn pickle(&self, pickle_key: Vec<u8>) -> Result<String, CryptoError> {
-        let key = parse_pickle_key(&pickle_key)?;
+        let key = parse_pickle_key(pickle_key)?;
         Ok(lock(&self.inner)?.pickle().encrypt(&key))
     }
 }

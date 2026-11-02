@@ -115,6 +115,11 @@ export class SimClient {
     [this.transport, this.#router, this.engine] = this.#makeEngine();
   }
 
+  /** The current device-bound access token (load tests replay it in their own sockets). */
+  get accessToken(): string {
+    return this.#tokens.accessToken;
+  }
+
   /** A new user with a primary device, its one-time keys and fallback key published. */
   static async register(options: SimClientOptions): Promise<SimClient> {
     const { endpoints, crypto } = options;

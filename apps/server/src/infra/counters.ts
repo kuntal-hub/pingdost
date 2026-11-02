@@ -28,18 +28,21 @@ export class WindowCounter {
     private readonly maxKeys = 50_000,
   ) {}
 
-  /** Counts one hit for `key`; `allowed` says whether this hit is within the limit. */
-  hit(key: string): CounterState {
+  /**
+   * Counts `amount` (default one hit, or e.g. bytes) for `key`; `allowed` says whether the
+   * total is still within the limit.
+   */
+  hit(key: string, amount = 1): CounterState {
     const window = this.#current(key) ?? this.#open(key);
-    window.count++;
+    window.count += amount;
     return this.#state(window, window.count <= this.limit);
   }
 
-  /** Without counting: `allowed` says whether one more hit would be within the limit. */
-  peek(key: string): CounterState {
+  /** Without counting: `allowed` says whether `amount` more would be within the limit. */
+  peek(key: string, amount = 1): CounterState {
     const window = this.#current(key);
-    if (!window) return { allowed: true, count: 0, retryAfterSeconds: 0 };
-    return this.#state(window, window.count < this.limit);
+    if (!window) return { allowed: amount <= this.limit, count: 0, retryAfterSeconds: 0 };
+    return this.#state(window, window.count + amount <= this.limit);
   }
 
   reset(key: string): void {

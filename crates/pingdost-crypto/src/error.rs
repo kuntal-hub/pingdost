@@ -3,6 +3,7 @@ use std::sync::{Mutex, MutexGuard};
 use vodozemac::megolm::SessionKeyDecodeError;
 use vodozemac::olm::{DecryptionError, EncryptionError, SessionCreationError};
 use vodozemac::{KeyError, PickleError, SignatureError, megolm};
+use zeroize::Zeroizing;
 
 /// Errors returned across the FFI. Messages are fixed strings: they never contain key
 /// material, plaintext or ciphertext (ARCHITECTURE A10).
@@ -120,7 +121,15 @@ pub(crate) fn lock<T>(mutex: &Mutex<T>) -> Result<MutexGuard<'_, T>, CryptoError
         .map_err(|_| CryptoError::Internal("state lock poisoned"))
 }
 
-pub(crate) fn parse_pickle_key(key: &[u8]) -> Result<[u8; 32], CryptoError> {
-    key.try_into()
-        .map_err(|_| CryptoError::InvalidArgument("pickle key must be 32 bytes"))
+/// Takes the caller's pickle key. Both the incoming buffer and the 32-byte copy are wiped
+/// when dropped (Phase 27). Copies on the foreign side (the JS `Uint8Array`, uniffi's
+/// transfer buffer) are outside Rust's reach.
+pub(crate) fn parse_pickle_key(key: Vec<u8>) -> Result<Zeroizing<[u8; 32]>, CryptoError> {
+    let key = Zeroizing::new(key);
+    if key.len() != 32 {
+        return Err(CryptoError::InvalidArgument("pickle key must be 32 bytes"));
+    }
+    let mut out = Zeroizing::new([0u8; 32]);
+    out.copy_from_slice(&key);
+    Ok(out)
 }

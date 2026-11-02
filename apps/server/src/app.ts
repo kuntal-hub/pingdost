@@ -25,6 +25,7 @@ import type { RedisHandle } from './infra/redis';
 import { schedulerIndexes } from './infra/scheduler';
 import { Hasher } from './infra/secrets';
 import { DEFAULT_THROTTLES, type ThrottleSettings } from './infra/throttles';
+import { TtlCache } from './infra/ttl-cache';
 import { accountRoutes } from './modules/account/routes';
 import { createAttachmentService } from './modules/attachments';
 import { attachmentRoutes } from './modules/attachments/routes';
@@ -43,6 +44,7 @@ import {
   pendingEnvelopeIndexes,
   type MongoMailboxStore,
 } from './modules/delivery/mongo-store';
+import { MailboxQuota } from './modules/delivery/quota';
 import { RedisMailbox } from './modules/delivery/redis-store';
 import { DeliveryService } from './modules/delivery/service';
 import { mailboxSettings, type MailboxSettings } from './modules/delivery/settings';
@@ -236,6 +238,10 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
         isConnected: (deviceId) => registry.get(deviceId) !== undefined,
       });
   if (pushService) app.addHook('onClose', () => pushService.close());
+  // Device → owner, read for every envelope and relayed packet (Phase 18 handoff; Phase 27:
+  // Atlas Free allows 100 operations per second). A device never changes owner, and
+  // revocation drops the entry, so only active devices are ever cached.
+  const deviceOwners = new TtlCache<string>(60_000, clock);
   const deviceService = new DeviceService({
     devices,
     auth: collections,
@@ -244,6 +250,7 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     events,
     clock,
     onRevoked: [
+      (deviceId) => deviceOwners.delete(deviceId),
       (deviceId) => registry.get(deviceId)?.revoke(clock.now()),
       (deviceId) =>
         void pushTokens
@@ -294,15 +301,21 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     log: deps.logger,
     redis: new RedisMailbox(deps.redis, mailbox.redisKeyPrefix),
     mongo: deps.delivery?.mongoStore ?? new MongoMailbox(db),
-    activeDeviceOwner: async (deviceId) =>
-      (
+    activeDeviceOwner: async (deviceId) => {
+      const cached = deviceOwners.get(deviceId);
+      if (cached !== undefined) return cached;
+      const owner = (
         await devices.devices.findOne(
           { _id: deviceId, status: 'active' },
           { projection: { userId: 1 } },
         )
-      )?.userId,
+      )?.userId;
+      if (owner !== undefined) deviceOwners.set(deviceId, owner);
+      return owner;
+    },
     isBlocked: (blockerUserId, userId) => blocks.isBlocked(blockerUserId, userId),
     isGroupMember: (groupId, userId) => groups.isMember(groupId, userId),
+    quota: new MailboxQuota(throttles, clock),
   });
   const presence = new PresenceHub<Connection>({
     sharesPresence: async (userId) =>

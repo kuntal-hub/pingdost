@@ -17,6 +17,52 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-03 — Phase 27: Hardening & release readiness — 🔄 partial (user steps open: Play account, VPS checks, device checks)
+Started with Phases 18, 19, 24 and 26 still 🔄 (device/VPS checks only); the user asked for Phases 27 and 28 in one go.
+
+**Done (ADR 0030):**
+- **Docs:** `docs/security/threat-model.md`, `acceptance.md` (every REQ §19 bullet → test or manual check), `audits.md`; `docs/ops/capacity.md`, `incidents.md`, `restore-metadata-db.md`, `retention-audit.md` (+ deploy.md rotation and backups, alerts.md); `docs/legal/privacy-policy.md` + `terms.md` (drafts with bracketed fields); `docs/release/README.md` (checklist) + `play-console.md` (Data Safety answers, permission declarations, internal track); README status and feature table.
+- **Found and fixed:**
+  - **Mailbox migration lost envelopes under backlog** (one batch per poll vs a 900 s Redis safety TTL; the load test lost 9,400 of 10,000). Now `drain()` per run + one bulk upsert and one `$in` read-back per batch (`modules/delivery/jobs.ts`, `mongo-store.ts`); mailbox scenario 10.
+  - **Release AAB failed** since Phase 26 (R8, react-native-webrtc JNI): keep rules in `app.json`. `bundleRelease` now builds (82 MB, 18 min, debug-signed).
+  - **RUSTSEC-2026-0385** (`ctutils` 0.4.3): updated to 0.4.7; WASM and Android libs rebuilt.
+  - **The committed WASM held 84 copies of `C:\Users\<name>\…`**: `build:wasm` now remaps paths (`scripts/remap-rust-paths.mjs`); CI refuses host paths.
+  - npm: runtime `fast-uri` (Fastify) and four build-tool packages patched via `overrides`; six dev-tool advisories accepted by GHSA.
+  - Two unguarded mobile `console` calls; `SYSTEM_ALERT_WINDOW` and expo-screen-capture's media permissions removed from the manifest.
+- **New controls:** per-sender mailbox budget (5,000 envelopes per recipient device, 32 MiB per sender per day; `delivery/quota.ts`); device-owner TTL cache (Atlas M0 = 100 ops/s); pickle keys `Zeroizing` in Rust; FLAG_SECURE on the recovery phrase (expo-screen-capture 58.0.6, MIT); backups exclude `attachments`, `email_otps`, `job_locks`.
+- **CI:** cargo-deny (deny.toml), `security` job (gitleaks over history, `pnpm audit`, `pnpm licenses:check`), `bindings` job (regenerates wasm2 + jsi2, diffs TS, checks WASM paths).
+- **Tests:** `engine.int` 10 (debug logs scanned for plaintext/tokens/keys/ciphertext), `abuse.int` (mailbox budget, WS flood), `retention.int`, mailbox 10, `log-hygiene` (mobile, web), `security-headers` (web), `privacy.test` (explainer wording), backup `compat.test` with the frozen `packages/test-fixtures/backup/pdbk-v1.*`, `WindowCounter` amounts; engine test asserts the sender's copy after expiry.
+- **Tools:** retention audit (`dist/retention-audit.js`), load harness (`apps/server/test/load-server.ts`), `sim-client load-prep`, `k6/ws-load.js` (k6 2.3.0 in Docker, no protobuf in k6).
+- **Shared privacy explainer** (`@pingdost/chat-core` `PRIVACY_EXPLAINER`) on the phone (Settings → About privacy) and the web (Settings card).
+- Versioning: `0.1.0` / `versionCode` 1.
+
+**Remaining (user steps):**
+- [ ] Play Console account (**US$25; not paid**), app, internal testing track, upload an AAB signed with the upload key (`docs/release/play-console.md`).
+- [ ] Fill in and publish the privacy policy and terms (bracketed fields; legal review).
+- [ ] On the VPS: run the retention audit, practise a restore into a scratch DB, re-run the load test (capacity.md §5), set the Atlas alerts (350 MB, 60 ops/s).
+- [ ] Web production: Pages production variables, check headers (`docs/release/README.md`).
+- [ ] The ⏳ device rows in `docs/security/acceptance.md` (Phases 10–26), then a new dev build for FLAG_SECURE (new native module).
+- [ ] Push to GitHub so the new CI jobs (security, bindings, cargo-deny) run for the first time.
+
+**Deviations / decisions:** ADR 0030; CHANGES 2026-11-02 (8 items). KVM 1 stays (capacity.md §3).
+
+**Verification results:**
+- `pnpm turbo run lint typecheck test --continue`: 59 tasks; all pass (mobile, web and attachments each had one 5 s timeout while Gradle ran in parallel; re-run alone: mobile 109, web 16, attachments 21 passed).
+- `pnpm --filter @pingdost/server test:int`: **162 passed, 4 skipped** (coturn/S3/slow halves).
+- `cargo test`, clippy (host, wasm32, Android, iOS targets), `cargo deny check`: pass. `pnpm audit` exit 0; `pnpm licenses:check` 1,112 packages ok; gitleaks: no leaks; `pnpm format:check` clean; shellcheck clean.
+- Load (this PC): 500 sockets ok (staggered); ≈ 500 msg/s at 72–85 % of one core; offline stored p95 109 ms with the cache; backlog of 10,000 fully migrated after the fix.
+- `gradlew bundleRelease`: BUILD SUCCESSFUL (after the R8 fix).
+- **Not run:** anything on a phone, the VPS, or Play.
+
+**Known issues / tech debt:**
+- The Android `.so` still embeds build paths (ubrn sets per-target RUSTFLAGS).
+- The stored path still costs one Mongo read per envelope (`mongo.has`); a cache or a cheaper duplicate check would help M0.
+- The migration logs one "overdue" error per pass while it drains a large backlog (noisy, harmless).
+- No account-deletion flow yet (Play requires one for apps with accounts).
+- Abuse reports have no review tool (a Mongo query in incidents.md).
+
+**Next:** Phase 28 groundwork (same session), then the user steps above.
+
 ## 2026-11-01 — Phase 26: Calls B: Android calls — 🔄 partial (the device test matrix is open)
 Started right after Phase 25 (both 🔄 on device/VPS checks only), as the user asked for 25 and 26 together.
 

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Nightly dump of the Atlas database to the VPS (ADR 0013), kept 7 days. Cron runs it as the
-# deploy user. The mailbox and short-lived request collections are left out, so the dump holds
-# account metadata and public keys, never undelivered message ciphertext (REQ §18).
+# deploy user. The mailbox, staged-attachment records, OTPs and short-lived request collections
+# are left out, so the dump holds account metadata and public keys, never undelivered message
+# ciphertext or delivery metadata (REQ §18; Phase 27 retention audit, docs/ops/retention-audit.md).
+# What it does hold past their TTL (for up to 7 more days): security events and abuse reports.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -16,6 +18,9 @@ name="mongo-$(date -u +%F).archive.gz"
 docker run --rm -e URI="$uri" -v "$dir:/backup" mongo:8.0.34 sh -c "exec mongodump \
   --uri=\"\$URI\" --db=$db \
   --excludeCollection=pending_envelopes \
+  --excludeCollection=attachments \
+  --excludeCollection=email_otps \
+  --excludeCollection=job_locks \
   --excludeCollection=primary_transfer_requests \
   --excludeCollection=pairing_requests \
   --excludeCollection=device_challenges \

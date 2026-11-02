@@ -5,7 +5,8 @@
  * Deliver frames; 5. server restart during the outbox; 6. the recipient adds a device;
  * 7. the recipient revokes a device; 8. ciphertext only in Redis, Mongo and WS frames
  * (REQ §19.1 bullets 1–2); 9. an attachment: encrypted, staged, sent as an E2EE manifest,
- * downloaded, decrypted and acknowledged (Phase 14).
+ * downloaded, decrypted and acknowledged (Phase 14); 10. none of the above reaches the
+ * server's debug-level logs (Phase 27 log audit).
  */
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -60,6 +61,32 @@ let staging = '';
 /** Every WebSocket frame any client sent or received. */
 const frames: Uint8Array[] = [];
 const clients: SimClient[] = [];
+/** The (debug-level) log lines of every server instance, across restarts (scenario 10). */
+const serverLogs: string[][] = [];
+/** Secrets the clients sent over HTTP: bearer tokens and sensitive JSON body fields. */
+const sentSecrets = new Set<string>();
+/** Key and ciphertext samples scenario 10 looks for in the logs. */
+const secretBytes: Uint8Array[] = [];
+const realFetch = globalThis.fetch;
+
+/** Records what clients send, so scenario 10 can look for it in the server logs. */
+function recordingFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  const bearer = headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  if (bearer) sentSecrets.add(bearer);
+  if (typeof init?.body === 'string') {
+    try {
+      const body = JSON.parse(init.body) as Record<string, unknown>;
+      for (const field of ['refreshToken', 'otp', 'password', 'code']) {
+        const value = body[field];
+        if (typeof value === 'string' && value.length >= 6) sentSecrets.add(value);
+      }
+    } catch {
+      // not JSON
+    }
+  }
+  return realFetch(input, init);
+}
 
 /** Starts (or restarts) the server on the same port, Mongo database and Redis key space. */
 async function boot(): Promise<void> {
@@ -69,12 +96,14 @@ async function boot(): Promise<void> {
     delivery: { settings: mailbox },
     throttles: { keyClaims: { limit: 10_000, windowMs: 3_600_000 } },
   });
+  serverLogs.push(server.logs);
   mailbox = server.mailbox;
   await server.app.listen({ host: '127.0.0.1', port });
   port = (server.app.server.address() as AddressInfo).port;
 }
 
 beforeAll(async () => {
+  globalThis.fetch = recordingFetch;
   crypto = await cryptoProvider();
   // Signed attachment URLs name the server's own origin, so the port is fixed up front.
   port = await freePort();
@@ -89,6 +118,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  globalThis.fetch = realFetch;
   for (const client of clients) await client.stop().catch(() => undefined);
   await server.close();
   await mongo.db.dropDatabase();
@@ -366,6 +396,7 @@ describe('message engine through the real server', () => {
       parts.push(next.value);
     }
     const ciphertext = new Uint8Array(Buffer.concat(parts));
+    secretBytes.push(encrypted.key, ciphertext.subarray(1_000, 1_024));
 
     // Staged for the devices the message goes to, then sent with the manifest.
     const recipients = await alice.engine.attachmentRecipients(conversationId);
@@ -411,6 +442,34 @@ describe('message engine through the real server', () => {
     );
     // The caption and the key travelled only inside E2EE frames.
     expect(frames.filter((frame) => containsMarker(frame, MARKER))).toEqual([]);
+  });
+
+  it('10. keeps plaintext, tokens, keys and ciphertext out of the server logs (Phase 27)', () => {
+    // Envelope ciphertext as the server saw it: a slice of every Deliver frame's packet.
+    for (const frame of frames) {
+      let decoded: ReturnType<typeof decodeServerFrame>;
+      try {
+        decoded = decodeServerFrame(frame);
+      } catch {
+        continue; // a client → server frame
+      }
+      if (decoded.body.case !== 'deliver') continue;
+      const payload = decoded.body.value.packet?.payload;
+      if (payload && payload.length >= 64) secretBytes.push(payload.subarray(32, 56));
+    }
+    expect(secretBytes.length).toBeGreaterThan(10);
+    expect(sentSecrets.size).toBeGreaterThan(2);
+
+    const output = serverLogs.flat().join('\n');
+    expect(output).toContain('incoming request'); // debug-level request logs were captured
+    expect(output).not.toContain(MARKER);
+    for (const secret of sentSecrets) expect(output).not.toContain(secret);
+    for (const bytes of secretBytes) {
+      const buffer = Buffer.from(bytes);
+      for (const encoding of ['base64', 'base64url', 'hex'] as const) {
+        expect(output).not.toContain(buffer.toString(encoding).slice(0, 24));
+      }
+    }
   });
 });
 

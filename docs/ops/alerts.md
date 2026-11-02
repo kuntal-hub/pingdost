@@ -34,6 +34,8 @@ The server's job loop pings `HEARTBEAT_URL` every 5 minutes after taking its Mon
 ## Provider usage alerts
 - **Atlas** logical size above 400 MB (of 0.5 GB): check `security_events` and `one_time_keys` sizes; the Free tier cannot grow, so plan a move (Atlas Flex needs a card: ask first) or Mongo on the VPS (KVM 2).
 - **Atlas** connections above 400 (of 500): one server instance uses a small pool; many connections mean leaked clients or another app on the cluster.
+- **Atlas** operations above 60 per second for 10 minutes (Free allows 100; Phase 27): the mailbox or logins are near the throttle. Check `pingdost_envelopes_accepted_total{path="redis"}` and the migration logs (`migrated a backlog`). Thresholds and the upgrade rule: [capacity.md](capacity.md).
+- **Mailbox budget**: a burst of `pingdost_send_rejected_total{code="RATE_LIMITED"}` from one account is a sender over its daily mailbox budget (ADR 0030); see [incidents.md](incidents.md) → "Mailbox filling up".
 - **Hostinger** transfer near 4 TB a month: attachments and (from Phase 25) relayed calls; check `pingdost_attachments_staged_bytes` trends.
 - **Pages** build failures: Pages → Deployments → the log.
 

@@ -4,6 +4,24 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-02 — Phase 27: hardening and release readiness (ADR 0030)
+1. **A per-sender mailbox budget** (REQ §18 asks to protect against never-delivered queues, without numbers): an account may leave at most 5,000 envelopes per recipient device and 32 MiB of ciphertext in the mailbox per 24 h; beyond that a `Send` is answered `RATE_LIMITED` and stays in the sender's outbox. Online deliveries are not counted.
+   - *Affects:* 27 (done).
+2. **The mailbox migration drains its backlog in one run, with bulk Mongo writes.** One batch per poll could let staged envelopes outlive their Redis safety TTL (the load test lost 9,400 of 10,000 that way). REQ §19.2's behaviour (verified write before the Redis delete) is unchanged.
+   - *Affects:* 27 (done), 08's design (ADR 0010 budget unchanged).
+3. **Atlas Free (M0) allows 100 operations per second** (REQ §22 lists only its 512 MB). It is the first capacity limit (docs/ops/capacity.md); a device-owner cache cuts the per-message reads.
+   - *Affects:* 27 (done), operations.
+4. **Backups exclude more** (REQ §18): the nightly dump also leaves out `attachments`, `email_otps` and `job_locks`. The privacy policy states that security events and abuse reports can stay in a dump up to 7 days past their TTL, and that encrypted remnants can stay in Valkey's append-only file and the host's VPS snapshots for a while.
+   - *Affects:* 20 (script), 27 (done).
+5. **No crash-reporting SDK; 64-bit Android only for the first release; TURN over TLS stays off** (decisions the plan left open; ADR 0030).
+   - *Affects:* 27 (done), 26, 28.
+6. **Screenshots are blocked on the recovery-phrase screens** with expo-screen-capture 58.0.6 (MIT; Phase 19 handoff). Its screenshot-listener permissions (`READ_MEDIA_IMAGES`, `DETECT_SCREEN_CAPTURE`) are removed in `app.json`. Needs a new native build.
+   - *Affects:* 19, 27 (done).
+7. **Release build fixes:** R8 keep rules for react-native-webrtc (the release build had failed since Phase 26) and `SYSTEM_ALERT_WINDOW` removed from the manifest (ADR 0030).
+   - *Affects:* 26, 27 (done).
+8. **The Play internal-testing release, the staging retention audit, the restore practice and the load re-run on the VPS are left to the user** (they need the US$25 Play account, the VPS or real devices).
+   - *Affects:* 27 (open items).
+
 ### 2026-11-01 — Phase 26: Android calls (ADR 0029)
 1. **Incoming calls use a full-screen-intent call notification and a local module, not a `ConnectionService`.** The phase asked to choose; react-native-callkeep (self-managed ConnectionService) was evaluated and not taken (Telecom coupling, unverified on the new architecture), notifee is unmaintained since 2024. So there is no system call log, car or headset-button integration.
    - *Affects:* 26 (done), 27 (a ConnectionService if wanted; Play Console declarations for `USE_FULL_SCREEN_INTENT` and the `phoneCall` foreground service).

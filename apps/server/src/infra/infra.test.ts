@@ -83,6 +83,15 @@ describe('WindowCounter', () => {
     counter.hit('d'); // evicts the oldest
     expect(counter.peek('a').count).toBe(0);
   });
+
+  it('counts amounts, such as bytes', () => {
+    const counter = new WindowCounter(1_000, 60_000, fakeClock());
+    expect(counter.peek('k', 1_001).allowed).toBe(false);
+    expect(counter.hit('k', 600)).toMatchObject({ allowed: true, count: 600 });
+    expect(counter.peek('k', 400).allowed).toBe(true);
+    expect(counter.peek('k', 401).allowed).toBe(false);
+    expect(counter.hit('k', 401).allowed).toBe(false);
+  });
 });
 
 describe('problem+json', () => {

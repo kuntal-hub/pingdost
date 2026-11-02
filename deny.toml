@@ -1,0 +1,50 @@
+# cargo-deny (Phase 27 audit): RustSec advisories, licenses, bans and sources for the crypto
+# crate, on every target it ships for. CI runs `cargo deny check`; see docs/security/audits.md.
+
+[graph]
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "x86_64-pc-windows-msvc",
+  "wasm32-unknown-unknown",
+  "aarch64-linux-android",
+  "x86_64-linux-android",
+  "aarch64-apple-ios",
+  "aarch64-apple-ios-sim",
+]
+all-features = false
+
+[advisories]
+# Unmaintained crates and yanked versions are reported for the workspace's own dependencies.
+unmaintained = "workspace"
+yanked = "deny"
+ignore = []
+
+[licenses]
+# Permissive and OSI licenses compatible with AGPL-3.0-or-later (ARCHITECTURE A10, ADR 0001).
+allow = [
+  "MIT",
+  "MIT-0",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "0BSD",
+  "Unicode-3.0",
+  "Unlicense",
+  "CC0-1.0",
+  "MPL-2.0",
+  "AGPL-3.0-or-later",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

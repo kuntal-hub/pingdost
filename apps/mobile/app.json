@@ -2,7 +2,7 @@
   "expo": {
     "name": "PingDost",
     "slug": "pingdost",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "scheme": "pingdost",
     "platforms": ["android", "ios"],
     "orientation": "portrait",
@@ -13,7 +13,13 @@
     },
     "android": {
       "package": "com.pingdost.app",
+      "versionCode": 1,
       "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.DETECT_SCREEN_CAPTURE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -42,14 +48,16 @@
       [
         "expo-secure-store",
         {
-          "configureAndroidBackup": true
+          "configureAndroidBackup": true,
+          "faceIDPermission": false
         }
       ],
       [
         "expo-build-properties",
         {
           "android": {
-            "buildArchs": ["arm64-v8a", "x86_64"]
+            "buildArchs": ["arm64-v8a", "x86_64"],
+            "extraProguardRules": "-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**"
           }
         }
       ],
@@ -57,14 +65,14 @@
         "expo-image-picker",
         {
           "photosPermission": "PingDost opens your photos only when you pick one to send or as your profile picture.",
-          "cameraPermission": "PingDost uses the camera only when you take a photo or video to send, or scan a QR code.",
-          "microphonePermission": "PingDost uses the microphone only while you record a video or a voice note."
+          "cameraPermission": "PingDost uses the camera during video calls, when you take a photo or video to send, and to scan QR codes.",
+          "microphonePermission": "PingDost uses the microphone during calls, and while you record a video or a voice note."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "PingDost uses the camera only when you take a photo or video to send, or scan a QR code.",
+          "cameraPermission": "PingDost uses the camera during video calls, when you take a photo or video to send, and to scan QR codes.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
@@ -72,7 +80,7 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "PingDost uses the microphone only while you record a video or a voice note.",
+          "microphonePermission": "PingDost uses the microphone during calls, and while you record a video or a voice note.",
           "recordAudioAndroid": true,
           "enableBackgroundPlayback": false,
           "enableBackgroundRecording": false
@@ -97,7 +105,7 @@
       [
         "@config-plugins/react-native-webrtc",
         {
-          "cameraPermission": "PingDost uses the camera during video calls, and when you take a photo or video to send.",
+          "cameraPermission": "PingDost uses the camera during video calls, when you take a photo or video to send, and to scan QR codes.",
           "microphonePermission": "PingDost uses the microphone during calls, and while you record a video or a voice note."
         }
       ]

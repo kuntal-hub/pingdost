@@ -321,6 +321,8 @@ describe('MessageEngine', () => {
     offset = 61_000;
     await eventually(async () => (await stateOf(alice, sent.messageId)) === 'expired_undelivered');
     expect(await alice.store.listOutbox()).toEqual([]);
+    // REQ §19.2: the sender's own copy outlives the server-side expiry.
+    expect(await alice.engine.getMessage(sent.messageId)).toMatchObject({ body: 'too late?' });
     await online(bob);
     await eventually(
       async () => (await stateOf(alice, sent.messageId)) === 'delivered_to_recipient_device',

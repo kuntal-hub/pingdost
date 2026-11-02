@@ -1,0 +1,19 @@
+# gitleaks (Phase 27): the default rules, minus reviewed false positives. CI scans the whole
+# history on every push (.github/workflows/ci.yml); docs/security/audits.md has the review.
+title = "PingDost gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Published test vectors: throwaway keys generated for the conformance and golden tests"
+paths = [
+  '''(^|/)packages/test-fixtures/(crypto|protocol|backup)/[^/]+\.json$''',
+  '''(^|/)packages/protocol/src/vectors\.ts$''',
+  '''(^|/)apps/server/src/modules/calls/turn\.test\.ts$''',
+]
+
+[[allowlists]]
+description = "SecureStore item names (pingdost.<name>.v1), not secrets"
+regexTarget = "match"
+regexes = ['''(databaseKey|pickleKey|accountIdentityKey):\s*'pingdost\.[a-z0-9-]+\.v\d+''']

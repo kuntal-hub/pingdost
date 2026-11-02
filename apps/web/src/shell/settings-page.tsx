@@ -14,6 +14,7 @@ import { CallsCard } from '@/features/calls/calls-card';
 import { disablePush, enablePush, pushState, type PushState } from '@/push/push';
 import { api, unlink, useSession } from '@/session/session';
 import { HistorySyncCard } from '@/sync/sync-status';
+import { PRIVACY_EXPLAINER } from '@pingdost/chat-core';
 import type { PrivacyPrefs } from '@pingdost/shared-types';
 
 const PRIVACY: { key: keyof PrivacyPrefs; label: string; description: string }[] = [
@@ -143,6 +144,16 @@ export function SettingsPage() {
           browser profile, or run code on this site, could use it. The browser may also clear it to
           free space. Your phone keeps your history.
         </p>
+      </Card>
+
+      <Card className="flex flex-col gap-2">
+        <CardTitle>How PingDost handles your data</CardTitle>
+        {PRIVACY_EXPLAINER.map(({ title, body }) => (
+          <section key={title} className="flex flex-col gap-0.5">
+            <h3 className="font-semibold">{title}</h3>
+            <p className="text-sm text-muted">{body}</p>
+          </section>
+        ))}
       </Card>
 
       <Card className="flex flex-col gap-2">

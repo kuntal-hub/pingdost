@@ -34,9 +34,11 @@ async function bootstrap(): Promise<CryptoContext> {
     accountMs: Math.round(end - afterDatabase),
     totalMs: Math.round(end - start),
   };
-  console.log(
-    `[crypto] ready in ${timings.totalMs} ms (db ${timings.databaseMs} ms, account ${timings.accountMs} ms, ${store.accountCreated ? 'created' : 'restored'})`,
-  );
+  if (__DEV__) {
+    console.log(
+      `[crypto] ready in ${timings.totalMs} ms (db ${timings.databaseMs} ms, account ${timings.accountMs} ms, ${store.accountCreated ? 'created' : 'restored'})`,
+    );
+  }
   return { provider, database, store, timings };
 }
 

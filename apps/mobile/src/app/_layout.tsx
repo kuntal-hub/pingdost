@@ -53,7 +53,9 @@ export default function RootLayout() {
       void stopChat();
       return undefined;
     }
-    void startChat().catch((error: unknown) => console.warn('chat start failed', error));
+    void startChat().catch((error: unknown) => {
+      if (__DEV__) console.warn('chat start failed', error);
+    });
     const deviceId = authStore.getState().session?.deviceId;
     return deviceId ? startPushToken(deviceId) : undefined;
   }, [stage]);

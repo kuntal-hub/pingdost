@@ -23,7 +23,16 @@ export interface ThrottleSettings {
   keyClaims: Budget;
   /** Phone replacement attempts per account: requests, codes and replacements (ADR 0022). */
   phoneReplacements: Budget;
+  /**
+   * Envelopes one account may leave in the mailbox for one recipient device (the offline
+   * path; online deliveries are not counted). Phase 27: bounds never-delivered queues.
+   */
+  storedPerRecipientDevice: Budget;
+  /** Ciphertext bytes one account may leave in the mailbox, across all recipients. */
+  storedBytesPerSender: Budget;
 }
+
+const DAY_MS = 24 * HOUR_MS;
 
 export const DEFAULT_THROTTLES: ThrottleSettings = {
   loginFailures: { limit: 5, windowMs: 15 * MINUTE_MS },
@@ -32,4 +41,8 @@ export const DEFAULT_THROTTLES: ThrottleSettings = {
   usernameLookups: { limit: 30, windowMs: 15 * MINUTE_MS },
   keyClaims: { limit: 500, windowMs: HOUR_MS },
   phoneReplacements: { limit: 10, windowMs: HOUR_MS },
+  // Generous for people (messages, receipts, edits and group fan-out to offline devices);
+  // one account can then hold at most about 14 × 32 MiB in the 14-day mailbox.
+  storedPerRecipientDevice: { limit: 5_000, windowMs: DAY_MS },
+  storedBytesPerSender: { limit: 32 * 1024 * 1024, windowMs: DAY_MS },
 };

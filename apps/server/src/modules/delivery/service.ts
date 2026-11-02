@@ -18,6 +18,7 @@ import {
 import type { ErrorCode } from '@pingdost/shared-types';
 
 import type { MongoMailboxStore } from './mongo-store';
+import type { MailboxQuota } from './quota';
 import type { EnvelopeRecord } from './record';
 import type { RedisMailbox } from './redis-store';
 import type { MailboxSettings } from './settings';
@@ -72,6 +73,8 @@ export interface DeliveryDeps {
   isBlocked?(blockerUserId: string, userId: string): Promise<boolean>;
   /** Whether `userId` is a current member of the group (ADR 0016). */
   isGroupMember?(groupId: string, userId: string): Promise<boolean>;
+  /** Per-sender budgets for stored envelopes (Phase 27); none in some unit tests. */
+  quota?: MailboxQuota;
 }
 
 /** A checked `Send`. `blocked`: the recipient blocked the sender, so it must go nowhere. */
@@ -153,11 +156,18 @@ export class DeliveryService {
 
   /**
    * The offline path: Redis, or Mongo when Redis fails. Throws `MAILBOX_UNAVAILABLE` (the
-   * sender keeps the envelope in its outbox and retries) when neither store takes it.
+   * sender keeps the envelope in its outbox and retries) when neither store takes it, and
+   * `RATE_LIMITED` when the sending account's mailbox budget is spent (`quota`).
    */
-  async store(record: EnvelopeRecord): Promise<StoreOutcome> {
-    const { settings, metrics, log, redis, mongo } = this.d;
+  async store(record: EnvelopeRecord, senderUserId?: string): Promise<StoreOutcome> {
+    const { settings, metrics, log, redis, mongo, quota } = this.d;
     const now = this.d.clock.now();
+    if (quota && senderUserId !== undefined) quota.check(senderUserId, record);
+    const stored = (path: 'redis' | 'mongo'): StoreOutcome => {
+      metrics.envelopesAccepted.inc({ path });
+      if (quota && senderUserId !== undefined) quota.count(senderUserId, record);
+      return path;
+    };
     let mongoUp = true;
     try {
       // A retransmit after migration: Mongo already holds the one copy.
@@ -171,16 +181,14 @@ export class DeliveryService {
     try {
       const fresh = await redis.store(record, dueAt, Math.max(1, dueAt - now) + settings.graceMs);
       if (!fresh) return this.#duplicate();
-      metrics.envelopesAccepted.inc({ path: 'redis' });
-      return 'redis';
+      return stored('redis');
     } catch (error) {
       log.warn({ err: error }, 'mailbox: redis store failed, writing to mongo');
     }
     if (mongoUp) {
       try {
         await mongo.insert(record, now);
-        metrics.envelopesAccepted.inc({ path: 'mongo' });
-        return 'mongo';
+        return stored('mongo');
       } catch (error) {
         log.error({ err: error }, 'mailbox: mongo store failed');
       }

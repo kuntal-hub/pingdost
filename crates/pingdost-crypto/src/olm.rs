@@ -103,7 +103,7 @@ impl Account {
     /// Restores an account from `pickle` (see [`Account::pickle`]).
     #[uniffi::constructor]
     pub fn from_pickle(pickle: String, pickle_key: Vec<u8>) -> Result<Self, CryptoError> {
-        let key = parse_pickle_key(&pickle_key)?;
+        let key = parse_pickle_key(pickle_key)?;
         let pickle = vz::AccountPickle::from_encrypted(&pickle, &key)?;
         Ok(Self {
             inner: Mutex::new(vz::Account::from_pickle(pickle)),
@@ -213,7 +213,7 @@ impl Account {
 
     /// Serializes the account, encrypted with a 32-byte `pickle_key`.
     pub fn pickle(&self, pickle_key: Vec<u8>) -> Result<String, CryptoError> {
-        let key = parse_pickle_key(&pickle_key)?;
+        let key = parse_pickle_key(pickle_key)?;
         Ok(lock(&self.inner)?.pickle().encrypt(&key))
     }
 }
@@ -236,7 +236,7 @@ impl Session {
 impl Session {
     #[uniffi::constructor]
     pub fn from_pickle(pickle: String, pickle_key: Vec<u8>) -> Result<Self, CryptoError> {
-        let key = parse_pickle_key(&pickle_key)?;
+        let key = parse_pickle_key(pickle_key)?;
         let pickle = vz::SessionPickle::from_encrypted(&pickle, &key)?;
         Ok(Self::wrap(vz::Session::from_pickle(pickle)))
     }
@@ -262,7 +262,7 @@ impl Session {
     }
 
     pub fn pickle(&self, pickle_key: Vec<u8>) -> Result<String, CryptoError> {
-        let key = parse_pickle_key(&pickle_key)?;
+        let key = parse_pickle_key(pickle_key)?;
         Ok(lock(&self.inner)?.pickle().encrypt(&key))
     }
 }

@@ -10,7 +10,8 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "make-fixture": "tsx scripts/make-fixture.ts"
   },
   "dependencies": {
     "@pingdost/crypto": "workspace:*",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "tsx": "4.23.15",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

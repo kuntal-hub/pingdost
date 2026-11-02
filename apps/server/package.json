@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:int": "vitest run --config vitest.int.config.ts",
-    "vapid-keys": "tsx scripts/vapid-keys.ts"
+    "vapid-keys": "tsx scripts/vapid-keys.ts",
+    "retention-audit": "tsx --env-file-if-exists=../../.env src/retention-audit.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1153.0",

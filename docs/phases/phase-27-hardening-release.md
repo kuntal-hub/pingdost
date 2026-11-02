@@ -11,26 +11,24 @@ Make the product release-worthy: security and privacy audits, full acceptance tr
 - All ADRs (skim the index)
 
 ## Tasks
-- [ ] **Threat model** `docs/security/threat-model.md` (assets, actors, trust boundaries: server, relays, push providers, object store, browser storage; STRIDE-lite table; residual risks such as metadata visibility and Megolm post-compromise security limits).
-- [ ] **Acceptance traceability** `docs/security/acceptance.md`: every REQ §19 bullet → its automated test or documented manual check, with the latest result. Fill any gaps with tests.
-- [ ] **Audits:**
-  - **log and crash redaction:** grep plus a runtime capture test across server, mobile and web; no secrets, plaintext or ciphertext;
-  - **dependencies:** `pnpm audit`, `cargo audit`, a license report (e.g. `license-checker` + `cargo-deny`) checked against the project license;
-  - **web:** CSP and security headers;
-  - **secrets:** scanning (gitleaks) added to CI;
-  - **crypto bindings (from Phases 2–3):** a CI drift check that regenerates both ubrn bindings (`wasm2`, `jsi2`) and diffs them; zeroize pickle-key copies where the platform allows.
-- [ ] **32-bit Android (from Phase 3, ADR 0005):** decide from device data whether to support `armeabi-v7a` (build the ubrn JSI player for it, or switch to the classic `jsi` flavour). Until then the Play listing is 64-bit only.
-- [ ] **Retention and deletion audit:** scripts that verify no `pending_envelopes`, attachments, OTPs, pairing requests or security events are older than their limits (staging data), and that a backup policy excludes them or the wording reflects that they may be included.
-- [ ] **Abuse tests:** mass large uploads (quota), never-delivered queue growth (per-sender limits on pending envelopes; add a cap if missing), WS flood, OTP/login brute force, pairing spam, mesh spam (simulation).
-- [ ] **Load and cost:** a k6 (OSS) script on staging covering WS connections, message throughput, mailbox migration under backlog. Project usage against the VPS's limits (RAM, CPU, disk, monthly transfer; ADR 0013) and Atlas M0's 512 MB, decide whether KVM 1 needs the KVM 2 upgrade (tell the user first: it costs money), and set the alert thresholds.
-- [ ] **Legal and wording:**
-  - privacy policy and terms (plain language) using the REQ §1 / §5.4 honest wording: what metadata the server sees, temporary ciphertext, no permanent history, irrecoverable without backup, relay metadata, browser storage weakness;
-  - in-app privacy explainer screens;
-  - Play Store Data Safety answers drafted.
-- [ ] **Runbooks** `docs/ops/`: incidents (Redis or Mongo full/down, disk full, provider limit hit, key or secret compromise, TURN abuse), secret rotation, restoring the metadata DB.
-- [ ] **Release:** Play Console account (**$25 one-time; confirm with the user first**); release AAB build (local Gradle, or EAS free); an internal testing track; versioning scheme; crash reporting decision (none, or a self-hosted, privacy-scrubbed option); the web production deploy. Production runs on the same VPS: promote the staging stack and its DNS (ADR 0013). There is no second stack.
-- [ ] Update README with the status and an honest feature list. Note that iOS is pending (Phases 28–30).
-
+Status 2026-11-02 (ADR 0030; PROGRESS has the details).
+- [x] **Threat model** `docs/security/threat-model.md` (assets, actors, trust boundaries: server, relays, push providers, object store, browser storage; STRIDE-lite table; residual risks such as metadata visibility and Megolm post-compromise security limits).
+- [x] **Acceptance traceability** `docs/security/acceptance.md`: every REQ §19 bullet → its automated test or documented manual check, with the latest result. Gaps filled (sender history after expiry asserted; log scan; backlog drain). Device rows stay ⏳ until run.
+- [x] **Audits** (`docs/security/audits.md`):
+  - [x] **log and crash redaction:** grep plus a runtime capture test across server (`engine.int` 10), mobile and web (`log-hygiene.test.ts`); two unguarded mobile logs fixed;
+  - [x] **dependencies:** `pnpm audit` (overrides + accepted list), `cargo deny check` (RUSTSEC-2026-0385 fixed), license report (`pnpm licenses:check`, deny.toml);
+  - [x] **web:** CSP and security headers (`security-headers.test.ts`);
+  - [x] **secrets:** gitleaks in CI (history clean after a reviewed allowlist);
+  - [x] **crypto bindings:** CI `bindings` job regenerates `wasm2` and `jsi2` and diffs them; pickle-key copies zeroized in Rust; WASM build paths remapped.
+- [x] **32-bit Android:** decided: 64-bit only until Play data shows a need (ADR 0030).
+- [x] **Retention and deletion audit:** `dist/retention-audit.js` (+ test); backups exclude delivery data; wording updated. [ ] **Run it on staging** (user step, docs/ops/retention-audit.md).
+- [x] **Abuse tests:** per-sender mailbox budget added and tested; WS flood tested; uploads, OTP/login, pairing, mesh spam already covered (`abuse.int.test.ts` header).
+- [x] **Load and cost:** k6 script (`k6/`), load harness, local measurements, migration backlog bug found and fixed, projections and thresholds (`docs/ops/capacity.md`). Decision: stay on KVM 1. [ ] **Re-run on the VPS** (capacity.md §5).
+- [x] **Legal and wording:** privacy policy and terms drafts (`docs/legal/`, fields to fill), in-app explainer shared by phone and web (`@pingdost/chat-core` `PRIVACY_EXPLAINER`), Play Data Safety answers (`docs/release/play-console.md`).
+- [x] **Runbooks** `docs/ops/`: `incidents.md` (Redis/Mongo full or down, disk full, provider limits, key or secret compromise, TURN abuse, mailbox abuse), secret rotation (deploy.md, extended), `restore-metadata-db.md`, `retention-audit.md`.
+- [ ] **Release** (user steps): Play Console account (**US$25; not paid**), internal testing track, the web production deploy (Pages variables). Done in code: versioning (0.1.0 / versionCode 1), the release AAB builds (R8 fix for react-native-webrtc), crash reporting = none (ADR 0030), checklist `docs/release/README.md`. Still to build before Play production: an account-deletion flow (Play policy).
+- [x] Update README with the status and an honest feature list; iOS pending (Phases 28–30).
+- [x] From handoffs: FLAG_SECURE on the recovery phrase (expo-screen-capture), a frozen `.pdbk` fixture restored by every build, the device-owner cache (Phase 18), Play declarations (Phases 22–26).
 ## Key files
 `docs/security/*`, `docs/ops/*`, `tests/acceptance/*` (or per-package), `.github/workflows/ci.yml` (gitleaks, audits), `k6/*`
 

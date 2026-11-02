@@ -18,7 +18,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build:wasm": "ubrn build wasm2 --config ubrn.config.yaml --release",
+    "build:wasm": "node ../../scripts/remap-rust-paths.mjs ubrn build wasm2 --config ubrn.config.yaml --release",
     "interop-server": "tsx scripts/interop-server.ts",
     "make-vectors": "tsx scripts/make-vectors.ts",
     "make-attachment-vectors": "tsx scripts/make-attachment-vectors.ts"

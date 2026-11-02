@@ -271,7 +271,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 | Need | Choice | Cost |
 |---|---|---|
 | Code, CI, container registry | GitHub public repo, Actions, GHCR | Free |
-| Metadata DB | MongoDB Atlas M0 (512 MB), in the VPS's region | Free |
+| Metadata DB | MongoDB Atlas M0 (512 MB, **100 operations/s**; the first capacity limit, docs/ops/capacity.md), in the VPS's region | Free |
 | Hot mailbox | ⚠ Valkey, self-hosted on the VPS (ADR 0013); no Upstash | Free (VPS RAM) |
 | API / worker / Valkey / TURN / temp files | ⚠ **One Hostinger KVM VPS** (`x86_64`), one Docker Compose stack (ADR 0013). KVM 1 (1 vCPU / 4 GB / 50 GB) while Mongo is on Atlas; KVM 2 (2 vCPU / 8 GB / 100 GB) if Mongo moves onto it | Paid by the user: the only paid service |
 | Web hosting, DNS, dev tunnel | Cloudflare Pages, DNS, Tunnel; Caddy + Let's Encrypt on the VPS | Free |
@@ -290,6 +290,8 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - Rate-limit: auth, OTP, username lookup, key claim, WS events, uploads, pairing, call invites, mesh rendezvous.
 - **Privacy wording** (REQ §1, §5.4): "no permanent server-side chat history". Never claim "no data touches servers".
 - Dependencies must use permissive or OSI licenses compatible with the project license, **AGPL-3.0-or-later** (ADR 0001). No GPL-2.0-only code.
+- (ADR 0030) CI enforces it: gitleaks over the history, `pnpm audit` (accepted advisories by GHSA), `pnpm licenses:check`, `cargo deny check`, and a bindings drift check that also refuses build-machine paths in the WASM. No analytics or crash-reporting SDK in the apps.
+- (ADR 0030) Per-sender mailbox budgets bound never-delivered queues (5,000 envelopes per recipient device, 32 MiB per sender, per day).
 
 ## A11. Environment variables (additions to REQ §17)
 REQ §17 is the base list. Phase 1 implements all of it in `packages/config` (conventions: ADR 0002), plus:
