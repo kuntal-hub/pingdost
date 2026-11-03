@@ -1,5 +1,5 @@
 // Turning on nearby messaging (Phase 22): why PingDost needs Bluetooth and the Nearby devices
-// permission (Location on Android 8–11), asked only after the user reads this.
+// permission (Location on Android 8–11; Bluetooth on iOS), asked only after the user reads this.
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, Text, View } from 'react-native';
@@ -12,9 +12,9 @@ import {
   setNearbyEnabled,
   useNearby,
 } from '@/nearby/service';
-import { needsLocation } from '@/nearby/status';
+import { NEARBY_COPY, needsLocation } from '@/nearby/status';
 
-import { NearbyExplainer, openBluetoothSettings } from './nearby';
+import { NearbyExplainer, nearbyPlatform, openBluetoothSettings } from './nearby';
 
 export function NearbySetupScreen() {
   const router = useRouter();
@@ -23,6 +23,7 @@ export function NearbySetupScreen() {
   const [busy, setBusy] = useState(false);
   const missing = native?.missingPermissions ?? [];
   const location = needsLocation(missing);
+  const copy = NEARBY_COPY[nearbyPlatform];
 
   useEffect(() => {
     void refreshNearby().catch(() => undefined);
@@ -51,7 +52,7 @@ export function NearbySetupScreen() {
       <Text className="text-foreground">
         {location
           ? 'PingDost uses Bluetooth to find your contacts’ phones close by. On this Android version, finding Bluetooth devices needs the Location permission, with location turned on. PingDost never reads or stores your location.'
-          : 'PingDost uses Bluetooth to find your contacts’ phones close by. Android calls this the “Nearby devices” permission. PingDost does not use your location.'}
+          : copy.setupIntro}
       </Text>
       <NearbyExplainer />
 
@@ -69,8 +70,9 @@ export function NearbySetupScreen() {
       {blocked ? (
         <View className="gap-2">
           <Text accessibilityLiveRegion="polite" className="font-semibold text-danger">
-            The permission is turned off for PingDost. Allow{' '}
-            {location ? 'Location' : 'Nearby devices'} in the app settings, then come back.
+            {location
+              ? 'The permission is turned off for PingDost. Allow Location in the app settings, then come back.'
+              : copy.blocked}
           </Text>
           <Button label="Open app settings" onPress={() => void Linking.openSettings()} />
         </View>

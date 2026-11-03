@@ -1,6 +1,6 @@
 // Settings → Nearby relay (Phase 23, ADR 0025; REQ §11.4, §11.5): the explicit opt-in "Allow
 // this device to relay messages", what relays can see, what it costs, the pause rules, the
-// relay cache and the limits Android puts on background work. Off by default; off stops
+// relay cache and the limits Android and iOS put on background work. Off by default; off stops
 // relaying at once.
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
@@ -10,9 +10,11 @@ import { ListRow, ListSection } from '@/components/list-row';
 import { Screen } from '@/components/screen';
 import { describeRelay, type RelayPrefs } from '@/nearby/relay';
 import { refreshNearby, setRelayPrefs, startNearby, useNearby, useRelay } from '@/nearby/service';
+import { NEARBY_COPY } from '@/nearby/status';
 import { usePalette } from '@/theme/theme-root';
 import { formatSize } from '@pingdost/attachments';
 
+import { nearbyPlatform } from './nearby';
 import { confirmClearRelay } from './storage';
 
 const BATTERY_LEVELS = [10, 20, 30, 50] as const;
@@ -67,13 +69,7 @@ function BackgroundLimits() {
       <Text accessibilityRole="header" className="text-lg font-semibold text-foreground">
         When relaying stops
       </Text>
-      <Text className="text-muted">
-        Android shows &quot;PingDost nearby relay active&quot; while it relays. Relaying works best
-        with PingDost open or recently used. It pauses or stops when you force-stop or swipe away
-        the app on some phones, when a battery saver or the phone maker&apos;s power management
-        holds it back, when Bluetooth is off, and after the phone restarts until you open PingDost
-        again. None of this loses your own messages: they wait on this phone.
-      </Text>
+      <Text className="text-muted">{NEARBY_COPY[nearbyPlatform].relayBackground}</Text>
     </>
   );
 }

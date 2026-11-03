@@ -4,6 +4,16 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-03 — Phase 30: iOS nearby and mesh, code only (ADR 0033)
+1. **Phase 30 started before Phase 28 was done** (no iPhone, Apple account or Mac): the user asked for Phases 29 and 30. The code and Linux-testable core were written; the phase stays 🔄 until the device matrix (`docs/ops/nearby-ios-matrix.md`).
+   - *Affects:* 30.
+2. **Between Android and iOS the iPhone always connects** (ADR 0023's "lower token connects" cannot work: iOS cannot advertise a token). Android is unchanged; two iPhones both connect and the duplicate rule closes one.
+   - *Affects:* 30 (done), 21–23's design (no Android change).
+3. **MultipeerConnectivity and Wi-Fi Aware are deferred** (the phase called them optional): BLE is the only shared path; revisit after device measurements.
+   - *Affects:* 30 (open), later.
+4. **New dev tool: the Swift toolchain in Docker (`swift:6.4.2-noble`, Apache-2.0)** runs the iOS nearby core's tests on Linux and in CI. Not shipped.
+   - *Affects:* 30 (done), CI.
+
 ### 2026-11-03 — Phase 29: iOS push and calls, code only (ADR 0032)
 1. **Phase 29 started before Phase 28 was done** (Apple account, iPhone and Mac still missing): the user asked for Phases 29 and 30. The code that needs no Apple account was written; the phase stays 🔄 until device checks.
    - *Affects:* 29.

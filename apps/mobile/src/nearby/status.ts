@@ -58,7 +58,51 @@ export function needsLocation(missing: readonly string[]): boolean {
   return missing.some((name) => name.endsWith('ACCESS_FINE_LOCATION'));
 }
 
-export function describeNearby(status: NearbyStatus): NearbyText {
+export type NearbyPlatform = 'android' | 'ios';
+
+/**
+ * What each platform allows, said honestly (REQ §11.5, ADR 0023/0033). iOS gives an app far less
+ * Bluetooth time in the background than Android's foreground service does, and nothing after a
+ * swipe-away; the help must not promise more.
+ */
+export const NEARBY_COPY: Record<
+  NearbyPlatform,
+  {
+    permissionName: string;
+    setupIntro: string;
+    background: string;
+    relayBackground: string;
+    blocked: string;
+  }
+> = {
+  android: {
+    permissionName: 'Nearby devices',
+    setupIntro:
+      'PingDost uses Bluetooth to find your contacts’ phones close by. Android calls this the “Nearby devices” permission. PingDost does not use your location.',
+    background:
+      'Android shows a “Nearby is on” notification while it runs. Battery savers, force-stopping the app or turning Bluetooth off pause it. It works best with PingDost open.',
+    relayBackground:
+      'Android shows “PingDost nearby relay active” while it relays. Relaying works best with PingDost open or recently used. It pauses or stops when you force-stop or swipe away the app on some phones, when a battery saver or the phone maker’s power management holds it back, when Bluetooth is off, and after the phone restarts until you open PingDost again. None of this loses your own messages: they wait on this phone.',
+    blocked:
+      'The permission is turned off for PingDost. Allow it in the app settings, then come back.',
+  },
+  ios: {
+    permissionName: 'Bluetooth',
+    setupIntro:
+      'PingDost uses Bluetooth to find your contacts’ phones close by. iOS asks you to allow Bluetooth for PingDost. PingDost does not use your location.',
+    background:
+      'Nearby works fully while PingDost is open. In the background iOS limits Bluetooth: this iPhone can still reach phones that have PingDost open, but other phones may not find it, and links can pause. After you swipe PingDost away, nearby stops until you open it again.',
+    relayBackground:
+      'On an iPhone, relaying works while PingDost is open. iOS may pause it at any time while PingDost is in the background, shows no notice for it, and stops it when you swipe the app away or turn Bluetooth off. None of this loses your own messages: they wait on this phone.',
+    blocked:
+      'Bluetooth is turned off for PingDost. Allow it in Settings → PingDost, then come back.',
+  },
+};
+
+export function describeNearby(
+  status: NearbyStatus,
+  platform: NearbyPlatform = 'android',
+): NearbyText {
   switch (status.kind) {
     case 'unavailable':
       return {
@@ -80,6 +124,14 @@ export function describeNearby(status: NearbyStatus): NearbyText {
         tone: 'muted',
       };
     case 'permission':
+      if (platform === 'ios') {
+        return {
+          title: 'Needs Bluetooth access',
+          detail:
+            "Allow PingDost to use Bluetooth so it can find and connect to your contacts' phones.",
+          tone: 'warning',
+        };
+      }
       return needsLocation(status.missing)
         ? {
             title: 'Needs the Location permission',
@@ -101,7 +153,10 @@ export function describeNearby(status: NearbyStatus): NearbyText {
           }
         : {
             title: 'Bluetooth is off',
-            detail: 'Turn on Bluetooth to message contacts nearby.',
+            detail:
+              platform === 'ios'
+                ? 'Turn on Bluetooth in Control Center or Settings to message contacts nearby.'
+                : 'Turn on Bluetooth to message contacts nearby.',
             tone: 'warning',
           };
     case 'starting':
@@ -116,7 +171,10 @@ export function describeNearby(status: NearbyStatus): NearbyText {
       return status.peers === 0
         ? {
             title: 'On — no contacts nearby',
-            detail: "Messages wait on this phone until a contact's phone is in Bluetooth range.",
+            detail:
+              platform === 'ios'
+                ? "Messages wait on this phone until a contact's phone is in Bluetooth range. Keep PingDost open to be found by other phones."
+                : "Messages wait on this phone until a contact's phone is in Bluetooth range.",
             tone: 'muted',
           }
         : {

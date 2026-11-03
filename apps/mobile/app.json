@@ -9,7 +9,10 @@
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.pingdost.app"
+      "bundleIdentifier": "com.pingdost.app",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "PingDost uses Bluetooth to exchange encrypted messages with your contacts’ phones nearby when there is no internet, and to pass them along for others if you turn on relaying."
+      }
     },
     "android": {
       "package": "com.pingdost.app",

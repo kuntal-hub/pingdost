@@ -45,3 +45,7 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# SwiftPM output of the iOS nearby core tests (Phase 30)
+.build/
+.swiftpm/

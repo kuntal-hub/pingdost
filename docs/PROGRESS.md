@@ -17,6 +17,34 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-03 — Phase 30: iOS: nearby / mesh + Android↔iOS — 🔄 code only (blocked on an iPhone, the Apple account and a macOS build)
+Started right after Phase 29, with Phase 28 still 🔄: the user asked for Phases 29 and 30 together. **Nothing was paid or signed up for.**
+
+**Done (ADR 0033):**
+- `modules/nearby/ios` (Swift, no dependency): `Core/Framing.swift` + `Core/Link.swift` (ports of the Kotlin, same bytes and limits), `Core/Policy.swift` (tokens, `ConnectPolicy`, duplicate rule, `InboundQueue`), `Package.swift` + `Tests/` (ported `FramingTest`/`LinkTest`, golden bytes, policy, batches). `BleEngine.swift` (CoreBluetooth both roles, the Android GATT layout, paced writes/notifications, token in HELLO/TOKEN only, restoration), `NearbyModule.swift` (`PingdostNearby`, same functions + iOS `requestPermission`), `NearbyAppDelegate.swift`.
+- **Android↔iOS rule:** the iPhone connects to every peer it is not linked to (iOS cannot advertise a token); Android unchanged; iPhone↔iPhone duplicates closed by the existing rule.
+- App: iOS permission flow, `NEARBY_COPY`/`describeNearby(…, 'ios')` (honest background and relay limits), `NSBluetoothAlwaysUsageDescription`, Bluetooth background modes in `plugins/with-ios-background-modes.js`.
+- CI job `swift-nearby` (Swift core tests in `swift:6.4.2-noble`); `.gitignore` `.build/`; `docs/ops/nearby-ios-matrix.md` (17 rows to fill in); ARCHITECTURE A12; CLAUDE.md.
+- MultipeerConnectivity and Wi-Fi Aware evaluated and deferred.
+
+**Remaining (in order; needs the user):**
+- [ ] Push; run **iOS build (simulator, unsigned)**: first compile of `BleEngine.swift` and the calls module (Phase 29).
+- [ ] An iPhone (and the Apple account for a device build), then the matrix in `docs/ops/nearby-ios-matrix.md`; update `NEARBY_COPY` to what is measured.
+- [ ] The dev nearby screen on iOS (Android permissions and "Android SDK" labels).
+
+**Deviations / decisions:** ADR 0033; CHANGES 2026-11-03 (Phase 30, 4 items).
+
+**Verification results:**
+- `swift test` (Docker `swift:6.4.2-noble`): 22 passed, 0 failed.
+- `pnpm turbo run lint typecheck test --filter=@pingdost/mobile`: pass (125 tests).
+- Linux `expo prebuild --platform ios`: pass (6 background modes, Bluetooth usage string). `npx expo export --platform ios`: pass (7.4 MB bundle).
+- Whole repo: `pnpm turbo run lint typecheck test`: 59/59; `pnpm format:check` clean. `pnpm --filter @pingdost/server test:int`: **165 passed, 4 skipped** (the first run, started alongside the 59-task turbo run, failed 7 files in their setup hooks; each passed alone and the suite passed in full when re-run by itself).
+- **Not run:** any CoreBluetooth compile, any iPhone or Android↔iOS exchange.
+
+**Known issues / tech debt:** iOS cannot drop a central from the peripheral side (over-limit centrals time out); restored connections are redone, not resumed; WebRTC `useManualAudio` (Phase 29) unchecked.
+
+**Next:** the user decisions for iOS (Apple account, iPhone), the open device/VPS checks of Phases 10–27, and pushing so CI (security, bindings, swift-nearby) and `ios.yml` run for the first time.
+
 ## 2026-11-03 — Phase 29: iOS: push (APNs) + calls (CallKit) — 🔄 code only (blocked on the Apple account, an iPhone and a macOS build)
 Started with Phase 28 still 🔄 (groundwork only): the user asked for Phases 29 and 30 together. **Nothing was paid or signed up for.**
 

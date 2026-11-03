@@ -1,6 +1,10 @@
 {
-  "platforms": ["android"],
+  "platforms": ["android", "apple"],
   "android": {
     "modules": ["com.pingdost.nearby.NearbyModule"]
+  },
+  "apple": {
+    "modules": ["NearbyModule"],
+    "appDelegateSubscribers": ["NearbyAppDelegate"]
   }
 }

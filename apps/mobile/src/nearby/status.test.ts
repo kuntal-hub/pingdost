@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   describeNearby,
+  NEARBY_COPY,
   nearbyStatus,
   needsLocation,
   pathLabel,
@@ -113,6 +114,26 @@ describe('describeNearby', () => {
     expect(describeNearby({ kind: 'on', peers: 0 }).title).toBe('On — no contacts nearby');
     expect(describeNearby({ kind: 'on', peers: 1 }).title).toBe('On — 1 contact nearby');
     expect(describeNearby({ kind: 'on', peers: 3 }).tone).toBe('success');
+  });
+
+  it('uses iOS words on an iPhone and promises no background mesh (ADR 0033)', () => {
+    // The iOS module reports one missing permission, `bluetooth`.
+    const permission = describeNearby({ kind: 'permission', missing: ['bluetooth'] }, 'ios');
+    expect(permission.title).toBe('Needs Bluetooth access');
+    expect(permission.detail).not.toContain('Nearby devices');
+    expect(describeNearby({ kind: 'bluetooth_off', airplane: false }, 'ios').detail).toContain(
+      'Control Center',
+    );
+    expect(describeNearby({ kind: 'on', peers: 0 }, 'ios').detail).toContain('Keep PingDost open');
+
+    const ios = NEARBY_COPY.ios;
+    for (const text of [ios.background, ios.relayBackground]) {
+      expect(text).toMatch(/iOS (limits|may pause)/);
+      expect(text).toContain('swipe');
+      expect(text).not.toMatch(/always|continuous|guarantee/i);
+    }
+    expect(ios.relayBackground).toContain('None of this loses your own messages');
+    expect(NEARBY_COPY.android.background).toContain('Nearby is on');
   });
 });
 

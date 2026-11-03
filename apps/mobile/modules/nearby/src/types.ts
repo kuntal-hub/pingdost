@@ -1,4 +1,7 @@
-// Shapes of the `PingdostNearby` module (Kotlin: modules/nearby/android; ADR 0023).
+// Shapes of the `PingdostNearby` module (Kotlin: modules/nearby/android, ADR 0023; Swift:
+// modules/nearby/ios, ADR 0033). On iOS `address` is the CoreBluetooth peer identifier (a UUID,
+// also not an identity), `power` is mapped onto the Android fields, and there is no foreground
+// service.
 
 export type ScanMode = 'lowLatency' | 'balanced' | 'lowPower';
 export type AdvertiseInterval = 'low' | 'medium' | 'high';
@@ -155,5 +158,7 @@ export interface NearbyNative {
   setRelayNotification?(relay: boolean): void;
   /** After a restart, a notification offers to open the app and turn nearby back on. */
   setRestartReminder?(enabled: boolean): void;
+  /** iOS only: shows the Bluetooth prompt if it was never answered (ADR 0033). */
+  requestPermission?(): Promise<'granted' | 'denied' | 'blocked'>;
   addListener<E extends keyof NearbyEvents>(event: E, listener: NearbyEvents[E]): Subscription;
 }

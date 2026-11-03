@@ -72,6 +72,17 @@ jobs:
         with:
           command: check
 
+  swift-nearby:
+    # Phase 30 (ADR 0033): the iOS nearby core (framing, links, policy) speaks Android's bytes;
+    # it has no Apple imports, so it is tested on Linux. The CoreBluetooth half builds in ios.yml.
+    name: iOS nearby core (Swift, Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.4.2-noble
+    steps:
+      - uses: actions/checkout@v7
+      - run: swift test
+        working-directory: apps/mobile/modules/nearby/ios
+
   security:
     name: Secrets, advisories, licenses
     runs-on: ubuntu-latest

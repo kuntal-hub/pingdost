@@ -16,7 +16,7 @@ import { Paths } from 'expo-file-system';
 import * as Network from 'expo-network';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { useMemo } from 'react';
-import { AppState, PermissionsAndroid, type Permission } from 'react-native';
+import { AppState, PermissionsAndroid, Platform, type Permission } from 'react-native';
 import { z } from 'zod';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
@@ -349,6 +349,12 @@ export async function requestNearbyPermissions(): Promise<PermissionOutcome> {
   const state = await refreshNearby();
   const missing = (state?.missingPermissions ?? []) as Permission[];
   if (missing.length === 0) return 'granted';
+  if (Platform.OS === 'ios') {
+    // iOS asks for Bluetooth once, when the module first uses it (ADR 0033).
+    const outcome = (await PingdostNearby?.requestPermission?.()) ?? 'denied';
+    await refreshNearby();
+    return outcome;
+  }
   const results = Object.values(await PermissionsAndroid.requestMultiple(missing));
   await refreshNearby();
   if (results.every((result) => result === 'granted')) return 'granted';

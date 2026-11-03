@@ -2,7 +2,7 @@
 // way out of every state that stops it (REQ §19.4: degraded states are visible).
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { Linking, Switch, Text } from 'react-native';
+import { Linking, Platform, Switch, Text } from 'react-native';
 
 import { ListRow, ListSection } from '@/components/list-row';
 import { Screen } from '@/components/screen';
@@ -14,11 +14,19 @@ import {
   useNearby,
   useNearbyStatus,
 } from '@/nearby/service';
-import { describeNearby } from '@/nearby/status';
+import { describeNearby, NEARBY_COPY, type NearbyPlatform } from '@/nearby/status';
 import { usePalette } from '@/theme/theme-root';
 import { meshTimeEstimate } from '@pingdost/attachments';
 
+/** Which platform's wording applies (ADR 0033). */
+export const nearbyPlatform: NearbyPlatform = Platform.OS === 'ios' ? 'ios' : 'android';
+
 export function openBluetoothSettings(): void {
+  // iOS has no public link to its Bluetooth settings: the app's own page has the switch.
+  if (Platform.OS !== 'android') {
+    void Linking.openSettings();
+    return;
+  }
   void Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS').catch(() =>
     Linking.openSettings(),
   );
@@ -55,10 +63,7 @@ export function NearbyExplainer() {
         Only phones of people you already chat with recognise that key, and nothing is sent to
         anyone else.
       </Text>
-      <Text className="text-muted">
-        Android shows a &quot;Nearby is on&quot; notification while it runs. Battery savers,
-        force-stopping the app or turning Bluetooth off pause it. It works best with PingDost open.
-      </Text>
+      <Text className="text-muted">{NEARBY_COPY[nearbyPlatform].background}</Text>
     </>
   );
 }
@@ -70,7 +75,7 @@ export function NearbyMessagingScreen() {
   const unknown = useNearby((state) => state.summary.unknown);
   const fileMaxMb = useNearby((state) => state.fileMaxMb);
   const status = useNearbyStatus();
-  const text = describeNearby(status);
+  const text = describeNearby(status, nearbyPlatform);
   const available = status.kind !== 'unavailable';
 
   // Back from the system settings: the permission or Bluetooth may have changed.
@@ -84,7 +89,7 @@ export function NearbyMessagingScreen() {
 
   function toggle(value: boolean): void {
     if (value) {
-      // Explain the permission before Android asks for it.
+      // Explain the permission before the system asks for it.
       if (!enabled) router.push('/nearby-setup');
       return;
     }
