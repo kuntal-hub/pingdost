@@ -204,7 +204,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - **Never** invent protocols. A new primitive use needs an ADR. Keys, OTPs, recovery phrases and plaintext never reach logs, analytics or push.
 
 ## A6. Mobile (Android first)
-- **Expo** (latest SDK at Phase 3) with **dev builds**, run locally via `npx expo run:android` (Android SDK + JDK 17 are installed). No Expo Go and no EAS needed for Android.
+- **Expo** (latest SDK at Phase 3) with **dev builds**, run locally via `npx expo run:android` (Android SDK + JDK 17 are installed). No Expo Go and no EAS needed for Android; an EAS Build dev client (free tier) is an optional alternative (ADR 0034).
   - **Load the `expo:expo-overview` skill before Expo work.**
 - **Identifiers:** Android package and iOS bundle ID `com.pingdost.app`; URL scheme `pingdost`.
 - ⚠ **ABIs:** `arm64-v8a` and `x86_64` (emulator) only, because the ubrn JSI player ships only 64-bit builds (ADR 0005). 32-bit-only phones are not supported for now.

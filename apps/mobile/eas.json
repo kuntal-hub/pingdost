@@ -1,0 +1,17 @@
+{
+  "cli": {
+    "version": ">= 27.3.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "node": "24.11.0",
+      "pnpm": "10.28.1",
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  }
+}

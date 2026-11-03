@@ -116,6 +116,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b2eaf238-271a-4804-be8c-bdbb2a07ab99"
+      }
+    },
+    "owner": "kuntal-hub"
   }
 }

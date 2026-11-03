@@ -1,0 +1,66 @@
+# What EAS Build uploads (apps/mobile/eas.json). EAS CLI reads this file only from the git root
+# and uses it INSTEAD of every .gitignore, so it repeats the rules of /.gitignore and
+# apps/mobile/.gitignore. Keep it in step when either changes.
+# Check the upload without building:
+#   cd apps/mobile; npx eas-cli build:inspect -p android -e development --stage archive --output <dir>
+
+# --- not needed by the build
+.git/
+docs/
+
+# --- /.gitignore
+node_modules/
+dist/
+build/
+.turbo/
+coverage/
+*.tsbuildinfo
+.expo/
+apps/mobile/android/
+apps/mobile/ios/
+**/android/build/
+**/android/.gradle/
+**/ios/build/
+**/ios/Pods/
+target/
+packages/crypto-native/android/src/main/jniLibs/
+packages/crypto-native/ios/
+.env
+.env.*
+!.env.example
+.data/
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.build/
+.swiftpm/
+
+# --- apps/mobile/.gitignore
+web-build/
+expo-env.d.ts
+.kotlin/
+*.orig.*
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.pem
+.env*.local
+apps/mobile/example
+
+# --- uploaded although git-ignored (must stay last)
+# The Rust crypto library (arm64-v8a, x86_64) from `pnpm --filter @pingdost/crypto-native
+# build:android`. EAS has no Rust toolchain, so the build ships the copy built here: rebuild it
+# before an EAS build whenever the Rust crate changed.
+!packages/crypto-native/android/src/main/jniLibs/
