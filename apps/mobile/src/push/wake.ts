@@ -12,6 +12,8 @@ import { startChat } from '@/engine/runtime';
 import type { MessageEngine } from '@pingdost/message-engine';
 import type { Transport } from '@pingdost/transport';
 
+import { clearServerNotices } from './notifications';
+
 /** How long to wait for the socket before giving up. */
 const CONNECT_TIMEOUT_MS = 10_000;
 /** Done once nothing new arrived for this long (receipts leave after 200 ms). */
@@ -42,6 +44,8 @@ async function wake(): Promise<void> {
   transport.start();
   await drained(engine, transport);
   await engine.idle();
+  // iOS: the app's own notifications are up now; the server's "New message" goes (ADR 0032).
+  await clearServerNotices().catch(() => undefined);
   // A call that rings or runs keeps the socket (ADR 0029).
   if (AppState.currentState !== 'active' && !callInProgress()) transport.stop();
 }

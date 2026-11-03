@@ -1,4 +1,4 @@
-// Pure call helpers for the Android app (ADR 0029), kept apart from React Native so they run
+// Pure call helpers for the phone app (ADR 0029), kept apart from React Native so they run
 // in unit tests: which call actions a chat offers, how a push is classified, what the screen
 // and the missed-call notification say, and when the proximity sensor turns the screen off.
 import type { CallOutcome, CallSnapshot } from '@pingdost/call-engine';
@@ -77,7 +77,7 @@ export const OUTCOME_TEXT: Record<CallOutcome, string> = {
 };
 
 export const ERROR_TEXT: Record<NonNullable<CallSnapshot['error']>, string> = {
-  media_denied: 'PingDost may not use the microphone or camera. Allow it in Android settings.',
+  media_denied: 'PingDost may not use the microphone or camera. Allow it in the phone’s settings.',
   media_unavailable: 'The microphone or camera is not available.',
   no_devices: 'This contact has no device that can take calls.',
   unreachable: 'Could not reach this contact.',

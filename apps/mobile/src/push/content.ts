@@ -70,6 +70,29 @@ export function notificationContent(input: {
   return { title, body: unreadCount > 1 ? `${text} · ${unreadCount} new messages` : text };
 }
 
+/**
+ * iOS (ADR 0032): whether a shown notification is the server's constant "New message" or
+ * "Incoming call" alert. Only our server sends this app remote notifications, so any notification
+ * with a push trigger is one. The app removes them once it has fetched (it shows its own then).
+ */
+export function isServerNotice(notification: { request: { trigger: unknown } }): boolean {
+  const trigger = notification.request.trigger;
+  return (
+    typeof trigger === 'object' &&
+    trigger !== null &&
+    (trigger as { type?: unknown }).type === 'push'
+  );
+}
+
+/** The app's `aps-environment` (app.config.js `extra.apsEnvironment`) as APNs names it. */
+export function apnsEnvironment(extra: unknown): 'sandbox' | 'production' {
+  const value =
+    typeof extra === 'object' && extra !== null
+      ? (extra as { apsEnvironment?: unknown }).apsEnvironment
+      : undefined;
+  return value === 'production' ? 'production' : 'sandbox';
+}
+
 function truncate(text: string, max: number): string {
   const chars = Array.from(text);
   return chars.length <= max ? text : `${chars.slice(0, max - 1).join('')}…`;

@@ -23,7 +23,7 @@ import type { Clock } from '../../infra/clock';
 import type { Metrics } from '../../infra/metrics';
 
 export interface PushServiceOptions {
-  tokens: Pick<PushTokens, 'get' | 'deleteInvalid'>;
+  tokens: Pick<PushTokens, 'get' | 'deleteInvalid' | 'deleteInvalidVoip'>;
   /** Configured providers; a device whose provider is missing is not woken. */
   senders: Partial<Record<PushProvider, PushSender>>;
   throttleMs: number;
@@ -120,6 +120,9 @@ export class PushService implements PushNotifier {
     this.#devices.clear();
     this.#rings.clear();
     await Promise.allSettled([...this.#inflight]);
+    await Promise.allSettled(
+      Object.values(this.o.senders).map((sender) => sender.close?.() ?? Promise.resolve()),
+    );
   }
 
   /** Resolves when every send started so far has finished (tests). */
@@ -141,7 +144,11 @@ export class PushService implements PushNotifier {
       const outcome = await sender.send(target, payload);
       if (outcome.result === 'sent') return count('sent');
       if (outcome.result === 'invalid_token') {
-        await this.o.tokens.deleteInvalid(deviceId, target.address);
+        if (outcome.voip && target.voip) {
+          await this.o.tokens.deleteInvalidVoip(deviceId, target.voip);
+        } else {
+          await this.o.tokens.deleteInvalid(deviceId, target.address);
+        }
         return count('invalid_token');
       }
       const { retryAfterMs, status } = outcome;

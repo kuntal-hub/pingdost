@@ -257,6 +257,7 @@ describe('PushService', () => {
           deleted.push(deviceId);
           return Promise.resolve();
         },
+        deleteInvalidVoip: () => Promise.resolve(),
       },
       senders: { fcm: sender },
       throttleMs: options.throttleMs ?? 60,

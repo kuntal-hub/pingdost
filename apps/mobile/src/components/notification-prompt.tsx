@@ -9,9 +9,15 @@ import {
   type PermissionState,
 } from '@/push/token';
 
+/** What the card says per platform: Android wakes the app silently, iOS shows a fixed alert. */
+const EXPLAINER =
+  Platform.OS === 'ios'
+    ? 'While PingDost is closed, our server asks Apple to show “New message” on your phone, with nothing else in it. Your phone then fetches the encrypted message and decrypts it itself: neither Apple nor our server can read it.'
+    : 'While PingDost is closed, our server sends your phone an empty wake-up signal. Your phone then fetches the encrypted message and decrypts it itself, so the notification text never passes through Google or our server.';
+
 /**
- * Explains notifications before Android 13+ shows its permission prompt (which can be asked
- * only a couple of times). Hidden once answered or dismissed.
+ * Explains notifications before the system permission prompt (Android 13+ and iOS, which can
+ * ask only once or a couple of times). Hidden once answered or dismissed.
  */
 export function NotificationPrompt() {
   const loaded = useNotificationPrefs((state) => state.loaded);
@@ -28,17 +34,13 @@ export function NotificationPrompt() {
       .catch(() => undefined);
   }, []);
 
-  if (Platform.OS !== 'android' || !loaded || dismissed || permission !== 'ask') return null;
+  if (Platform.OS === 'web' || !loaded || dismissed || permission !== 'ask') return null;
   return (
     <View className="gap-3 rounded-md border border-border bg-surface px-4 py-3">
       <Text accessibilityRole="header" className="text-base font-semibold text-foreground">
         Know when messages arrive
       </Text>
-      <Text className="text-muted">
-        While PingDost is closed, our server sends your phone an empty wake-up signal. Your phone
-        then fetches the encrypted message and decrypts it itself, so the notification text never
-        passes through Google or our server.
-      </Text>
+      <Text className="text-muted">{EXPLAINER}</Text>
       <View className="flex-row gap-3">
         <View className="flex-1">
           <Button

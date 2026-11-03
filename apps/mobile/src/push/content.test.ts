@@ -2,10 +2,36 @@ import { describe, expect, it } from 'vitest';
 
 import { MUTED_FOREVER } from '@pingdost/message-engine';
 
-import { DEFAULT_NOTIFICATION_PREFS, notificationContent, shouldNotify } from './content';
+import {
+  apnsEnvironment,
+  DEFAULT_NOTIFICATION_PREFS,
+  isServerNotice,
+  notificationContent,
+  shouldNotify,
+} from './content';
 
 const incoming = { direction: 'in', readAt: null, kind: 'text' } as const;
 const now = 1_000_000;
+
+describe('iOS server notices (ADR 0032)', () => {
+  it('recognises the server’s remote alerts, not the app’s own notifications', () => {
+    expect(isServerNotice({ request: { trigger: { type: 'push', payload: { t: 'wake' } } } })).toBe(
+      true,
+    );
+    expect(isServerNotice({ request: { trigger: null } })).toBe(false);
+    expect(isServerNotice({ request: { trigger: { type: 'timeInterval', seconds: 1 } } })).toBe(
+      false,
+    );
+    expect(isServerNotice({ request: { trigger: { channelId: 'messages' } } })).toBe(false);
+  });
+
+  it('maps the app’s aps-environment to the APNs gateway, sandbox unless production', () => {
+    expect(apnsEnvironment({ apsEnvironment: 'production' })).toBe('production');
+    expect(apnsEnvironment({ apsEnvironment: 'development' })).toBe('sandbox');
+    expect(apnsEnvironment(undefined)).toBe('sandbox');
+    expect(apnsEnvironment(null)).toBe('sandbox');
+  });
+});
 
 describe('shouldNotify', () => {
   it('notifies for unread incoming messages while the app is not on screen', () => {

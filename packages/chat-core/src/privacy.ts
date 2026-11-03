@@ -36,7 +36,7 @@ export const PRIVACY_EXPLAINER: readonly PrivacySection[] = [
   },
   {
     title: 'Calls and notifications',
-    body: 'Calls are end-to-end encrypted. When a direct connection is not possible they pass through our relay server, which sees both IP addresses and how much data flows. Push notifications carry no message content: Google (on Android) or your browser’s push service only learns that PingDost woke your device.',
+    body: 'Calls are end-to-end encrypted. When a direct connection is not possible they pass through our relay server, which sees both IP addresses and how much data flows. Push notifications carry no message content: Google (on Android), Apple (on iPhone) or your browser’s push service only learns that PingDost woke your device, or on an iPhone that a call is coming.',
   },
   {
     title: 'What deletion cannot reach',

@@ -30,7 +30,7 @@
 | Groups: members and roles (not messages or names, which are encrypted) | Routing group messages to members only | While the group exists |
 | Blocks | Not delivering messages from people you blocked | Until you unblock |
 | Abuse reports you send, with only the messages you chose to attach | Handling abuse | **90 days** |
-| Push tokens (Firebase on Android, Web Push in browsers) | Waking your device when something arrives | Until replaced or the device is removed |
+| Push tokens (Firebase on Android, Apple Push Notification service on iPhone, Web Push in browsers) | Waking your device when something arrives | Until replaced or the device is removed |
 
 **Metadata our server can see while delivering:** which account and device sends to which device, when, how large each item is, whether a call invite went to an offline device (kept in memory for 15 seconds), your IP address while connected (not stored in logs; hashed in security events), and whether you are online (shared with contacts only if you allow it, and never stored).
 
@@ -50,7 +50,7 @@ If you turn on **Nearby messaging**, other PingDost phones in Bluetooth range ca
 If you also turn on **Nearby relay**, your phone carries other people's encrypted messages and files for them. Relaying phones see routing information: rotating daily routing codes, packet IDs, times, sizes, hop counts and, for groups, group and session identifiers. They cannot read or alter the content.
 
 ## 6. Calls
-Calls are end-to-end encrypted (WebRTC). When a direct connection is not possible, call data passes through our relay server (TURN), which sees both IP addresses and how much data flows, not the content. The relay sign-in name contains your user ID; error logs of the relay can contain it with your IP address and are kept about a week.
+Calls are end-to-end encrypted (WebRTC). When a direct connection is not possible, call data passes through our relay server (TURN), which sees both IP addresses and how much data flows, not the content. The relay sign-in name contains your user ID; error logs of the relay can contain it with your IP address and are kept about a week. On an iPhone, calls use Apple's CallKit call screen; PingDost keeps them out of the Phone app's recent calls (which iCloud syncs).
 
 ## 7. Third parties
 | Service | What they get | Why |
@@ -59,6 +59,7 @@ Calls are end-to-end encrypted (WebRTC). When a direct connection is not possibl
 | MongoDB Atlas (database) | The database contents in §2 | Stores account metadata |
 | Cloudflare | Web app requests, DNS | Serves the web app |
 | Google Firebase Cloud Messaging | Your push token; a content-free "wake" signal and its timing | Wakes your Android device |
+| Apple Push Notification service | Your iPhone's push tokens; a fixed "New message" or "Incoming call" notice and its timing, with no sender or content | Wakes your iPhone and rings incoming calls |
 | Your browser's push service | Your push subscription; a content-free signal | Wakes the web app |
 | Google Sign-In (optional) | Your sign-in with Google | If you choose it |
 | Cloudinary | Your profile picture (public) | Hosts profile pictures |

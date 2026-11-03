@@ -4,6 +4,18 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-03 — Phase 29: iOS push and calls, code only (ADR 0032)
+1. **Phase 29 started before Phase 28 was done** (Apple account, iPhone and Mac still missing): the user asked for Phases 29 and 30. The code that needs no Apple account was written; the phase stays 🔄 until device checks.
+   - *Affects:* 29.
+2. **On iOS the wake push is a visible alert with the constant text "New message"** (and `content-available`), not a data-only wake (A2, ADR 0015). iOS never delivers silent pushes to a force-quit app. The alert holds no content (REQ §4.1 holds); the app hides it while open and removes it after fetching. When the app cannot run, mute and preview settings cannot apply to it.
+   - *Affects:* 29 (done), 12's design on iOS only.
+3. **A Notification Service Extension that decrypts is deferred:** it would share Olm sessions across processes, which cannot be proved safe without a Mac and a device.
+   - *Affects:* 29 (open), later.
+4. **APNs is called directly** (token auth, `node:http2` + `jose`), not through FCM: VoIP pushes need APNs anyway, and Google then never sees iPhone pushes. New variables `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY_BASE64`, `APNS_BUNDLE_ID` (A11).
+   - *Affects:* 29 (done), 20 (staging `.env`).
+5. **iPhone calls use CallKit for every incoming call** and are kept out of the Phone app's Recents (iCloud syncs it). No new dependency: a Swift half of `modules/pingdost-calls`.
+   - *Affects:* 29 (done).
+
 ### 2026-11-03 — Phase 28: iOS groundwork without a Mac (ADR 0031)
 1. **Phase 28 started before its prerequisites** (Apple account, iPhone, Mac/EAS): the user asked to start it. Only no-cost groundwork was done; the phase stays 🔄 until the device steps.
    - *Affects:* 28.

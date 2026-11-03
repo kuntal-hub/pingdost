@@ -70,7 +70,8 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - `console` (dev only; content hidden unless `EMAIL_CONSOLE_SHOW_CONTENT=true` and not production);
   - `smtp` (nodemailer: Mailpit in dev, Brevo free 300/day, Zoho);
   - `zeptomail` (HTTP API; the first 10K emails are free).
-- **Push:** a `PushNotifier` adapter with `fcm` (FCM HTTP v1, service account) and `webpush` (VAPID); `apns` comes in the iOS track.
+- **Push:** a `PushNotifier` adapter with `fcm` (FCM HTTP v1, service account), `webpush` (VAPID) and ⚠ `apns` (direct APNs over HTTP/2, token auth; ADR 0032).
+  - (ADR 0032) On iOS the wake is an **alert with the constant text "New message"** plus `content-available`, because iOS does not deliver silent pushes to a force-quit app; the app removes it once it has fetched. Calls go to the PushKit VoIP token as `{"t":"call"}` and are reported to CallKit natively.
   - Payloads are a **content-free wake** (`{"t":"wake"}` or `{"t":"call"}`), coalesced per device.
   - (ADR 0015) `push_tokens` holds one address per device. FCM v1 is called over `fetch` with a `jose`-signed OAuth grant (no Firebase SDK). At most one wake per device per `PUSH_WAKE_THROTTLE_SECONDS`, plus one deferred wake at the window's end. Rejected tokens are deleted.
   - The phone fetches, decrypts and shows a **local** notification itself. Previews, sender name and mute are device settings.
@@ -276,7 +277,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 | API / worker / Valkey / TURN / temp files | ⚠ **One Hostinger KVM VPS** (`x86_64`), one Docker Compose stack (ADR 0013). KVM 1 (1 vCPU / 4 GB / 50 GB) while Mongo is on Atlas; KVM 2 (2 vCPU / 8 GB / 100 GB) if Mongo moves onto it | Paid by the user: the only paid service |
 | Web hosting, DNS, dev tunnel | Cloudflare Pages, DNS, Tunnel; Caddy + Let's Encrypt on the VPS | Free |
 | Email | Mailpit (dev); ZeptoMail (10K free) or Brevo SMTP (300/day) | Free to start |
-| Push | FCM, Web Push (VAPID) | Free |
+| Push | FCM, Web Push (VAPID), APNs (ADR 0032; needs the Apple account) | Free |
 | TURN / STUN | Self-hosted coturn | Free (VPS bandwidth) |
 | Avatars | Cloudinary free | Free |
 | Monitoring (Phase 20) | healthchecks.io (job heartbeat + the VPS threshold script), UptimeRobot (`/readyz`; free plan is non-commercial) | Free |
@@ -315,6 +316,7 @@ GOOGLE_CLIENT_IDS=                          # comma-separated audiences (web + a
 CLOUDINARY_CLOUD_NAME= CLOUDINARY_API_KEY= CLOUDINARY_API_SECRET=
 FCM_PROJECT_ID= FCM_SERVICE_ACCOUNT_JSON_BASE64=
 WEB_PUSH_VAPID_PUBLIC_KEY= WEB_PUSH_VAPID_PRIVATE_KEY= WEB_PUSH_SUBJECT=
+APNS_KEY_ID= APNS_TEAM_ID= APNS_PRIVATE_KEY_BASE64= APNS_BUNDLE_ID=   # Phase 29 (ADR 0032): all or none; the key is secret
 PUSH_WAKE_THROTTLE_SECONDS=10               # Phase 12: max one wake per device per window
 ATTACHMENT_STORE=fs                          # fs | s3 (ADR 0017: fs in production)
 ATTACHMENT_FS_ROOT=./.data/attachments
@@ -343,4 +345,5 @@ SYNC_RECENT_DAYS=30
 - **Now:** Android + web.
 - **iOS:** deferred to Phases 28–30. Keep code platform-neutral where it costs nothing: Expo config for iOS present, no Android-only assumptions in shared packages.
   - (ADR 0031, Phase 28 groundwork) The crate compiles for iOS targets (CI clippy); `build:ios` makes the xcframework on macOS only; `.github/workflows/ios.yml` builds an unsigned simulator app. Android-only native modules load optionally (`requireOptionalNativeModule`), so iOS degrades: no video compression, no nearby, no Android call UI. Google Sign-In on iOS needs `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`.
+  - (ADR 0032, Phase 29 code) `modules/pingdost-calls` has a Swift half: PushKit + CallKit (`CallKitCenter`, started by an AppDelegate subscriber), the same audio/proximity/screen functions as Android; `src/calls/callkit.ts` binds CallKit calls to the call manager. Every incoming call on iOS is a CallKit call, kept out of the Phone app's Recents. The build's `aps-environment` comes from `PINGDOST_APS_ENVIRONMENT` (app.config.js).
 - The user has 2+ Android phones and no Mac or iPhone. Mesh 3-device tests use the Node simulation until a third phone is available.

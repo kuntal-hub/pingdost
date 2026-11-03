@@ -36,6 +36,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0029](0029-android-calls-incoming-ux.md) | Android calls: react-native-webrtc, a local calls module, full-screen-intent incoming calls | 26 | Accepted (device matrix pending) |
 | [0030](0030-release-hardening.md) | Release hardening: audit gates, mailbox budgets, batched migration, 64-bit only, no crash SDK, versioning | 27 | Accepted |
 | [0031](0031-ios-build-path.md) | iOS build path without a Mac (macOS CI, Linux prebuild checks) and iOS gaps until device work | 28 | Accepted (groundwork; device steps blocked) |
+| [0032](0032-ios-push-callkit.md) | iOS push (direct APNs, constant alert) and calls (PushKit + CallKit, local Swift module) | 29 | Accepted (device checks blocked) |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ ยง7.2 license/dependency matrix).
 
@@ -58,4 +59,5 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ ย
 | Nearby recognition (contact-only tags or not) | 23 | No (done: 0026) |
 | Mesh file transfer & Wi-Fi bulk path | 24 | No (done: 0027) |
 | Incoming-call UX on Android | 26 | No (done: 0029) |
+| APNs route, iOS message wake, CallKit | 29 | No (done: 0032) |
 | Project license | 01 | **Yes** (done: 0001) |

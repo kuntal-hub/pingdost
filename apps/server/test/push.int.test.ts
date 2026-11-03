@@ -11,9 +11,11 @@ import type { CryptoProvider } from '@pingdost/crypto';
 import { Accepted_Status } from '@pingdost/protocol';
 
 import { cryptoProvider } from './devices';
+import { apnsKeyPair, startFakeApns, type FakeApns } from './fake-apns';
 import { bearer, json, registeredUser, startTestServer, type TestServer } from './helpers';
 import { deviceSession, envelopePacket, TestSocket, type TestDeviceSession } from './ws';
 import { systemClock } from '../src/infra/clock';
+import { ApnsSender } from '../src/modules/push/apns';
 import { FcmSender } from '../src/modules/push/fcm';
 
 const { privateKey } = generateKeyPairSync('rsa', {
@@ -57,12 +59,23 @@ const fakeGoogle = ((input: string | URL | Request, init?: RequestInit) => {
 
 let server: TestServer;
 let crypto: CryptoProvider;
+let apns: FakeApns;
 
 beforeAll(async () => {
   crypto = await cryptoProvider();
+  apns = await startFakeApns();
   server = await startTestServer({
     env: { PUSH_WAKE_THROTTLE_SECONDS: '1' },
     pushSenders: {
+      apns: new ApnsSender({
+        keyId: 'KEY1234567',
+        teamId: 'TEAM123456',
+        privateKeyPem: apnsKeyPair().privateKeyPem,
+        bundleId: 'com.pingdost.app',
+        ttlSeconds: 3_600,
+        clock: systemClock,
+        origins: apns.origins,
+      }),
       fcm: new FcmSender({
         projectId: 'pingdost-test',
         serviceAccountJsonBase64: Buffer.from(
@@ -79,7 +92,10 @@ beforeAll(async () => {
   });
 });
 
-afterAll(() => server.close());
+afterAll(async () => {
+  await server.close();
+  await apns.close();
+});
 
 function putToken(session: { accessToken: string }, token: string) {
   return server.app.inject({
@@ -214,6 +230,93 @@ describe('push wakes', () => {
       expect(await tokens().countDocuments({ _id: gone.deviceId })).toBe(0),
     );
     expect(fcmBodies.length).toBe(before + 1);
+    socket.close();
+  });
+});
+
+describe('APNs (iPhone, ADR 0032)', () => {
+  const hex = (digit: string) => digit.repeat(64);
+
+  function putApns(session: { accessToken: string }, body: Record<string, unknown>) {
+    return server.app.inject({
+      method: 'PUT',
+      url: '/v1/push/token',
+      headers: bearer(session.accessToken),
+      payload: { provider: 'apns', ...body },
+    });
+  }
+
+  it('stores both tokens and the environment, and moves a VoIP token to its new device', async () => {
+    const old = await deviceSession(server, crypto);
+    const fresh = await deviceSession(server, crypto);
+    const put = await putApns(old, {
+      token: hex('1'),
+      voipToken: hex('2'),
+      environment: 'sandbox',
+    });
+    expect(put.statusCode).toBe(204);
+    expect(await tokens().findOne({ _id: old.deviceId })).toMatchObject({
+      provider: 'apns',
+      address: hex('1'),
+      voip: hex('2'),
+      sandbox: true,
+    });
+    // The reinstalled app has a new alert token but the same VoIP token.
+    await putApns(fresh, { token: hex('3'), voipToken: hex('2'), environment: 'production' });
+    expect(await tokens().countDocuments({ _id: old.deviceId })).toBe(0);
+    const doc = await tokens().findOne({ _id: fresh.deviceId });
+    expect(doc).toMatchObject({ address: hex('3'), voip: hex('2') });
+    expect(doc).not.toHaveProperty('sandbox');
+  });
+
+  it('wakes an offline iPhone with the constant alert, nothing else', async () => {
+    const alice = await deviceSession(server, crypto);
+    const bob = await deviceSession(server, crypto);
+    await putApns(bob, { token: hex('4'), voipToken: hex('5'), environment: 'sandbox' });
+    const socket = await TestSocket.connect(server, alice);
+    const before = apns.calls.length;
+
+    const { messageId, envelopeId } = await sendStored(socket, alice, bob);
+    await vi.waitFor(() => expect(apns.calls.length).toBe(before + 1));
+    const call = apns.calls[before];
+    expect(call?.gateway).toBe('sandbox');
+    expect(call?.path).toBe(`/3/device/${hex('4')}`);
+    expect(call?.headers).toMatchObject({
+      'apns-push-type': 'alert',
+      'apns-topic': 'com.pingdost.app',
+      'apns-collapse-id': 'wake',
+    });
+    expect(JSON.parse(call?.body ?? '')).toEqual({
+      aps: { alert: { body: 'New message' }, sound: 'default', 'content-available': 1 },
+      t: 'wake',
+    });
+    const everything = JSON.stringify({ headers: call?.headers, body: call?.body });
+    for (const secret of [
+      'PLAINTEXT-MARKER',
+      messageId,
+      envelopeId,
+      alice.userId,
+      alice.deviceId,
+      bob.userId,
+      bob.deviceId,
+    ]) {
+      expect(everything).not.toContain(secret);
+    }
+    socket.close();
+  });
+
+  it('deletes a token APNs reports as unregistered', async () => {
+    const alice = await deviceSession(server, crypto);
+    const gone = await deviceSession(server, crypto);
+    await putApns(gone, { token: hex('6'), environment: 'production' });
+    apns.reply = (call) =>
+      call.path.endsWith(hex('6')) ? { status: 410, reason: 'Unregistered' } : { status: 200 };
+    const socket = await TestSocket.connect(server, alice);
+    await sendStored(socket, alice, gone);
+    await vi.waitFor(async () =>
+      expect(await tokens().countDocuments({ _id: gone.deviceId })).toBe(0),
+    );
+    apns.reply = () => ({ status: 200 });
     socket.close();
   });
 });

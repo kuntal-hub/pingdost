@@ -9,10 +9,14 @@
 // - Wi-Fi ↔ mobile data or a reconnect restarts ICE ("Reconnecting");
 // - a GSM call going on answers new invites busy;
 // - ended calls go to the local history; a missed one makes a notification.
+// On iOS (Phase 29, ADR 0032) CallKit does the ringing, the incoming-call screen and the lock
+// screen, and owns the audio session; `CallKitBridge` keeps it in step with the manager. The
+// module's Android-only functions are no-ops there.
+import * as Crypto from 'expo-crypto';
 import * as Network from 'expo-network';
 import * as Notifications from 'expo-notifications';
 import { AppState, Platform } from 'react-native';
-import type { MediaStream } from 'react-native-webrtc';
+import { RTCAudioSession, type MediaStream } from 'react-native-webrtc';
 import { create } from 'zustand';
 
 import { api } from '@/api';
@@ -22,10 +26,17 @@ import { useNotificationPrefs } from '@/push/prefs';
 import { CallError, CallManager, isLive, type CallSnapshot } from '@pingdost/call-engine';
 import type { MessageEngine } from '@pingdost/message-engine';
 
+import { CallKitBridge } from './callkit';
 import { missedCallContent, wantsProximity } from './logic';
 import { grantCallPermissions, NativeCallPlatform } from './platform';
 import { useCallPrefs } from './prefs';
-import { PingdostCalls, type AudioRoute, type AudioRoutes } from '../../modules/pingdost-calls/src';
+import { consumeCallKitEvents } from './voip';
+import {
+  callKitNative,
+  PingdostCalls,
+  type AudioRoute,
+  type AudioRoutes,
+} from '../../modules/pingdost-calls/src';
 
 interface CallsState {
   call: CallSnapshot | null;
@@ -47,6 +58,8 @@ export const useCalls = create<CallsState>()(() => ({
 interface Running {
   manager: CallManager;
   platform: NativeCallPlatform;
+  /** iOS only. */
+  callkit: CallKitBridge | null;
 }
 
 let running: Running | null = null;
@@ -72,7 +85,8 @@ export function startCalls(chat: {
   userId: string;
   deviceId: string;
 }): () => void {
-  const native = Platform.OS === 'android' ? PingdostCalls : null;
+  const native = Platform.OS === 'android' || Platform.OS === 'ios' ? PingdostCalls : null;
+  const callkitNative = Platform.OS === 'ios' ? callKitNative() : null;
   const platform = new NativeCallPlatform(
     async () => (await api.calls.turnCredentials()).iceServers,
     (media) => useCalls.setState(media),
@@ -111,14 +125,33 @@ export function startCalls(chat: {
       ? { log: (message, fields) => console.debug(`[calls] ${message}`, fields ?? '') }
       : {}),
   });
-  running = { manager, platform };
+  const callkit = callkitNative
+    ? new CallKitBridge(
+        callkitNative,
+        {
+          accept: (callId) => void accept(callId).catch(() => undefined),
+          reject: () => void manager.reject(),
+          hangup: () => void manager.hangup(),
+          setMuted: (muted) => manager.setMuted(muted),
+          // WebRTC must hear about CallKit's session, or calls answered from the lock
+          // screen have no sound.
+          audio: (active) => {
+            if (active) RTCAudioSession.audioSessionDidActivate();
+            else RTCAudioSession.audioSessionDidDeactivate();
+          },
+        },
+        { randomUuid: () => Crypto.randomUUID() },
+      )
+    : null;
+  running = { manager, platform, callkit };
 
   let previous: CallSnapshot | null = null;
   let mediaFor: string | null = null;
   const names = new Map<string, string>();
 
   const ring = (call: CallSnapshot) => {
-    if (!native) return;
+    // CallKit rings on iOS.
+    if (!native || callkit) return;
     if (AppState.currentState === 'active') {
       native.cancelIncoming();
       native.startRinging();
@@ -168,10 +201,14 @@ export function startCalls(chat: {
       void nameFor(peerUserId).then((name) => {
         if (name) names.set(callId, name);
         const now = manager.call;
-        // Off screen, the notification shows the name once it is known.
-        if (name && now?.callId === callId && now.state === 'incoming') ring(now);
+        // Off screen, the notification (or CallKit) shows the name once it is known.
+        if (name && now?.callId === callId && now.state === 'incoming') {
+          ring(now);
+          callkit?.onCall(now, name);
+        }
       });
     }
+    callkit?.onCall(call, call ? (names.get(call.callId) ?? 'PingDost') : 'PingDost');
     if (call?.state === 'incoming' && before?.callId !== call.callId) ring(call);
     if (before?.state === 'incoming' && call?.state !== 'incoming') stopRinging();
     if (call && ['outgoing', 'connecting'].includes(call.state)) startMedia(call);
@@ -198,6 +235,7 @@ export function startCalls(chat: {
       ]
     : [];
   for (const action of native?.takePendingActions() ?? []) handleAction(action);
+  const stopCallKit = callkit ? consumeCallKitEvents((event) => callkit.onEvent(event)) : null;
 
   // On screen the app rings; off screen the notification does.
   const appState = AppState.addEventListener('change', () => {
@@ -214,6 +252,8 @@ export function startCalls(chat: {
 
   return () => {
     unsubscribe();
+    stopCallKit?.();
+    callkit?.dispose();
     for (const listener of listeners) listener.remove();
     appState.remove();
     network.remove();
@@ -245,10 +285,11 @@ export async function dial(peerUserId: string, video: boolean): Promise<boolean>
   if (!r) return false;
   useCalls.setState({ notice: null });
   if (!(await grantCallPermissions(video))) {
+    const settings = Platform.OS === 'ios' ? 'Settings' : 'Android settings';
     useCalls.setState({
       notice: video
-        ? 'Video calls need the microphone and camera. Allow them in Android settings.'
-        : 'Calls need the microphone. Allow it in Android settings.',
+        ? `Video calls need the microphone and camera. Allow them in ${settings}.`
+        : `Calls need the microphone. Allow it in ${settings}.`,
     });
     return false;
   }
@@ -269,11 +310,19 @@ export async function accept(callId?: string): Promise<void> {
   await r.manager.accept();
 }
 
+/** The user ended the call on our screen: CallKit hears it as a local end. */
+function markLocalEnd(r: Running | null): void {
+  const call = r?.manager.call;
+  if (call) r?.callkit?.endedLocally(call.callId);
+}
+
 export function decline(): Promise<void> {
+  markLocalEnd(running);
   return running?.manager.reject() ?? Promise.resolve();
 }
 
 export function hangup(): Promise<void> {
+  markLocalEnd(running);
   return running?.manager.hangup() ?? Promise.resolve();
 }
 

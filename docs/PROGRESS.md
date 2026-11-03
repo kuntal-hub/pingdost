@@ -17,6 +17,31 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-03 — Phase 29: iOS: push (APNs) + calls (CallKit) — 🔄 code only (blocked on the Apple account, an iPhone and a macOS build)
+Started with Phase 28 still 🔄 (groundwork only): the user asked for Phases 29 and 30 together. **Nothing was paid or signed up for.**
+
+**Done (ADR 0032):**
+- **Server:** `ApnsSender` (direct APNs, `node:http2` + `jose` ES256 provider token, sandbox/production per token); wake = constant "New message" alert + `content-available`; call = `{"t":"call"}` to the PushKit VoIP token (alert fallback "Incoming call"); 410/`BadDeviceToken` delete (VoIP token alone when it failed), config errors never delete. `PUT /v1/push/token` `{provider:'apns', token, voipToken?, environment}`; `push_tokens.voip`/`sandbox`; config group `APNS_*` (key secret).
+- **iPhone:** APNs + VoIP token registration (`push/token.ts`); the constant alert hidden while open and removed after fetching; explainer card on iOS. Swift half of `modules/pingdost-calls` (`CallKitCenter`: PushKit, CallKit, audio session/routes, kept out of Recents; `CallsAppDelegate`; `CallsModule`). `src/calls/callkit.ts` bridge (push ↔ invite binding, lock-screen answer/decline before the invite, end reasons) and `src/calls/voip.ts` (connect on a VoIP push, queue events). `plugins/with-ios-background-modes.js` (`voip`, `audio`; expo-video drops `audio`), `PINGDOST_APS_ENVIRONMENT`.
+- Privacy explainer and policy name Apple; ARCHITECTURE A2/A9/A11/A12; CLAUDE.md.
+
+**Remaining (in order; needs the user):**
+- [ ] Push to GitHub, run **iOS build (simulator, unsigned)**: first compile of the Swift (calls module and Phase 28's).
+- [ ] Apple Developer Program (US$99/yr) → APNs key → `APNS_*` on the VPS (steps in the phase file).
+- [ ] Device matrix (phase file): iPhone↔Android/web, locked/killed, lock-screen answer with sound, routes, network switch.
+
+**Deviations / decisions:** ADR 0032; CHANGES 2026-11-03 (Phase 29, 5 items): constant alert on iOS, NSE deferred, direct APNs, CallKit for every incoming call.
+
+**Verification results:**
+- Server: `apns.test.ts` 10 passed (real HTTP/2 against `test/fake-apns.ts`, provider token verified with the public key); `push.int.test.ts` 9 passed (3 new APNs). Server unit 52.
+- Mobile: 124 tests (callkit 13, content +2); lint/typecheck clean (mobile, server, config, shared-types, web, api-client, chat-core). `pnpm format:check` clean.
+- Linux `expo prebuild --platform ios`: pass (background modes `fetch`, `remote-notification`, `voip`, `audio`; `aps-environment` development).
+- **Not run:** Swift compile, an iPhone, a real APNs send.
+
+**Known issues / tech debt:** muted chats still show "New message" on an iPhone when the app cannot run (needs an NSE); a lock-screen answer without prior microphone permission fails; WebRTC's `useManualAudio` is not set (check lock-screen audio on a device).
+
+**Next:** Phase 30 (same session).
+
 ## 2026-11-03 — Phase 28: iOS: build, crypto, core chat — 🔄 groundwork only (blocked on the Apple account, an iPhone and a macOS build)
 Phase 28 was ⏸ with prerequisites the user has not met (Apple Developer Program US$99/yr, an iPhone, a Mac or macOS CI/EAS). The user asked to start it, so only the no-cost groundwork was done; **nothing was paid or signed up for**.
 

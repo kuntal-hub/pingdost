@@ -1,7 +1,7 @@
 /**
  * Content-free push wakes (ARCHITECTURE A2, ADR 0015): `{"t":"wake"}` makes an offline device
- * connect and fetch its mailbox. `PushService` implements `PushNotifier` over the FCM and
- * Web Push senders; without either configured, wakes are dropped.
+ * connect and fetch its mailbox. `PushService` implements `PushNotifier` over the FCM, Web Push
+ * and APNs senders; a device whose provider is not configured is not woken.
  */
 import type { PushPayload } from '@pingdost/shared-types';
 
@@ -21,14 +21,19 @@ export const noopPushNotifier: PushNotifier = { wake: () => undefined, ring: () 
 
 export type SendOutcome =
   | { result: 'sent' }
-  /** The provider says the address will never work again: delete it. */
-  | { result: 'invalid_token' }
+  /**
+   * The provider says the address will never work again: delete it. `voip`: it was the
+   * target's APNs VoIP token, so only that one goes.
+   */
+  | { result: 'invalid_token'; voip?: true }
   /** With `retryAfterMs` the failure is transient and the send may be retried. */
   | { result: 'failed'; status?: number; retryAfterMs?: number };
 
 /** One push provider. Implementations never throw and never log the address. */
 export interface PushSender {
   send(target: PushTarget, payload: PushPayload): Promise<SendOutcome>;
+  /** Closes open connections (APNs keeps an HTTP/2 session). */
+  close?(): Promise<void>;
 }
 
 /** A call push older than a ring is useless: the provider drops it after this. */

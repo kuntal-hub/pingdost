@@ -140,6 +140,28 @@ const serverEnvSchema = z.object({
     .string()
     .regex(/^(mailto:|https:\/\/)/, 'must start with mailto: or https://')
     .optional(),
+  // APNs (ADR 0032): a token-based auth key (.p8) from the Apple Developer account.
+  APNS_KEY_ID: z
+    .string()
+    .regex(/^[A-Z0-9]{10}$/, 'must be the 10-character key ID')
+    .optional(),
+  APNS_TEAM_ID: z
+    .string()
+    .regex(/^[A-Z0-9]{10}$/, 'must be the 10-character team ID')
+    .optional(),
+  /** The `.p8` file's contents, base64-encoded. */
+  APNS_PRIVATE_KEY_BASE64: z
+    .base64({ error: 'must be base64' })
+    .refine(
+      (value) =>
+        Buffer.from(value, 'base64').toString('utf8').includes('-----BEGIN PRIVATE KEY-----'),
+      'must be the base64 of the .p8 file (a PKCS#8 PEM key)',
+    )
+    .optional(),
+  APNS_BUNDLE_ID: z
+    .string()
+    .regex(/^[A-Za-z0-9.-]+$/, 'must be the app bundle ID, e.g. com.pingdost.app')
+    .optional(),
   // At most one wake per device per window; wakes inside it collapse into one at its end.
   PUSH_WAKE_THROTTLE_SECONDS: int(1, 10 * MINUTE).default(10),
 
@@ -192,6 +214,7 @@ export const SERVER_SECRET_KEYS = [
   'CLOUDINARY_API_SECRET',
   'FCM_SERVICE_ACCOUNT_JSON_BASE64',
   'WEB_PUSH_VAPID_PRIVATE_KEY',
+  'APNS_PRIVATE_KEY_BASE64',
   'TURN_SHARED_SECRET',
   'METRICS_TOKEN',
   'HEARTBEAT_URL',
@@ -247,6 +270,7 @@ const OPTIONAL_GROUPS = {
   cloudinary: ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'],
   fcm: ['FCM_PROJECT_ID', 'FCM_SERVICE_ACCOUNT_JSON_BASE64'],
   webPush: ['WEB_PUSH_VAPID_PUBLIC_KEY', 'WEB_PUSH_VAPID_PRIVATE_KEY', 'WEB_PUSH_SUBJECT'],
+  apns: ['APNS_KEY_ID', 'APNS_TEAM_ID', 'APNS_PRIVATE_KEY_BASE64', 'APNS_BUNDLE_ID'],
   turn: ['TURN_URLS', 'TURN_SHARED_SECRET'],
 } as const satisfies Record<string, readonly ServerEnvKey[]>;
 
@@ -416,6 +440,10 @@ function toServerConfig(env: ServerEnv) {
     WEB_PUSH_VAPID_PUBLIC_KEY,
     WEB_PUSH_VAPID_PRIVATE_KEY,
     WEB_PUSH_SUBJECT,
+    APNS_KEY_ID,
+    APNS_TEAM_ID,
+    APNS_PRIVATE_KEY_BASE64,
+    APNS_BUNDLE_ID,
     TURN_URLS,
     TURN_SHARED_SECRET,
     ...scalars
@@ -453,6 +481,12 @@ function toServerConfig(env: ServerEnv) {
       vapidPublicKey: WEB_PUSH_VAPID_PUBLIC_KEY,
       vapidPrivateKey: WEB_PUSH_VAPID_PRIVATE_KEY,
       subject: WEB_PUSH_SUBJECT,
+    }),
+    apns: group({
+      keyId: APNS_KEY_ID,
+      teamId: APNS_TEAM_ID,
+      privateKeyBase64: APNS_PRIVATE_KEY_BASE64,
+      bundleId: APNS_BUNDLE_ID,
     }),
     turn: group({ urls: TURN_URLS, sharedSecret: TURN_SHARED_SECRET }),
   };
