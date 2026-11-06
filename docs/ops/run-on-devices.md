@@ -50,7 +50,7 @@ cd ..\..
 ```
 
 ### When you need a new APK
-Only after **native** changes: `app.json` plugins, a new native package, the Kotlin modules in
+Only after **native** changes: `app.json` plugins or permissions, a new native package, the Kotlin modules in
 `apps/mobile/modules`, or the Rust crypto library. JS and TS changes never need one.
 ```powershell
 # Only if the Rust crate changed (needs Rust and cargo-ndk, see CLAUDE.md):
@@ -70,6 +70,10 @@ device. A local build contains only that device's ABI, so a phone build crashes 
 emulator. For the emulator, run `npx expo run:android --no-bundler --device emulator-5554` in
 `apps\mobile`. Set `$env:JAVA_TOOL_OPTIONS='-Djava.net.preferIPv4Stack=true'` first. The
 one-time Windows setup is in CLAUDE.md (ADR 0005).
+
+A local build is signed with a different key than an EAS build, so one cannot install over the
+other (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`). Switching between them means uninstalling first,
+which deletes the app's data on that device.
 
 ## 2. Choose how devices reach your PC
 

@@ -4,6 +4,10 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-06 — Android: `DETECT_SCREEN_CAPTURE` is no longer blocked (corrects Phase 27, ADR 0030)
+1. **`DETECT_SCREEN_CAPTURE` stays in the manifest.** On Android 14+, expo-screen-capture 58.0.6 registers its screenshot callback as soon as the module loads, whether or not anything listens. Phase 27 blocked the permission that call needs, so builds since then crash at launch on Android 14+ (`Permission Denial: registerScreencaptureObserver`, then `Capture observer already registered`). It is a normal permission: granted at install, no prompt, no access to images. The app still has no screenshot listener. `READ_MEDIA_IMAGES` stays blocked: only the listener for older Android versions uses it, and that code checks first. Needs a new native build.
+   - *Affects:* 27 (done; release builds carried the same block).
+
 ### 2026-11-03 — Phase 30: iOS nearby and mesh, code only (ADR 0033)
 1. **Phase 30 started before Phase 28 was done** (no iPhone, Apple account or Mac): the user asked for Phases 29 and 30. The code and Linux-testable core were written; the phase stays 🔄 until the device matrix (`docs/ops/nearby-ios-matrix.md`).
    - *Affects:* 30.
