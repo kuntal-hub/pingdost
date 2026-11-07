@@ -245,6 +245,7 @@ export class NearbyPeerTransport implements Transport {
               : Promise.reject(new Error('link_down'));
           },
           deliver: (packet, ack) => this.#packets.emit(packet, ack),
+          relayingChanged: () => this.#announceCapabilities(),
           ...(config.log === undefined ? {} : { log: config.log }),
         },
         config.mesh,
@@ -532,6 +533,7 @@ export class NearbyPeerTransport implements Transport {
       return;
     }
     clearTimeout(link.timer);
+    const provedBefore = link.peerKey === identityKey;
     link.peerKey = identityKey;
     link.capabilities = hello.capabilities;
     if (result.status === 'known' && (hello.capabilities & HelloCapability.DIRECT) !== 0) {
@@ -545,7 +547,10 @@ export class NearbyPeerTransport implements Transport {
       this.#log('nearby peer unknown');
       this.#changed(false);
     }
-    if (link.peerToken) {
+    if (provedBefore) {
+      // The same peer on the same link: what the mesh learned about it still holds.
+      this.#mesh?.linkCapabilities(link.connection.linkId, hello.capabilities);
+    } else if (link.peerToken) {
       this.#mesh?.linkReady({
         id: link.connection.linkId,
         ownToken: link.ownToken,
@@ -607,6 +612,13 @@ export class NearbyPeerTransport implements Transport {
   /** What this device does over a nearby link: direct always, relaying while it is on. */
   #capabilities(): number {
     return HelloCapability.DIRECT | (this.#mesh?.relaying ? HelloCapability.RELAY : 0);
+  }
+
+  /** Capabilities are signed in the HELLO, so a change goes out as a new proof on every link. */
+  #announceCapabilities(): void {
+    for (const link of this.#links.values()) {
+      if (link.peerToken) this.#sendHello(link, true);
+    }
   }
 
   #sendHello(link: LinkState, withProof: boolean): void {

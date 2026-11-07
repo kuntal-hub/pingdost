@@ -190,6 +190,8 @@ export interface MeshHost {
   sendBytes(linkId: number, bytes: Uint8Array): Promise<void>;
   /** Hands an envelope for this device to the engine; `ack` once it is stored. */
   deliver(packet: TransportPacket, ack: () => void): void;
+  /** Relaying went on or off: peers on existing links have to hear of it. */
+  relayingChanged?(): void;
   log?: (message: string, fields?: Record<string, string | number | boolean>) => void;
 }
 
@@ -429,6 +431,7 @@ export class MeshRelay {
     this.#relaying = on;
     this.host.log?.(on ? 'mesh relaying on' : 'mesh relaying off');
     this.#changed();
+    this.host.relayingChanged?.();
     if (on) this.#pumpAll();
   }
 
@@ -539,6 +542,14 @@ export class MeshRelay {
     };
     this.#links.set(link.id, state);
     void this.start().then(() => this.#sendSummary(state));
+  }
+
+  /** The peer signed new capabilities on a link that is up: it turned relaying on or off. */
+  linkCapabilities(id: number, capabilities: number): void {
+    const state = this.#links.get(id);
+    if (!state || state.link.capabilities === capabilities) return;
+    state.link = { ...state.link, capabilities };
+    void this.#pump(state);
   }
 
   linkDown(id: number): void {

@@ -293,6 +293,34 @@ describe('mesh relay', () => {
     expect(b.client.store.allMessages()).toEqual([]);
   });
 
+  it('uses a relay switched on while already linked, and stops when it is switched off', async () => {
+    // Seen on real phones: links stay up, so a peer has to hear of the change on the same link.
+    sim = new MeshSim(crypto);
+    const a = await sim.phone('A');
+    const b = await sim.phone('B', { relaying: false });
+    const c = await sim.phone('C');
+    await sim.introduce(a, c);
+    await sim.airplane();
+    sim.meet(a, b);
+    const first = await send(a, c, `first ${MARKER}`);
+    await sleep(600);
+    expect(sim.meshOf(b).stored.packets).toBe(0);
+
+    b.nearby.mesh!.setRelaying(true);
+    await eventually(() => sim.meshOf(b).stored.packets === 1, 5_000, 'B carries it once on');
+    await eventually(
+      async () => (await stateOf(a, first.messageId)) === 'relayed',
+      5_000,
+      'A shows it forwarded',
+    );
+
+    b.nearby.mesh!.setRelaying(false);
+    await sleep(200);
+    await send(a, c, `second ${MARKER}`);
+    await sleep(600);
+    expect(sim.meshOf(b).stored.packets).toBe(1);
+  }, 20_000);
+
   it('enforces the storage cap and the per-origin quota', async () => {
     const { a, b, c } = await triangle({ policy: { perOriginMaxPackets: 2 } });
     const ids = [];

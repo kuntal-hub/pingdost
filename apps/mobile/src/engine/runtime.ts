@@ -209,9 +209,16 @@ async function boot(): Promise<ChatRuntime> {
   cleanup.push(
     // Local notifications for messages that arrive while the app is not on screen (Phase 12).
     installNotifier(engine),
-    transport.status$.subscribe((status) => useChatStore.setState({ status }), {
-      emitCurrent: true,
-    }),
+    transport.status$.subscribe(
+      (status) =>
+        // Presence comes only over this socket: without it, "online" would stay on screen. A new
+        // socket asks again for the open chat's peer.
+        useChatStore.setState((state) => ({
+          status,
+          presence: status === 'online' ? state.presence : {},
+        })),
+      { emitCurrent: true },
+    ),
     transport.onEvent((event) => {
       switch (event.type) {
         case 'otk_low':

@@ -56,16 +56,23 @@ export function OfflineBanner({ peer }: { peer?: BannerPeer | undefined }) {
       accessibilityLiveRegion="polite"
       {...(fades ? { entering: ENTER, exiting: EXIT } : {})}
     >
-      <View className="flex-row gap-3 rounded-lg bg-warning/15 px-4 py-3">
-        <Icon icon={status.kind === 'on' ? BluetoothIcon : WifiOffIcon} size={20} color="warning" />
-        <View className="flex-1 gap-1">
-          <Text className="font-bold text-foreground">{title}</Text>
-          <Text className="text-foreground">{detail}</Text>
-          {unreachable && (
-            <Text className="font-semibold text-danger">
-              Can&apos;t reach this contact offline until you&apos;ve connected once online.
-            </Text>
-          )}
+      {/* Solid underneath: in a chat this floats over the messages, which must not show through. */}
+      <View className="overflow-hidden rounded-lg bg-surface">
+        <View className="flex-row gap-3 bg-warning/15 px-4 py-3">
+          <Icon
+            icon={status.kind === 'on' ? BluetoothIcon : WifiOffIcon}
+            size={20}
+            color="warning"
+          />
+          <View className="flex-1 gap-1">
+            <Text className="font-bold text-foreground">{title}</Text>
+            <Text className="text-foreground">{detail}</Text>
+            {unreachable && (
+              <Text className="font-semibold text-danger">
+                Can&apos;t reach this contact offline until you&apos;ve connected once online.
+              </Text>
+            )}
+          </View>
         </View>
       </View>
     </Animated.View>
