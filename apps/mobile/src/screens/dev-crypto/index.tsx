@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
+import { Text, TextInput } from '@/components/text';
 import { useCryptoContext } from '@/hooks/use-crypto-context';
 import {
   INTEROP_STEPS,

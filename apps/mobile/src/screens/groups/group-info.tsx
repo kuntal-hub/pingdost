@@ -1,18 +1,19 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 
 import { ActionSheet, type SheetAction } from '@/components/action-sheet';
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
+import { Toggle } from '@/components/controls';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { TextField } from '@/components/text-field';
 import { contactName } from '@/engine/contacts';
 import { GroupPictureError, groupPictureUri, pickGroupPicture, useGroup } from '@/engine/groups';
 import { useChatRuntime, useContact } from '@/engine/hooks';
-import { usePalette } from '@/theme/theme-root';
 import {
   GROUP_DESCRIPTION_MAX,
   GROUP_NAME_MAX,
@@ -60,7 +61,6 @@ function MemberRow({
 /** Members and roles, the E2EE name and picture, mute, add/remove, leave. No calls (REQ §8.2). */
 export function GroupInfoScreen({ groupId }: { groupId: string }) {
   const router = useRouter();
-  const palette = usePalette();
   const runtime = useChatRuntime();
   const group = useGroup(groupId);
   const [conversation, setConversation] = useState<ConversationRecord>();
@@ -201,7 +201,7 @@ export function GroupInfoScreen({ groupId }: { groupId: string }) {
             className="items-center active:opacity-70"
           >
             <Avatar url={groupPictureUri(picture)} name={name || group.name} size={88} />
-            <Text className="mt-1 text-primary">Change picture</Text>
+            <Text className="mt-1 text-accent">Change picture</Text>
           </Pressable>
           {picture && (
             <Button label="Remove picture" variant="ghost" onPress={() => setPicture(null)} />
@@ -268,13 +268,12 @@ export function GroupInfoScreen({ groupId }: { groupId: string }) {
             title="Mute notifications"
             onPress={() => void engine.setMuted(groupId, muted ? null : MUTED_FOREVER)}
             accessory={
-              <Switch
+              <Toggle
                 accessibilityLabel="Mute notifications"
                 value={muted}
                 onValueChange={(value) =>
                   void engine.setMuted(groupId, value ? MUTED_FOREVER : null)
                 }
-                trackColor={{ true: palette.primary, false: palette.border }}
               />
             }
           />

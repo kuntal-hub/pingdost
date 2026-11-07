@@ -1,5 +1,4 @@
-import { Text } from 'react-native';
-
+import { Text } from '@/components/text';
 import { highlightRanges } from '@pingdost/message-engine';
 
 interface HighlightedTextProps {

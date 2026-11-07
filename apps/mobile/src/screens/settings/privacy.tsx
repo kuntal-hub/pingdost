@@ -1,14 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Switch, Text } from 'react-native';
 
 import { describeError } from '@/api/errors';
+import { Toggle } from '@/components/controls';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { useBlocks } from '@/engine/blocks';
 import { useAccount } from '@/settings/account';
-import { usePalette } from '@/theme/theme-root';
 import type { PrivacyPrefs } from '@pingdost/shared-types';
 
 const options: { key: keyof PrivacyPrefs; title: string; subtitle: string }[] = [
@@ -35,7 +35,6 @@ const options: { key: keyof PrivacyPrefs; title: string; subtitle: string }[] = 
 export function PrivacyScreen() {
   const router = useRouter();
   const blockedCount = useBlocks((state) => state.ids.length);
-  const palette = usePalette();
   const privacy = useAccount((state) => state.privacy);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,12 +69,11 @@ export function PrivacyScreen() {
             subtitle={option.subtitle}
             {...(privacy ? { onPress: () => void toggle(option.key, !privacy[option.key]) } : {})}
             accessory={
-              <Switch
+              <Toggle
                 accessibilityLabel={option.title}
                 value={privacy?.[option.key] ?? false}
                 disabled={!privacy}
                 onValueChange={(value) => void toggle(option.key, value)}
-                trackColor={{ true: palette.primary, false: palette.border }}
               />
             }
           />

@@ -1,7 +1,7 @@
 // The account lives on another phone (or its phone is lost): how this phone takes over
 // (REQ §6.3, ADR 0022). Approve on the old phone, restore a backup, or start fresh.
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 
 import { describeError, errorCode } from '@/api/errors';
 import { pickBackupFile, openBackup, type PickedBackup } from '@/backup/restore';
@@ -10,6 +10,7 @@ import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { PhraseInput, phraseProblem } from '@/components/phrase';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { TextField } from '@/components/text-field';
 import {
   BackupAccountMismatch,
@@ -34,7 +35,7 @@ function Working({ text }: { text: string }) {
   const palette = usePalette();
   return (
     <View className="flex-row items-center gap-3" accessibilityLiveRegion="polite">
-      <ActivityIndicator color={palette.primary} />
+      <ActivityIndicator color={palette.accent} />
       <Text className="flex-1 text-base text-foreground">{text}</Text>
     </View>
   );

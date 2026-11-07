@@ -3,7 +3,19 @@
 // with reply, edit and files. Past the oldest message here, older ones can be asked of the
 // phone (ADR 0021). Keyboard: Enter sends, Shift+Enter is a new line, Esc cancels a reply or
 // edit, ↑ in an empty composer edits your last message.
-import { Info, Paperclip, Search, X } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowLeft,
+  Check,
+  Info,
+  Lock,
+  Paperclip,
+  Pencil,
+  Reply,
+  Search,
+  SendHorizontal,
+  X,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
@@ -13,9 +25,10 @@ import { useConversation, useGroup, useNames, usePresence } from '@/chat/hooks';
 import { prefsChanged } from '@/chat/start';
 import { useChat, useChatClient } from '@/chat/store';
 import { Avatar } from '@/components/avatar';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/input';
+import { Button, IconButton } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/controls';
 import { Dialog } from '@/components/ui/menu';
+import { cn } from '@/lib/cn';
 import { api, useSession } from '@/session/session';
 import { syncLabel, useHistorySync } from '@/sync/sync-status';
 import { previewText, type TimelineItem } from '@pingdost/chat-core';
@@ -46,6 +59,19 @@ function failure(error: unknown): string {
     : 'Something went wrong. Please try again.';
 }
 
+/** Messages this far apart start a new run, even from the same sender. */
+const RUN_GAP_MS = 5 * 60_000;
+
+/** Whether a neighbor continues the same sender's run of messages. */
+function continuesRun(me: MessageRecord, other: TimelineItem | undefined): boolean {
+  if (other?.type !== 'message' || other.message.kind === 'system') return false;
+  return (
+    other.message.senderUserId === me.senderUserId &&
+    other.message.direction === me.direction &&
+    Math.abs(other.message.sortAt - me.sortAt) < RUN_GAP_MS
+  );
+}
+
 function Header({ conversation }: { conversation: ConversationRecord }) {
   const isGroup = conversation.kind === 'group';
   const group = useGroup(isGroup ? conversation.conversationId : undefined);
@@ -63,37 +89,45 @@ function Header({ conversation }: { conversation: ConversationRecord }) {
     ? `/group/${conversation.conversationId}`
     : `/contact/${conversation.peerUserId}`;
   return (
-    <header className="flex items-center gap-3 border-b border-border px-4 py-2">
+    <header className="pd-floating absolute inset-x-3 top-3 z-10 flex items-center gap-1 rounded-2xl p-1.5">
+      <IconButton asChild aria-label="Back to chats" className="md:hidden">
+        <Link to="/">
+          <ArrowLeft size={20} />
+        </Link>
+      </IconButton>
       <Link
         to={infoTo}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-md p-1 hover:bg-surface"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1 transition-colors hover:bg-raised"
       >
         <Avatar
           name={name}
           url={isGroup ? groupPictureUri(group?.avatar) : peer?.avatarUrl}
           size={40}
+          online={online}
         />
         <span className="min-w-0">
-          <span className="block truncate font-semibold">{name}</span>
-          {subtitle && <span className="block text-sm text-muted">{subtitle}</span>}
+          <span className="block truncate font-bold">{name}</span>
+          {subtitle && (
+            <span
+              className={cn('block text-xs font-semibold', online ? 'text-success' : 'text-muted')}
+            >
+              {subtitle}
+            </span>
+          )}
         </span>
       </Link>
       {/* 1:1 chats only: groups have no call actions (REQ §19.5). */}
       {!isGroup && <CallButtons peerUserId={conversation.peerUserId} />}
-      <Link
-        to={`/search?c=${conversation.conversationId}`}
-        className="rounded p-2 hover:bg-surface"
-        aria-label="Search this chat"
-      >
-        <Search size={18} />
-      </Link>
-      <Link
-        to={infoTo}
-        className="rounded p-2 hover:bg-surface"
-        aria-label={isGroup ? 'Group info' : 'Contact info'}
-      >
-        <Info size={18} />
-      </Link>
+      <IconButton asChild aria-label="Search this chat">
+        <Link to={`/search?c=${conversation.conversationId}`}>
+          <Search size={20} />
+        </Link>
+      </IconButton>
+      <IconButton asChild aria-label={isGroup ? 'Group info' : 'Contact info'}>
+        <Link to={infoTo}>
+          <Info size={20} />
+        </Link>
+      </IconButton>
     </header>
   );
 }
@@ -163,11 +197,16 @@ function Composer({
 
   const context = editing ?? replyTo;
   return (
-    <div className="border-t border-border p-3">
+    <div className="p-3 pt-1">
       {context && (
-        <div className="mb-2 flex items-center gap-2 rounded-md border-l-4 border-primary bg-surface px-3 py-2">
+        <div className="pd-rise mb-2 flex items-center gap-3 rounded-xl border-l-4 border-accent bg-surface py-2 pr-1 pl-3">
+          {editing ? (
+            <Pencil aria-hidden size={18} className="shrink-0 text-accent" />
+          ) : (
+            <Reply aria-hidden size={18} className="shrink-0 text-accent" />
+          )}
           <div className="min-w-0 flex-1">
-            <div className="font-semibold text-primary">
+            <div className="font-bold text-accent">
               {editing
                 ? 'Editing message'
                 : `Replying to ${context.senderUserId === names.selfUserId ? 'yourself' : names.name(context.senderUserId)}`}
@@ -178,21 +217,22 @@ function Composer({
                 : previewText(context, names)}
             </div>
           </div>
-          <button
-            type="button"
+          <IconButton
             aria-label={editing ? 'Cancel editing (Esc)' : 'Cancel reply (Esc)'}
             onClick={() => {
               if (editing) setText('');
               onDone();
             }}
-            className="rounded p-2 hover:bg-border/40"
           >
-            <X size={16} />
-          </button>
+            <X size={18} />
+          </IconButton>
         </div>
       )}
       {error && (
-        <p role="alert" className="mb-2 text-sm text-danger">
+        <p
+          role="alert"
+          className="mb-2 rounded-lg bg-surface px-3 py-1 text-sm font-medium text-danger"
+        >
           {error}
         </p>
       )}
@@ -207,37 +247,56 @@ function Composer({
             if (file) setPicked(file);
           }}
         />
-        <button
-          type="button"
-          aria-label="Send a photo, video or file"
-          disabled={!client || editing !== undefined}
-          onClick={() => filePicker.current?.click()}
-          className="mb-1 rounded p-2 hover:bg-surface disabled:opacity-50"
+        <div className="pd-floating flex min-h-13 flex-1 items-end gap-1 rounded-2xl p-1.5 transition-shadow focus-within:shadow-[0_0_0_2px_rgb(var(--pd-accent))]">
+          <IconButton
+            tone="soft"
+            aria-label="Send a photo, video or file"
+            disabled={!client || editing !== undefined}
+            onClick={() => filePicker.current?.click()}
+          >
+            <Paperclip size={20} />
+          </IconButton>
+          <textarea
+            ref={input}
+            aria-label={editing ? 'Edited message' : 'Message'}
+            placeholder="Message"
+            rows={1}
+            maxLength={MAX_TEXT}
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value);
+              if (client && !editing) {
+                void client
+                  .setTyping(conversationId, event.target.value.trim() !== '')
+                  .catch(() => undefined);
+              }
+            }}
+            onBlur={() => void client?.setTyping(conversationId, false).catch(() => undefined)}
+            onKeyDown={keyDown}
+            className="max-h-40 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-base text-foreground field-sizing-content placeholder:text-muted focus:outline-none"
+          />
+        </div>
+        <IconButton
+          tone="brand"
+          aria-label={editing ? 'Save' : 'Send'}
+          title={editing ? 'Save (Enter)' : 'Send (Enter)'}
+          onClick={send}
+          disabled={!client || trimmed === ''}
+          className="size-13"
         >
-          <Paperclip size={20} />
-        </button>
-        <Textarea
-          ref={input}
-          aria-label={editing ? 'Edited message' : 'Message'}
-          placeholder="Message"
-          rows={1}
-          maxLength={MAX_TEXT}
-          value={text}
-          onChange={(event) => {
-            setText(event.target.value);
-            if (client && !editing) {
-              void client
-                .setTyping(conversationId, event.target.value.trim() !== '')
-                .catch(() => undefined);
-            }
-          }}
-          onBlur={() => void client?.setTyping(conversationId, false).catch(() => undefined)}
-          onKeyDown={keyDown}
-          className="max-h-40 field-sizing-content"
-        />
-        <Button onClick={send} disabled={!client || trimmed === ''}>
-          {editing ? 'Save' : 'Send'}
-        </Button>
+          {editing ? (
+            <Check aria-hidden size={24} />
+          ) : (
+            <SendHorizontal
+              aria-hidden
+              size={24}
+              className={cn(
+                'transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
+                trimmed === '' ? '-rotate-30 scale-75' : 'scale-100',
+              )}
+            />
+          )}
+        </IconButton>
       </div>
       <SendFileDialog
         file={picked}
@@ -325,6 +384,7 @@ export function ChatView() {
   const [deleting, setDeleting] = useState<MessageRecord>();
   const [highlight, setHighlight] = useState<string>();
   const [notice, setNotice] = useState<string>();
+  const [atBottom, setAtBottom] = useState(true);
   const list = useRef<VirtuosoHandle>(null);
 
   useEffect(() => {
@@ -426,36 +486,44 @@ export function ChatView() {
 
   if (!conversation) {
     return (
-      <div className="flex h-full items-center justify-center text-muted">Opening the chat…</div>
+      <div className="pd-skeleton flex h-full items-center justify-center font-semibold text-muted">
+        Opening the chat…
+      </div>
     );
   }
   const oldestMessage = items.find(
     (item): item is Extract<TimelineItem, { type: 'message' }> => item.type === 'message',
   )?.message;
-  const oldestHeader = () => (
-    <OlderFromPhone conversationId={conversationId} oldest={oldestMessage} />
+  // Messages scroll under the floating header, so the list starts below it.
+  const listHeader = () => (
+    <div className="pt-20">
+      {complete && <OlderFromPhone conversationId={conversationId} oldest={oldestMessage} />}
+    </div>
   );
   const name = isGroup ? groupName(group) : contactName(peer);
   const readReceipts = privacy?.readReceipts ?? false;
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       <Header conversation={conversation} />
       {status !== 'online' && (
-        <p className="border-b border-border bg-surface px-4 py-1 text-sm text-muted" role="status">
+        <p
+          className="pd-rise absolute inset-x-6 top-22 z-10 rounded-lg bg-warning/20 px-4 py-1 text-center text-sm font-semibold backdrop-blur"
+          role="status"
+        >
           {status === 'connecting'
             ? 'Connecting…'
             : 'Offline. Messages you write wait here and go out when you are back.'}
         </p>
       )}
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
         {items.length === 0 ? (
-          <div className="mx-auto mt-10 max-w-md px-6 text-center text-muted">
-            <p>
+          <div className="flex h-full flex-col items-center justify-center pt-16">
+            <EmptyState icon={Lock} title="Just you two">
               {isGroup
                 ? `Messages in ${name} are end-to-end encrypted for its members. No one else, not even PingDost, can read them.`
                 : `Messages with ${name} are end-to-end encrypted. No one else, not even PingDost, can read them.`}
-            </p>
+            </EmptyState>
             {complete && <OlderFromPhone conversationId={conversationId} oldest={undefined} />}
           </div>
         ) : (
@@ -466,12 +534,13 @@ export function ChatView() {
             initialTopMostItemIndex={items.length - 1}
             followOutput="smooth"
             startReached={() => void loadOlder()}
+            atBottomStateChange={setAtBottom}
             computeItemKey={(_, item) => item.key}
-            components={complete ? { Header: oldestHeader } : {}}
-            itemContent={(_, item) =>
+            components={{ Header: listHeader }}
+            itemContent={(index, item) =>
               item.type === 'day' ? (
                 <div className="my-3 flex justify-center">
-                  <span className="rounded-full bg-surface px-3 py-1 text-xs text-muted">
+                  <span className="rounded-full bg-surface/90 px-3 py-1 text-xs font-bold text-muted">
                     {item.label}
                   </span>
                 </div>
@@ -484,6 +553,10 @@ export function ChatView() {
                   online={status === 'online'}
                   readReceipts={readReceipts}
                   highlighted={highlight === item.message.messageId}
+                  first={!continuesRun(item.message, items[index - firstItemIndex - 1])}
+                  last={!continuesRun(item.message, items[index - firstItemIndex + 1])}
+                  // Scrolling back to it later must not replay the entrance.
+                  fresh={Date.now() - item.message.sortAt < 1_200}
                   readOnly={blocked || left}
                   actions={actions}
                   attachment={
@@ -495,23 +568,43 @@ export function ChatView() {
             className="h-full"
           />
         )}
+        {!atBottom && items.length > 0 && (
+          <IconButton
+            aria-label="Jump to the latest message"
+            onClick={() =>
+              list.current?.scrollToIndex({ index: 'LAST', align: 'end', behavior: 'smooth' })
+            }
+            className="pd-pop pd-floating absolute right-4 bottom-3 z-10"
+          >
+            <ArrowDown size={20} />
+          </IconButton>
+        )}
       </div>
       {typing && !blocked && (
-        <p aria-live="polite" className="px-4 pb-1 text-sm text-muted">
-          {name} is typing…
-        </p>
+        <div
+          aria-live="polite"
+          aria-label={`${name} is typing`}
+          className="pd-rise ml-4 flex h-9 w-fit items-center gap-1 rounded-xl bg-bubble-in px-4"
+        >
+          <span className="pd-dot size-2 rounded-full bg-muted" />
+          <span className="pd-dot size-2 rounded-full bg-muted" />
+          <span className="pd-dot size-2 rounded-full bg-muted" />
+        </div>
       )}
       {notice && (
-        <p role="alert" className="px-4 pb-1 text-sm text-danger">
+        <p
+          role="alert"
+          className="mx-4 mt-1 rounded-lg bg-surface px-3 py-1 text-sm font-medium text-danger"
+        >
           {notice}
         </p>
       )}
       {left ? (
-        <p className="border-t border-border p-4 text-center text-muted">
+        <p className="m-3 rounded-xl bg-surface p-4 text-center text-muted">
           You&apos;re no longer a member of this group. You can read what is here, but not send.
         </p>
       ) : blocked && peerUserId ? (
-        <div className="flex items-center justify-center gap-3 border-t border-border p-4">
+        <div className="m-3 flex items-center justify-center gap-3 rounded-xl bg-surface p-4">
           <span className="text-muted">You blocked {name}.</span>
           <Button
             variant="secondary"

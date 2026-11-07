@@ -36,6 +36,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 28 | [iOS: build, crypto, core chat](phases/phase-28-ios-core.md) | 27 | 🔄 |
 | 29 | [iOS: push (APNs) + calls (CallKit)](phases/phase-29-ios-push-calls.md) | 28 | 🔄 |
 | 30 | [iOS: nearby / mesh + Android↔iOS](phases/phase-30-ios-mesh.md) | 28 | 🔄 |
+| 31 | [UI/UX refresh: "Pop" design system, configurable appearance](phases/phase-31-ui-refresh.md) | — | 🔄 |
 
 **Order notes**
 - Phases mostly run in number order. Where dependencies allow, some can move:

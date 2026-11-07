@@ -4,7 +4,7 @@
 // clear action.
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 
 import { useAttachmentPrefs } from '@/attachments/prefs';
 import type { AutoDownload } from '@/attachments/rules';
@@ -13,6 +13,7 @@ import { Button } from '@/components/button';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { useNames } from '@/engine/groups';
 import { useChatRuntime } from '@/engine/hooks';
 import { clearRelayCache, useRelay } from '@/nearby/service';

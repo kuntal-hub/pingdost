@@ -7,7 +7,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
 
 import { useAttachmentRows, useThumbnail } from '@/attachments/hooks';
 import type { AttachmentRow } from '@/attachments/repo';
@@ -21,9 +21,18 @@ import {
   resumeUpload,
 } from '@/attachments/transfers';
 import { displayName, openPlaintext, releasePlaintext } from '@/attachments/view';
+import {
+  FileTextIcon,
+  Icon,
+  ImageIcon,
+  MusicIcon,
+  PauseIcon,
+  PlayIcon,
+  VideoIcon,
+} from '@/components/icon';
+import { Text } from '@/components/text';
 import { attachmentType } from '@/engine/labels';
 import { cancelMesh, pauseMesh, resumeMesh, useMeshFiles } from '@/nearby/files';
-import { usePalette } from '@/theme/theme-root';
 import { formatSize } from '@pingdost/attachments';
 import type { AttachmentInfo, MessageRecord } from '@pingdost/message-engine';
 import { fromBase64 } from '@pingdost/protocol';
@@ -113,18 +122,18 @@ function Controls({
 }) {
   if (!row || actions.length === 0) return null;
   return (
-    <View className="flex-row flex-wrap gap-2">
+    <View className="flex-row flex-wrap gap-2 px-1 pb-1">
       {actions.map((action) => (
         <Pressable
           key={action}
           accessibilityRole="button"
           accessibilityLabel={ACTION_LABELS[action]}
           onPress={() => void act(action, row).catch(() => undefined)}
-          className={`min-h-[36px] justify-center rounded-full border px-3 ${
-            outgoing ? 'border-on-primary/60' : 'border-border'
+          className={`min-h-[36px] justify-center rounded-full px-4 active:opacity-70 ${
+            outgoing ? 'bg-on-primary/15' : 'bg-accent/15'
           }`}
         >
-          <Text className={`font-semibold ${outgoing ? 'text-on-primary' : 'text-primary'}`}>
+          <Text className={`font-bold ${outgoing ? 'text-on-primary' : 'text-accent'}`}>
             {ACTION_LABELS[action]}
           </Text>
         </Pressable>
@@ -138,10 +147,10 @@ function ProgressBar({ value, outgoing }: { value: number; outgoing: boolean }) 
     <View
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}
-      className={`h-1.5 overflow-hidden rounded-full ${outgoing ? 'bg-on-primary/30' : 'bg-border'}`}
+      className={`mx-1 h-[6px] overflow-hidden rounded-full ${outgoing ? 'bg-on-primary/30' : 'bg-border'}`}
     >
       <View
-        className={outgoing ? 'h-full bg-on-primary' : 'h-full bg-primary'}
+        className={outgoing ? 'h-full rounded-full bg-on-primary' : 'h-full rounded-full bg-accent'}
         style={{ width: `${Math.round(value * 100)}%` }}
       />
     </View>
@@ -165,18 +174,17 @@ function MediaTile({
   onOpen: () => void;
   onLongPress: () => void;
 }) {
-  const palette = usePalette();
   const video = info.mimeType.startsWith('video/');
   const ratio =
     info.width && info.height ? Math.min(2, Math.max(0.5, info.width / info.height)) : 4 / 3;
-  const { icon, name } = attachmentType(message);
+  const { kind, name } = attachmentType(message);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${name}, ${formatSize(info.plaintextSize)}${available ? '. Double tap to open' : ''}`}
       onPress={available ? onOpen : undefined}
       onLongPress={onLongPress}
-      className="overflow-hidden rounded-md bg-black/10"
+      className="overflow-hidden rounded-lg bg-raised"
       style={{ width: TILE_WIDTH, height: TILE_WIDTH / ratio }}
     >
       {thumbnail ? (
@@ -188,26 +196,22 @@ function MediaTile({
         />
       ) : (
         <View className="flex-1 items-center justify-center">
-          <Text importantForAccessibility="no" className="text-4xl">
-            {icon}
-          </Text>
+          <Icon icon={kind === 'video' ? VideoIcon : ImageIcon} size={40} color="muted" />
         </View>
       )}
       {(video || busy) && (
         <View className="absolute inset-0 items-center justify-center">
-          <View className="h-12 w-12 items-center justify-center rounded-full bg-black/50">
+          <View className="h-14 w-14 items-center justify-center rounded-full bg-black/55">
             {busy ? (
-              <ActivityIndicator color={palette['on-primary']} />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text importantForAccessibility="no" className="text-xl text-white">
-                ▶
-              </Text>
+              <Icon icon={PlayIcon} size={26} color="#FFFFFF" filled />
             )}
           </View>
         </View>
       )}
       {video && info.durationMs ? (
-        <Text className="absolute bottom-1 right-2 rounded bg-black/50 px-1 text-sm text-white">
+        <Text className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 text-xs font-bold text-white">
           {durationLabel(info.durationMs)}
         </Text>
       ) : null}
@@ -242,7 +246,7 @@ function Waveform({
                   ? 'bg-on-primary'
                   : 'bg-on-primary/40'
                 : done
-                  ? 'bg-primary'
+                  ? 'bg-accent'
                   : 'bg-muted/40'
             }`}
             style={{ height: Math.max(3, Math.round((level / 255) * 30)) }}
@@ -301,7 +305,7 @@ function AudioPlayerRow({
   }
 
   return (
-    <View className="flex-row items-center gap-3" style={{ width: TILE_WIDTH }}>
+    <View className="flex-row items-center gap-3 px-2 py-1" style={{ width: TILE_WIDTH }}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={status.playing ? 'Pause' : 'Play voice message'}
@@ -309,15 +313,18 @@ function AudioPlayerRow({
         disabled={!available}
         onPress={() => void toggle()}
         className={`h-11 w-11 items-center justify-center rounded-full ${
-          outgoing ? 'bg-on-primary/20' : 'bg-primary/15'
+          outgoing ? 'bg-on-primary/20' : 'bg-accent/15'
         } ${available ? '' : 'opacity-50'}`}
       >
-        <Text className={`text-lg ${outgoing ? 'text-on-primary' : 'text-primary'}`}>
-          {status.playing ? '❚❚' : '▶'}
-        </Text>
+        <Icon
+          icon={status.playing ? PauseIcon : PlayIcon}
+          size={20}
+          color={outgoing ? 'on-primary' : 'accent'}
+          filled
+        />
       </Pressable>
       <Waveform samples={samples} played={played} outgoing={outgoing} />
-      <Text className={outgoing ? 'text-on-primary' : 'text-muted'}>
+      <Text className={`text-xs font-semibold ${outgoing ? 'text-on-primary' : 'text-muted'}`}>
         {durationLabel(
           status.playing || status.currentTime > 0 ? status.currentTime * 1_000 : total,
         )}
@@ -344,14 +351,22 @@ function FileCard({
       accessibilityLabel={`${name}, ${formatSize(info.plaintextSize)}${available ? '. Double tap to open in another app' : ''}`}
       onPress={available ? () => exportFile(info) : undefined}
       onLongPress={onLongPress}
-      className={`flex-row items-center gap-3 rounded-md px-2 py-2 ${
-        outgoing ? 'bg-on-primary/10' : 'bg-background'
+      className={`flex-row items-center gap-3 rounded-lg p-2 ${
+        outgoing ? 'bg-on-primary/10' : 'bg-raised'
       }`}
       style={{ width: TILE_WIDTH }}
     >
-      <Text importantForAccessibility="no" className="text-3xl">
-        📄
-      </Text>
+      <View
+        className={`h-11 w-11 items-center justify-center rounded-md ${
+          outgoing ? 'bg-on-primary/15' : 'bg-accent/15'
+        }`}
+      >
+        <Icon
+          icon={info.mimeType.startsWith('audio/') ? MusicIcon : FileTextIcon}
+          size={22}
+          color={outgoing ? 'on-primary' : 'accent'}
+        />
+      </View>
       <View className="flex-1">
         <Text
           numberOfLines={2}
@@ -424,7 +439,7 @@ export function AttachmentContent({
       {status.text !== '' && (
         <Text
           accessibilityLiveRegion="polite"
-          className={outgoing ? 'text-on-primary/90' : 'text-muted'}
+          className={`px-2 ${outgoing ? 'text-on-primary/90' : 'text-muted'}`}
         >
           {status.text}
         </Text>

@@ -2,10 +2,13 @@
 // way out of every state that stops it (REQ §19.4: degraded states are visible).
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { Linking, Platform, Switch, Text } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
+import { Toggle } from '@/components/controls';
+import { CheckIcon, Icon } from '@/components/icon';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import {
   refreshNearby,
   setMeshFileLimit,
@@ -15,7 +18,6 @@ import {
   useNearbyStatus,
 } from '@/nearby/service';
 import { describeNearby, NEARBY_COPY, type NearbyPlatform } from '@/nearby/status';
-import { usePalette } from '@/theme/theme-root';
 import { meshTimeEstimate } from '@pingdost/attachments';
 
 /** Which platform's wording applies (ADR 0033). */
@@ -70,7 +72,6 @@ export function NearbyExplainer() {
 
 export function NearbyMessagingScreen() {
   const router = useRouter();
-  const palette = usePalette();
   const enabled = useNearby((state) => state.enabled);
   const unknown = useNearby((state) => state.summary.unknown);
   const fileMaxMb = useNearby((state) => state.fileMaxMb);
@@ -104,12 +105,11 @@ export function NearbyMessagingScreen() {
           subtitle={text.title}
           {...(available ? { onPress: () => toggle(!enabled) } : {})}
           accessory={
-            <Switch
+            <Toggle
               accessibilityLabel="Nearby messaging"
               value={enabled && available}
               disabled={!available}
               onValueChange={toggle}
-              trackColor={{ true: palette.primary, false: palette.border }}
             />
           }
         />
@@ -148,7 +148,7 @@ export function NearbyMessagingScreen() {
               title={`${mb} MB`}
               subtitle={`${meshTimeEstimate(mb * 1_048_576)} per phone it passes`}
               onPress={() => void setMeshFileLimit(mb).catch(() => undefined)}
-              accessory={fileMaxMb === mb ? <Text className="text-foreground">✓</Text> : undefined}
+              accessory={fileMaxMb === mb ? <Icon icon={CheckIcon} color="accent" /> : undefined}
             />
           ))}
         </ListSection>

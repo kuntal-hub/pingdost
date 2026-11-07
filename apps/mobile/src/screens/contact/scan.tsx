@@ -1,11 +1,12 @@
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Linking, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { contactName } from '@/engine/contacts';
 import { useChatRuntime, useContact } from '@/engine/hooks';
 import { useSafetyNumber } from '@/engine/safety';
@@ -71,7 +72,7 @@ export function ScanScreen({ userId }: { userId: string }) {
   if (outcome === 'verified') {
     return (
       <Screen>
-        <Notice tone="success" message={`✓ ${name} is verified. Your safety numbers match.`} />
+        <Notice tone="success" message={`${name} is verified. Your safety numbers match.`} />
         <Button label="Done" onPress={() => router.back()} />
       </Screen>
     );

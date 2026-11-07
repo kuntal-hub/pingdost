@@ -137,11 +137,11 @@ describe('notificationContent', () => {
         unreadCount: 1,
         prefs: DEFAULT_NOTIFICATION_PREFS,
       }).body;
-    expect(content(photo)).toBe('📷 Photo');
-    expect(content({ ...photo, body: 'the view' })).toBe('📷 the view');
+    expect(content(photo)).toBe('Photo');
+    expect(content({ ...photo, body: 'the view' })).toBe('the view');
     expect(
       content({ ...photo, attachment: messageAttachment('application/pdf', 'plan.pdf') }),
-    ).toBe('📄 plan.pdf');
+    ).toBe('plan.pdf');
   });
 });
 

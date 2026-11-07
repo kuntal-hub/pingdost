@@ -90,6 +90,12 @@ const router = createBrowserRouter([
         path: 'settings',
         ...page(() => import('@/shell/settings-page').then((m) => m.SettingsPage)),
       },
+      {
+        path: 'appearance',
+        ...page(() =>
+          import('@/features/appearance/appearance-page').then((m) => m.AppearancePage),
+        ),
+      },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

@@ -1,10 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Text } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { useGroup } from '@/engine/groups';
 import { useChatRuntime } from '@/engine/hooks';
 import { ApiError } from '@pingdost/api-client';

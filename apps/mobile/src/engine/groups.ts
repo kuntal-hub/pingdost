@@ -53,14 +53,6 @@ export function groupPictureUri(avatar: Uint8Array | null | undefined): string |
   return avatar && avatar.length > 0 ? `data:image/jpeg;base64,${toBase64(avatar)}` : null;
 }
 
-/** A readable colour per sender in group chats, from a fixed set (same user, same colour). */
-const SENDER_COLORS = ['#0B7A64', '#1F6FB2', '#A34D9E', '#B5651D', '#2E7D32', '#C2185B'];
-export function senderColor(userId: string): string {
-  let hash = 0;
-  for (const char of userId) hash = (hash * 31 + char.charCodeAt(0)) | 0;
-  return SENDER_COLORS[Math.abs(hash) % SENDER_COLORS.length]!;
-}
-
 export class GroupPictureError extends Error {}
 
 /**

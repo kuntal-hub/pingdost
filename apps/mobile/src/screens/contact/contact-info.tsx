@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
 import { QrCode } from '@/components/qr-code';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { useBlocks, useIsBlocked } from '@/engine/blocks';
 import { contactName } from '@/engine/contacts';
 import { useContact } from '@/engine/hooks';
@@ -65,7 +66,7 @@ export function ContactInfoScreen({ userId }: { userId: string }) {
       </View>
 
       {safety.verified ? (
-        <Notice tone="success" message={`✓ Verified. You compared safety numbers with ${name}.`} />
+        <Notice tone="success" message={`Verified. You compared safety numbers with ${name}.`} />
       ) : (
         <Notice
           message={`Not verified. Meet ${name} and scan each other's code to confirm no one is in between.`}
@@ -93,7 +94,7 @@ export function ContactInfoScreen({ userId }: { userId: string }) {
             ))}
           </View>
         ) : safety.problem === 'loading' ? (
-          <ActivityIndicator color={palette.primary} />
+          <ActivityIndicator color={palette.accent} />
         ) : (
           <Text className="text-muted">
             {safety.problem === 'no_own_key'

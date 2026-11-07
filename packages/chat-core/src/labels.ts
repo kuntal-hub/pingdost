@@ -51,23 +51,35 @@ export function systemText(message: MessageRecord, names?: Names): string {
   }
 }
 
-/** An attachment's type as an icon and a word; other files go by their name. */
+/** What an attachment is; each app draws its own icon for it. */
+export type AttachmentKind = 'image' | 'video' | 'audio' | 'file';
+
+/** An attachment's type and a word for it; other files go by their name. */
 export function attachmentType(message: Pick<MessageRecord, 'attachment'>): {
-  icon: string;
+  kind: AttachmentKind;
   name: string;
 } {
   const mime = message.attachment?.mimeType ?? '';
-  if (mime.startsWith('image/')) return { icon: '📷', name: 'Photo' };
-  if (mime.startsWith('video/')) return { icon: '🎥', name: 'Video' };
-  if (mime.startsWith('audio/')) return { icon: '🎵', name: 'Audio' };
-  return { icon: '📄', name: message.attachment?.fileName ?? 'File' };
+  if (mime.startsWith('image/')) return { kind: 'image', name: 'Photo' };
+  if (mime.startsWith('video/')) return { kind: 'video', name: 'Video' };
+  if (mime.startsWith('audio/')) return { kind: 'audio', name: 'Audio' };
+  return { kind: 'file', name: message.attachment?.fileName ?? 'File' };
 }
 
 /** One line for an attachment message: its caption, or else what it is. */
 export function attachmentText(message: Pick<MessageRecord, 'attachment' | 'body'>): string {
-  const { icon, name } = attachmentType(message);
+  const { name } = attachmentType(message);
   const caption = message.body.replace(/\s+/g, ' ').trim();
-  return `${icon} ${caption || name}`;
+  return caption || name;
+}
+
+const EMOJI_ONLY =
+  /^(?:\p{Regional_Indicator}{2}|\p{Extended_Pictographic}[\p{Emoji_Modifier}️‍\p{Extended_Pictographic}]*)+$/u;
+
+/** A short message of nothing but emoji: shown large, without a bubble. */
+export function isBigEmoji(text: string): boolean {
+  const compact = text.replace(/\s/g, '');
+  return compact !== '' && compact.length <= 24 && EMOJI_ONLY.test(compact);
 }
 
 /** One line standing for a message: previews, quotes, search results. */
@@ -86,13 +98,15 @@ export function previewText(message: MessageRecord, names?: Names): string {
   }
 }
 
+/** Which status mark to draw; each app maps it to an icon. Ticks follow the common convention. */
+export type StateIcon = 'pending' | 'sent' | 'delivered' | 'read' | 'expired' | 'failed';
+
 export interface StateLabel {
   /** Under the bubble. */
   short: string;
   /** Message info and screen readers. */
   long: string;
-  /** A plain glyph; the tick marks follow the common convention. */
-  glyph: string;
+  icon: StateIcon;
   tone: 'muted' | 'success' | 'danger';
 }
 
@@ -133,21 +147,21 @@ export function stateLabel(
         long: online
           ? 'Queued on this device — sending shortly.'
           : 'Queued on this device — waiting for a connection.',
-        glyph: '◷',
+        icon: 'pending',
         tone: 'muted',
       };
     case 'waiting_for_nearby_route':
       return {
         short: 'Queued',
         long: 'Queued on this device — waiting for a nearby route.',
-        glyph: '◷',
+        icon: 'pending',
         tone: 'muted',
       };
     case 'sending':
       return {
         short: 'Sending…',
         long: online ? 'Sending to the server.' : 'Sending over Bluetooth.',
-        glyph: '◷',
+        icon: 'pending',
         tone: 'muted',
       };
     case 'sent_to_server':
@@ -157,38 +171,38 @@ export function stateLabel(
           via === 'nearby'
             ? "Sent over Bluetooth to the recipient's phone — not yet delivered: waiting for its delivery receipt."
             : 'Sent to the server — not yet delivered to the recipient.',
-        glyph: '✓',
+        icon: 'sent',
         tone: 'muted',
       };
     case 'relayed':
       return {
         short: 'Forwarded',
         long: relayedLabel(relays),
-        glyph: '✓',
+        icon: 'sent',
         tone: 'muted',
       };
     case 'delivered_to_recipient_device':
       return {
         short: 'Delivered',
         long: "Delivered to the recipient's device.",
-        glyph: '✓✓',
+        icon: 'delivered',
         tone: 'muted',
       };
     case 'read':
-      return { short: 'Read', long: 'Read by the recipient.', glyph: '✓✓', tone: 'success' };
+      return { short: 'Read', long: 'Read by the recipient.', icon: 'read', tone: 'success' };
     case 'expired_undelivered':
       return {
         short: 'Expired before delivery',
         // No receipt by the deadline: offline too long, or delivery receipts are off there.
         long: 'Expired before delivery: no delivery receipt came back in time. The recipient was offline too long, or does not send delivery receipts.',
-        glyph: '⌛',
+        icon: 'expired',
         tone: 'danger',
       };
     case 'failed':
       return {
         short: 'Not sent · Tap to retry',
         long: 'Not sent. Tap the message to try again.',
-        glyph: '!',
+        icon: 'failed',
         tone: 'danger',
       };
   }

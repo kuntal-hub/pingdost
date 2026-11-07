@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { api } from '@/api';
 import { Avatar } from '@/components/avatar';
@@ -8,6 +8,7 @@ import { Button } from '@/components/button';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { TextField } from '@/components/text-field';
 import { contactName, saveProfile, type Contact } from '@/engine/contacts';
 import { useChatRuntime } from '@/engine/hooks';

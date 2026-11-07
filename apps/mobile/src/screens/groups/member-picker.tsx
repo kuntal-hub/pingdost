@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { api } from '@/api';
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
+import { CheckMark } from '@/components/controls';
+import { Text } from '@/components/text';
 import { TextField } from '@/components/text-field';
 import { contactName, saveProfile } from '@/engine/contacts';
 import { useChatRuntime, useContact, useConversations } from '@/engine/hooks';
@@ -27,22 +29,16 @@ function Person({
       accessibilityState={{ checked: selected }}
       accessibilityLabel={name}
       onPress={onToggle}
-      className="min-h-[56px] flex-row items-center gap-3 px-4 py-2 active:opacity-70"
+      className="min-h-[60px] flex-row items-center gap-3 rounded-xl px-3 py-2 active:bg-raised"
     >
       <Avatar url={contact?.avatarUrl} name={name} size={40} />
       <View className="flex-1">
-        <Text className="text-base text-foreground">{name}</Text>
+        <Text className="text-base font-bold text-foreground">{name}</Text>
         {contact?.displayName && contact.username && (
           <Text className="text-muted">@{contact.username}</Text>
         )}
       </View>
-      <View
-        className={`h-[24px] w-[24px] items-center justify-center rounded-md border ${
-          selected ? 'border-primary bg-primary' : 'border-border'
-        }`}
-      >
-        {selected && <Text className="font-bold text-on-primary">✓</Text>}
-      </View>
+      <CheckMark checked={selected} />
     </Pressable>
   );
 }

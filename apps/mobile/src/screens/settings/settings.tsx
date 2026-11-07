@@ -1,24 +1,49 @@
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { Alert, Image, Text, View } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import { authStore } from '@/api';
 import { useAuth } from '@/auth/use-auth';
+import { Avatar } from '@/components/avatar';
+import { Gradient } from '@/components/gradient';
+import {
+  BellIcon,
+  BluetoothIcon,
+  ChevronRightIcon,
+  CloudUploadIcon,
+  DatabaseIcon,
+  Icon,
+  InfoIcon,
+  KeyRoundIcon,
+  LogOutIcon,
+  PaletteIcon,
+  RadioTowerIcon,
+  ShieldIcon,
+  SmartphoneIcon,
+  ZapIcon,
+} from '@/components/icon';
 import { ListRow, ListSection } from '@/components/list-row';
-import { Screen } from '@/components/screen';
+import { Screen, TabHeader } from '@/components/screen';
+import { Tap } from '@/components/tap';
+import { Text } from '@/components/text';
 import { describeRelay } from '@/nearby/relay';
 import { useNearbyStatus, useRelay } from '@/nearby/service';
 import { describeNearby } from '@/nearby/status';
 import { removeDataFromThisPhone } from '@/recovery/remove-data';
 import { useAccount } from '@/settings/account';
+import { useTheme } from '@/theme/theme-root';
+import { colorSchemes } from '@pingdost/ui-tokens';
 
 export function SettingsScreen() {
   const router = useRouter();
+  const { prefs, floating } = useTheme();
   const username = useAuth((state) => state.session?.user.username);
   const me = useAccount((state) => state.me);
   const nearby = describeNearby(useNearbyStatus());
   const relayState = useRelay();
   const relay = describeRelay(relayState.decision, relayState.prefs, relayState.mesh.stored);
+  const scheme = colorSchemes.find((entry) => entry.id === prefs.scheme);
+  const displayName = me?.displayName ?? username ?? 'PingDost';
 
   useEffect(() => {
     void useAccount
@@ -67,94 +92,120 @@ export function SettingsScreen() {
   }
 
   return (
-    <Screen>
-      <View className="flex-row items-center gap-4">
-        {me?.avatarUrl ? (
-          <Image
-            source={{ uri: me.avatarUrl }}
-            accessibilityIgnoresInvertColors
-            accessibilityLabel="Your profile picture"
-            className="h-[64px] w-[64px] rounded-full"
-          />
-        ) : (
-          <View className="h-[64px] w-[64px] items-center justify-center rounded-full bg-primary">
-            <Text importantForAccessibility="no" className="text-2xl font-bold text-on-primary">
-              {(me?.displayName ?? username ?? '?').charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        )}
-        <View className="flex-1 gap-1">
-          <Text className="text-xl font-semibold text-foreground">
-            {me?.displayName ?? username ?? 'PingDost'}
-          </Text>
-          {username && <Text className="text-muted">@{username}</Text>}
-        </View>
-      </View>
-
-      <ListSection title="Account">
-        <ListRow
-          title="Profile"
-          subtitle="Name and picture"
+    <View className="flex-1 bg-background">
+      <TabHeader title="Settings" />
+      <Screen tabRoot>
+        <Tap
+          accessibilityLabel={`${displayName}. Edit your profile`}
+          scaleTo={0.98}
+          feedback="selection"
           onPress={() => router.push('/profile')}
-        />
-        <ListRow
-          title="Privacy"
-          subtitle="Read receipts, typing, last seen"
-          onPress={() => router.push('/privacy')}
-        />
-        <ListRow
-          title="Notifications"
-          subtitle="Previews, sender name, battery"
-          onPress={() => router.push('/notifications')}
-        />
-        <ListRow
-          title="Devices"
-          subtitle="This phone and linked browsers"
-          onPress={() => router.push('/devices')}
-        />
-        <ListRow
-          title="Storage"
-          subtitle="Space used, automatic downloads, clear cache"
-          onPress={() => router.push('/storage')}
-        />
-        <ListRow
-          title="Backup"
-          subtitle="An encrypted copy you keep, to move to a new phone"
-          onPress={() => router.push('/backup')}
-        />
-      </ListSection>
+        >
+          <Gradient className="flex-row items-center gap-4 rounded-2xl p-4" style={floating}>
+            <Avatar url={me?.avatarUrl} name={displayName} size={68} />
+            <View className="flex-1 gap-1">
+              <Text numberOfLines={1} className="font-display text-2xl text-on-primary">
+                {displayName}
+              </Text>
+              {username && (
+                <Text numberOfLines={1} className="font-semibold text-on-primary/80">
+                  @{username}
+                </Text>
+              )}
+            </View>
+            <Icon icon={ChevronRightIcon} size={22} color="on-primary" />
+          </Gradient>
+        </Tap>
 
-      <ListSection title="Without internet">
-        <ListRow
-          title="Nearby messaging"
-          subtitle={nearby.title}
-          onPress={() => router.push('/nearby-messaging')}
-        />
-        <ListRow
-          title="Nearby relay"
-          subtitle={relay.title}
-          onPress={() => router.push('/nearby-relay')}
-        />
-      </ListSection>
-
-      <ListSection title="About">
-        <ListRow title="About privacy" onPress={() => router.push('/about-privacy')} />
-      </ListSection>
-
-      {__DEV__ && (
-        <ListSection title="Developer">
-          <ListRow title="Crypto interop (dev)" onPress={() => router.push('/crypto')} />
+        <ListSection>
           <ListRow
-            title="Nearby spike (dev)"
-            subtitle="Turn Nearby messaging off first: both read the same radio"
-            onPress={() => router.push('/nearby')}
+            icon={PaletteIcon}
+            tone="secondary"
+            title="Appearance"
+            subtitle={`${scheme?.name ?? 'Colors'}, wallpaper, bubbles, fonts and more`}
+            onPress={() => router.push('/appearance')}
           />
         </ListSection>
-      )}
 
-      <ListSection>
-        <ListRow title="Log out" destructive onPress={confirmLogout} />
-      </ListSection>
-    </Screen>
+        <ListSection title="Account">
+          <ListRow
+            icon={ShieldIcon}
+            title="Privacy"
+            subtitle="Read receipts, typing, last seen"
+            onPress={() => router.push('/privacy')}
+          />
+          <ListRow
+            icon={BellIcon}
+            title="Notifications"
+            subtitle="Previews, sender name, battery"
+            onPress={() => router.push('/notifications')}
+          />
+          <ListRow
+            icon={SmartphoneIcon}
+            title="Devices"
+            subtitle="This phone and linked browsers"
+            onPress={() => router.push('/devices')}
+          />
+          <ListRow
+            icon={DatabaseIcon}
+            title="Storage"
+            subtitle="Space used, automatic downloads, clear cache"
+            onPress={() => router.push('/storage')}
+          />
+          <ListRow
+            icon={CloudUploadIcon}
+            title="Backup"
+            subtitle="An encrypted copy you keep, to move to a new phone"
+            onPress={() => router.push('/backup')}
+          />
+        </ListSection>
+
+        <ListSection title="Without internet">
+          <ListRow
+            icon={BluetoothIcon}
+            title="Nearby messaging"
+            subtitle={nearby.title}
+            onPress={() => router.push('/nearby-messaging')}
+          />
+          <ListRow
+            icon={RadioTowerIcon}
+            title="Nearby relay"
+            subtitle={relay.title}
+            onPress={() => router.push('/nearby-relay')}
+          />
+        </ListSection>
+
+        <ListSection title="About">
+          <ListRow
+            icon={InfoIcon}
+            tone="muted"
+            title="About privacy"
+            onPress={() => router.push('/about-privacy')}
+          />
+        </ListSection>
+
+        {__DEV__ && (
+          <ListSection title="Developer">
+            <ListRow
+              icon={KeyRoundIcon}
+              tone="muted"
+              title="Crypto interop (dev)"
+              onPress={() => router.push('/crypto')}
+            />
+            <ListRow
+              icon={ZapIcon}
+              tone="muted"
+              title="Nearby spike (dev)"
+              subtitle="Turn Nearby messaging off first: both read the same radio"
+              onPress={() => router.push('/nearby')}
+            />
+          </ListSection>
+        )}
+
+        <ListSection>
+          <ListRow icon={LogOutIcon} title="Log out" destructive onPress={confirmLogout} />
+        </ListSection>
+      </Screen>
+    </View>
   );
 }

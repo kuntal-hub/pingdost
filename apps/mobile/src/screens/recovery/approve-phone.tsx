@@ -3,13 +3,14 @@
 // one finishes) or denies.
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert } from 'react-native';
 
 import { describeError } from '@/api/errors';
 import { useAuth } from '@/auth/use-auth';
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import {
   approvePhone,
   denyPhone,

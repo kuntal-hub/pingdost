@@ -3,7 +3,7 @@
 // The file is made on the phone and saved where the user chooses; PingDost never gets it.
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 
 import {
   BackupUnavailableError,
@@ -17,10 +17,12 @@ import {
 import { hasPhrase, loadPhraseEntropy, savePhrase } from '@/backup/phrase';
 import { REMINDER_DAYS, useBackupPrefs } from '@/backup/prefs';
 import { Button } from '@/components/button';
+import { Toggle } from '@/components/controls';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { PhraseGrid, SECRET_INPUT } from '@/components/phrase';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { TextField } from '@/components/text-field';
 import { usePalette } from '@/theme/theme-root';
 import { generatePhrase, quizPositions, type ExportCounts } from '@pingdost/backup';
@@ -182,7 +184,7 @@ export function BackupScreen() {
     return (
       <Screen title="Making your backup">
         <View className="flex-row items-center gap-3" accessibilityLiveRegion="polite">
-          <ActivityIndicator color={palette.primary} />
+          <ActivityIndicator color={palette.accent} />
           <Text className="flex-1 text-base text-foreground">
             {counts
               ? `${counts.messages} messages in ${counts.conversations} chats` +
@@ -265,7 +267,7 @@ export function BackupScreen() {
               : `Adds about ${formatBytes(mediaBytes)} to the backup`
           }
           accessory={
-            <Switch
+            <Toggle
               accessibilityLabel="Include photos and files"
               value={includeFiles}
               onValueChange={setIncludeFiles}
@@ -276,7 +278,7 @@ export function BackupScreen() {
           title="Monthly reminder"
           subtitle={`A notification ${REMINDER_DAYS} days after the last backup`}
           accessory={
-            <Switch
+            <Toggle
               accessibilityLabel="Monthly reminder"
               value={prefs?.reminder ?? false}
               onValueChange={(reminder) =>

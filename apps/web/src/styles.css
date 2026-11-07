@@ -1,33 +1,56 @@
 @import 'tailwindcss';
+/* Self-hosted: the strict CSP and the privacy promise rule out a font CDN (ADR 0035). */
+@import '@fontsource-variable/bricolage-grotesque/wght.css';
+@import '@fontsource-variable/figtree/wght.css';
+@import '@fontsource-variable/fredoka/wght.css';
+@import '@fontsource-variable/nunito/wght.css';
+@import '@fontsource-variable/space-grotesk/wght.css';
 
 /*
- * Colors come from @pingdost/ui-tokens (the same as the phone): `theme.ts` sets each as
- * `--pd-<name>: R G B` on <html> for the light or dark scheme, so `bg-surface` follows it.
+ * Colors and radii come from @pingdost/ui-tokens (the same as the phone): `theme.ts` sets each as
+ * a `--pd-*` variable on <html> through the CSSOM, so `bg-surface` or `rounded-lg` follows the
+ * user's scheme, mode and corner setting.
  */
 @theme inline {
   --color-background: rgb(var(--pd-background));
   --color-surface: rgb(var(--pd-surface));
+  --color-raised: rgb(var(--pd-raised));
   --color-foreground: rgb(var(--pd-foreground));
   --color-muted: rgb(var(--pd-muted));
   --color-border: rgb(var(--pd-border));
   --color-primary: rgb(var(--pd-primary));
+  --color-primary-end: rgb(var(--pd-primary-end));
   --color-on-primary: rgb(var(--pd-on-primary));
+  --color-accent: rgb(var(--pd-accent));
+  --color-secondary: rgb(var(--pd-secondary));
+  --color-on-secondary: rgb(var(--pd-on-secondary));
+  --color-bubble-in: rgb(var(--pd-bubble-in));
+  --color-on-bubble-in: rgb(var(--pd-on-bubble-in));
   --color-success: rgb(var(--pd-success));
+  --color-warning: rgb(var(--pd-warning));
   --color-danger: rgb(var(--pd-danger));
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  --color-on-danger: rgb(var(--pd-on-danger));
+  --radius-sm: var(--pd-radius-sm);
+  --radius-md: var(--pd-radius-md);
+  --radius-lg: var(--pd-radius-lg);
+  --radius-xl: var(--pd-radius-xl);
+  --radius-2xl: var(--pd-radius-2xl);
+  --font-sans: var(--pd-font-body);
+  --font-display: var(--pd-font-display);
 }
 
 :root {
   color-scheme: light dark;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    'Noto Sans',
-    sans-serif;
+  font-size: calc(100% * var(--pd-text-scale, 1));
+  font-family: var(--pd-font-body);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 body {
@@ -36,5 +59,379 @@ body {
 }
 
 :focus-visible {
-  @apply outline-2 outline-offset-2 outline-primary;
+  @apply outline-2 outline-offset-2 outline-accent;
+}
+
+/* Lucide icons a little bolder than the default, to sit with the headline type. */
+.lucide {
+  stroke-width: 2.25;
+}
+
+h1,
+h2 {
+  font-family: var(--pd-font-display);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--pd-border)) transparent;
+}
+
+/* ---- Surfaces: the three looks (soft, sticker, outline) come from `surfaceStyle`. ---- */
+
+@utility pd-card {
+  background-color: rgb(var(--pd-surface));
+  border: var(--pd-card-border-width) solid var(--pd-card-border-color);
+  box-shadow: var(--pd-card-shadow);
+}
+
+@utility pd-floating {
+  background-color: rgb(var(--pd-surface));
+  border: var(--pd-floating-border-width) solid var(--pd-floating-border-color);
+  box-shadow: var(--pd-floating-shadow);
+}
+
+@utility bg-brand {
+  background-image: linear-gradient(135deg, rgb(var(--pd-primary)), rgb(var(--pd-primary-end)));
+}
+
+/* Sticker look: brand fills get the outline too. */
+:root[data-look='sticker'] .bg-brand,
+:root[data-look='sticker'] .bg-secondary {
+  border: var(--pd-card-border-width) solid var(--pd-card-border-color);
+  box-shadow: var(--pd-card-shadow);
+}
+
+:root[data-density='compact'] .pd-row {
+  padding-block: 0.125rem;
+}
+
+.pd-wallpaper {
+  background-color: rgb(var(--pd-background));
+  background-image: var(--pd-wallpaper, none);
+  background-size: 100% 100%;
+}
+
+/* ---- Motion. `data-motion` is the user's setting; `theme.ts` lowers it for reduced motion. ---- */
+
+@keyframes pd-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pd-pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+}
+
+@keyframes pd-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pd-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes pd-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes pd-bubble-out {
+  from {
+    opacity: 0;
+    transform: translate(10px, 14px) scale(0.92);
+  }
+}
+
+@keyframes pd-bubble-in {
+  from {
+    opacity: 0;
+    transform: translate(-10px, 14px) scale(0.92);
+  }
+}
+
+@keyframes pd-bounce-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+@keyframes pd-float {
+  from {
+    transform: translateY(-5px) rotate(-4deg);
+  }
+  to {
+    transform: translateY(5px) rotate(4deg);
+  }
+}
+
+@keyframes pd-pulse-ring {
+  from {
+    transform: scale(0.95);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes pd-heart {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  25% {
+    transform: scale(1.25) translateY(-6px);
+    opacity: 1;
+  }
+  60% {
+    transform: scale(1) translateY(-14px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.1) translateY(-36px);
+    opacity: 0;
+  }
+}
+
+@keyframes pd-pulse-soft {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pd-highlight {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  30% {
+    box-shadow: 0 0 0 4px rgb(var(--pd-accent));
+  }
+}
+
+@keyframes pd-reveal {
+  from {
+    clip-path: circle(0 at var(--pd-vt-x, 50%) var(--pd-vt-y, 50%));
+  }
+  to {
+    clip-path: circle(150% at var(--pd-vt-x, 50%) var(--pd-vt-y, 50%));
+  }
+}
+
+/* The press every button-like thing shares. */
+.pd-press {
+  transition:
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1),
+    filter 120ms ease-out,
+    background-color 120ms ease-out,
+    opacity 120ms ease-out;
+}
+
+.pd-press:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.pd-press:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.pd-pop {
+  animation: pd-pop-in 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.pd-rise {
+  animation: pd-rise 280ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.pd-bubble-new-out {
+  animation: pd-bubble-out 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.pd-bubble-new-in {
+  animation: pd-bubble-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.pd-float {
+  animation: pd-float 2.6s ease-in-out infinite alternate;
+}
+
+.pd-dot {
+  animation: pd-bounce-dot 1.1s ease-in-out infinite;
+}
+
+.pd-dot:nth-child(2) {
+  animation-delay: 160ms;
+}
+
+.pd-dot:nth-child(3) {
+  animation-delay: 320ms;
+}
+
+.pd-ring {
+  animation: pd-pulse-ring 1.8s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+
+.pd-heart {
+  animation: pd-heart 650ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.pd-skeleton {
+  animation: pd-pulse-soft 900ms ease-in-out infinite alternate;
+}
+
+.pd-highlight {
+  animation: pd-highlight 1.5s ease-out;
+}
+
+/* Menus and dialogs: Radix keeps them mounted until the closing animation ends. */
+.pd-menu[data-state='open'],
+.pd-dialog[data-state='open'] {
+  animation: pd-pop-in 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pd-menu[data-state='closed'],
+.pd-dialog[data-state='closed'] {
+  animation: pd-pop-out 120ms ease-out;
+}
+
+.pd-overlay[data-state='open'] {
+  animation: pd-fade-in 160ms ease-out;
+}
+
+.pd-overlay[data-state='closed'] {
+  animation: pd-fade-out 120ms ease-out;
+}
+
+/* A theme change spreads out from where you clicked. */
+::view-transition-old(root) {
+  animation: none;
+}
+
+::view-transition-new(root) {
+  animation: pd-reveal 450ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* An on/off switch, on a real checkbox: keyboard and screen readers work as usual. */
+.pd-switch {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 3rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background-color: rgb(var(--pd-raised));
+  border: 1px solid rgb(var(--pd-border));
+  cursor: pointer;
+  transition:
+    background-color 180ms ease-out,
+    border-color 180ms ease-out;
+}
+
+.pd-switch::before {
+  content: '';
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 1.3125rem;
+  height: 1.3125rem;
+  border-radius: 999px;
+  background-color: rgb(var(--pd-muted));
+  transition:
+    transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 180ms ease-out;
+}
+
+.pd-switch:checked {
+  background-color: rgb(var(--pd-primary));
+  border-color: rgb(var(--pd-primary));
+}
+
+.pd-switch:checked::before {
+  background-color: rgb(var(--pd-on-primary));
+  transform: translateX(1.25rem);
+}
+
+.pd-switch:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Calm: only gentle fades. */
+:root[data-motion='calm'] .pd-pop,
+:root[data-motion='calm'] .pd-rise,
+:root[data-motion='calm'] .pd-bubble-new-out,
+:root[data-motion='calm'] .pd-bubble-new-in,
+:root[data-motion='calm'] .pd-menu[data-state='open'],
+:root[data-motion='calm'] .pd-dialog[data-state='open'] {
+  animation: pd-fade-in 150ms ease-out both;
+}
+
+:root[data-motion='calm'] .pd-menu[data-state='closed'],
+:root[data-motion='calm'] .pd-dialog[data-state='closed'] {
+  animation: pd-fade-out 100ms ease-out;
+}
+
+:root[data-motion='calm'] .pd-press:active:not(:disabled) {
+  transform: none;
+  opacity: 0.7;
+}
+
+:root[data-motion='calm'] .pd-float,
+:root[data-motion='calm'] .pd-dot,
+:root[data-motion='calm'] .pd-ring,
+:root[data-motion='calm'] .pd-heart {
+  animation: none;
+}
+
+:root[data-motion='calm'] .pd-heart,
+:root[data-motion='calm'] .pd-ring {
+  display: none;
+}
+
+:root[data-motion='calm'] .pd-switch::before {
+  transition: background-color 120ms linear;
+}
+
+/* Off: nothing moves; state changes just happen. */
+:root[data-motion='off'] *,
+:root[data-motion='off'] *::before,
+:root[data-motion='off'] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+:root[data-motion='off'] .pd-heart,
+:root[data-motion='off'] .pd-ring {
+  display: none;
+}
+
+:root[data-motion='off']::view-transition-new(root) {
+  animation: none;
 }

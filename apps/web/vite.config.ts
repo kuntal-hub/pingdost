@@ -136,8 +136,8 @@ export default defineConfig(({ command, mode }) => {
           start_url: '/',
           scope: '/',
           display: 'standalone',
-          background_color: '#0B1220',
-          theme_color: '#0B7A64',
+          background_color: '#0E0E14',
+          theme_color: '#0E0E14',
           icons: [
             { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
             { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -151,7 +151,9 @@ export default defineConfig(({ command, mode }) => {
         },
         injectManifest: {
           rollupFormat: 'iife',
-          globPatterns: ['**/*.{js,css,html,svg,png,wasm}'],
+          // The fonts' Latin files too, so the offline shell keeps its look; other scripts fall
+          // back to system fonts until fetched.
+          globPatterns: ['**/*.{js,css,html,svg,png,wasm}', '**/*-latin-wght-normal-*.woff2'],
           // The crypto module is about 1.1 MB.
           maximumFileSizeToCacheInBytes: 4 * 1_048_576,
         },

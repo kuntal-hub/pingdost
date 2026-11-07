@@ -54,9 +54,7 @@ export function MessageInfoPage() {
             {theirs.map((d) => (
               <li key={d.deviceId} className="flex justify-between gap-4">
                 <span>{names.name(d.userId)}</span>
-                <span className="text-muted">
-                  {label(d.state).glyph} {label(d.state).short}
-                </span>
+                <span className="text-muted">{label(d.state).short}</span>
               </li>
             ))}
           </ul>

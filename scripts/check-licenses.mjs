@@ -23,6 +23,8 @@ const ALLOWED = new Set([
   'BlueOak-1.0.0',
   'MPL-2.0',
   'Python-2.0',
+  // The app's fonts (ADR 0035): OSI approved, and the fonts ship unmodified with their names.
+  'OFL-1.1',
 ]);
 
 /** Packages allowed despite their license, with the reason (docs/security/audits.md). */

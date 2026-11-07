@@ -5,12 +5,12 @@ import {
   Pressable,
   ScrollView,
   Share,
-  Switch,
-  Text,
-  TextInput,
   View,
   type Permission,
 } from 'react-native';
+
+import { Toggle as OnOff } from '@/components/controls';
+import { Text, TextInput } from '@/components/text';
 
 import {
   addPong,
@@ -91,7 +91,7 @@ function Toggle(props: { label: string; value: boolean; onChange: (value: boolea
   return (
     <View className="flex-row items-center justify-between">
       <Line>{props.label}</Line>
-      <Switch value={props.value} onValueChange={props.onChange} />
+      <OnOff accessibilityLabel={props.label} value={props.value} onValueChange={props.onChange} />
     </View>
   );
 }

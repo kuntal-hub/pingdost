@@ -2,10 +2,11 @@
 // permission (Location on Android 8–11; Bluetooth on iOS), asked only after the user reads this.
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Linking, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import {
   refreshNearby,
   requestNearbyPermissions,

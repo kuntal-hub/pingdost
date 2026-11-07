@@ -4,15 +4,19 @@ import '../global.css';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { LogBox, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { LogBox, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { authStore } from '@/api';
 import { useAppStage } from '@/auth/use-auth';
+import { Text } from '@/components/text';
 import { configError } from '@/config';
 import { startChat, stopChat } from '@/engine/runtime';
 import { startPushToken } from '@/push/token';
-import { ThemeRoot } from '@/theme/theme-root';
+import { useAppearance } from '@/theme/appearance';
+import { loadFont } from '@/theme/fonts';
+import { ThemeRoot, useTheme } from '@/theme/theme-root';
 
 // react-native-css-interop (NativeWind 4) wraps ImageBackground at import time; the app
 // does not use it.
@@ -33,20 +37,31 @@ function ConfigErrorScreen({ message }: { message: string }) {
   );
 }
 
+/** Status bar icons follow the app's mode, which may differ from the device's. */
+function ThemedStatusBar() {
+  const { dark } = useTheme();
+  return <StatusBar style={dark ? 'light' : 'dark'} />;
+}
+
 /**
  * The auth gate: each stage unlocks one group of routes. When a guard turns off, Expo Router
  * falls back to `index`, which redirects to the stage's first screen. The splash screen stays
- * up until the stored session is loaded.
+ * up until the stored session and the chosen font are loaded.
  */
 export default function RootLayout() {
   const stage = useAppStage();
+  const [fontSettled, setFontSettled] = useState(false);
 
   useEffect(() => {
     void authStore.getState().hydrate();
+    void loadFont(useAppearance.getState().prefs.font).finally(() => setFontSettled(true));
   }, []);
 
   useEffect(() => {
-    if (configError || stage !== 'loading') void SplashScreen.hideAsync();
+    if (configError || (stage !== 'loading' && fontSettled)) void SplashScreen.hideAsync();
+  }, [stage, fontSettled]);
+
+  useEffect(() => {
     // The chat engine runs while a registered device is signed in (it also tops up keys), and
     // the server knows where to send its push wakes.
     if (stage !== 'ready') {
@@ -70,30 +85,32 @@ export default function RootLayout() {
 
   const signedOut = stage === 'signedOut' || stage === 'needsUsername';
   return (
-    <ThemeRoot>
-      <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Protected guard={signedOut}>
-          <Stack.Screen name="(auth)" />
-        </Stack.Protected>
-        <Stack.Protected guard={stage === 'deviceSetup'}>
-          <Stack.Screen name="setup" />
-        </Stack.Protected>
-        <Stack.Protected guard={stage === 'ready'}>
-          <Stack.Screen name="(app)" />
-        </Stack.Protected>
-        <Stack.Protected guard={__DEV__}>
-          <Stack.Screen
-            name="(dev)/crypto"
-            options={{ headerShown: true, title: 'Crypto interop (dev)' }}
-          />
-          <Stack.Screen
-            name="(dev)/nearby"
-            options={{ headerShown: true, title: 'Nearby spike (dev)' }}
-          />
-        </Stack.Protected>
-      </Stack>
-    </ThemeRoot>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeRoot>
+        <ThemedStatusBar />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Protected guard={signedOut}>
+            <Stack.Screen name="(auth)" />
+          </Stack.Protected>
+          <Stack.Protected guard={stage === 'deviceSetup'}>
+            <Stack.Screen name="setup" />
+          </Stack.Protected>
+          <Stack.Protected guard={stage === 'ready'}>
+            <Stack.Screen name="(app)" />
+          </Stack.Protected>
+          <Stack.Protected guard={__DEV__}>
+            <Stack.Screen
+              name="(dev)/crypto"
+              options={{ headerShown: true, title: 'Crypto interop (dev)' }}
+            />
+            <Stack.Screen
+              name="(dev)/nearby"
+              options={{ headerShown: true, title: 'Nearby spike (dev)' }}
+            />
+          </Stack.Protected>
+        </Stack>
+      </ThemeRoot>
+    </GestureHandlerRootView>
   );
 }

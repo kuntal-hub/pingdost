@@ -33,7 +33,7 @@ packages/
   call-engine/     1:1 call state machine + signaling (Phase 25)
   auth/            auth/session contracts shared by server and clients
   api-client/      typed REST client (fetch) used by web + mobile
-  ui-tokens/       shared design tokens (colors, spacing, radii) for NativeWind + Tailwind
+  ui-tokens/       the shared design system (color schemes, appearance options, surfaces, wallpapers) for NativeWind + Tailwind (ADR 0035)
   test-fixtures/   protocol + crypto test vectors
 tools/
   sim-client/      headless Node client (engine + wasm crypto) for integration tests and mesh simulation
@@ -209,7 +209,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
 - **Identifiers:** Android package and iOS bundle ID `com.pingdost.app`; URL scheme `pingdost`.
 - ⚠ **ABIs:** `arm64-v8a` and `x86_64` (emulator) only, because the ubrn JSI player ships only 64-bit builds (ADR 0005). 32-bit-only phones are not supported for now.
 - **Backups:** `android:allowBackup="false"`. Android Auto Backup must not copy the encrypted DB or pickles: ADR 0003 forbids restoring Olm state, and Keystore-wrapped keys do not restore anyway. Recovery uses the Phase 19 backup instead.
-- **Navigation and UI:** Expo Router (`(auth)` and `(app)` groups); NativeWind with `@pingdost/ui-tokens`; light and dark themes.
+- **Navigation and UI:** Expo Router (`(auth)` and `(app)` groups); NativeWind with `@pingdost/ui-tokens`; light and dark themes, color schemes and the rest of the appearance chosen by the user and kept on the device (ADR 0035).
   - The root layout gates route groups with `Stack.Protected` on one stage derived from the session: `(auth)`, `setup` (device registration) or `(app)` with native tabs (ADR 0009).
 - **Local DB:** `expo-sqlite` with config-plugin `useSQLCipher: true` and `enableFTS: true`.
   - A raw 32-byte key (`PRAGMA key = "x'…'"`) from SecureStore; opening checks `PRAGMA cipher_version`, because plain SQLite would ignore the key silently.
@@ -225,7 +225,7 @@ docs/              this file, ROADMAP, PROGRESS, CHANGES, phases/, decisions/, o
   - Held sends: the engine stores the message while its file uploads (`sendAttachment({ held })` then `releaseAttachment`).
 - **Libraries, by phase:**
   - Phase 3: crypto Turbo Module (ubrn).
-  - Phase 7 (ADR 0009): Zustand (app state), `@react-native-google-signin/google-signin` (free Original API; no Android config plugin without Firebase), expo-image-picker (avatars; camera and microphone permissions blocked), expo-network (offline banner), expo-symbols (Material icons for the native tabs on Android).
+  - Phase 7 (ADR 0009): Zustand (app state), `@react-native-google-signin/google-signin` (free Original API; no Android config plugin without Firebase), expo-image-picker (avatars; camera and microphone permissions blocked), expo-network (offline banner). Phase 31 (ADR 0035) replaced expo-symbols and the native tabs with Lucide icons and a floating JS tab bar.
   - Phase 10 (ADR 0012): FlashList, expo-image (avatars), expo-camera (QR safety codes; moved up from Phase 16), qrcode-generator. `@pingdost/protocol` adds @noble/hashes (safety numbers).
   - Phase 12: expo-notifications 58.1.5 + expo-task-manager 58.0.12 (FCM token, headless wake task defined in the custom entry `index.ts`).
   - Phase 13: expo-image-manipulator 58.0.15 (group pictures shrunk to ≤ 32 KiB on the phone).

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import { authStore } from '@/api';
 import { describeError } from '@/api/errors';
@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/use-auth';
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { setUpThisDevice } from '@/device';
 import { DeviceSetupError, type DeviceSetupProblem } from '@/device/setup';
 import { NewPhoneScreen } from '@/screens/recovery/new-phone';
@@ -89,7 +90,7 @@ export function DeviceSetupScreen() {
     >
       {state.status === 'working' ? (
         <View className="flex-row items-center gap-3" accessibilityLiveRegion="polite">
-          <ActivityIndicator color={palette.primary} />
+          <ActivityIndicator color={palette.accent} />
           <Text className="flex-1 text-base text-foreground">
             Creating this phone&apos;s encryption keys and registering it with PingDost. Private
             keys never leave the phone.

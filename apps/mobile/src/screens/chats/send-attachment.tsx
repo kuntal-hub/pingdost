@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { Stack, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { removeFile } from '@/attachments/files';
@@ -21,7 +21,9 @@ import {
   type SendStage,
 } from '@/attachments/send';
 import { Button } from '@/components/button';
+import { FileTextIcon, Icon, MicIcon, MusicIcon } from '@/components/icon';
 import { Notice } from '@/components/notice';
+import { Text, TextInput } from '@/components/text';
 import { usePalette } from '@/theme/theme-root';
 import { CAPTION_MAX, formatSize, IMAGE_PRESETS, type ImageQuality } from '@pingdost/attachments';
 
@@ -86,12 +88,16 @@ function Preview({ draft }: { draft: Draft }) {
       />
     );
   }
-  const icon = draft.voice ? '🎤' : draft.sniffed.category === 'audio' ? '🎵' : '📄';
+  const icon = draft.voice
+    ? MicIcon
+    : draft.sniffed.category === 'audio'
+      ? MusicIcon
+      : FileTextIcon;
   return (
-    <View className="items-center gap-2 rounded-lg border border-border bg-surface p-6">
-      <Text importantForAccessibility="no" className="text-5xl">
-        {icon}
-      </Text>
+    <View className="items-center gap-3 rounded-2xl bg-surface p-6">
+      <View className="h-[72px] w-[72px] items-center justify-center rounded-2xl bg-accent/15">
+        <Icon icon={icon} size={36} color="accent" />
+      </View>
       <Text className="text-center text-base font-semibold text-foreground">
         {draft.name ?? 'File'}
       </Text>

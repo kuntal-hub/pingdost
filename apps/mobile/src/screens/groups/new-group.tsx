@@ -1,11 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { TextField } from '@/components/text-field';
 import { GroupPictureError, groupPictureUri, pickGroupPicture } from '@/engine/groups';
 import { useChatRuntime } from '@/engine/hooks';

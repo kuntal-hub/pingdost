@@ -57,7 +57,8 @@ export default function AppStack() {
   return (
     <Stack screenOptions={{ headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="chat/[conversationId]" options={{ title: '' }} />
+      {/* The chat draws its own floating header over the wallpaper. */}
+      <Stack.Screen name="chat/[conversationId]" options={{ headerShown: false }} />
       <Stack.Screen name="new-chat" options={{ title: 'New chat' }} />
       <Stack.Screen name="new-group" options={{ title: 'New group' }} />
       <Stack.Screen name="group/[groupId]" options={{ title: 'Group info' }} />

@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { Stack, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 import {
   GestureDetector,
   GestureHandlerRootView,
@@ -17,6 +17,7 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { openPlaintext, releasePlaintext } from '@/attachments/view';
+import { Text } from '@/components/text';
 import { useChatRuntime } from '@/engine/hooks';
 import type { AttachmentInfo, MessageRecord } from '@pingdost/message-engine';
 

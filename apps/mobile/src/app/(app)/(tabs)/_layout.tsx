@@ -1,28 +1,16 @@
-import { NativeTabs } from 'expo-router/native-tabs';
+import { Tabs } from 'expo-router/js-tabs';
 
-import { usePalette } from '@/theme/theme-root';
+import { FloatingTabBar } from '@/components/floating-tab-bar';
 
 export default function AppTabs() {
-  const palette = usePalette();
   return (
-    <NativeTabs
-      backgroundColor={palette.surface}
-      tintColor={palette.primary}
-      iconColor={palette.muted}
-      indicatorColor={palette.border}
+    <Tabs
+      tabBar={(props) => <FloatingTabBar {...props} />}
+      screenOptions={{ headerShown: false, animation: 'none' }}
     >
-      <NativeTabs.Trigger name="(chats)">
-        <NativeTabs.Trigger.Icon sf="bubble.left.and.bubble.right" md="chat" />
-        <NativeTabs.Trigger.Label>Chats</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(calls)">
-        <NativeTabs.Trigger.Icon sf="phone" md="call" />
-        <NativeTabs.Trigger.Label>Calls</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(settings)">
-        <NativeTabs.Trigger.Icon sf="gearshape" md="settings" />
-        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
+      <Tabs.Screen name="(chats)" options={{ title: 'Chats' }} />
+      <Tabs.Screen name="(calls)" options={{ title: 'Calls' }} />
+      <Tabs.Screen name="(settings)" options={{ title: 'Settings' }} />
+    </Tabs>
   );
 }

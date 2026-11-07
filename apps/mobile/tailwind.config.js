@@ -2,7 +2,14 @@
 // Tailwind loads it (and the TypeScript tokens package) through jiti.
 const plugin = require('tailwindcss/plugin');
 
-const { colorVariables, radii, spacing, tailwindColors } = require('@pingdost/ui-tokens');
+const {
+  colorVariables,
+  radiusVariables,
+  resolvePalette,
+  spacing,
+  tailwindColors,
+  tailwindRadii,
+} = require('@pingdost/ui-tokens');
 
 /** @param {Record<string | number, number>} scale */
 const px = (scale) =>
@@ -15,11 +22,18 @@ module.exports = {
   theme: {
     colors: { transparent: 'transparent', ...tailwindColors() },
     spacing: px(spacing),
-    borderRadius: px(radii),
+    borderRadius: tailwindRadii(),
     extend: {},
   },
   plugins: [
-    // Light values on :root; `ThemeRoot` swaps in the scheme's values at runtime.
-    plugin(({ addBase }) => addBase({ ':root': colorVariables('light') })),
+    // Default values on :root; `ThemeRoot` swaps in the user's scheme and corners at runtime.
+    plugin(({ addBase }) =>
+      addBase({
+        ':root': {
+          ...colorVariables(resolvePalette('volt', false)),
+          ...px(radiusVariables('round')),
+        },
+      }),
+    ),
   ],
 };

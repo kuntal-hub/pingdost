@@ -1,9 +1,10 @@
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { HighlightedText } from '@/components/highlighted-text';
+import { Text, TextInput } from '@/components/text';
 import { contactName } from '@/engine/contacts';
 import { requestJump, useChatRuntime, useContact } from '@/engine/hooks';
 import { dayLabel, timeLabel } from '@/engine/timeline';

@@ -1,13 +1,15 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { api } from '@/api';
 import { describeError } from '@/api/errors';
 import { Button } from '@/components/button';
+import { CheckMark, RadioMark } from '@/components/controls';
 import { ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text, TextInput } from '@/components/text';
 import { useBlocks, useIsBlocked } from '@/engine/blocks';
 import { contactName } from '@/engine/contacts';
 import { useChatRuntime, useContact } from '@/engine/hooks';
@@ -47,11 +49,9 @@ function Choice({
       accessibilityState={{ checked }}
       accessibilityLabel={detail ? `${label}. ${detail}` : label}
       onPress={onPress}
-      className="min-h-[52px] flex-row items-center gap-3 px-4 py-3 active:opacity-70"
+      className="min-h-[52px] flex-row items-center gap-3 px-4 py-3 active:bg-raised"
     >
-      <Text importantForAccessibility="no" className="text-xl text-primary">
-        {role === 'radio' ? (checked ? '◉' : '○') : checked ? '☑' : '☐'}
-      </Text>
+      {role === 'radio' ? <RadioMark checked={checked} /> : <CheckMark checked={checked} />}
       <View className="flex-1">
         <Text numberOfLines={3} className="text-base text-foreground">
           {label}

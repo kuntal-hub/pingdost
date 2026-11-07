@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Platform, Text, View } from 'react-native';
+import { Platform, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { Text } from '@/components/text';
 import { useNotificationPrefs } from '@/push/prefs';
 import {
   notificationPermission,

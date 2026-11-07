@@ -2,24 +2,36 @@
 // The messages stay and say the file was deleted from this phone; other people keep theirs.
 import { Stack } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, View } from 'react-native';
 
 import { attachmentContext } from '@/attachments/context';
 import type { MediaItem } from '@/attachments/repo';
 import { deleteMedia } from '@/attachments/storage';
 import { displayName } from '@/attachments/view';
 import { Button } from '@/components/button';
+import { CheckMark } from '@/components/controls';
+import { EmptyState } from '@/components/feedback';
+import {
+  FileIcon,
+  FileTextIcon,
+  Icon,
+  ImageIcon,
+  MusicIcon,
+  VideoIcon,
+  type LucideIcon,
+} from '@/components/icon';
+import { Text } from '@/components/text';
 import { useChatRuntime } from '@/engine/hooks';
 import { formatSize } from '@pingdost/attachments';
 import type { AttachmentInfo } from '@pingdost/message-engine';
 
 const dateLabel = (ms: number) => new Date(ms).toLocaleDateString();
 
-function iconFor(mimeType: string): string {
-  if (mimeType.startsWith('image/')) return '📷';
-  if (mimeType.startsWith('video/')) return '🎥';
-  if (mimeType.startsWith('audio/')) return '🎵';
-  return '📄';
+function iconFor(mimeType: string): LucideIcon {
+  if (mimeType.startsWith('image/')) return ImageIcon;
+  if (mimeType.startsWith('video/')) return VideoIcon;
+  if (mimeType.startsWith('audio/')) return MusicIcon;
+  return FileTextIcon;
 }
 
 export function ChatStorageScreen({
@@ -91,9 +103,11 @@ export function ChatStorageScreen({
         keyExtractor={({ item }) => item.attachmentId}
         contentContainerClassName="p-4 gap-2"
         ListEmptyComponent={
-          <Text className="m-6 text-center text-muted">
-            No files from this chat are on this phone.
-          </Text>
+          <EmptyState
+            icon={FileIcon}
+            title="Nothing here"
+            message="No files from this chat are on this phone."
+          />
         }
         renderItem={({ item: { item, info } }) => {
           const on = selected.has(item.attachmentId);
@@ -103,13 +117,13 @@ export function ChatStorageScreen({
               accessibilityState={{ checked: on }}
               accessibilityLabel={`${displayName(info)}, ${formatSize(info.plaintextSize)}, ${dateLabel(item.sortAt)}`}
               onPress={() => toggle(item.attachmentId)}
-              className={`min-h-[56px] flex-row items-center gap-3 rounded-lg border px-3 py-2 ${
-                on ? 'border-primary bg-primary/10' : 'border-border bg-surface'
+              className={`min-h-[56px] flex-row items-center gap-3 rounded-xl border-2 px-3 py-2 ${
+                on ? 'border-accent bg-accent/10' : 'border-transparent bg-surface'
               }`}
             >
-              <Text importantForAccessibility="no" className="text-2xl">
-                {iconFor(info.mimeType)}
-              </Text>
+              <View className="h-11 w-11 items-center justify-center rounded-md bg-accent/15">
+                <Icon icon={iconFor(info.mimeType)} size={22} color="accent" />
+              </View>
               <View className="flex-1">
                 <Text numberOfLines={1} className="text-base text-foreground">
                   {displayName(info)}
@@ -119,9 +133,7 @@ export function ChatStorageScreen({
                   {item.direction === 'up' ? ' · sent' : ''}
                 </Text>
               </View>
-              <Text className={`text-xl ${on ? 'text-primary' : 'text-muted'}`}>
-                {on ? '☑' : '☐'}
-              </Text>
+              <CheckMark checked={on} />
             </Pressable>
           );
         }}

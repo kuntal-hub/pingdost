@@ -1,9 +1,11 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Platform, Switch, Text } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
+import { Toggle } from '@/components/controls';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import type { NotificationPrefs } from '@/push/content';
 import { useNotificationPrefs } from '@/push/prefs';
 import {
@@ -11,7 +13,6 @@ import {
   requestNotificationPermission,
   type PermissionState,
 } from '@/push/token';
-import { usePalette } from '@/theme/theme-root';
 
 const toggles: { key: keyof NotificationPrefs; title: string; subtitle: string }[] = [
   {
@@ -33,7 +34,6 @@ function openBatterySettings(): void {
 }
 
 export function NotificationsScreen() {
-  const palette = usePalette();
   const prefs = useNotificationPrefs((state) => state.prefs);
   const [permission, setPermission] = useState<PermissionState | null>(null);
 
@@ -94,11 +94,10 @@ export function NotificationsScreen() {
             subtitle={option.subtitle}
             onPress={() => toggle(option.key, !prefs[option.key])}
             accessory={
-              <Switch
+              <Toggle
                 accessibilityLabel={option.title}
                 value={prefs[option.key]}
                 onValueChange={(value) => toggle(option.key, value)}
-                trackColor={{ true: palette.primary, false: palette.border }}
               />
             }
           />

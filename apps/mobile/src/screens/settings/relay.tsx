@@ -4,14 +4,15 @@
 // relaying at once.
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { Switch, Text } from 'react-native';
 
+import { Toggle } from '@/components/controls';
+import { CheckIcon, Icon } from '@/components/icon';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { describeRelay, type RelayPrefs } from '@/nearby/relay';
 import { refreshNearby, setRelayPrefs, startNearby, useNearby, useRelay } from '@/nearby/service';
 import { NEARBY_COPY } from '@/nearby/status';
-import { usePalette } from '@/theme/theme-root';
 import { formatSize } from '@pingdost/attachments';
 
 import { nearbyPlatform } from './nearby';
@@ -76,7 +77,6 @@ function BackgroundLimits() {
 
 export function NearbyRelayScreen() {
   const router = useRouter();
-  const palette = usePalette();
   const nearbyOn = useNearby((state) => state.enabled);
   const { prefs, decision, mesh, available } = useRelay();
   const text = describeRelay(decision, prefs, mesh.stored);
@@ -89,7 +89,6 @@ export function NearbyRelayScreen() {
     }, []),
   );
 
-  const track = { true: palette.primary, false: palette.border };
   const switchRow = (
     title: string,
     value: boolean,
@@ -102,12 +101,11 @@ export function NearbyRelayScreen() {
       {...(subtitle ? { subtitle } : {})}
       {...(disabled ? {} : { onPress: () => onChange(!value) })}
       accessory={
-        <Switch
+        <Toggle
           accessibilityLabel={title}
           value={value}
           disabled={disabled}
           onValueChange={onChange}
-          trackColor={track}
         />
       }
     />
@@ -156,7 +154,11 @@ export function NearbyRelayScreen() {
                 key={level}
                 title={`${level}%`}
                 onPress={() => save({ minBatteryPercent: level })}
-                accessory={prefs.minBatteryPercent === level ? <Text>✓</Text> : undefined}
+                accessory={
+                  prefs.minBatteryPercent === level ? (
+                    <Icon icon={CheckIcon} color="accent" />
+                  ) : undefined
+                }
               />
             ))}
           </ListSection>
@@ -166,7 +168,11 @@ export function NearbyRelayScreen() {
                 key={mb}
                 title={formatSize(mb * 1_048_576)}
                 onPress={() => save({ minFreeStorageMb: mb })}
-                accessory={prefs.minFreeStorageMb === mb ? <Text>✓</Text> : undefined}
+                accessory={
+                  prefs.minFreeStorageMb === mb ? (
+                    <Icon icon={CheckIcon} color="accent" />
+                  ) : undefined
+                }
               />
             ))}
           </ListSection>

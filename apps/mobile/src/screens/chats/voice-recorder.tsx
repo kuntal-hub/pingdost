@@ -9,14 +9,22 @@ import {
   useAudioRecorderState,
 } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Linking, Pressable, Text, View } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { removeFile } from '@/attachments/files';
 import { durationLabel, waveformFrom } from '@/attachments/rules';
+import { SendIcon, Trash2Icon } from '@/components/icon';
+import { IconButton } from '@/components/icon-button';
+import { Text } from '@/components/text';
+import { CSS_EASE_OUT, useMotion } from '@/theme/motion';
+import { useTheme } from '@/theme/theme-root';
 
 /** Long enough for any voice note; far under the size limit. */
 const MAX_MS = 15 * 60_000;
-const LIVE_BARS = 36;
+const LIVE_BARS = 28;
+
+const RECORDING_PULSE = { from: { opacity: 1 }, to: { opacity: 0.25 } };
 
 export interface VoiceNote {
   uri: string;
@@ -37,6 +45,8 @@ export function VoiceRecorder({
   const [live, setLive] = useState<number[]>([]);
   const [started, setStarted] = useState(false);
   const finished = useRef(false);
+  const { palette, floating } = useTheme();
+  const { fades } = useMotion();
 
   useEffect(() => {
     let cancelled = false;
@@ -102,38 +112,61 @@ export function VoiceRecorder({
   }
 
   return (
-    <View className="flex-row items-center gap-3">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Cancel voice message"
-        onPress={() => void finish(false)}
-        className="min-h-[44px] justify-center px-2"
-      >
-        <Text className="text-base text-danger">Cancel</Text>
-      </Pressable>
+    <View className="flex-row items-center gap-2">
       <View
-        accessibilityLiveRegion="polite"
-        accessibilityLabel={`Recording, ${durationLabel(state.durationMillis)}`}
-        className="h-11 flex-1 flex-row items-center gap-[2px] rounded-lg border border-border bg-surface px-3"
+        className="h-[52px] flex-1 flex-row items-center gap-2 rounded-2xl bg-surface pl-1 pr-4"
+        style={{ ...floating, backgroundColor: palette.surface }}
       >
-        <Text className="mr-2 text-danger">● {durationLabel(state.durationMillis)}</Text>
-        {live.map((level, i) => (
-          <View
-            key={i}
-            className="flex-1 rounded-full bg-primary"
-            style={{ height: Math.max(3, ((Math.max(-50, Math.min(0, level)) + 50) / 50) * 28) }}
-          />
-        ))}
+        <IconButton
+          icon={Trash2Icon}
+          label="Cancel voice message"
+          size={42}
+          feedback="warning"
+          onPress={() => void finish(false)}
+        />
+        <Animated.View
+          className="h-3 w-3 rounded-full bg-danger"
+          style={
+            fades
+              ? {
+                  animationName: RECORDING_PULSE,
+                  animationDuration: 700,
+                  animationIterationCount: 'infinite',
+                  animationDirection: 'alternate',
+                  animationTimingFunction: CSS_EASE_OUT,
+                }
+              : undefined
+          }
+        />
+        <Text
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={`Recording, ${durationLabel(state.durationMillis)}`}
+          className="font-bold text-foreground"
+        >
+          {durationLabel(state.durationMillis)}
+        </Text>
+        <View
+          importantForAccessibility="no-hide-descendants"
+          className="h-8 flex-1 flex-row items-center justify-end gap-[2px]"
+        >
+          {live.map((level, i) => (
+            <View
+              key={i}
+              className="w-[3px] rounded-full bg-accent"
+              style={{ height: Math.max(3, ((Math.max(-50, Math.min(0, level)) + 50) / 50) * 28) }}
+            />
+          ))}
+        </View>
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Send voice message"
+      <IconButton
+        icon={SendIcon}
+        label="Send voice message"
+        variant="brand"
+        size={52}
         disabled={!started}
+        feedback="light"
         onPress={() => void finish(true)}
-        className={`min-h-[44px] justify-center rounded-lg bg-primary px-4 ${started ? '' : 'opacity-50'}`}
-      >
-        <Text className="text-base font-semibold text-on-primary">Send</Text>
-      </Pressable>
+      />
     </View>
   );
 }

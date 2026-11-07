@@ -61,7 +61,7 @@ export function GroupPage() {
               {group.left ? "You're not a member" : `${group.members.length} members`}
             </p>
           </div>
-          <Link to={`/chat/${groupId}`} className="text-primary underline">
+          <Link to={`/chat/${groupId}`} className="text-accent underline">
             Open chat
           </Link>
         </div>

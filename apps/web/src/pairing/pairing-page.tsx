@@ -53,76 +53,84 @@ export function PairingPage() {
   }, [name, attempt]);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-6 p-6">
-      <header className="flex items-center gap-3">
-        <img src="/favicon.svg" alt="" width={40} height={40} />
-        <h1 className="text-2xl font-bold">PingDost on the web</h1>
-      </header>
-      {notice && <Alert>{notice}</Alert>}
-      <Card className="grid gap-8 md:grid-cols-[auto_1fr] md:items-center">
-        <div className="flex flex-col items-center gap-2">
-          <div className="rounded-lg bg-white p-2">
-            {code && phase !== 'failed' ? (
-              <QrCode value={code.text} size={240} label="Pairing code for the PingDost app" />
-            ) : (
-              <div className="flex h-[240px] w-[240px] items-center justify-center text-sm text-neutral-600">
-                {phase === 'failed' ? 'No code' : 'Preparing a code…'}
-              </div>
+    <main className="pd-wallpaper flex min-h-screen flex-col items-center justify-center gap-6 p-6">
+      <div className="pd-rise flex w-full max-w-3xl flex-col gap-6">
+        <header className="flex items-center gap-4">
+          <span className="relative flex">
+            <span className="pd-ring absolute inset-0 rounded-[28%] border-2 border-accent" />
+            <img src="/favicon.svg" alt="" width={56} height={56} className="relative" />
+          </span>
+          <div>
+            <h1 className="font-display text-4xl font-extrabold">PingDost</h1>
+            <p className="font-semibold text-muted">On the web, linked to your phone.</p>
+          </div>
+        </header>
+        {notice && <Alert>{notice}</Alert>}
+        <Card className="pd-floating grid gap-8 md:grid-cols-[auto_1fr] md:items-center">
+          <div className="flex flex-col items-center gap-2">
+            <div className="rounded-xl bg-white p-3">
+              {code && phase !== 'failed' ? (
+                <QrCode value={code.text} size={240} label="Pairing code for the PingDost app" />
+              ) : (
+                <div className="flex h-[240px] w-[240px] items-center justify-center text-sm text-neutral-600">
+                  {phase === 'failed' ? 'No code' : 'Preparing a code…'}
+                </div>
+              )}
+            </div>
+            {phase === 'waiting' && (
+              <p className="text-sm text-muted">
+                {secondsLeft > 0 ? `${secondsLeft} s left · renews on its own` : 'Renewing…'}
+              </p>
+            )}
+            {import.meta.env.DEV && code && (
+              // Dev builds: the code as text, for `pnpm --filter @pingdost/sim-client phone`.
+              <details className="max-w-[260px] text-xs text-muted">
+                <summary>Pairing code as text (dev)</summary>
+                <code data-testid="pairing-code" className="break-all">
+                  {code.text}
+                </code>
+              </details>
             )}
           </div>
-          {phase === 'waiting' && (
-            <p className="text-sm text-muted">
-              {secondsLeft > 0 ? `${secondsLeft} s left · renews on its own` : 'Renewing…'}
-            </p>
-          )}
-          {import.meta.env.DEV && code && (
-            // Dev builds: the code as text, for `pnpm --filter @pingdost/sim-client phone`.
-            <details className="max-w-[260px] text-xs text-muted">
-              <summary>Pairing code as text (dev)</summary>
-              <code data-testid="pairing-code" className="break-all">
-                {code.text}
-              </code>
-            </details>
-          )}
-        </div>
-        <div className="flex flex-col gap-4">
-          <CardTitle>Link this browser</CardTitle>
-          <ol className="list-decimal space-y-2 pl-5">
-            <li>Open PingDost on your phone.</li>
-            <li>
-              Go to <strong>Settings → Devices → Link a browser</strong>.
-            </li>
-            <li>Scan this code, check that it says {name}, and approve.</li>
-          </ol>
-          <div aria-live="polite">
-            {phase === 'approved' && (
-              <Alert tone="success">Approved. Finishing on this browser…</Alert>
-            )}
+          <div className="flex flex-col gap-4">
+            <CardTitle>Link this browser</CardTitle>
+            <ol className="list-decimal space-y-2 pl-5">
+              <li>Open PingDost on your phone.</li>
+              <li>
+                Go to <strong>Settings → Devices → Link a browser</strong>.
+              </li>
+              <li>Scan this code, check that it says {name}, and approve.</li>
+            </ol>
+            <div aria-live="polite">
+              {phase === 'approved' && (
+                <Alert tone="success">Approved. Finishing on this browser…</Alert>
+              )}
+              {phase === 'failed' && (
+                <Alert tone="error">
+                  This browser could not be linked. Check your connection and try again.
+                </Alert>
+              )}
+              {offline && phase === 'waiting' && (
+                <Alert tone="error">No connection to PingDost. Still trying…</Alert>
+              )}
+            </div>
             {phase === 'failed' && (
-              <Alert tone="error">
-                This browser could not be linked. Check your connection and try again.
-              </Alert>
+              <Button variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
+                Try again
+              </Button>
             )}
-            {offline && phase === 'waiting' && (
-              <Alert tone="error">No connection to PingDost. Still trying…</Alert>
-            )}
+            <p className="text-sm text-muted">
+              The code holds no password or key, works once, and expires in two minutes. Your phone
+              must approve it.
+            </p>
           </div>
-          {phase === 'failed' && (
-            <Button variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
-              Try again
-            </Button>
-          )}
-          <p className="text-sm text-muted">
-            The code holds no password or key, works once, and expires in two minutes. Your phone
-            must approve it.
-          </p>
-        </div>
-      </Card>
-      <p className="text-sm text-muted">
-        Messages here are end-to-end encrypted and stored encrypted in this browser. Browser storage
-        is weaker than your phone&apos;s keystore, and the browser may clear it; your phone keeps
-        your history.
-      </p>
+        </Card>
+        <p className="text-sm text-muted">
+          Messages here are end-to-end encrypted and stored encrypted in this browser. Browser
+          storage is weaker than your phone&apos;s keystore, and the browser may clear it; your
+          phone keeps your history.
+        </p>
+      </div>
     </main>
   );
 }

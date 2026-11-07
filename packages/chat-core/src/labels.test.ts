@@ -3,8 +3,29 @@ import { describe, expect, it } from 'vitest';
 import { messageRecord } from '@pingdost/message-engine/testing';
 import { MessageStateSchema } from '@pingdost/shared-types';
 
-import { previewText, shownState, stateLabel, systemText } from './labels';
+import {
+  attachmentType,
+  isBigEmoji,
+  previewText,
+  shownState,
+  stateLabel,
+  systemText,
+} from './labels';
 import { buildTimeline, dayLabel } from './timeline';
+
+describe('isBigEmoji', () => {
+  it('accepts short runs of emoji, including joined ones and flags', () => {
+    for (const text of ['🔥', ' ❤️ ', '😂😂😂', '👨‍👩‍👧', '👍🏽', '🇮🇳']) {
+      expect(isBigEmoji(text), text).toBe(true);
+    }
+  });
+
+  it('rejects text, digits, empty and long messages', () => {
+    for (const text of ['', 'hi', 'ok 👍', '123', '#', '😂'.repeat(20)]) {
+      expect(isBigEmoji(text), text).toBe(false);
+    }
+  });
+});
 
 describe('attachment labels', () => {
   const attachment = (mimeType: string, fileName: string | null) =>
@@ -27,10 +48,17 @@ describe('attachment labels', () => {
     });
 
   it('previews a caption, else the type or the file name', () => {
-    expect(previewText(attachment('video/mp4', 'clip.mp4'))).toBe('🎥 Video');
-    expect(previewText({ ...attachment('image/png', null), body: ' a\n view ' })).toBe('📷 a view');
-    expect(previewText(attachment('application/zip', 'notes.zip'))).toBe('📄 notes.zip');
-    expect(previewText(attachment('application/zip', null))).toBe('📄 File');
+    expect(previewText(attachment('video/mp4', 'clip.mp4'))).toBe('Video');
+    expect(previewText({ ...attachment('image/png', null), body: ' a\n view ' })).toBe('a view');
+    expect(previewText(attachment('application/zip', 'notes.zip'))).toBe('notes.zip');
+    expect(previewText(attachment('application/zip', null))).toBe('File');
+  });
+
+  it('names the kind of attachment, for the app to draw', () => {
+    expect(attachmentType(attachment('image/png', null)).kind).toBe('image');
+    expect(attachmentType(attachment('video/mp4', null)).kind).toBe('video');
+    expect(attachmentType(attachment('audio/mpeg', null)).kind).toBe('audio');
+    expect(attachmentType(attachment('application/zip', null)).kind).toBe('file');
   });
 });
 

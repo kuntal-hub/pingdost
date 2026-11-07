@@ -4,9 +4,9 @@
 // a self view, mute, camera on/off and switch, speaker/earpiece/headset/Bluetooth, hang up.
 // It closes itself a moment after the call ends.
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { useEffect, useRef, useState, type ComponentProps } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RTCView } from 'react-native-webrtc';
 
@@ -23,12 +23,27 @@ import {
   useCalls,
 } from '@/calls/runtime';
 import { Avatar } from '@/components/avatar';
+import {
+  CheckIcon,
+  Icon,
+  MicIcon,
+  MicOffIcon,
+  PhoneIcon,
+  PhoneOffIcon,
+  SwitchCameraIcon,
+  VideoIcon,
+  VideoOffIcon,
+  Volume2Icon,
+  type LucideIcon,
+} from '@/components/icon';
+import { Tap } from '@/components/tap';
+import { Text } from '@/components/text';
 import { contactName } from '@/engine/contacts';
 import { useContact } from '@/engine/hooks';
+import { CSS_EASE_OUT, useMotion } from '@/theme/motion';
+import { useTheme } from '@/theme/theme-root';
 
 import type { AudioRoute } from '../../../modules/pingdost-calls/src';
-
-type SymbolName = ComponentProps<typeof SymbolView>['name'];
 
 const ROUTE_LABEL: Record<AudioRoute, string> = {
   earpiece: 'Phone',
@@ -36,6 +51,38 @@ const ROUTE_LABEL: Record<AudioRoute, string> = {
   headset: 'Headset',
   bluetooth: 'Bluetooth',
 };
+
+const RIPPLE = {
+  from: { transform: [{ scale: 1 }], opacity: 0.5 },
+  to: { transform: [{ scale: 1.9 }], opacity: 0 },
+};
+
+/** Rings spreading from the avatar while the call has not connected yet. */
+function Ripples({ size }: { size: number }) {
+  const { moves } = useMotion();
+  if (!moves) return null;
+  return (
+    <>
+      {[0, 600, 1200].map((delay) => (
+        <Animated.View
+          key={delay}
+          className="absolute rounded-full"
+          style={{
+            width: size,
+            height: size,
+            backgroundColor: 'rgba(255, 255, 255, 0.35)',
+            animationName: RIPPLE,
+            animationDuration: 1800,
+            animationDelay: delay,
+            animationIterationCount: 'infinite',
+            animationFillMode: 'both',
+            animationTimingFunction: CSS_EASE_OUT,
+          }}
+        />
+      ))}
+    </>
+  );
+}
 
 function RoundButton({
   label,
@@ -45,7 +92,7 @@ function RoundButton({
   pressed = false,
 }: {
   label: string;
-  icon: SymbolName;
+  icon: LucideIcon;
   onPress: () => void;
   tone?: 'neutral' | 'danger' | 'accept';
   pressed?: boolean;
@@ -58,18 +105,27 @@ function RoundButton({
         : pressed
           ? 'bg-white'
           : 'bg-white/20';
+  const color =
+    tone === 'neutral'
+      ? pressed
+        ? '#000000'
+        : '#FFFFFF'
+      : tone === 'danger'
+        ? 'on-danger'
+        : '#04210F';
   return (
     <View className="items-center gap-1">
-      <Pressable
-        accessibilityRole="button"
+      <Tap
         accessibilityLabel={label}
         accessibilityState={{ selected: pressed }}
+        feedback={tone === 'danger' ? 'medium' : 'selection'}
+        scaleTo={0.88}
         onPress={onPress}
-        className={`h-16 w-16 items-center justify-center rounded-full active:opacity-70 ${background}`}
+        className={`h-16 w-16 items-center justify-center rounded-full ${background}`}
       >
-        <SymbolView name={icon} size={28} tintColor={pressed ? '#000000' : '#FFFFFF'} />
-      </Pressable>
-      <Text className="text-xs text-white">{label}</Text>
+        <Icon icon={icon} size={28} color={color} strokeWidth={2.4} />
+      </Tap>
+      <Text className="text-xs font-semibold text-white">{label}</Text>
     </View>
   );
 }
@@ -92,6 +148,7 @@ export function CallScreen() {
   const remote = useCalls((state) => state.remote);
   const routes = useCalls((state) => state.routes);
   const contact = useContact(call?.peerUserId);
+  const { palette } = useTheme();
   const name = contactName(contact);
   const now = useNow();
   const [routePicker, setRoutePicker] = useState(false);
@@ -120,10 +177,17 @@ export function CallScreen() {
     return () => clearTimeout(timer);
   }, [call, router]);
 
+  // A deep backdrop in the scheme's colors, kept dark so white text always reads.
+  const backdrop = {
+    backgroundImage: `linear-gradient(160deg, ${palette.secondary}, #07070F 62%)`,
+  };
+
   if (!call) {
     return (
-      <View className="flex-1 items-center justify-center bg-black px-8">
-        <Text className="text-center text-base text-white">Waiting for the call…</Text>
+      <View className="flex-1 items-center justify-center px-8" style={backdrop}>
+        <Text className="text-center text-base font-semibold text-white">
+          Waiting for the call…
+        </Text>
       </View>
     );
   }
@@ -131,13 +195,14 @@ export function CallScreen() {
   const live = ['outgoing', 'ringing', 'connecting', 'connected', 'reconnecting'].includes(
     call.state,
   );
+  const ringing = ['incoming', 'outgoing', 'ringing', 'connecting'].includes(call.state);
   const remoteVideo =
     call.video && !call.remoteCameraOff && remote && remote.getVideoTracks().length > 0;
   const localVideo = call.video && !call.cameraOff && local && local.getVideoTracks().length > 0;
   const route = routes?.current ?? null;
 
   return (
-    <View className="flex-1 bg-black">
+    <View className="flex-1 bg-black" style={backdrop}>
       {remoteVideo ? (
         <RTCView
           streamURL={remote.toURL()}
@@ -145,12 +210,17 @@ export function CallScreen() {
           style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
         />
       ) : null}
-      <View className="items-center gap-2 px-6" style={{ paddingTop: insets.top + 32 }}>
-        {!remoteVideo && <Avatar name={name} url={contact?.avatarUrl ?? null} size={112} />}
-        <Text className="text-2xl font-semibold text-white" numberOfLines={1}>
+      <View className="items-center gap-3 px-6" style={{ paddingTop: insets.top + 56 }}>
+        {!remoteVideo && (
+          <View className="mb-4 items-center justify-center">
+            {ringing && <Ripples size={124} />}
+            <Avatar name={name} url={contact?.avatarUrl ?? null} size={124} />
+          </View>
+        )}
+        <Text className="font-display text-4xl text-white" numberOfLines={1}>
           {name}
         </Text>
-        <Text className="text-base text-white" accessibilityLiveRegion="polite">
+        <Text className="text-base font-semibold text-white/90" accessibilityLiveRegion="polite">
           {callStatus(call, now)}
           {call.remoteMuted && call.state === 'connected' ? ' · their microphone is off' : ''}
         </Text>
@@ -170,16 +240,16 @@ export function CallScreen() {
           style={{
             position: 'absolute',
             right: 16,
-            bottom: insets.bottom + 140,
+            bottom: insets.bottom + 180,
             width: 110,
             height: 160,
-            borderRadius: 12,
+            borderRadius: 20,
           }}
         />
       ) : null}
       <View className="flex-1" />
       {routePicker && routes ? (
-        <View className="mx-6 mb-4 gap-1 rounded-xl bg-white/15 p-2">
+        <View className="mx-6 mb-4 gap-1 rounded-2xl bg-white/15 p-2">
           {routes.available.map((option) => (
             <Pressable
               key={option}
@@ -189,35 +259,29 @@ export function CallScreen() {
                 setAudioRoute(option);
                 setRoutePicker(false);
               }}
-              className="min-h-[48px] justify-center rounded-lg px-4 active:opacity-70"
+              className="min-h-[48px] flex-row items-center justify-between rounded-lg px-4 active:opacity-70"
             >
-              <Text className="text-base text-white">
-                {ROUTE_LABEL[option]}
-                {option === route ? '  ✓' : ''}
-              </Text>
+              <Text className="text-base font-semibold text-white">{ROUTE_LABEL[option]}</Text>
+              {option === route && <Icon icon={CheckIcon} size={20} color="#FFFFFF" />}
             </Pressable>
           ))}
         </View>
       ) : null}
       <View
-        className="flex-row flex-wrap justify-center gap-6 px-6"
-        style={{ paddingBottom: insets.bottom + 32 }}
+        className="mx-4 flex-row flex-wrap justify-center gap-5 rounded-2xl bg-black/30 px-3 py-4"
+        style={{ marginBottom: insets.bottom + 20 }}
       >
         {call.state === 'incoming' ? (
           <>
             <RoundButton
               label="Decline"
-              icon={{ ios: 'phone.down.fill', android: 'call_end' }}
+              icon={PhoneOffIcon}
               tone="danger"
               onPress={() => void decline()}
             />
             <RoundButton
               label="Answer"
-              icon={
-                call.video
-                  ? { ios: 'video.fill', android: 'videocam' }
-                  : { ios: 'phone.fill', android: 'call' }
-              }
+              icon={call.video ? VideoIcon : PhoneIcon}
               tone="accept"
               onPress={() => void accept(call.callId)}
             />
@@ -226,7 +290,7 @@ export function CallScreen() {
           <>
             <RoundButton
               label={call.muted ? 'Unmute' : 'Mute'}
-              icon={{ ios: 'mic.slash.fill', android: 'mic_off' }}
+              icon={call.muted ? MicOffIcon : MicIcon}
               pressed={call.muted}
               onPress={() => setMuted(!call.muted)}
             />
@@ -234,26 +298,26 @@ export function CallScreen() {
               <>
                 <RoundButton
                   label={call.cameraOff ? 'Camera on' : 'Camera off'}
-                  icon={{ ios: 'video.slash.fill', android: 'videocam_off' }}
+                  icon={call.cameraOff ? VideoOffIcon : VideoIcon}
                   pressed={call.cameraOff}
                   onPress={() => setCameraOff(!call.cameraOff)}
                 />
                 <RoundButton
                   label="Flip"
-                  icon={{ ios: 'camera.rotate', android: 'cameraswitch' }}
+                  icon={SwitchCameraIcon}
                   onPress={() => void switchCamera()}
                 />
               </>
             ) : null}
             <RoundButton
               label={route ? ROUTE_LABEL[route] : 'Audio'}
-              icon={{ ios: 'speaker.wave.2.fill', android: 'volume_up' }}
+              icon={Volume2Icon}
               pressed={route === 'speaker'}
               onPress={() => setRoutePicker((open) => !open)}
             />
             <RoundButton
               label="Hang up"
-              icon={{ ios: 'phone.down.fill', android: 'call_end' }}
+              icon={PhoneOffIcon}
               tone="danger"
               onPress={() => void hangup()}
             />

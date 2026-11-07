@@ -2,7 +2,9 @@
 // notifications, history from the phone, storage (the attachment cache), what this browser is,
 // how its storage compares to the phone's, keyboard shortcuts, and "Unlink this browser",
 // which revokes it and deletes its PingDost data.
+import { ChevronRight, Palette } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 
 import { StorageCard } from '@/attachments/storage-card';
 import { prefsChanged } from '@/chat/start';
@@ -70,7 +72,20 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4 p-6">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      <h1 className="font-display text-4xl font-extrabold">Settings</h1>
+      <Link
+        to="/appearance"
+        className="pd-press bg-brand flex items-center gap-4 rounded-2xl p-4 text-on-primary"
+      >
+        <span className="flex size-12 items-center justify-center rounded-xl bg-on-primary/15">
+          <Palette aria-hidden size={24} />
+        </span>
+        <span className="flex-1">
+          <span className="block font-display text-xl font-extrabold">Appearance</span>
+          <span className="block text-sm">Colors, wallpaper, bubbles, fonts and more</span>
+        </span>
+        <ChevronRight aria-hidden size={22} />
+      </Link>
       <Card className="flex flex-col">
         <CardTitle className="mb-2">Privacy</CardTitle>
         <p className="mb-2 text-sm text-muted">
@@ -162,7 +177,7 @@ export function SettingsPage() {
           {SHORTCUTS.map(({ keys, action }) => (
             <div key={keys} className="contents">
               <dt>
-                <kbd className="rounded border border-border px-1.5 text-sm">{keys}</kbd>
+                <kbd className="rounded-md bg-raised px-2 py-0.5 text-sm font-semibold">{keys}</kbd>
               </dt>
               <dd className="text-muted">{action}</dd>
             </div>

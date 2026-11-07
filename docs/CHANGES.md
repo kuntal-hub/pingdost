@@ -4,6 +4,16 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-07 — New requirement: the whole UI redone for Gen Z and Gen Alpha, configurable by the user (ADR 0035)
+1. **The UI of both apps was replaced by the "Pop" design system.** Requirements from the user: light and dark mode; several color schemes; configurable from settings; interactive animations; standard UI/UX guidelines; icons instead of emoji where applicable. Done before the open phases, by the user's choice.
+   - *Affects:* new Phase 31. Finished phases are not reworked beyond their look; their behavior and tests are unchanged.
+2. **Appearance is stored per device and never leaves it.** Not a change to the privacy promise; it adds no server data.
+3. **Notification text and previews no longer carry emoji** ("Photo", not "📷 Photo"): `attachmentText` returns plain text and the UI draws the icon.
+   - *Affects:* 11, 12, 15 (labels only).
+4. **Quick reactions changed** to ❤️ 😂 🔥 😮 😢 👍 (🔥 in, 🙏 out). Older reactions still display: any emoji is valid content.
+   - *Affects:* 11, 17.
+5. **A new native Android build is required** (`react-native-svg`, `expo-haptics`, `expo-font`). Existing dev builds cannot run this JS.
+
 ### 2026-11-06 — Android: `DETECT_SCREEN_CAPTURE` is no longer blocked (corrects Phase 27, ADR 0030)
 1. **`DETECT_SCREEN_CAPTURE` stays in the manifest.** On Android 14+, expo-screen-capture 58.0.6 registers its screenshot callback as soon as the module loads, whether or not anything listens. Phase 27 blocked the permission that call needs, so builds since then crash at launch on Android 14+ (`Permission Denial: registerScreencaptureObserver`, then `Capture observer already registered`). It is a normal permission: granted at install, no prompt, no access to images. The app still has no screenshot listener. `READ_MEDIA_IMAGES` stays blocked: only the listener for older Android versions uses it, and that code checks first. Needs a new native build.
    - *Affects:* 27 (done; release builds carried the same block).

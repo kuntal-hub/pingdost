@@ -65,7 +65,7 @@ export function ProfileScreen() {
         {loadError ? (
           <Notice tone="error" message={loadError} />
         ) : (
-          <ActivityIndicator color={palette.primary} />
+          <ActivityIndicator color={palette.accent} />
         )}
       </Screen>
     );

@@ -2,7 +2,17 @@
 // themselves (they are small); the file itself only when asked for, from the staged copy or
 // else from the phone. Images and videos open in a viewer, audio plays in the bubble, other
 // files are saved. Everything is decrypted in this tab only; the cache keeps ciphertext.
-import { Download, Play, RotateCw, X } from 'lucide-react';
+import {
+  Download,
+  FileText,
+  Image as ImageIcon,
+  Music,
+  Play,
+  RotateCw,
+  Video,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import { useEffect, useState } from 'react';
 
@@ -29,6 +39,13 @@ const ERRORS: Record<TransferError, (info: AttachmentInfo) => string> = {
 };
 
 /** The latest download of one file (by attachment ID) or upload of one message (message ID). */
+const KIND_ICONS: Record<ReturnType<typeof attachmentType>['kind'], LucideIcon> = {
+  image: ImageIcon,
+  video: Video,
+  audio: Music,
+  file: FileText,
+};
+
 function useTransfer(
   direction: 'down' | 'up',
   key: string | undefined,
@@ -150,7 +167,8 @@ export function AttachmentView({ message }: { message: MessageRecord }) {
   const thumbUrl = useCachedUrl(thumbnail, thumbStatus?.phase === 'done');
   const [viewing, setViewing] = useState(false);
   const [wanted, setWanted] = useState<'view' | 'save' | undefined>();
-  const { icon, name } = attachmentType(message);
+  const { kind, name } = attachmentType(message);
+  const KindIcon = KIND_ICONS[kind];
 
   // Previews come by themselves.
   useEffect(() => {
@@ -223,7 +241,9 @@ export function AttachmentView({ message }: { message: MessageRecord }) {
           {preview ? (
             <img src={preview} alt="" className="h-full w-full object-cover" />
           ) : (
-            <span className="flex h-full items-center justify-center text-3xl">{icon}</span>
+            <span className="flex h-full items-center justify-center">
+              <KindIcon aria-hidden size={36} />
+            </span>
           )}
           {mime.startsWith('video/') && (
             <span className="absolute inset-0 flex items-center justify-center">
@@ -268,15 +288,17 @@ export function AttachmentView({ message }: { message: MessageRecord }) {
 
   return (
     <span className="block">
-      <span className="flex items-center gap-3 rounded-md bg-black/10 p-2">
-        <span className="text-2xl">{icon}</span>
+      <span className="flex items-center gap-3 rounded-lg bg-black/10 p-2">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-md bg-black/10">
+          <KindIcon aria-hidden size={22} />
+        </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{name}</span>
           <span className="block text-xs opacity-80">{size}</span>
         </span>
         <button
           type="button"
-          className="rounded p-2 hover:bg-black/10 disabled:opacity-50"
+          className="pd-press cursor-pointer rounded-full p-2 hover:bg-black/10 disabled:opacity-50"
           aria-label={`Save ${name}`}
           disabled={downloading}
           onClick={() => (fileUrl ? void saveFile(info, name) : fetchFile('save'))}

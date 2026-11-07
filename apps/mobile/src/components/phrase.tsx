@@ -4,8 +4,9 @@
 // is on screen, screenshots and screen recording are blocked (FLAG_SECURE; Phase 27, from the
 // Phase 19 handoff), which also hides the screen in the recent-apps overview.
 import { usePreventScreenCapture } from 'expo-screen-capture';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { Text } from '@/components/text';
 import { isPhraseWord, normalizePhrase, PHRASE_WORDS, suggestWords } from '@pingdost/backup';
 
 import { TextField } from './text-field';

@@ -17,6 +17,26 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-07 — Phase 31: UI/UX refresh — 🔄 built and checked on the emulator and in Chrome; real-phone feel check open
+The user asked for this before finishing the open phases: "first refactor the UI/UX then we will test the app and complete all pending phases". **Nothing was paid for or signed up for; nothing pushed.**
+
+**Done (ADR 0035):** the "Pop" design system in `@pingdost/ui-tokens` (ten schemes in light, dark and pure black; WCAG contrast is a unit test); every appearance option on both apps; phone primitives and redesigned main screens; web dock, panels, chat and Appearance; icons instead of emoji; new app icon. Details: `docs/phases/phase-31-ui-refresh.md`.
+
+**Remaining (needs the user):**
+- [ ] A new Android build (`react-native-svg`, `expo-haptics`, `expo-font` are native): `npx eas-cli@27.3.0 build -p android -e development` in `apps/mobile`, or a local one. Then judge gestures, haptics and scrolling on a real phone.
+- [ ] See the screens not yet run in the new look: live call, attachments, voice notes, groups, nearby, backup.
+
+**Deviations / decisions:** ADR 0035; `docs/CHANGES.md` 2026-11-07. `text-primary` is now `text-accent` (`primary` is a fill).
+
+**Verification results:** see the Phase 31 file and ADR 0035's Evidence. A throwaway account (`pop_*`) remains in the dev Mongo.
+
+**Known issues / tech debt:**
+- The emulator's hardware GPU froze once under memory pressure (app and system alike): run it with `-gpu swiftshader_indirect` when RAM is short.
+- On the emulator, after some launches the window drew about 50 px lower with a black band on top. It was not on the first launch; not seen as caused by the app; check on a real phone.
+- `uiautomator dump` cannot read screens with looping animations.
+
+**Next:** the user's device test, then the open phases on the roadmap.
+
 ## 2026-11-03 — Phase 30: iOS: nearby / mesh + Android↔iOS — 🔄 code only (blocked on an iPhone, the Apple account and a macOS build)
 Started right after Phase 29, with Phase 28 still 🔄: the user asked for Phases 29 and 30 together. **Nothing was paid or signed up for.**
 

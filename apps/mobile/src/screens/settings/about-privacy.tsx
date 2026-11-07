@@ -1,6 +1,7 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { PRIVACY_EXPLAINER } from '@pingdost/chat-core';
 
 /**

@@ -5,7 +5,7 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'ex
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, View } from 'react-native';
 
 import { api } from '@/api';
 import { errorCode } from '@/api/errors';
@@ -13,6 +13,7 @@ import { Button } from '@/components/button';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { getCryptoContext } from '@/crypto/bootstrap';
 import { SECRET_ITEMS, SECURE_STORE_OPTIONS } from '@/crypto/secrets';
 import { useChatRuntime } from '@/engine/hooks';
@@ -162,7 +163,7 @@ export function LinkBrowserScreen() {
         />
         <View className="gap-3 p-5">
           {state.step === 'checking' ? (
-            <ActivityIndicator color={palette.primary} />
+            <ActivityIndicator color={palette.accent} />
           ) : (
             <Text className="text-center text-muted">
               On your computer, open PingDost on the web and point the camera at the code it shows.
@@ -203,7 +204,7 @@ export function LinkBrowserScreen() {
   if (state.step === 'waiting') {
     return (
       <Screen>
-        <ActivityIndicator color={palette.primary} />
+        <ActivityIndicator color={palette.accent} />
         <Text className="text-center text-muted">Waiting for {state.name} to finish linking…</Text>
       </Screen>
     );
@@ -214,7 +215,7 @@ export function LinkBrowserScreen() {
       <Screen>
         <Notice
           tone="success"
-          message={`✓ ${state.name} is linked. You can remove it any time under Devices.`}
+          message={`${state.name} is linked. You can remove it any time under Devices.`}
         />
         <Button label="Done" onPress={() => router.back()} />
       </Screen>

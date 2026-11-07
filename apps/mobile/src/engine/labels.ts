@@ -3,9 +3,10 @@
 export {
   attachmentText,
   attachmentType,
+  isBigEmoji,
   previewText,
   shownState,
   stateLabel,
   systemText,
 } from '@pingdost/chat-core';
-export type { Names, StateLabel } from '@pingdost/chat-core';
+export type { AttachmentKind, Names, StateIcon, StateLabel } from '@pingdost/chat-core';

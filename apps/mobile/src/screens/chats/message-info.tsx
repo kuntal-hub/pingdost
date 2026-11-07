@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { useChatRuntime, useConnectionStatus, useReadReceipts } from '@/engine/hooks';
 import { previewText, shownState, stateLabel } from '@/engine/labels';
 import { dayLabel, timeLabel } from '@/engine/timeline';

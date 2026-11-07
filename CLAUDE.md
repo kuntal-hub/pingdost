@@ -72,6 +72,14 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
 - Remote: the user creates a public GitHub repo `pingdost` by hand (no `gh` CLI on this PC); add it as `origin` once they share the URL.
 - License: **AGPL-3.0-or-later**.
 
+## Design system (ADR 0035)
+- **`@pingdost/ui-tokens` is the source of truth:** schemes, appearance options and prefs, surfaces, bubble corners, wallpapers, scales. Do not hardcode colors or sizes in screens.
+- **Colors:** `primary` is a *fill* (with `on-primary`); use `accent` for text and icons on a background. `pnpm --filter @pingdost/ui-tokens test` checks every scheme against WCAG contrast.
+- **Phone:** all text goes through `Text`/`TextInput` from `@/components/text` (no inherited font in React Native; `font-display` is the headline face). Icons come from `@/components/icon` (per-icon Lucide imports; add new ones to its list). Use the primitives in `src/components`: `Tap`, `Button`, `IconButton`, `ListRow`, `ActionSheet`, `Toggle`, `Segmented`, `Chip`, `SwipeAction`, `EmptyState`. Motion goes through `useMotion()` and `haptic()` in `@/theme/motion`, so the user's Motion and Haptics settings hold.
+- **Phone spacing:** a class outside the scale in `ui-tokens` (`h-13`) silently does nothing. Add a step or use `h-[52px]`.
+- **Web:** `theme.ts` sets `--pd-*` variables through the CSSOM. Motion classes are `pd-*` in `styles.css`, with Calm and Off handled there. `pd-card`, `pd-floating` and `bg-brand` follow the chosen look.
+- Emoji are content only (reactions, messages). Everything else is an icon.
+
 ## Commands
 - `pnpm install`: install everything (pnpm 10.28.1 via `packageManager`). Shared exact versions live in the `catalog:` in `pnpm-workspace.yaml`.
   - `pnpm add` can rewrite `pnpm-workspace.yaml` and drop its comments; restore them (`git diff`) afterwards.

@@ -1,5 +1,6 @@
 // shadcn/ui-style dropdown menu and dialog on Radix primitives (keyboard and screen-reader
 // support built in), on the PingDost tokens.
+import type { LucideIcon } from 'lucide-react';
 import { Dialog as DialogPrimitive, DropdownMenu } from 'radix-ui';
 import type { ReactNode } from 'react';
 
@@ -11,6 +12,7 @@ export interface MenuItem {
   destructive?: boolean;
   disabled?: boolean;
   shortcut?: string;
+  icon?: LucideIcon;
 }
 
 export function Menu({
@@ -32,8 +34,8 @@ export function Menu({
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           align="end"
-          sideOffset={4}
-          className="z-50 min-w-48 rounded-md border border-border bg-surface p-1 text-foreground shadow-lg"
+          sideOffset={6}
+          className="pd-menu pd-floating z-50 min-w-52 origin-(--radix-dropdown-menu-content-transform-origin) rounded-xl p-1.5 text-foreground"
         >
           {header}
           {items.map((item) => (
@@ -42,11 +44,12 @@ export function Menu({
               disabled={item.disabled}
               onSelect={item.onSelect}
               className={cn(
-                'flex min-h-9 cursor-pointer items-center justify-between gap-4 rounded px-3 outline-none data-[highlighted]:bg-primary/15 data-[disabled]:opacity-50',
+                'flex min-h-10 cursor-pointer items-center gap-3 rounded-lg px-3 font-medium outline-none data-[disabled]:opacity-50 data-[highlighted]:bg-raised',
                 item.destructive && 'text-danger',
               )}
             >
-              {item.label}
+              {item.icon && <item.icon aria-hidden size={18} />}
+              <span className="flex-1">{item.label}</span>
               {item.shortcut && <span className="text-xs text-muted">{item.shortcut}</span>}
             </DropdownMenu.Item>
           ))}
@@ -72,18 +75,22 @@ export function Dialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/50" />
-        <DialogPrimitive.Content className="fixed top-1/2 left-1/2 z-50 flex w-[min(92vw,28rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-lg border border-border bg-surface p-6 text-foreground shadow-xl">
-          <DialogPrimitive.Title className="text-lg font-semibold">{title}</DialogPrimitive.Title>
-          {description ? (
-            <DialogPrimitive.Description className="text-muted">
-              {description}
-            </DialogPrimitive.Description>
-          ) : (
-            <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
-          )}
-          {children}
-        </DialogPrimitive.Content>
+        <DialogPrimitive.Overlay className="pd-overlay fixed inset-0 z-40 bg-black/55" />
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+          <DialogPrimitive.Content className="pd-dialog pd-floating pointer-events-auto flex w-[min(92vw,28rem)] flex-col gap-4 rounded-2xl p-6 text-foreground">
+            <DialogPrimitive.Title className="font-display text-xl font-extrabold">
+              {title}
+            </DialogPrimitive.Title>
+            {description ? (
+              <DialogPrimitive.Description className="text-muted">
+                {description}
+              </DialogPrimitive.Description>
+            ) : (
+              <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
+            )}
+            {children}
+          </DialogPrimitive.Content>
+        </div>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );

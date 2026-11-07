@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Text } from 'react-native';
+import { ActivityIndicator, Alert } from 'react-native';
 
 import { api } from '@/api';
 import { describeError } from '@/api/errors';
@@ -9,6 +9,7 @@ import { Button } from '@/components/button';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { useChatRuntime } from '@/engine/hooks';
 import { useCryptoContext } from '@/hooks/use-crypto-context';
 import { describeSync, useSyncSendProgress } from '@/sync/progress';
@@ -85,7 +86,7 @@ export function DevicesScreen() {
           <Button label="Try again" variant="secondary" onPress={load} />
         </>
       )}
-      {!devices && !error && <ActivityIndicator color={palette.primary} />}
+      {!devices && !error && <ActivityIndicator color={palette.accent} />}
 
       {devices && (
         <ListSection title="Active">

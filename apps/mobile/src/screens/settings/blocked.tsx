@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert } from 'react-native';
 
 import { describeError } from '@/api/errors';
 import { Button } from '@/components/button';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
+import { Text } from '@/components/text';
 import { useBlocks } from '@/engine/blocks';
 import { contactName } from '@/engine/contacts';
 import { useContact } from '@/engine/hooks';
