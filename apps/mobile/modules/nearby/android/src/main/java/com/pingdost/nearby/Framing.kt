@@ -44,6 +44,12 @@ object Frames {
   const val DEFAULT_MTU = 23
   const val REQUESTED_MTU = 517
 
+  /** The GATT limit on one attribute value. Android throws above it, even at MTU 517. */
+  const val MAX_ATTRIBUTE_VALUE = 512
+
+  /** The largest frame one write or notification can carry at this MTU. */
+  fun frameCapacity(mtu: Int): Int = minOf(mtu - ATT_OVERHEAD, MAX_ATTRIBUTE_VALUE)
+
   fun encodeHello(hello: Hello): ByteArray {
     require(hello.token.size == TOKEN_BYTES) { "token must be $TOKEN_BYTES bytes" }
     val out = ByteArray(HELLO_SIZE)

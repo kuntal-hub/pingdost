@@ -328,7 +328,9 @@ export function reconcile(
   const group: GroupRecord = {
     ...current,
     members,
-    version: Math.max(current.version, server.version),
+    // Someone who left stays at their last version: if the server lists them again, this notice
+    // usually beats the admin's snapshot, which must still count as newer to bring them back.
+    version: current.left ? current.version : Math.max(current.version, server.version),
     serverVersion: server.version,
     serverMembers: server.members,
     left,

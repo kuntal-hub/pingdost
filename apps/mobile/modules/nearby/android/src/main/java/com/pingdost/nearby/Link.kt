@@ -258,7 +258,13 @@ class Link(
     val frame = control.removeFirstOrNull() ?: nextDataFrame() ?: return
     writing = true
     framesSent++
-    if (!sink.write(frame)) {
+    // The stack can refuse by throwing: without this the link would stay up and never send again.
+    val started = try {
+      sink.write(frame)
+    } catch (_: RuntimeException) {
+      false
+    }
+    if (!started) {
       writing = false
       fail("write refused")
     }
@@ -274,7 +280,7 @@ class Link(
       writer = PacketWriter(packet)
       current = writer
     }
-    val frame = writer.next(txSeq, mtu - Frames.ATT_OVERHEAD)
+    val frame = writer.next(txSeq, Frames.frameCapacity(mtu))
     txSeq = (txSeq + 1) and 0xffff
     if (writer.done) {
       current = null

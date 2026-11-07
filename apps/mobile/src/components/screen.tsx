@@ -29,7 +29,7 @@ export function Screen({
 }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const tabInset = useTabBarInset();
-  return (
+  const page = (
     <ScrollView
       className="flex-1 bg-background"
       contentContainerClassName="gap-5 p-5"
@@ -53,6 +53,25 @@ export function Screen({
       )}
       {children}
     </ScrollView>
+  );
+  if (!headerless) return page;
+  return (
+    <View className="flex-1 bg-background">
+      {page}
+      <StatusBarBand />
+    </View>
+  );
+}
+
+/** Covers the status bar, so content scrolling under it never collides with the clock and icons. */
+export function StatusBarBand() {
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      pointerEvents="none"
+      className="absolute left-0 right-0 top-0 bg-background"
+      style={{ height: insets.top }}
+    />
   );
 }
 

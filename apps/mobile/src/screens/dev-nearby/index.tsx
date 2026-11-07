@@ -11,6 +11,7 @@ import {
 
 import { Toggle as OnOff } from '@/components/controls';
 import { Text, TextInput } from '@/components/text';
+import { disposeNearby } from '@/nearby/service';
 
 import {
   addPong,
@@ -144,6 +145,9 @@ function NearbyBench({ native }: { native: NearbyNative }) {
   }, [native, addLog]);
 
   useEffect(() => {
+    // The radio's inbound queue has one reader. The chat's nearby layer listens from sign-in, so
+    // it has to go for these measurements. Restart the app afterwards to get it back.
+    void disposeNearby();
     const transport = createBleTransport(native);
     const receiver = new BulkReceiver();
     const reply = (linkId: number, packet: Uint8Array) =>
@@ -467,7 +471,8 @@ function NearbyBench({ native }: { native: NearbyNative }) {
               </Line>
               <Line>
                 sent {link.packetsSent} pk / {link.bytesSent} B · received {link.packetsReceived} pk
-                / {link.bytesReceived} B · queued {link.unsent} · credits {link.sendCredits}
+                / {link.bytesReceived} B · queued {link.unsent} · credits {link.sendCredits} ·
+                frames {link.framesSent}/{link.framesReceived}
               </Line>
               {stats && (
                 <Line>

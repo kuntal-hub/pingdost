@@ -40,6 +40,7 @@ import {
 } from '@/components/icon';
 import { IconButton } from '@/components/icon-button';
 import { OfflineBanner } from '@/components/offline-banner';
+import { StatusBarBand } from '@/components/screen';
 import { StateTick } from '@/components/state-tick';
 import { SwipeAction } from '@/components/swipe-action';
 import { Tap } from '@/components/tap';
@@ -1211,6 +1212,8 @@ export function ChatScreen({
           />
         )}
       </KeyboardAvoidingView>
+
+      <StatusBarBand />
 
       {/* Floats over the messages, which scroll under it. */}
       <View

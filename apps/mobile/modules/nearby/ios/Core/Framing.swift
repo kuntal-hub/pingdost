@@ -41,6 +41,12 @@ enum Frames {
   static let attOverhead = 3
   static let defaultMtu = 23
 
+  /// The GATT limit on one attribute value; Android peers refuse more, even at MTU 517.
+  static let maxAttributeValue = 512
+
+  /// The largest frame one write or notification can carry at this MTU.
+  static func frameCapacity(mtu: Int) -> Int { min(mtu - attOverhead, maxAttributeValue) }
+
   static func encodeHello(_ hello: Hello) -> [UInt8] {
     precondition(hello.token.count == tokenBytes, "token must be \(tokenBytes) bytes")
     var out = [UInt8](repeating: 0, count: helloSize)

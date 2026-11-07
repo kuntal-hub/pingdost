@@ -80,6 +80,56 @@ class LinkTest {
     assertEquals(Link.MAX_PACKET, a.link.peerMaxPacket)
   }
 
+  /**
+   * Android throws for a GATT value over 512 bytes, though MTU 517 leaves room for 514. A frame
+   * that size hung every long packet on real phones; the loopback alone never noticed.
+   */
+  @Test
+  fun framesStayWithinTheGattAttributeLimitAtEveryMtu() {
+    assertEquals(20, Frames.frameCapacity(23))
+    assertEquals(182, Frames.frameCapacity(185))
+    assertEquals(512, Frames.frameCapacity(515))
+    assertEquals(512, Frames.frameCapacity(517))
+
+    val sizes = ArrayList<Int>()
+    val side = Side("a", token(1))
+    side.link = Link(1, Role.CENTRAL, "b", side.token, { frame ->
+      sizes.add(frame.size)
+      events.addLast { side.link.onWriteComplete(true) }
+      true
+    }, side)
+    side.link.mtu = 517
+    side.link.start()
+    run()
+    side.link.onFrame(Frames.encodeHello(Hello(Frames.VERSION, token(2), Link.MAX_PACKET, 8)))
+    side.link.send(packet(64 * 1024, 7)) {}
+    run()
+    assertEquals(Frames.MAX_ATTRIBUTE_VALUE, sizes.max())
+    assertNull(side.failure)
+  }
+
+  /** A write the stack refuses by throwing must fail the link, never leave it silently stuck. */
+  @Test
+  fun aSinkThatThrowsFailsTheLink() {
+    val side = Side("a", token(1))
+    var throwing = false
+    side.link = Link(1, Role.CENTRAL, "b", side.token, { _ ->
+      if (throwing) throw IllegalArgumentException("value too long")
+      events.addLast { side.link.onWriteComplete(true) }
+      true
+    }, side)
+    side.link.start()
+    run()
+    side.link.onFrame(Frames.encodeHello(Hello(Frames.VERSION, token(2), Link.MAX_PACKET, 8)))
+    assertTrue(side.link.up)
+
+    throwing = true
+    side.link.send(packet(100, 1)) {}
+    run()
+    assertEquals("write refused", side.failure)
+    assertTrue(side.link.closed)
+  }
+
   @Test
   fun packetsArriveIntactAndInOrderBothWays() {
     for (mtu in listOf(23, 185, 517)) {

@@ -275,7 +275,7 @@ final class Link {
       current = writer
     }
     guard let active = writer else { return nil }
-    let frame = active.next(seq: txSeq, capacity: mtu - Frames.attOverhead)
+    let frame = active.next(seq: txSeq, capacity: Frames.frameCapacity(mtu: mtu))
     txSeq = (txSeq + 1) & 0xffff
     if active.done {
       current = nil

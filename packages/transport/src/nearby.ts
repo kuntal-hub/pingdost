@@ -156,6 +156,11 @@ export interface NearbyPeerTransportOptions {
 const LINK_LOCAL = Uint8Array.of(0);
 /** Invalid proofs on one link before it is closed. */
 const MAX_INVALID_PROOFS = 3;
+/**
+ * ACKs missed in a row before a link counts as dead and is closed, so discovery can build a new
+ * one. A radio can stop carrying one direction while the link still reports up.
+ */
+const MAX_MISSED_ACKS = 2;
 
 const OFFLINE: SendResult = { ok: false, code: 'OFFLINE', retryable: true };
 const NO_ROUTE: SendResult = { ok: false, code: 'NO_ROUTE', retryable: true };
@@ -176,6 +181,7 @@ interface LinkState {
   status: 'handshake' | 'known' | 'unknown';
   peer: NearbyPeer | null;
   invalidProofs: number;
+  missedAcks: number;
   timer: ReturnType<typeof setTimeout> | undefined;
   /** Envelope IDs stored here and not yet acknowledged to the peer. */
   acks: Uint8Array[];
@@ -342,7 +348,10 @@ export class NearbyPeerTransport implements Transport {
           if (this.#pending.get(key) === entry) this.#pending.delete(key);
           resolve(result);
         },
-        timer: setTimeout(() => entry.resolve(TIMEOUT), this.#options.ackTimeoutMs),
+        timer: setTimeout(() => {
+          entry.resolve(TIMEOUT);
+          this.#ackMissed(linkId);
+        }, this.#options.ackTimeoutMs),
       };
       this.#pending.set(key, entry);
     });
@@ -386,6 +395,7 @@ export class NearbyPeerTransport implements Transport {
       peerKey: null,
       capabilities: 0,
       invalidProofs: 0,
+      missedAcks: 0,
       timer: undefined,
       acks: [],
     };
@@ -412,6 +422,15 @@ export class NearbyPeerTransport implements Transport {
       if (entry.linkId === id) entry.resolve(TIMEOUT);
     }
     this.#changed(link.status === 'known');
+  }
+
+  #ackMissed(linkId: number): void {
+    const link = this.#links.get(linkId);
+    if (!link) return;
+    link.missedAcks++;
+    if (link.missedAcks < MAX_MISSED_ACKS) return;
+    this.#log('nearby link stopped acknowledging, closing it');
+    void this.config.links.disconnect(link.connection).catch(() => undefined);
   }
 
   #changed(reach: boolean): void {
@@ -563,6 +582,7 @@ export class NearbyPeerTransport implements Transport {
     } catch {
       return;
     }
+    link.missedAcks = 0;
     for (const id of ids) {
       const entry = this.#pending.get(bytesToUuid(id));
       // Only the link it went to can acknowledge it.

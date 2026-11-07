@@ -172,6 +172,39 @@ describe('group chats', () => {
     });
   });
 
+  it('a removed member added again is back in, even when the server’s notice comes first', async () => {
+    const server = new FakeServer();
+    const { alice, bob, carol, groupId } = await threeMembers(server);
+    await alice.engine.removeGroupMember(groupId, carol.userId);
+    await eventually(
+      async () => (await carol.engine.getGroup(groupId))?.left === true,
+      3_000,
+      'left',
+    );
+    await alice.engine.sendText(groupId, 'while carol was out');
+    await eventually(() => texts(bob, groupId).length === 1);
+
+    // Carol's socket is down, so the server's change notice reaches her before the snapshot.
+    carol.transport.disconnect();
+    await alice.engine.addGroupMembers(groupId, [carol.userId]);
+    await carol.engine.syncGroup(groupId);
+    expect(await carol.engine.getGroup(groupId)).toMatchObject({ left: true });
+    carol.transport.connect();
+    await eventually(
+      async () => (await carol.engine.getGroup(groupId))?.left === false,
+      3_000,
+      'back in',
+    );
+    expect(notices(carol, groupId)).toContain('joined');
+
+    await alice.engine.sendText(groupId, 'welcome back');
+    await eventually(() => texts(carol, groupId).includes('welcome back'), 3_000, 'gets messages');
+    await carol.engine.sendText(groupId, 'thanks');
+    await eventually(() => texts(alice, groupId).includes('thanks'), 3_000, 'can send');
+    // What was sent while she was out stays unreadable to her.
+    expect(texts(carol, groupId)).not.toContain('while carol was out');
+  });
+
   it('a new member cannot decrypt messages from before they joined', async () => {
     const server = new FakeServer();
     const { alice, bob, groupId } = await threeMembers(server);

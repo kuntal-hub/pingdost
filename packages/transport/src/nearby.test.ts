@@ -266,6 +266,36 @@ describe('NearbyPeerTransport delivery', () => {
     });
   });
 
+  it('closes a link that stopped acknowledging, so discovery can build a new one', async () => {
+    // Seen on real phones: airplane mode flipped during a link left one direction silent while
+    // the link still reported up, so every retry went down the same dead link.
+    const { alice, bob, a, b } = await pair({ ackTimeoutMs: 30 });
+    b.transport.onPacket(() => undefined); // nothing ever comes back
+    const target = bob.peer.deviceId;
+
+    expect(await a.transport.send(envelopePacket(alice, bob))).toMatchObject({ code: 'TIMEOUT' });
+    expect(a.transport.reaches(target)).toBe(true); // one miss may just be a slow peer
+
+    expect(await a.transport.send(envelopePacket(alice, bob))).toMatchObject({ code: 'TIMEOUT' });
+    await settle();
+    expect(a.transport.reaches(target)).toBe(false);
+    expect(await a.transport.send(envelopePacket(alice, bob))).toMatchObject({ code: 'NO_ROUTE' });
+  });
+
+  it('keeps a link whose ACKs still come back between misses', async () => {
+    const { alice, bob, a, b } = await pair({ ackTimeoutMs: 30 });
+    let answer = false;
+    b.transport.onPacket((_packet, ack) => {
+      if (answer) ack();
+    });
+    for (const respond of [false, true, false, true, false]) {
+      answer = respond;
+      await a.transport.send(envelopePacket(alice, bob));
+    }
+    await settle();
+    expect(a.transport.reaches(bob.peer.deviceId)).toBe(true);
+  });
+
   it('settles a send in flight when the link drops, and stops reaching the peer', async () => {
     const { alice, bob, a, b, ids } = await pair();
     b.transport.onPacket(() => undefined);

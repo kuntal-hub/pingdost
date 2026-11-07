@@ -101,6 +101,35 @@ final class LinkTests: XCTestCase {
     XCTAssertEqual(a.link.peerMaxPacket, Link.maxPacket)
   }
 
+  /// Android throws for a GATT value over 512 bytes, though MTU 517 leaves room for 514.
+  func testFramesStayWithinTheGattAttributeLimitAtEveryMtu() {
+    XCTAssertEqual(Frames.frameCapacity(mtu: 23), 20)
+    XCTAssertEqual(Frames.frameCapacity(mtu: 185), 182)
+    XCTAssertEqual(Frames.frameCapacity(mtu: 515), 512)
+    XCTAssertEqual(Frames.frameCapacity(mtu: 517), 512)
+
+    var sizes: [Int] = []
+    let side = Side(token: token(1), owner: self)
+    side.link = Link(
+      id: 1, role: .central, address: "b", localToken: side.token,
+      sink: { [unowned self, unowned side] frame in
+        sizes.append(frame.count)
+        self.events.append { side.link.onWriteComplete(true) }
+        return true
+      },
+      listener: side)
+    side.link.mtu = 517
+    side.link.start()
+    drain()
+    side.link.onFrame(
+      Frames.encodeHello(
+        Hello(version: Frames.version, token: token(2), maxPacket: Link.maxPacket, credits: 8)))
+    side.link.send(packet(64 * 1024, 7)) { _ in }
+    drain()
+    XCTAssertEqual(sizes.max(), Frames.maxAttributeValue)
+    XCTAssertNil(side.failure)
+  }
+
   func testPacketsArriveIntactAndInOrderBothWays() {
     for mtu in [23, 185, 517] {
       let (a, b) = pair(mtu: mtu)

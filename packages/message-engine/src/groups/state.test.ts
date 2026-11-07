@@ -216,4 +216,24 @@ describe('reconcile', () => {
     expect(removed).toMatchObject({ group: { left: true }, notice: { type: 'not_member' } });
     expect(reconcile(current, 'not_member', ME, 5)).toMatchObject({ group: { left: true } });
   });
+
+  it('lets a re-added member back in when the server’s notice beats the admin’s snapshot', () => {
+    const removed = group({ left: true, version: 3, serverVersion: 3 });
+    const server = { version: 4, members: base };
+
+    // The notice alone never brings someone back, and must not use up the new version.
+    const notified = reconcile(removed, server, ME, 5);
+    expect(notified.group).toMatchObject({ left: true, version: 3, serverVersion: 4 });
+
+    const snapshot = control({ action: 'snapshot', version: 4, members: base });
+    expect(applyControl(notified.group, snapshot, ME, 6)).toMatchObject({
+      applied: true,
+      group: { left: false, version: 4 },
+      notice: { type: 'joined' },
+    });
+
+    // A snapshot from before the removal still cannot bring them back.
+    const old = control({ action: 'snapshot', version: 3, members: base });
+    expect(applyControl(notified.group, old, ME, 6)).toEqual({ applied: false, reason: 'stale' });
+  });
 });
