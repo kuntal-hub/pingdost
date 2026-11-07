@@ -91,6 +91,13 @@ describe('stateLabel', () => {
     expect(stateLabel('sending', false).long).toContain('Bluetooth');
   });
 
+  it('never claims the server while offline with the path unknown', () => {
+    // A chat bubble knows only the aggregate state; offline it may have gone over Bluetooth.
+    const offline = stateLabel('sent_to_server', false);
+    expect(offline.long).not.toContain('server');
+    expect(offline.long).toContain('not yet delivered');
+  });
+
   it('uses the REQ §11.6 wording', () => {
     expect(stateLabel('expired_undelivered', true).short).toBe('Expired before delivery');
     expect(stateLabel('waiting_for_nearby_route', false).long).toBe(

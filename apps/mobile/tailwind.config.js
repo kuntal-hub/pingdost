@@ -20,7 +20,15 @@ module.exports = {
   content: ['./src/**/*.{ts,tsx}'],
   presets: [require('nativewind/preset')],
   theme: {
-    colors: { transparent: 'transparent', ...tailwindColors() },
+    colors: {
+      transparent: 'transparent',
+      // Only for text and scrims over photos, video and camera (the viewer, the call screen),
+      // which stay dark whatever the scheme. Without them `text-white` silently did nothing:
+      // black text on the dark call screen.
+      white: '#ffffff',
+      black: '#000000',
+      ...tailwindColors(),
+    },
     spacing: px(spacing),
     borderRadius: tailwindRadii(),
     extend: {},

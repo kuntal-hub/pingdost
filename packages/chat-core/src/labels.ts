@@ -170,7 +170,10 @@ export function stateLabel(
         long:
           via === 'nearby'
             ? "Sent over Bluetooth to the recipient's phone — not yet delivered: waiting for its delivery receipt."
-            : 'Sent to the server — not yet delivered to the recipient.',
+            : via === 'internet' || online
+              ? 'Sent to the server — not yet delivered to the recipient.'
+              : // Offline with the path unknown (a chat bubble): it may have gone over Bluetooth.
+                'Sent — not yet delivered: waiting for its delivery receipt.',
         icon: 'sent',
         tone: 'muted',
       };
