@@ -7,6 +7,8 @@ import { create } from 'zustand';
 
 import type { FontId } from '@pingdost/ui-tokens';
 
+import { createSerialQueue } from './serial-queue';
+
 /** The weights we ship; 500 maps to 600 so the app carries four files per font. */
 export type FontWeight = 400 | 600 | 700 | 'display';
 
@@ -48,18 +50,24 @@ export function fontFamily(font: FontId, weight: FontWeight): string | undefined
 
 const loading = new Map<FontId, Promise<void>>();
 
+/**
+ * Font files load one at a time. Two weights can share a file (`tech`), and expo-asset writes a
+ * download straight to its final path, truncating it, with no guard against a second download of
+ * the same file. FreeType maps that file, so a truncation during a load is a native SIGBUS, seen on
+ * a real phone opening Appearance. In sequence, the later weight finds the file with the right hash
+ * and never rewrites it.
+ */
+const enqueueFace = createSerialQueue();
+
 /** Loads a font once. Never rejects: on failure the text just stays in the system font. */
 export function loadFont(font: FontId): Promise<void> {
   if (font === 'system') return Promise.resolve();
   const existing = loading.get(font);
   if (existing) return existing;
-  const map = Object.fromEntries(
-    (Object.entries(SOURCES[font]) as unknown as [FontWeight, number][]).map(([weight, source]) => [
-      familyName(font, weight),
-      source,
-    ]),
+  const faces = (Object.entries(SOURCES[font]) as unknown as [FontWeight, number][]).map(
+    ([weight, source]) => enqueueFace(() => Font.loadAsync({ [familyName(font, weight)]: source })),
   );
-  const task = Font.loadAsync(map).then(
+  const task = Promise.all(faces).then(
     () => useLoadedFonts.setState((state) => ({ loaded: [...state.loaded, font] })),
     (error: unknown) => {
       loading.delete(font);

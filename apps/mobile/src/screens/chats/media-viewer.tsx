@@ -15,6 +15,7 @@ import {
   useTapGesture,
 } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { openPlaintext, releasePlaintext } from '@/attachments/view';
 import { Text } from '@/components/text';
@@ -114,6 +115,7 @@ function VideoPlayerView({ uri }: { uri: string }) {
 export function MediaViewerScreen({ messageId }: { messageId: string }) {
   const runtime = useChatRuntime();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [message, setMessage] = useState<MessageRecord>();
   const [uri, setUri] = useState<string>();
   const [failed, setFailed] = useState(false);
@@ -140,7 +142,10 @@ export function MediaViewerScreen({ messageId }: { messageId: string }) {
 
   const video = info?.mimeType.startsWith('video/') ?? false;
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: 'black' }}>
+    // The inset keeps the video controls and the caption clear of Android's navigation bar.
+    <GestureHandlerRootView
+      style={{ flex: 1, backgroundColor: 'black', paddingBottom: insets.bottom }}
+    >
       <Stack.Screen
         options={{
           title: '',

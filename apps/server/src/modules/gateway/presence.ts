@@ -6,6 +6,7 @@
  * - Reciprocal: only users who share their presence (`privacy.lastSeen`) are reported, and
  *   only to users who share their own.
  * - Never between two users when either blocked the other (ADR 0014).
+ * Whoever is hidden from a watcher is reported as not online, the same as an offline user.
  * The server keeps no contact list, so watching is explicit; a single API instance holds
  * all state (ARCHITECTURE A2). The watch lists also scope typing (the open chat's peer).
  */
@@ -61,11 +62,14 @@ export class PresenceHub<P extends PresencePeer = PresencePeer> {
     this.#watching.set(peer, next);
 
     await this.#announce(peer.userId);
-    // Newly watched users: the current state at once.
-    if (!(await this.#sharesPresence(peer.userId))) return;
+    // Newly watched users: the current state at once. Someone hidden from this watcher (a block,
+    // or the watcher hides its own presence) is answered "not online": saying nothing would leave
+    // an earlier "online" on the watcher's screen.
+    const shares = await this.#sharesPresence(peer.userId);
     for (const userId of next) {
-      if (before.has(userId) || (await this.#blocked(peer.userId, userId))) continue;
-      peer.notifyPresence(userId, await this.#online(userId));
+      if (before.has(userId)) continue;
+      const visible = shares && !(await this.#blocked(peer.userId, userId));
+      peer.notifyPresence(userId, visible && (await this.#online(userId)));
     }
   }
 

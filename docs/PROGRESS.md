@@ -17,6 +17,34 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-07 — Two-phone device test (Phases 10, 11, 13, 15, 31) — 🔄 stopped part-way (usage limit)
+Local arm64 debug APK on both phones (Nothing A001T, Vivo V2437; Android 16), adb mode. Accounts `pd_nothing`, `pd_vivo` (password `PingDost-Test-1107`, dev server only). No phase moved to ✅; phase-file checkboxes are not yet updated.
+
+**Passed on the two phones:**
+- Phase 10: E2EE both ways, typing, receipts, offline delivery after force-stop, matching safety numbers.
+- Phase 11: reactions, reply quote, edit, delete for me / everyone, message info, global and in-chat search, pin, archive, mute, delete chat, read receipts and typing off, block, unblock, report. Hindi displays correctly.
+- Phase 13 (partly): create, send from all three, add a late joiner (no old history), rename, remove (read-only, gets nothing new).
+- Phase 15: all five PROGRESS items. 12 MB SHA-256 identical after decryption; 101 MB PDF refused; 99 MB sent in 25 s; 119 MB video compressed to 16.8 MB in 17 s, its original blocked; voice note; server row and bytes gone after delivery; Clear cache keeps messages and files. Memory: peak +52 MB for 30 MB, +74 MB for 99 MB, back to baseline, so the file is not held in memory.
+
+**Fixed:**
+- Native SIGBUS opening Appearance: `tech` maps two weights to one font file, and `Asset.fromModule` makes a new Asset per call, so the file downloaded twice and was truncated while FreeType had it mapped. Faces now load one at a time (`theme/serial-queue.ts`). Seen once; 0 crashes in 12 cold starts before the fix, and it could not be forced on demand. What is measured: font requests per cold load went from 2 to 1.
+- A blocked user kept seeing "online": a new watch of a hidden user got no answer, so the phone kept its last value. `PresenceHub.update` now answers "not online" (also when the watcher hides its own presence). Confirmed on the phones; existing test updated.
+- Media viewer controls under the 3-button navigation bar: bottom inset added, confirmed on the Vivo.
+- `formatSize` gains GB. Unit-tested; **not confirmed on a phone** (Storage still showed "63897.5 MB" right after the edit, possibly not reloaded).
+
+**Remaining:**
+- [ ] Phase 13: re-add, leave, group picture. The group is left with B removed.
+- [ ] Phase 31: call, nearby and backup screens in the new look; text sizes Large and Huge; gesture and haptic feel (the user). Motion is **Off on both phones** for uiautomator: set it back to Full in Appearance. Checked by screenshot so far: onboarding, chat, attachments, voice note.
+- [ ] Not started on the phones: Phases 16–19 (web, recovery), 21–24 (Bluetooth), 26 (calls). Turn Bluetooth on on the Nothing phone first (it was off).
+- [ ] The user, by hand: QR scans (10, 16), typing Hindi in search (adb cannot), walking out of range (22, 24), a third phone for A→B→C (23).
+- [ ] Blocked on the user's decision or money: Firebase setup (12), VPS (20, 25, cross-network 26), Play Console US$25 (27), Apple US$99 and an iPhone (28–30). Pushing to GitHub for CI.
+
+**Verification results:** `pnpm turbo run lint typecheck test` for mobile, server, attachments: 9/9. `security.int.test.ts` passes. Full repo checks and the full integration suite were not run.
+
+**Known issues / tech debt:** in chats, scrolled messages show through behind the status bar above the floating header (a design question, left as is). The Expo dev gear covers header buttons until dragged away (dev builds only). `uiautomator dump` hangs with Motion on because of the looping animations.
+
+**Next:** finish Phase 13, then Bluetooth (21–24) and calls (26), which need only these two phones.
+
 ## 2026-11-07 — Phase 31: UI/UX refresh — 🔄 built and checked on the emulator and in Chrome; real-phone feel check open
 The user asked for this before finishing the open phases: "first refactor the UI/UX then we will test the app and complete all pending phases". **Nothing was paid for or signed up for; nothing pushed.**
 

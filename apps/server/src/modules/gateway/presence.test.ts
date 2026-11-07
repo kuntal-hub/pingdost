@@ -56,7 +56,43 @@ describe('PresenceHub', () => {
     await presence.update(alice, true, ['carol']);
     await presence.update(carol, true, ['alice']);
     expect(alice.seen).toEqual([['carol', false]]);
-    expect(carol.seen).toEqual([]);
+    // Carol sees nobody: she is told "not online", though alice is.
+    expect(carol.seen).toEqual([['alice', false]]);
+  });
+
+  it('answers every new watch, so an earlier "online" cannot stay on a hidden watcher’s screen', async () => {
+    const hidden: string[] = [];
+    const blocks = new Set<string>();
+    const presence = new PresenceHub<Peer>({
+      sharesPresence: (userId) => Promise.resolve(!hidden.includes(userId)),
+      blocked: (a, b) => Promise.resolve(blocks.has(`${a}:${b}`) || blocks.has(`${b}:${a}`)),
+      cacheMs: 0,
+    });
+    const alice = new Peer('alice');
+    const bob = new Peer('bob');
+    await presence.update(bob, true, []);
+    await presence.update(alice, true, ['bob']);
+    expect(alice.seen.at(-1)).toEqual(['bob', true]);
+
+    // Alice leaves the chat (not watching), so she does not hear about the block when it happens.
+    await presence.update(alice, true, []);
+    blocks.add('bob:alice');
+    await presence.blocksChanged('bob', 'alice');
+    expect(alice.seen.at(-1)).toEqual(['bob', true]);
+
+    // Back in the chat, she must learn bob is not online.
+    await presence.update(alice, true, ['bob']);
+    expect(alice.seen.at(-1)).toEqual(['bob', false]);
+
+    // The same when she hides her own presence instead of being blocked.
+    blocks.clear();
+    await presence.update(alice, true, []);
+    await presence.update(alice, true, ['bob']);
+    expect(alice.seen.at(-1)).toEqual(['bob', true]);
+    await presence.update(alice, true, []);
+    hidden.push('alice');
+    await presence.update(alice, true, ['bob']);
+    expect(alice.seen.at(-1)).toEqual(['bob', false]);
   });
 
   it('stops reporting a user once unwatched, and ignores watching oneself', async () => {
