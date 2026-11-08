@@ -20,7 +20,6 @@ import { create } from 'zustand';
 import { api, authStore } from '@/api';
 import { clearFolder, workDir } from '@/attachments/files';
 import { AttachmentRepo } from '@/attachments/repo';
-import { wipeAttachmentFiles } from '@/attachments/storage';
 import { startTransfers } from '@/attachments/transfers';
 import { clearPlaintext, watchPlaintext } from '@/attachments/view';
 import { callInProgress, startCalls } from '@/calls/runtime';
@@ -32,6 +31,7 @@ import { startMeshFiles } from '@/nearby/files';
 import { createNearby, disposeNearby, startNearby } from '@/nearby/service';
 import { installNotifier } from '@/push/notifications';
 import { onPhoneRequested, refreshPhoneRequests } from '@/recovery/approvals';
+import { wipeThisPhone } from '@/recovery/wipe';
 import { cachedPrivacy, useAccount } from '@/settings/account';
 import { vaultSyncFiles } from '@/sync/files';
 import type { CryptoProvider } from '@pingdost/crypto/core';
@@ -39,7 +39,7 @@ import { createNearbyIdentity, MessageEngine } from '@pingdost/message-engine';
 import { TransportRouter, WsTransport, type TransportStatus } from '@pingdost/transport';
 
 import { isBlocked, useBlocks } from './blocks';
-import { SqliteEngineStore, wipeChatData } from './sqlite-store';
+import { SqliteEngineStore } from './sqlite-store';
 
 /** How long the socket stays open after the app leaves the foreground. */
 const BACKGROUND_GRACE_MS = 30_000;
@@ -259,17 +259,13 @@ async function boot(): Promise<ChatRuntime> {
   cleanup.push(() => network.remove());
 
   /**
-   * This device was revoked: its identity is burned, so its chats and sessions go too, and the
-   * account key and recovery phrase leave this phone (a new phone holds them now; ADR 0022).
+   * This device was revoked: its identity is burned, so everything goes, as with "Remove data"
+   * (a new phone holds the account now; ADR 0022). Clearing only the chats left this device's
+   * own record behind, so no other account could set the phone up afterwards.
    */
   async function revoked() {
     await stopChat();
-    await wipeChatData(db).catch(() => undefined);
-    wipeAttachmentFiles();
-    for (const item of [SECRET_ITEMS.accountIdentityKey, SECRET_ITEMS.backupPhrase]) {
-      await SecureStore.deleteItemAsync(item, SECURE_STORE_OPTIONS).catch(() => undefined);
-    }
-    await authStore.getState().logout();
+    await wipeThisPhone();
   }
 
   teardown = async () => {
