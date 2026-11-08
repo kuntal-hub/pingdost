@@ -58,15 +58,21 @@ function message(error: unknown): string {
   }
 }
 
-/** The email-code step shared by restore and start fresh. */
-function CodeStep({
+/** The email-code step shared by restore, start fresh and deleting the account. */
+export function CodeStep({
   action,
   onConfirm,
   onBack,
+  sendCode = sendReplaceCode,
+  danger = false,
 }: {
   action: string;
   onConfirm: (otp: string) => Promise<void>;
   onBack: () => void;
+  /** Emails the code (default: the phone-replacement code). */
+  sendCode?: () => Promise<void>;
+  /** The final action cannot be undone (red button). */
+  danger?: boolean;
 }) {
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState('');
@@ -77,7 +83,7 @@ function CodeStep({
     setBusy(true);
     setError(null);
     try {
-      await sendReplaceCode();
+      await sendCode();
       setSent(true);
     } catch (caught) {
       setError(message(caught));
@@ -116,6 +122,7 @@ function CodeStep({
       {sent ? (
         <Button
           label={action}
+          {...(danger ? { variant: 'danger' as const } : {})}
           loading={busy}
           disabled={code.length !== 6}
           onPress={() => void confirm()}

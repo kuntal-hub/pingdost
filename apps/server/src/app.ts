@@ -26,6 +26,7 @@ import { schedulerIndexes } from './infra/scheduler';
 import { Hasher } from './infra/secrets';
 import { DEFAULT_THROTTLES, type ThrottleSettings } from './infra/throttles';
 import { TtlCache } from './infra/ttl-cache';
+import { AccountDeletion } from './modules/account/deletion';
 import { accountRoutes } from './modules/account/routes';
 import { createAttachmentService } from './modules/attachments';
 import { attachmentRoutes } from './modules/attachments/routes';
@@ -330,6 +331,19 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
 
   await app.register(healthRoutes, { mongo: deps.mongo, redis: deps.redis });
   await app.register(authRoutes, { service: authService, authenticate, limits });
+  const deletion = new AccountDeletion({
+    auth: collections,
+    authService,
+    devices,
+    deviceService,
+    groups,
+    blocks,
+    delivery,
+    pairingRequests: pairingRequests(db),
+    primaryTransfers: primaryTransfers(db),
+    events,
+    clock,
+  });
   await app.register(accountRoutes, {
     collections,
     authenticate,
@@ -338,6 +352,7 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     lookupBudget: throttles.usernameLookups,
     cloudinary: config.cloudinary,
     onPrivacyChanged: (userId) => presence.invalidate(userId),
+    deletion,
   });
   await app.register(deviceRoutes, { service: deviceService, authenticate, limits });
   const pairing = new PairingService({

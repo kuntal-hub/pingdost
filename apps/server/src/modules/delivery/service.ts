@@ -236,6 +236,27 @@ export class DeliveryService {
   }
 
   /**
+   * Empties the mailbox of a device that will never fetch it (its account was deleted, ADR
+   * 0036), from both stores, in batches. Returns how many envelopes went. Expired ones are
+   * left to the reaper and the TTL index.
+   */
+  async purgeDevice(deviceId: string, batch = 500, maxBatches = 100): Promise<number> {
+    let purged = 0;
+    for (let round = 0; round < maxBatches; round++) {
+      const envelopes = await this.pending(deviceId, batch);
+      if (envelopes.length === 0) break;
+      const redis = envelopes.filter((e) => e.source !== 'mongo').map((e) => e.envelopeId);
+      const mongo = envelopes.filter((e) => e.source !== 'redis').map((e) => e.envelopeId);
+      await Promise.all([
+        this.d.redis.remove(deviceId, redis),
+        this.d.mongo.remove(deviceId, mongo),
+      ]);
+      purged += envelopes.length;
+    }
+    return purged;
+  }
+
+  /**
    * An ACK from the recipient device: deletes its envelopes from the stores that hold them.
    * Idempotent; unknown IDs are a no-op. A failed delete only means a later redelivery,
    * which the client dedupes.

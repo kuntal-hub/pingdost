@@ -20,6 +20,7 @@ export default function SettingsStack() {
       <Stack.Screen name="nearby-setup" options={{ title: 'Turn on nearby messaging' }} />
       <Stack.Screen name="nearby-relay" options={{ title: 'Nearby relay' }} />
       <Stack.Screen name="about-privacy" options={{ title: 'About privacy' }} />
+      <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
     </Stack>
   );
 }

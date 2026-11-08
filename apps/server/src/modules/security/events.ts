@@ -37,7 +37,9 @@ export type SecurityEventType =
   /** A new phone with the backup's account key and an email code replaced the primary. */
   | 'primary_replace'
   /** A new phone started fresh with a new account key: every device was revoked. */
-  | 'identity_reset';
+  | 'identity_reset'
+  /** The account was deleted with an email code (ADR 0036); only this event keeps its ID. */
+  | 'account_delete';
 
 export interface SecurityEventDoc {
   _id: string;

@@ -40,6 +40,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0033](0033-ios-nearby-corebluetooth.md) | iOS nearby: CoreBluetooth with Android's link protocol, the iPhone connects, background limits | 30 | Accepted (device checks blocked) |
 | [0034](0034-eas-android-dev-build.md) | Android dev builds from EAS Build (free tier): `eas.json`, root `.easignore`, prebuilt Rust `.so` uploaded | n.a. | Accepted |
 | [0035](0035-pop-design-system-and-appearance.md) | "Pop" design system: ten color schemes, user-configurable appearance kept on the device, Lucide icons, bundled OFL fonts, floating navigation | yes | Accepted |
+| [0036](0036-account-deletion.md) | Account deletion: email code, then every device revoked and its mailbox emptied, groups left, blocks, sessions, codes and the account record deleted (Play policy) | n.a. | Accepted |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 

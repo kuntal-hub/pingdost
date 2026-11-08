@@ -11,6 +11,7 @@ import {
   UserLookupResponseSchema,
   type AvatarUploadSignature,
   type ClaimKeysResponse,
+  type DeleteAccountRequest,
   type DeviceChallengeResponse,
   type DeviceOwnerResponse,
   type DeviceSummary,
@@ -33,6 +34,10 @@ export interface AccountApi {
   /** The profile behind a user ID (e.g. of someone who started a chat). */
   profile(userId: string): Promise<UserLookupResponse>;
   signAvatarUpload(): Promise<AvatarUploadSignature>;
+  /** Emails a code that confirms deleting the account (ADR 0036). */
+  sendDeletionCode(): Promise<void>;
+  /** Deletes the account for good: every device is revoked and the account record removed. */
+  deleteAccount(body: DeleteAccountRequest): Promise<void>;
 }
 
 export function accountApi(client: ApiClient): AccountApi {
@@ -58,6 +63,8 @@ export function accountApi(client: ApiClient): AccountApi {
         path: '/v1/me/avatar/sign',
         response: AvatarUploadSignatureSchema,
       }),
+    sendDeletionCode: () => client.request({ method: 'POST', path: '/v1/me/delete/code' }),
+    deleteAccount: (body) => client.request({ method: 'POST', path: '/v1/me/delete', body }),
   };
 }
 

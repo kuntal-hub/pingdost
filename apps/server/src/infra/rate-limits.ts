@@ -28,6 +28,8 @@ export const DEFAULT_ROUTE_LIMITS = {
   userLookup: { max: 60, timeWindow: 15 * MINUTE },
   userProfile: { max: 300, timeWindow: 15 * MINUTE },
   avatarSign: { max: 20, timeWindow: 15 * MINUTE },
+  /** Deleting the account: the code email and the confirmation (ADR 0036). */
+  accountDelete: { max: 10, timeWindow: HOUR },
   deviceChallenge: { max: 30, timeWindow: 15 * MINUTE },
   deviceRegister: { max: 10, timeWindow: 15 * MINUTE },
   devicesList: { max: 120, timeWindow: 15 * MINUTE },

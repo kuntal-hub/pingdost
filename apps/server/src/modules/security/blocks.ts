@@ -81,6 +81,13 @@ export class BlockService {
     this.#cache.delete(blockerUserId);
   }
 
+  /** A deleted account (ADR 0036): its blocks and the blocks of it, both ways. */
+  async removeUser(userId: string): Promise<void> {
+    await this.#blocks.deleteMany({ $or: [{ blockerUserId: userId }, { blockedUserId: userId }] });
+    // Other users' cached lists may name it.
+    this.#cache.clear();
+  }
+
   /** Whether `blockerUserId` blocked `userId`. */
   async isBlocked(blockerUserId: string, userId: string): Promise<boolean> {
     if (blockerUserId === userId) return false;

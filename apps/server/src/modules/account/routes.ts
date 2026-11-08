@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import {
   AvatarUploadSignatureSchema,
+  DeleteAccountRequestSchema,
   MeResponseSchema,
   UpdateMeRequestSchema,
   UserLookupResponseSchema,
@@ -18,6 +19,7 @@ import {
 } from '@pingdost/shared-types';
 
 import { isOwnAvatarUrl, signAvatarUpload, type CloudinarySettings } from './cloudinary';
+import type { AccountDeletion } from './deletion';
 import type { Clock } from '../../infra/clock';
 import { WindowCounter } from '../../infra/counters';
 import { AppError } from '../../infra/errors';
@@ -25,6 +27,7 @@ import type { RouteLimits } from '../../infra/rate-limits';
 import type { Budget } from '../../infra/throttles';
 import { authOf } from '../auth/guard';
 import { DEFAULT_PRIVACY, type AuthCollections, type UserDoc } from '../auth/repo';
+import { contextOf } from '../auth/routes';
 
 export interface AccountRoutesOptions {
   collections: AuthCollections;
@@ -36,6 +39,8 @@ export interface AccountRoutesOptions {
   cloudinary: CloudinarySettings | undefined;
   /** After a user changed their privacy preferences (the presence cache). */
   onPrivacyChanged?: (userId: string) => void;
+  /** Account deletion (ADR 0036). */
+  deletion: AccountDeletion;
 }
 
 export function toMe(user: UserDoc): MeResponse {
@@ -192,6 +197,29 @@ export const accountRoutes: FastifyPluginCallback<AccountRoutesOptions> = (
         throw new AppError('UNAVAILABLE', { detail: 'Avatar uploads are not configured.' });
       }
       return signAvatarUpload(cloudinary, authOf(request).userId, clock.now());
+    },
+  );
+
+  // Deleting the account (ADR 0036): a code to the account's email, then the deletion.
+  app.post(
+    '/v1/me/delete/code',
+    { config: { rateLimit: limits.accountDelete }, preHandler: authenticate },
+    async (request, reply) => {
+      await options.deletion.sendCode(authOf(request).userId);
+      return reply.code(204).send();
+    },
+  );
+
+  app.post(
+    '/v1/me/delete',
+    {
+      config: { rateLimit: limits.accountDelete },
+      preHandler: authenticate,
+      schema: { body: DeleteAccountRequestSchema },
+    },
+    async (request, reply) => {
+      await options.deletion.delete(authOf(request).userId, request.body.otp, contextOf(request));
+      return reply.code(204).send();
     },
   );
 

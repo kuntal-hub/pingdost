@@ -1,7 +1,13 @@
 /** Account and profile DTOs: `/v1/me`, `/v1/users/*` (Phases 5–6). */
 import { z } from 'zod';
 
-import { AuthProviderSchema, EmailSchema, UsernameSchema, UserStatusSchema } from './auth';
+import {
+  AuthProviderSchema,
+  EmailSchema,
+  OtpSchema,
+  UsernameSchema,
+  UserStatusSchema,
+} from './auth';
 import { EpochMsSchema, IdSchema } from './common';
 
 export const DisplayNameSchema = z.string().trim().min(1).max(64);
@@ -41,6 +47,10 @@ export const UpdateMeRequestSchema = z.object({
   privacy: PrivacyPrefsSchema.partial().optional(),
 });
 export type UpdateMeRequest = z.infer<typeof UpdateMeRequestSchema>;
+
+// POST /v1/me/delete/code → 204 (emails a code); POST /v1/me/delete → 204 (ADR 0036)
+export const DeleteAccountRequestSchema = z.object({ otp: OtpSchema });
+export type DeleteAccountRequest = z.infer<typeof DeleteAccountRequestSchema>;
 
 // GET /v1/users/by-username/:username (exact match only)
 export const UserLookupResponseSchema = z.object({

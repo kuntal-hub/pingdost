@@ -1,8 +1,13 @@
 import type { EmailContent } from './provider';
 
-export type OtpPurpose = 'verify_email' | 'password_reset' | 'primary_replace';
+export type OtpPurpose = 'verify_email' | 'password_reset' | 'primary_replace' | 'delete_account';
 
 const COPY: Record<OtpPurpose, { subject: string; lead: string; ignore?: string }> = {
+  delete_account: {
+    subject: 'Your PingDost code to delete your account',
+    lead: 'Use this code to delete your PingDost account. This cannot be undone:',
+    ignore: "If you didn't ask for this, don't share the code, and change your password now.",
+  },
   primary_replace: {
     subject: 'Your PingDost code to move to a new phone',
     lead: 'Use this code to make a new phone your PingDost phone. Your current phone will be signed out:',

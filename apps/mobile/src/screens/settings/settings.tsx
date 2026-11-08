@@ -20,6 +20,7 @@ import {
   RadioTowerIcon,
   ShieldIcon,
   SmartphoneIcon,
+  Trash2Icon,
   ZapIcon,
 } from '@/components/icon';
 import { ListRow, ListSection } from '@/components/list-row';
@@ -204,6 +205,12 @@ export function SettingsScreen() {
 
         <ListSection>
           <ListRow icon={LogOutIcon} title="Log out" destructive onPress={confirmLogout} />
+          <ListRow
+            icon={Trash2Icon}
+            title="Delete account"
+            destructive
+            onPress={() => router.push('/delete-account')}
+          />
         </ListSection>
       </Screen>
     </View>
