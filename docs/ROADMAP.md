@@ -18,17 +18,17 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 10 | [1:1 chat on Android](phases/phase-10-android-1to1-chat.md) | 07, 09 | 🔄 |
 | 11 | [Chat features](phases/phase-11-chat-features.md) | 10 | 🔄 |
 | 12 | [Push notifications](phases/phase-12-push-notifications.md) | 10 | 🔄 |
-| 13 | [Groups (Megolm)](phases/phase-13-groups.md) | 10 | 🔄 |
+| 13 | [Groups (Megolm)](phases/phase-13-groups.md) | 10 | ✅ |
 | 14 | [Attachments core](phases/phase-14-attachments-core.md) | 09 | ✅ |
-| 15 | [Attachments UX (Android)](phases/phase-15-attachments-android-ux.md) | 10, 14 | 🔄 |
+| 15 | [Attachments UX (Android)](phases/phase-15-attachments-android-ux.md) | 10, 14 | ✅ |
 | 16 | [Web foundation + QR pairing](phases/phase-16-web-pairing.md) | 09, 10 | 🔄 |
 | 17 | [Web chat](phases/phase-17-web-chat.md) | 13, 16 | 🔄 |
 | 18 | [History sync + web attachments](phases/phase-18-history-sync.md) | 15, 17 | 🔄 |
-| 19 | [Recovery & backup](phases/phase-19-recovery-backup.md) | 13, 16 | 🔄 |
+| 19 | [Recovery & backup](phases/phase-19-recovery-backup.md) | 13, 16 | ✅ |
 | 20 | [Deployment (staging)](phases/phase-20-deployment-staging.md) | 12, 14 | 🔄 |
 | 21 | [Nearby spike (Android BLE; no Nearby Connections)](phases/phase-21-nearby-spike.md) | 03 | 🔄 |
-| 22 | [Direct nearby messaging](phases/phase-22-nearby-direct.md) | 10, 21 | 🔄 |
-| 23 | [Mesh store-and-forward relay](phases/phase-23-mesh-relay.md) | 22 | 🔄 |
+| 22 | [Direct nearby messaging](phases/phase-22-nearby-direct.md) | 10, 21 | ✅ |
+| 23 | [Mesh store-and-forward relay](phases/phase-23-mesh-relay.md) | 22 | ✅ |
 | 24 | [Mesh file transfer](phases/phase-24-mesh-files.md) | 15, 23 | 🔄 |
 | 25 | [Calls A: TURN, signaling, web calls](phases/phase-25-calls-web.md) | 17, 20 | 🔄 |
 | 26 | [Calls B: Android calls](phases/phase-26-calls-android.md) | 12, 25 | 🔄 |
@@ -56,6 +56,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 
 - Mesh (21–24) is a launch requirement (REQ §20). The product must not be described as meeting the offline-mesh requirement until Phase 24 is ✅.
   - 2026-11-01: Phases 21–24 are built and **met in simulation only** (ADR 0025, 0027). "Offline-mesh launch requirement met on Android" may be written here only after the open two-phone checks of 21–24 pass.
+  - 2026-11-08: the two-phone checks of 22, 23 (two-phone part) and 24 (direct 12 MB with a cut and resume) passed on real phones. Still open before the line above may be written: Phase 21's screen-off row with the foreground service and the swiped-from-Recents row. Range, the 1 h battery row and the three-phone A→B→C run are recorded as pending, not as blockers.
 
 ## Requirement coverage (REQ § → phases)
 

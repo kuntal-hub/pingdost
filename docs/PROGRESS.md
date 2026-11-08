@@ -17,6 +17,38 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-08 — Two-phone device test, part 3 (19, 21–24, 26, 31; docs) — 🔄 paused (the user is using phone A)
+Same phones and accounts. Commits `d13aaef`, `60a9d39`, `1bfa095` (not pushed). Phase files, ADR 0023's measured column and ROADMAP are now updated from parts 1–3. **ROADMAP:** 13, 15, 19, 22, 23 → ✅. 24 stays 🔄 until Phase 21's screen-off and Recents rows pass (ROADMAP mesh note).
+
+**Verification:** `pnpm turbo run lint typecheck test` 59/59; `groups`, `recovery` and `engine` integration tests 25/25. The full integration suite was not run.
+
+**Passed on the phones:**
+- 19: path (a) approve on the other phone; (c) Start fresh twice (the contact sees "safety number changed", the message queued meanwhile arrives); Remove data (database folder empty, the phone can then be set up by any account); a restore no longer shows a false safety-number change.
+- 26: mobile data ↔ Wi-Fi call connected and held; the full-screen-intent card shows when the permission is off and opens Android's page.
+- 31: text sizes Huge and Large on the main screens (details in the phase file).
+
+**Fixed (each test failed without the fix):**
+- `d13aaef`: "moved to a new phone" was shown as a changed safety number (`isSafetyNumberChange` in chat-core).
+- `60a9d39`: a phone replaced by a new one cleared its chats but kept its database, keys and own device record. It now runs the Remove-data wipe (`apps/mobile/src/recovery/wipe.ts`).
+- `1bfa095`: a message to a contact without any phone kept reusing the cached empty directory for 5 minutes (about 9 min on the phones). A cached directory with no devices is now always refetched; on the phones it went out about 1.5 min after the new phone appeared (the outbox backoff).
+
+**Open findings:**
+- **Calls drop on a network switch** (Phase 26 file has the evidence): Wi-Fi ↔ mobile data on the callee, with or without forced relay. The ICE restart is signalled, but no path comes up and both hang up after about 30–35 s. Not fixed.
+- After Remove data the account has no phone, yet the takeover screen still offers "Approve on my other phone" (`screens/recovery/new-phone.tsx`), which can never be approved. Check the own directory for an active phone and hide it.
+- Drafts are not kept when leaving a chat (seen at Huge; may be by design).
+
+**Remaining:**
+- [ ] 21: screen off with the service (both phones' Nearby messaging is on; stop the server, `KEYCODE_SLEEP` on B for 5 min, send from A), swiped from Recents; range and 1 h battery are the user's (walk; unplugged).
+- [ ] 26: fix the network switch; phone↔web, app killed (Firebase), proximity, Bluetooth headset, GSM.
+- [ ] 16–18 web and 10 QR verify need a camera scan by the user; 11 typing Hindi in search (the user).
+- [ ] 19: the monthly reminder firing (date +30 days).
+- [ ] 31: the feel check (the user).
+- Blocked on the user: 12 Firebase, 20/25 VPS, 27 Play US$25, 28–30 Apple and iPhone; pushing.
+
+**Phone state:** both have Nearby messaging on, Force relay off, Wi-Fi on. A's Motion is Off (set back to Full in Appearance), text size Medium. Restore at the end: `svc power stayon false` on both; Bluetooth off on the Nothing (it was off); delete `/sdcard/Download/pdtest` (the 206 MB test backup).
+
+**Dev-only, not bugs:** a debug build aborts (`UniffiPlayerRoot` assert) on any JS reload, so source edits during a run need a relaunch.
+
 ## 2026-11-08 — Two-phone device test, part 2 (13, 19, 21–24, 26, 31) — 🔄 paused (Windows stopped server and Metro: low memory)
 Same phones and accounts. Commits `0b15ab5`, `982b02a`, `dde9242` (not pushed). Phase files and ROADMAP not yet updated.
 

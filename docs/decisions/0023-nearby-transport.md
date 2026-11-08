@@ -78,32 +78,36 @@ REQ §11.1 needs direct nearby delivery, store-and-forward relay and mixed routi
 ## Measurement matrix (fill on two phones; dev screen → Share report)
 Expected values come from documentation and community reports, not from this project. "?" means not measured yet.
 
+Measured 2026-11-07/08 on a Nothing A001T and a vivo V2437 (both Android 16), debug builds over adb (PROGRESS 2026-11-08). The background rows were run with the product path (Nearby messaging, which always runs the foreground service; messages sent with the dev server stopped), not the spike screen's auto-ping. Before these runs, every packet over 512 bytes hung: Android refuses GATT values over 512 bytes, so frames are now capped at `min(MTU − 3, 512)`.
+
 **Throughput and setup** (both phones in the foreground, scan mode `lowLatency`, about 1 m apart)
 | Measure | Expected | Measured |
 |---|---|---|
-| Discovery, Start → first `peerDiscovered` | < 2 s | ? |
-| Link setup, connect → both HELLOs (`setupMs`) | 0.5–2 s | ? |
-| Negotiated MTU and PHY | 517 / 2M on Android 14+ phones with 2M | ? |
-| 1 MB, central → peripheral (writes) | 50–150 KB/s | ? |
-| 1 MB, peripheral → central (notifications) | 50–150 KB/s | ? |
-| 10 MB, either way | as for 1 MB, steady | ? |
-| Ping round trip (auto-ping) | 20–60 ms | ? |
-| Range indoors, line of sight, until auto-ping fails | 10–30 m | ? |
+| Discovery, Start → first `peerDiscovered` | < 2 s | 0.7 s |
+| Link setup, connect → both HELLOs (`setupMs`) | 0.5–2 s | 1.0 s |
+| Negotiated MTU and PHY | 517 / 2M on Android 14+ phones with 2M | 517 / 2M |
+| 1 MB, central → peripheral (writes) | 50–150 KB/s | not run separately (10 MB below) |
+| 1 MB, peripheral → central (notifications) | 50–150 KB/s | not run separately (10 MB below) |
+| 10 MB, either way | as for 1 MB, steady | 87.6 KB/s writes, 83.7 KB/s notifications; 20 299/20 299 frames |
+| Ping round trip (auto-ping) | 20–60 ms | 61 ms average, 20/20 |
+| Range indoors, line of sight, until auto-ping fails | 10–30 m | ? (needs someone to walk) |
 
 **Background** (link up, auto-ping on from the other phone, 5 minutes per row unless stated)
 | Scenario | Expected | Measured |
 |---|---|---|
-| App in the background (Home), screen on | works for a while; may freeze once cached | ? |
-| Screen off, no foreground service | stops within minutes (frozen cached app) | ? |
+| App in the background (Home), screen on | works for a while; may freeze once cached | works (message delivered over Bluetooth) |
+| Screen off, no foreground service | stops within minutes (frozen cached app) | ? (the product always runs the service) |
 | Screen off, foreground service on | keeps working | ? |
-| Doze forced (`adb shell dumpsys deviceidle force-idle`), service on | the link holds; scans slow down | ? |
+| Doze forced (`adb shell dumpsys deviceidle force-idle`), service on | the link holds; scans slow down | works (delivered) |
 | Doze forced, no service | stops | ? |
-| Battery saver on, service on | works; scans may be throttled | ? |
+| Battery saver on, service on | works; scans may be throttled | works (delivered; phone marked unplugged with `dumpsys battery unplug`) |
 | App swiped away from Recents, service on | stock Android keeps it; some OEMs kill it | ? |
-| Bluetooth turned off while linked | `linkDown bluetooth_off`, "Bluetooth OFF" shown; turned on → advertising and scanning resume | ? |
-| A Bluetooth permission revoked in Settings | the app restarts; Start fails with `permission`, missing list shown | ? |
-| Airplane mode with Bluetooth on | discovery, links and packets work | ? |
-| 1 h relay-idle (advertise + scan, service on, screen off, no link): battery drop | ≈1–3 % | ? |
+| Bluetooth turned off while linked | `linkDown bluetooth_off`, "Bluetooth OFF" shown; turned on → advertising and scanning resume | "Bluetooth off" shown clearly; the resume was not checked on its own |
+| A Bluetooth permission revoked in Settings | the app restarts; Start fails with `permission`, missing list shown | the denied state is shown, with "Open app settings" |
+| Airplane mode with Bluetooth on | discovery, links and packets work | works |
+| 1 h relay-idle (advertise + scan, service on, screen off, no link): battery drop | ≈1–3 % | ? (needs the phone unplugged from USB) |
+
+A link left half-dead after airplane-mode flips now closes after two missed ACKs (`MAX_MISSED_ACKS`); on the phones it recovered by itself in about 3 minutes.
 
 ### How to measure
 1. Build and install the dev client on both phones (`pnpm --filter @pingdost/mobile android`, once per phone; the module is new native code).

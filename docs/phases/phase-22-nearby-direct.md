@@ -34,7 +34,7 @@ Two phones with no Internet exchange E2EE messages directly over the nearby tran
   - a nearby indicator in the chat header when the peer is in range;
   - message info shows the path used (Internet / nearby).
 - [x] **Tests:** router unit tests with fake transports (path selection, flush on reconnect, dual-path dedupe, state merge); handshake verification tests.
-- [ ] **Device checks** (two phones; see PROGRESS).
+- [x] **Device checks** (two phones; PROGRESS 2026-11-08). Text both ways with the dev server stopped: message info said "Over Bluetooth, directly to this phone"; queued messages went out when the phones met again; no duplicates once the server was back; Bluetooth off and the denied permission were shown clearly. Airplane mode alone does not cut a phone off from the dev server here (adb reverse runs over USB), so the server was stopped instead. Found and fixed on the way: frames over 512 bytes hung (GATT limit), and a half-dead link now closes after two missed ACKs.
 
 ## Key files
 - `packages/protocol/proto/pingdost/v1/mesh.proto` (`Hello`, `HelloProof`), `packages/protocol/src/{signing.ts,codec.ts}` (`nearbyHelloMessage`, Hello/Ack codecs)

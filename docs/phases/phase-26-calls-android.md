@@ -25,6 +25,10 @@ Reliable one-to-one audio and video calls on Android, phone↔phone and phone↔
 - [x] **Network transitions:** detect Wi-Fi ↔ mobile switches → ICE restart → show "Reconnecting"; failure after a timeout → "Call failed".
 - [x] **Busy and edge cases:** (GSM call from the audio mode; CHANGES 2026-11-01) a second incoming call while in a call → busy; a call while a GSM call is active; the app killed during ringing.
 - [ ] **Test matrix** (record it in PROGRESS; open: needs phones): phone↔phone on the same Wi-Fi, phone on mobile data ↔ phone on Wi-Fi, TURN-forced, phone↔web, a network switch mid-call, a locked-screen incoming call, the app killed before the incoming call.
+  - **2026-11-08 on two phones** (dev server; the only TURN the phones reach is the local coturn through `adb reverse tcp:3478`):
+    - passed: same Wi-Fi (voice, video, speaker, mute, missed, busy); TURN-forced ("Relayed (TURN), forced"); mobile data ↔ Wi-Fi (connected, held 1:30+); locked-screen incoming call while the callee's socket was up; the full-screen-intent card appears when the permission is off and opens Android's page.
+    - **failed: a network switch mid-call.** Wi-Fi → mobile data and mobile data → Wi-Fi on the callee, with and without forced relay: the callee shows "Reconnecting…", the ICE-restart offer and answer are exchanged and candidates trickle both ways (2 and 3), but no path comes up and both sides hang up about 30–35 s later. The caller's screen keeps counting until then. react-native-webrtc does pass `IceRestart`. Next: log ICE state, candidate types and the selected pair in dev builds (the call manager's `console.debug` lines do not reach Metro), reproduce a forced restart with two werift sim clients, and repeat against staging coturn.
+    - open: phone↔web (needs the QR scan), the app killed (needs Firebase), proximity sensor, Bluetooth headset, a GSM call during a call.
 - [x] Confirm group chats have no call actions (a UI test or snapshot). (`callActionsFor` unit test)
 
 ## Key files

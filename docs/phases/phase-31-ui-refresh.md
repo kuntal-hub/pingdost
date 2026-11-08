@@ -21,7 +21,9 @@
 - [x] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format:check`, `pnpm licenses:check` pass; `pnpm --filter @pingdost/web build` passes.
 - [x] Light and dark, a scheme change, a look change and restart persistence checked on the emulator and in Chrome; no CSP violation on the web.
 - [ ] **On a real Android phone (the user):** a new build is required. Feel of the swipe gestures, haptics, scroll smoothness with long chats on the slowest phone; text sizes Large and Huge on every main screen.
-- [ ] Not yet seen on any device: the call screen in a live call, attachments, voice notes, groups, nearby and backup screens in the new look. They use the same primitives but were restyled without a live run.
+  - Text sizes done 2026-11-08 on the Nothing A001T by screenshot: Huge on Appearance, Settings, the chat list, a chat with a long bubble and a three-line composer, Calls, Devices, Backup and the new-chat menu; Large on Appearance, Settings and a chat. Nothing clipped or overlapped. Not covered at Huge: group screens and the live call screen. **Still the user's:** the feel of gestures, haptics and scrolling.
+- [x] Not yet seen on any device: the call screen in a live call, attachments, voice notes, groups, nearby and backup screens in the new look. They use the same primitives but were restyled without a live run.
+  - All seen on the two phones 2026-11-07/08. Fixed there: black text on the call screen and an invisible Share button in the viewer (`text-white`/`bg-black` did nothing after the palette change), viewer controls under the navigation bar, text under the status bar.
 
 ## Handoff notes
 - `input swipe` on the emulator needs screenshot coordinates on animated screens (ADR 0035).

@@ -33,7 +33,8 @@ Opt-in devices temporarily store and forward encrypted third-party packets with 
   - relay disabled → no forwarding;
   - storage cap and per-origin quota enforced;
   - spam origin rate-limited.
-- [ ] **Device test** (open: needs two phones, three for the physical run; PROGRESS 2026-11-01): with 2 phones, verify relay acceptance and the receipt UI. With a 3rd phone (if available), do a physical A→B→C run, with B out of A's range when it delivers. Otherwise record it as pending in PROGRESS.
+- [x] **Device test** (open: needs two phones, three for the physical run; PROGRESS 2026-11-01): with 2 phones, verify relay acceptance and the receipt UI. With a 3rd phone (if available), do a physical A→B→C run, with B out of A's range when it delivers. Otherwise record it as pending in PROGRESS.
+  - **Two-phone part done 2026-11-08** (PROGRESS): relay on and off, its notification text, "Forwarded by 1 device", the pause on battery saver and when not charging, Clear relay cache. Fixed on the way: switching the relay on while the phones were already linked was ignored (now announced in a new signed HELLO). **Pending:** the physical A→B→C run (no third phone) and the boot restart reminder (needs a reboot).
 
 ## Key files
 `packages/mesh-protocol/src/*`, `packages/mesh-protocol/test/sim/*`, `apps/mobile/src/nearby/relay*`, `apps/mobile/modules/nearby/android/**` (foreground service), `apps/mobile/app/(app)/settings/relay.tsx`

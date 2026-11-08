@@ -28,7 +28,8 @@ Encrypted attachments move between devices without the Internet: direct or multi
   - a corrupt chunk injected → re-requested;
   - the final ACK only after full verification;
   - the relay quota respected.
-- [ ] **Device test** (open: needs two phones; PROGRESS 2026-11-01): direct transfer of a 10 MB+ file between 2 phones in airplane mode with interruptions (walk out of range and back). Run multi-hop if a 3rd phone is available.
+- [x] **Device test** (open: needs two phones; PROGRESS 2026-11-01): direct transfer of a 10 MB+ file between 2 phones in airplane mode with interruptions (walk out of range and back). Run multi-hop if a 3rd phone is available.
+  - **Done 2026-11-08** (PROGRESS): a 12 MB file with the dev server stopped; Bluetooth cut for 30 s at chunk 75/193, then resumed to 193/193; SHA-256 identical after decryption. The cut was Bluetooth off on one phone, not walking away. Multi-hop: no third phone.
 
 ## Key files
 `packages/mesh-protocol/src/chunks/*`, `packages/attachments/src/mesh.ts`, `apps/mobile/src/nearby/files*`

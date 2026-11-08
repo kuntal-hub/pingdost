@@ -12,7 +12,7 @@ Send and receive images, videos, voice notes and documents on Android. Compressi
 
 ## Tasks
 - [x] **Native streaming I/O:** read and write files in chunks with the expo-file-system File API (no base64), feeding `packages/attachments` encrypt/decrypt with the native crypto provider. (`src/attachments/files.ts`, `pipeline.ts`: ~1 MiB reads and writes through `FileHandle`s; downloads stream `expo/fetch` bodies.)
-  - [ ] Verify that memory stays flat on a 100 MB file (**device check**, steps in the PROGRESS entry).
+  - [x] Verify that memory stays flat on a 100 MB file (**device check**, steps in the PROGRESS entry). Done 2026-11-07 on a Nothing A001T: peak +52 MB for 30 MB, +74 MB for 99 MB, back to baseline afterwards.
 - [x] **Local storage:** sent and received attachments are stored **as encrypted files** (per-file key in SQLCipher). Viewing decrypts to a temp cache, which is cleaned on exit or after a timeout.
   - The vault keeps each attachment's own STREAM ciphertext; the key is the manifest key in `messages.attachment` (ADR 0018).
   - Plaintext lives in `<cache>/pingdost-view/` and is deleted when the viewer closes or the app goes to the background; exports after 10 min; everything left over at the next start.
