@@ -25,6 +25,8 @@ import { fromBase64, toBase64 } from '@pingdost/protocol';
 import type { AuthTokens } from '@pingdost/shared-types';
 import { database, SealedRecords, vaultKey, wipeDatabase } from '@pingdost/web-store';
 
+import { refreshShared, tabLock } from './refresh';
+
 export interface LinkedDevice {
   deviceId: string;
   userId: string;
@@ -93,22 +95,33 @@ export function accessToken(): string | undefined {
 
 let refreshing: Promise<boolean> | undefined;
 
-/** New tokens after `TOKEN_EXPIRED`; a refusal means this browser is no longer linked. */
+/**
+ * New tokens after `TOKEN_EXPIRED`, shared with this browser's other tabs (`refresh.ts`); a
+ * refusal means this browser is no longer linked.
+ */
 export function refreshTokens(): Promise<boolean> {
   refreshing ??= (async () => {
     const current = tokens;
     if (!current) return false;
-    try {
-      const next = await api.auth.refresh(current.refreshToken);
-      tokens = next;
-      await (await sealed()).put(RECORDS.tokens, next);
+    const store = await sealed();
+    const result = await refreshShared({
+      current,
+      store: {
+        get: () => store.get<AuthTokens>(RECORDS.tokens),
+        put: (next) => store.put(RECORDS.tokens, next),
+      },
+      refresh: (refreshToken) => api.auth.refresh(refreshToken),
+      lock: tabLock,
+    });
+    if (result.ok) {
+      tokens = result.tokens;
       return true;
-    } catch (error) {
-      if (error instanceof ApiError && error.kind === 'http' && error.status < 500) {
-        await signOut('This browser is no longer linked. Link it again from your phone.');
-      }
-      return false;
     }
+    const { error } = result;
+    if (error instanceof ApiError && error.kind === 'http' && error.status < 500) {
+      await signOut('This browser is no longer linked. Link it again from your phone.');
+    }
+    return false;
   })().finally(() => {
     refreshing = undefined;
   });
