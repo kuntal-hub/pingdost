@@ -27,7 +27,8 @@ const toggles: { key: keyof NotificationPrefs; title: string; subtitle: string }
   },
 ];
 
-function openBatterySettings(): void {
+/** Android's battery-optimization list (no special permission needed to open it). */
+export function openBatterySettings(): void {
   void Linking.sendIntent('android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS').catch(() =>
     Linking.openSettings(),
   );

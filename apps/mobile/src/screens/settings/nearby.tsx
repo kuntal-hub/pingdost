@@ -17,7 +17,14 @@ import {
   useNearby,
   useNearbyStatus,
 } from '@/nearby/service';
-import { describeNearby, NEARBY_COPY, type NearbyPlatform } from '@/nearby/status';
+import {
+  BATTERY_EXEMPTION_COPY,
+  describeNearby,
+  NEARBY_COPY,
+  needsBatteryExemption,
+  type NearbyPlatform,
+} from '@/nearby/status';
+import { openBatterySettings } from '@/screens/settings/notifications';
 import { meshTimeEstimate } from '@pingdost/attachments';
 
 /** Which platform's wording applies (ADR 0033). */
@@ -75,6 +82,7 @@ export function NearbyMessagingScreen() {
   const enabled = useNearby((state) => state.enabled);
   const unknown = useNearby((state) => state.summary.unknown);
   const fileMaxMb = useNearby((state) => state.fileMaxMb);
+  const native = useNearby((state) => state.native);
   const status = useNearbyStatus();
   const text = describeNearby(status, nearbyPlatform);
   const available = status.kind !== 'unavailable';
@@ -131,6 +139,15 @@ export function NearbyMessagingScreen() {
       {status.kind === 'bluetooth_off' && (
         <ListSection>
           <ListRow title="Open Bluetooth settings" onPress={openBluetoothSettings} />
+        </ListSection>
+      )}
+      {needsBatteryExemption(nearbyPlatform, enabled, native) && (
+        <ListSection>
+          <ListRow
+            title={BATTERY_EXEMPTION_COPY.title}
+            subtitle={BATTERY_EXEMPTION_COPY.detail}
+            onPress={openBatterySettings}
+          />
         </ListSection>
       )}
       {status.kind === 'on' && unknown > 0 && (

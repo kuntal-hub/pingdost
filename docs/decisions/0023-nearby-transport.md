@@ -97,7 +97,7 @@ Measured 2026-11-07/08 on a Nothing A001T and a vivo V2437 (both Android 16), de
 |---|---|---|
 | App in the background (Home), screen on | works for a while; may freeze once cached | works (message delivered over Bluetooth) |
 | Screen off, no foreground service | stops within minutes (frozen cached app) | ? (the product always runs the service) |
-| Screen off, foreground service on | keeps working | ? |
+| Screen off, foreground service on | keeps working | **vivo V2437: frozen by the phone maker's power management** about 5 min after the screen went off (`isFrozen=true` at `procState` 4, `fg-service`; not in Doze). The sender's packets went unanswered and it closed the link after two missed ACKs. With PingDost exempt from battery optimization, the process unfroze and the message was delivered with the screen still off. Settings → Nearby messaging now asks for the exemption while it is missing. Not tried with the Nothing as the receiver. |
 | Doze forced (`adb shell dumpsys deviceidle force-idle`), service on | the link holds; scans slow down | works (delivered) |
 | Doze forced, no service | stops | ? |
 | Battery saver on, service on | works; scans may be throttled | works (delivered; phone marked unplugged with `dumpsys battery unplug`) |

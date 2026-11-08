@@ -58,6 +58,26 @@ export function needsLocation(missing: readonly string[]): boolean {
   return missing.some((name) => name.endsWith('ACCESS_FINE_LOCATION'));
 }
 
+/**
+ * Whether to ask for unrestricted battery use (Android, nearby on). Some phone makers freeze an
+ * app with the screen off although its foreground service runs: a vivo V2437 (Android 16) froze
+ * PingDost about 5 minutes after the screen went off, and every nearby packet went unanswered
+ * until PingDost was exempt from battery optimization. Unknown power state: no prompt.
+ */
+export function needsBatteryExemption(
+  platform: NearbyPlatform,
+  enabled: boolean,
+  native: NearbyState | null,
+): boolean {
+  return platform === 'android' && enabled && native?.power?.ignoringBatteryOptimizations === false;
+}
+
+export const BATTERY_EXEMPTION_COPY = {
+  title: 'Keep it working with the screen off',
+  detail:
+    'Some phones pause PingDost when the screen is off, even with the “Nearby is on” notification, and nearby messages stop until you open it. Choose “Unrestricted” (or “Not optimized”) for PingDost.',
+} as const;
+
 export type NearbyPlatform = 'android' | 'ios';
 
 /**
@@ -80,7 +100,7 @@ export const NEARBY_COPY: Record<
     setupIntro:
       'PingDost uses Bluetooth to find your contacts’ phones close by. Android calls this the “Nearby devices” permission. PingDost does not use your location.',
     background:
-      'Android shows a “Nearby is on” notification while it runs. Battery savers, force-stopping the app or turning Bluetooth off pause it. It works best with PingDost open.',
+      'Android shows a “Nearby is on” notification while it runs. Battery savers, the phone maker’s power management, force-stopping the app or turning Bluetooth off pause it. It works best with PingDost open.',
     relayBackground:
       'Android shows “PingDost nearby relay active” while it relays. Relaying works best with PingDost open or recently used. It pauses or stops when you force-stop or swipe away the app on some phones, when a battery saver or the phone maker’s power management holds it back, when Bluetooth is off, and after the phone restarts until you open PingDost again. None of this loses your own messages: they wait on this phone.',
     blocked:

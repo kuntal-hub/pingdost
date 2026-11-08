@@ -56,7 +56,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 
 - Mesh (21–24) is a launch requirement (REQ §20). The product must not be described as meeting the offline-mesh requirement until Phase 24 is ✅.
   - 2026-11-01: Phases 21–24 are built and **met in simulation only** (ADR 0025, 0027). "Offline-mesh launch requirement met on Android" may be written here only after the open two-phone checks of 21–24 pass.
-  - 2026-11-08: the two-phone checks of 22, 23 (two-phone part) and 24 (direct 12 MB with a cut and resume) passed on real phones. Still open before the line above may be written: Phase 21's screen-off row with the foreground service and the swiped-from-Recents row. Range, the 1 h battery row and the three-phone A→B→C run are recorded as pending, not as blockers.
+  - 2026-11-08: the two-phone checks of 22, 23 (two-phone part) and 24 (direct 12 MB with a cut and resume) passed on real phones. Still open before the line above may be written: Phase 21's swiped-from-Recents row. The screen-off row was measured later that day: it works only with PingDost exempt from battery optimization on the vivo, and the app now asks for that. Range, the 1 h battery row and the three-phone A→B→C run are recorded as pending, not as blockers.
 
 ## Requirement coverage (REQ § → phases)
 

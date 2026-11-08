@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BATTERY_EXEMPTION_COPY,
   describeNearby,
   NEARBY_COPY,
   nearbyStatus,
+  needsBatteryExemption,
   needsLocation,
   pathLabel,
   type NearbyInputs,
@@ -147,5 +149,26 @@ describe('helpers', () => {
     expect(pathLabel('nearby')).toContain('Bluetooth');
     expect(pathLabel('internet')).toContain('server');
     expect(pathLabel(undefined)).toBeNull();
+  });
+
+  it('asks for unrestricted battery use only on Android, while nearby is on and it is missing', () => {
+    const power = (ignoring: boolean): NearbyState['power'] => ({
+      batteryPercent: 80,
+      charging: false,
+      powerSave: false,
+      deviceIdle: false,
+      ignoringBatteryOptimizations: ignoring,
+      interactive: false,
+      importance: 125,
+    });
+    const optimized = native({ power: power(false) });
+    expect(needsBatteryExemption('android', true, optimized)).toBe(true);
+    expect(needsBatteryExemption('android', true, native({ power: power(true) }))).toBe(false);
+    expect(needsBatteryExemption('android', false, optimized)).toBe(false);
+    expect(needsBatteryExemption('ios', true, optimized)).toBe(false);
+    // Unknown (no state yet): no nagging.
+    expect(needsBatteryExemption('android', true, native())).toBe(false);
+    expect(needsBatteryExemption('android', true, null)).toBe(false);
+    expect(BATTERY_EXEMPTION_COPY.detail).toContain('Unrestricted');
   });
 });
