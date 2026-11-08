@@ -264,6 +264,30 @@ describe('MessageEngine', () => {
     expect(info?.deliveries.map((d) => d.deviceId)).toEqual([bob.deviceId]);
   });
 
+  it('reaches a peer that had no devices as soon as one appears, not after the cache', async () => {
+    const server = new FakeServer();
+    const alice = await client(server, { settings: { directoryMaxAgeMs: 60_000 } });
+    const bob = await client(server);
+    await online(alice, bob);
+    const conversationId = (await chat(alice, bob)).conversationId;
+    await alice.engine.sendText(conversationId, 'hello');
+    await eventually(async () => (await messagesOf(bob)).length === 1);
+    // bob starts fresh: the old phone is gone, the new one is not set up yet. alice learns it
+    // (a send to the revoked device), then writes while bob has no phone at all.
+    server.revoke(bob.deviceId);
+    await alice.engine.sendText(conversationId, 'to the old phone');
+    await eventually(async () => (await alice.store.getDirectory(bob.userId))?.devices.length === 0);
+    const sent = await alice.engine.sendText(conversationId, 'while bob has no phone');
+    await new Promise((resolve) => setTimeout(resolve, 200)); // a few retries on the empty list
+    const bob2 = await client(server, { sameUserAs: bob });
+    await online(bob2);
+    await eventually(
+      async () => (await messagesOf(bob2)).some((m) => m.messageId === sent.messageId),
+      3_000,
+      'the queued message on the new phone',
+    );
+  });
+
   it('repairs a broken session and resends what was lost', async () => {
     const server = new FakeServer();
     const alice = await client(server);

@@ -398,10 +398,14 @@ export class EngineCore {
 
   // Directory
 
-  /** The cached directory, refetched when older than `maxAgeMs`. */
+  /**
+   * The cached directory, refetched when older than `maxAgeMs`. A cached record without devices
+   * is always refetched: that user is setting up a phone (e.g. a fresh start, ADR 0022), and what
+   * waits for it should not also wait out the cache. The outbox backoff spaces those lookups.
+   */
   async directoryFor(userId: string, maxAgeMs: number): Promise<DirectoryLookup> {
     const cached = await this.store.getDirectory(userId);
-    if (cached && this.now() - cached.fetchedAt <= maxAgeMs)
+    if (cached && cached.devices.length > 0 && this.now() - cached.fetchedAt <= maxAgeMs)
       return { status: 'ok', record: cached };
     const fresh = await this.refreshDirectory(userId);
     // Offline: keep using what was verified before.
