@@ -17,8 +17,8 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
-## 2026-11-08 — Two-phone device test, part 3 (19, 21–24, 26, 31; docs) — 🔄 paused (the user is using the phones)
-Same phones and accounts. Commits `d13aaef`, `60a9d39`, `1bfa095` (not pushed). Phase files, ADR 0023's measured column and ROADMAP are now updated from parts 1–3. **ROADMAP:** 13, 15, 19, 22, 23, 24 → ✅ (24 after Phase 21's screen-off and Recents rows passed; the mesh line in ROADMAP lists its limits).
+## 2026-11-08 — Two-phone device test, part 3 (19, 21–24, 26, 31; docs) — 🔄 partial (what is left needs the user, money or other hardware)
+Same phones and accounts. Commits `d13aaef`, `60a9d39`, `1bfa095`, `35f31c5`, `7a815bd` plus docs (not pushed). Phase files, ADR 0023's measured column and ROADMAP are now updated from parts 1–3. **ROADMAP:** 13, 15, 19, 22, 23, 24 → ✅ (24 after Phase 21's screen-off and Recents rows passed; the mesh line in ROADMAP lists its limits).
 
 **Verification:** `pnpm turbo run lint typecheck test` 59/59; `groups`, `recovery` and `engine` integration tests 25/25. The full integration suite was not run.
 
@@ -31,23 +31,23 @@ Same phones and accounts. Commits `d13aaef`, `60a9d39`, `1bfa095` (not pushed). 
 - `d13aaef`: "moved to a new phone" was shown as a changed safety number (`isSafetyNumberChange` in chat-core).
 - `60a9d39`: a phone replaced by a new one cleared its chats but kept its database, keys and own device record. It now runs the Remove-data wipe (`apps/mobile/src/recovery/wipe.ts`).
 - `1bfa095`: a message to a contact without any phone kept reusing the cached empty directory for 5 minutes (about 9 min on the phones). A cached directory with no devices is now always refetched; on the phones it went out about 1.5 min after the new phone appeared (the outbox backoff).
-- Screen-off row (Phase 21): with the dev server stopped and the vivo's screen off for 5 min, its app was **frozen** (`isFrozen=true` despite the `connectedDevice` foreground service), A's packets went unanswered and A closed the link. After `dumpsys deviceidle whitelist +com.pingdost.app` (what "Unrestricted" sets) it unfroze and the message arrived with the screen still off. Settings → Nearby messaging now shows "Keep it working with the screen off" while the exemption is missing (`needsBatteryExemption` in `nearby/status.ts`, unit-tested; not yet seen on a phone, Metro was stopped).
+- Screen-off row (Phase 21): with the dev server stopped and the vivo's screen off for 5 min, its app was **frozen** (`isFrozen=true` despite the `connectedDevice` foreground service), A's packets went unanswered and A closed the link. After `dumpsys deviceidle whitelist +com.pingdost.app` (what "Unrestricted" sets) it unfroze and the message arrived with the screen still off. `35f31c5`: Settings → Nearby messaging now shows "Keep it working with the screen off" while the exemption is missing (`needsBatteryExemption` in `nearby/status.ts`, unit-tested; seen on the Nothing, absent on the exempt vivo).
+- `7a815bd`: **calls hung up on a Wi-Fi ↔ mobile data switch.** WebRTC rode out the switch (ICE restart done, connection still "connected"), but `networkChanged()` marked the call "reconnecting" itself and the reconnect timer ended it after 30 s. A network change now only restarts ICE. Test fails without the fix; on the phones one call then held through both switches (4:42). Dev builds now log ICE/connection states, candidate types and restarts per phone model (`[webrtc <model>]`, `[calls <model>]`).
 
 **Open findings:**
-- **Calls drop on a network switch** (Phase 26 file has the evidence): Wi-Fi ↔ mobile data on the callee, with or without forced relay. The ICE restart is signalled, but no path comes up and both hang up after about 30–35 s. Not fixed.
 - After Remove data the account has no phone, yet the takeover screen still offers "Approve on my other phone" (`screens/recovery/new-phone.tsx`), which can never be approved. Check the own directory for an active phone and hide it.
 - Drafts are not kept when leaving a chat (seen at Huge; may be by design).
 
 **Remaining:**
 - [x] 21: swiped from Recents works (vivo, exempt, delivered in 19 s); the new battery row shows on the Nothing (not exempt), not on the vivo (exempt), and opens Android's battery page. ROADMAP: 24 ✅, "Offline-mesh launch requirement met on Android" written with its limits.
 - [ ] 21: range and 1 h battery are the user's (walk; unplugged).
-- [ ] 26: fix the network switch; phone↔web, app killed (Firebase), proximity, Bluetooth headset, GSM.
+- [ ] 26: the network switch on the caller's side and through staging coturn; phone↔web, app killed (Firebase), proximity, Bluetooth headset, GSM.
 - [ ] 16–18 web and 10 QR verify need a camera scan by the user; 11 typing Hindi in search (the user).
 - [ ] 19: the monthly reminder firing (date +30 days).
 - [ ] 31: the feel check (the user).
 - Blocked on the user: 12 Firebase, 20/25 VPS, 27 Play US$25, 28–30 Apple and iPhone; pushing.
 
-**Phone state:** both have Nearby messaging on, Force relay off, Wi-Fi on. A's Motion is Off (set back to Full in Appearance), text size Medium. The vivo has PingDost on the battery allowlist (added by adb for the test). The API server and Metro are **stopped** (Windows ran low on memory; Metro stopped by hand before the code change). Restore at the end: `svc power stayon false` on both; Bluetooth off on the Nothing (it was off); delete `/sdcard/Download/pdtest` (the 206 MB test backup); remove the allowlist entry if the user does not want it.
+**Phone state:** both have Nearby messaging on, Force relay off, Wi-Fi on. A's Motion is Off (set back to Full in Appearance), text size Medium. The vivo has PingDost on the battery allowlist (added by adb for the test). The API server (with the dev TURN env) and Metro were restarted after a low-memory stop. Restore at the end: `svc power stayon false` on both; Bluetooth off on the Nothing (it was off); delete `/sdcard/Download/pdtest` (the 206 MB test backup); remove the allowlist entry if the user does not want it.
 
 **Dev-only, not bugs:** a debug build aborts (`UniffiPlayerRoot` assert) on any JS reload, so source edits during a run need a relaunch.
 
