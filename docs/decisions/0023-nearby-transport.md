@@ -101,7 +101,7 @@ Measured 2026-11-07/08 on a Nothing A001T and a vivo V2437 (both Android 16), de
 | Doze forced (`adb shell dumpsys deviceidle force-idle`), service on | the link holds; scans slow down | works (delivered) |
 | Doze forced, no service | stops | ? |
 | Battery saver on, service on | works; scans may be throttled | works (delivered; phone marked unplugged with `dumpsys battery unplug`) |
-| App swiped away from Recents, service on | stock Android keeps it; some OEMs kill it | ? |
+| App swiped away from Recents, service on | stock Android keeps it; some OEMs kill it | vivo V2437 (exempt from battery optimization, screen on): the process and the service stayed; delivered over Bluetooth in 19 s |
 | Bluetooth turned off while linked | `linkDown bluetooth_off`, "Bluetooth OFF" shown; turned on → advertising and scanning resume | "Bluetooth off" shown clearly; the resume was not checked on its own |
 | A Bluetooth permission revoked in Settings | the app restarts; Start fails with `permission`, missing list shown | the denied state is shown, with "Open app settings" |
 | Airplane mode with Bluetooth on | discovery, links and packets work | works |

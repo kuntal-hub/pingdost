@@ -29,7 +29,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 21 | [Nearby spike (Android BLE; no Nearby Connections)](phases/phase-21-nearby-spike.md) | 03 | 🔄 |
 | 22 | [Direct nearby messaging](phases/phase-22-nearby-direct.md) | 10, 21 | ✅ |
 | 23 | [Mesh store-and-forward relay](phases/phase-23-mesh-relay.md) | 22 | ✅ |
-| 24 | [Mesh file transfer](phases/phase-24-mesh-files.md) | 15, 23 | 🔄 |
+| 24 | [Mesh file transfer](phases/phase-24-mesh-files.md) | 15, 23 | ✅ |
 | 25 | [Calls A: TURN, signaling, web calls](phases/phase-25-calls-web.md) | 17, 20 | 🔄 |
 | 26 | [Calls B: Android calls](phases/phase-26-calls-android.md) | 12, 25 | 🔄 |
 | 27 | [Hardening & release readiness](phases/phase-27-hardening-release.md) | 18, 19, 24, 26 | 🔄 |
@@ -56,7 +56,8 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 
 - Mesh (21–24) is a launch requirement (REQ §20). The product must not be described as meeting the offline-mesh requirement until Phase 24 is ✅.
   - 2026-11-01: Phases 21–24 are built and **met in simulation only** (ADR 0025, 0027). "Offline-mesh launch requirement met on Android" may be written here only after the open two-phone checks of 21–24 pass.
-  - 2026-11-08: the two-phone checks of 22, 23 (two-phone part) and 24 (direct 12 MB with a cut and resume) passed on real phones. Still open before the line above may be written: Phase 21's swiped-from-Recents row. The screen-off row was measured later that day: it works only with PingDost exempt from battery optimization on the vivo, and the app now asks for that. Range, the 1 h battery row and the three-phone A→B→C run are recorded as pending, not as blockers.
+  - 2026-11-08: the two-phone checks of 22, 23 (two-phone part) and 24 (direct 12 MB with a cut and resume) passed on real phones. The screen-off row works on the vivo only with PingDost exempt from battery optimization (the app now asks for it), and the swiped-from-Recents row works.
+  - **2026-11-08: Offline-mesh launch requirement met on Android**, on two phone models (Nothing A001T, vivo V2437; Android 16). Limits: phone makers that freeze background apps need the battery exemption; range, the 1 h battery drain and a three-phone A→B→C run are not measured yet (Phase 21, 23 notes). iOS is Phase 30. Range, the 1 h battery row and the three-phone A→B→C run are recorded as pending, not as blockers.
 
 ## Requirement coverage (REQ § → phases)
 

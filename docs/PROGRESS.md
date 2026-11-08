@@ -18,7 +18,7 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 -->
 
 ## 2026-11-08 — Two-phone device test, part 3 (19, 21–24, 26, 31; docs) — 🔄 paused (the user is using the phones)
-Same phones and accounts. Commits `d13aaef`, `60a9d39`, `1bfa095` (not pushed). Phase files, ADR 0023's measured column and ROADMAP are now updated from parts 1–3. **ROADMAP:** 13, 15, 19, 22, 23 → ✅. 24 stays 🔄 until Phase 21's screen-off and Recents rows pass (ROADMAP mesh note).
+Same phones and accounts. Commits `d13aaef`, `60a9d39`, `1bfa095` (not pushed). Phase files, ADR 0023's measured column and ROADMAP are now updated from parts 1–3. **ROADMAP:** 13, 15, 19, 22, 23, 24 → ✅ (24 after Phase 21's screen-off and Recents rows passed; the mesh line in ROADMAP lists its limits).
 
 **Verification:** `pnpm turbo run lint typecheck test` 59/59; `groups`, `recovery` and `engine` integration tests 25/25. The full integration suite was not run.
 
@@ -39,7 +39,8 @@ Same phones and accounts. Commits `d13aaef`, `60a9d39`, `1bfa095` (not pushed). 
 - Drafts are not kept when leaving a chat (seen at Huge; may be by design).
 
 **Remaining:**
-- [ ] 21: swiped from Recents (then 24 can be ✅ with the ROADMAP mesh line); look at the new battery row on a phone; range and 1 h battery are the user's (walk; unplugged).
+- [x] 21: swiped from Recents works (vivo, exempt, delivered in 19 s); the new battery row shows on the Nothing (not exempt), not on the vivo (exempt), and opens Android's battery page. ROADMAP: 24 ✅, "Offline-mesh launch requirement met on Android" written with its limits.
+- [ ] 21: range and 1 h battery are the user's (walk; unplugged).
 - [ ] 26: fix the network switch; phone↔web, app killed (Firebase), proximity, Bluetooth headset, GSM.
 - [ ] 16–18 web and 10 QR verify need a camera scan by the user; 11 typing Hindi in search (the user).
 - [ ] 19: the monthly reminder firing (date +30 days).
