@@ -17,6 +17,28 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-09 — Device test, part 5: the checks Claude could do alone (17, 18, 19, 27) — 🔄 partial (what is left needs the user, money or other hardware)
+Same phones and Chrome linked to `pd_nothing`. Commits `d66fbb5`, `0a5281e`, `f19f79a`, `866f15a`, `e4fc1ab` plus docs (not pushed).
+
+**Done:**
+- 18 → ✅: a photo sent from the vivo to `pd_nothing` (192 KB) arrived in Chrome and opened. Resuming after killing the tab mid-sync is proved by `history-sync.int.test.ts` (passed). It was not repeated with real Chrome.
+- 17: fixed (`866f15a`) a web chat not following new messages, and "Jump to the latest message" stopping short. Checked in Chrome (phase file has the details).
+- 27: account deletion (ADR 0036, `d66fbb5`, `0a5281e`: Settings → Delete account, email code, `POST /v1/me/delete`, Cloudinary picture). Integration-tested, then done on the vivo twice (`pd_vivo` and the throwaway `pd_vivo2`): the user is gone in Mongo, `account_delete` is in `security_events`, and the phone is back at the welcome screen.
+- 19: the monthly reminder date is unit-tested (`f19f79a`). On the vivo, Android scheduled it exactly 30 days ahead (`dumpsys alarm`). It was not watched firing.
+- Fixed (`e4fc1ab`): a wiped phone (Delete account, Remove data, replaced phone) kept the backup reminder scheduled. The wipe now cancels scheduled notifications and dismisses shown ones (`wipe-steps.test.ts`). The second deletion left no PingDost alarm or notification.
+
+**Remaining:**
+- [ ] 17: push with the tab closed (build + `preview`, VAPID keys, Chrome's notification permission).
+- [ ] 16: a second browser; remove Chrome from the Nothing's Devices list (Chrome is still linked to `pd_nothing`).
+- [ ] 27: Play's web resource for deletion requests; one real Cloudinary deletion; the staging retention audit and VPS load re-run.
+- [ ] 11: typing Hindi in search (the user). 21: range and 1 h battery (the user). 26: staging coturn, app killed (Firebase), proximity, Bluetooth headset, GSM. 31: the feel check (the user).
+- Blocked on the user: 12 Firebase, 20/25 VPS, 27 Play US$25, 28–30 Apple and iPhone; pushing.
+
+**Known issues:**
+- Android forms: `Screen` (`src/components/screen.tsx`) does not avoid the keyboard. On the vivo, after typing the deletion code, the keyboard covers "Delete my account" until it is closed. The same likely applies to every form with a button below a field. Fix it with the keyboard inset (it affects all screens, so check several) in a polish pass.
+
+**State:** the vivo has no PingDost account now (at the welcome screen; `pd_vivo` was deleted with the user's go-ahead). Both phones: stay-awake off, no test files, no battery allowlist entry on the vivo. Chrome on this PC is still linked to `pd_nothing` (the test tab is closed). API server, Metro, web dev server and the sim peer are stopped; Docker infra (Mongo, Valkey, Mailpit, coturn) is still up.
+
 ## 2026-11-08 — Device test, part 4: web with real phones (10, 16–18, 26) — 🔄 partial (what is left needs the user, money or other hardware)
 Same phones and accounts, plus desktop Chrome on this PC linked to `pd_nothing` (the user scanned the QR). Commits `22875ef`, `8065a22` plus docs (not pushed). Part 3 (below) has the earlier fixes of the day.
 

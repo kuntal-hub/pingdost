@@ -35,7 +35,7 @@ Recovery backups (19).
 - Web views and sends images and docs.
 - `pnpm lint typecheck test` passes.
 
-**Real-phone checks 2026-11-08:** after pairing, the chat history came from the Nothing ("sent from your other device", safety notices included); "Load older messages from phone" answered (0 older: nothing outside the window). The web sent a text file (82 B) and a photo (157 KB, sent as 17 KB with Standard quality); both arrived on the vivo, and the web shows the photo. Still open: resuming after killing the tab mid-sync, and a photo received on the web from a phone.
+**Real-phone checks 2026-11-08:** after pairing, the chat history came from the Nothing ("sent from your other device", safety notices included); "Load older messages from phone" answered (0 older: nothing outside the window). The web sent a text file (82 B) and a photo (157 KB, sent as 17 KB with Standard quality); both arrived on the vivo, and the web shows the photo. 2026-11-09: a photo sent from the vivo to `pd_nothing` (192 KB) arrived in Chrome and opened there. Resuming after killing the tab mid-sync is proved by `apps/server/test/history-sync.int.test.ts` (a Dexie-backed browser drops mid-sync and reopens against the real server; passed 2026-11-09). It was not repeated by closing real Chrome mid-sync.
 
 ## Handoff notes
 **From Phase 14 (ADR 0017):**
