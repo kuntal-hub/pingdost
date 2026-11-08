@@ -349,15 +349,17 @@ export class CallManager {
     this.#sendMediaState(active);
   }
 
-  /** The device switched networks (Wi-Fi ↔ mobile, or came back online): restart ICE now. */
+  /**
+   * The device switched networks (Wi-Fi ↔ mobile, or came back online): restart ICE now, in the
+   * background. The call state follows the connection itself: WebRTC often rides out the switch
+   * without leaving "connected" (seen on two phones), so only a real "disconnected" or "failed"
+   * marks the call as reconnecting and starts the reconnect timer.
+   */
   networkChanged(): void {
     const active = this.#active;
     if (!active?.peer || !active.remoteDescription) return;
     const { state } = active.snap;
     if (state !== 'connected' && state !== 'reconnecting') return;
-    if (state === 'connected') this.#apply(active, { type: 'disconnected' });
-    this.#startReconnectTimer(active);
-    this.#emit();
     void this.#restartIce(active);
   }
 
@@ -575,6 +577,11 @@ export class CallManager {
   async #onRenegotiate(active: Active, deviceId: string, signal: CallSignalData): Promise<void> {
     const peer = active.peer;
     if (!peer || !active.remoteDescription || deviceId !== active.snap.peerDeviceId) return;
+    this.#log('renegotiate received', {
+      direction: active.snap.direction,
+      offer: Boolean(signal.sdp),
+      signalingState: peer.signalingState,
+    });
     if (active.snap.direction === 'out') {
       // The callee lost the connection: only the caller makes offers.
       void this.#restartIce(active);
@@ -644,6 +651,7 @@ export class CallManager {
 
   #onPeerState(active: Active, state: PeerConnectionState): void {
     if (!this.#current(active)) return;
+    this.#log('peer state', { state, call: active.snap.state });
     switch (state) {
       case 'connected':
         if (!this.#apply(active, { type: 'connected' })) return;
@@ -714,6 +722,10 @@ export class CallManager {
     const peer = active.peer;
     const deviceId = active.snap.peerDeviceId;
     if (!peer || !deviceId || !this.#current(active)) return;
+    this.#log('ICE restart', {
+      direction: active.snap.direction,
+      signalingState: peer.signalingState,
+    });
     if (active.snap.direction === 'in') {
       const now = this.#now();
       if (now - active.lastRestartAskAt < this.#settings.restartDelayMs) return;

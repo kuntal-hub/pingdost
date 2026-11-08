@@ -226,10 +226,11 @@ describe('CallManager', () => {
     expect(alice.platform.peers[0]!.generation).toBe(2);
     expect(bob.platform.peers[0]!.generation).toBe(2);
 
-    // The callee's network changed: it asks the caller for a restart.
+    // The callee's network changed and the connection did drop: it asks the caller for a
+    // restart, and the call recovers.
     bob.manager.networkChanged();
-    expect(state(bob)).toBe('reconnecting');
     network.drop();
+    await until(() => state(bob) === 'reconnecting');
     await until(
       () =>
         state(alice) === 'connected' &&
@@ -238,6 +239,23 @@ describe('CallManager', () => {
     );
     expect(bob.platform.peers[0]!.generation).toBe(alice.platform.peers[0]!.generation);
     expect(alice.ended).toEqual([]);
+  });
+
+  it('keeps the call when WebRTC rides out a network change', async () => {
+    // Found on two phones (Wi-Fi → mobile data): the restart went through and the connection
+    // never left "connected", but the call was marked "reconnecting" on the network change and
+    // hung up when the reconnect timer ran out.
+    const { alice, bob } = setup();
+    await connect(alice, bob);
+    bob.manager.networkChanged();
+    expect(state(bob)).toBe('connected');
+    await until(
+      () => alice.platform.peers[0]!.generation === 2 && bob.platform.peers[0]!.generation === 2,
+    );
+    await new Promise((resolve) => setTimeout(resolve, FAST.reconnectTimeoutMs + 200));
+    expect(state(alice)).toBe('connected');
+    expect(state(bob)).toBe('connected');
+    expect([...alice.ended, ...bob.ended]).toEqual([]);
   });
 
   it('fails a call that cannot reconnect, or never connects', async () => {

@@ -13,6 +13,33 @@ import {
 
 type SessionInit = { type: 'offer' | 'answer' | 'pranswer' | 'rollback'; sdp?: string };
 
+/** The phone model, to tell two phones apart in one Metro log (dev builds only). */
+export function deviceTag(): string {
+  const constants = Platform.constants as { Model?: string };
+  return constants.Model ?? Platform.OS;
+}
+
+/**
+ * A candidate without its addresses, for dev logs: protocol, type and the first characters of
+ * its ICE username fragment (which ICE generation it belongs to).
+ */
+export function candidateSummary(candidate: string): string {
+  const parts = candidate.split(' ');
+  const typ = parts[parts.indexOf('typ') + 1] ?? '?';
+  const ufragAt = parts.indexOf('ufrag');
+  const ufrag = ufragAt >= 0 ? (parts[ufragAt + 1] ?? '').slice(0, 4) : '-';
+  return `${(parts[2] ?? '?').toLowerCase()} ${typ} ${ufrag}`;
+}
+
+/** The ICE username fragment's first characters in an SDP (dev logs). */
+function sdpUfrag(sdp: string | undefined): string {
+  return /a=ice-ufrag:(\S{1,4})/.exec(sdp ?? '')?.[1] ?? '-';
+}
+
+const debug = __DEV__
+  ? (message: string) => console.log(`[webrtc ${deviceTag()}] ${message}`)
+  : undefined;
+
 /** Asks for the microphone (and the camera); false when the user says no. */
 export async function grantCallPermissions(video: boolean): Promise<boolean> {
   if (Platform.OS !== 'android') return true;
@@ -69,8 +96,16 @@ export class NativeCallPlatform implements CallPlatform {
       remote = event.streams[0] ?? remote;
       this.onMedia({ local: stream, remote });
     });
+    if (debug) {
+      pc.addEventListener('iceconnectionstatechange', () => debug(`ice ${pc.iceConnectionState}`));
+      pc.addEventListener('icegatheringstatechange', () =>
+        debug(`gathering ${pc.iceGatheringState}`),
+      );
+      pc.addEventListener('connectionstatechange', () => debug(`connection ${pc.connectionState}`));
+    }
     pc.addEventListener('icecandidate', (event) => {
       const candidate = event.candidate;
+      if (candidate) debug?.(`local ${candidateSummary(candidate.candidate)}`);
       events.onIceCandidate(
         candidate
           ? {
@@ -105,9 +140,18 @@ export class NativeCallPlatform implements CallPlatform {
         return offer;
       },
       createAnswer: async () => (await pc.createAnswer()) as SessionInit,
-      setLocalDescription: (description) => pc.setLocalDescription(description as never),
-      setRemoteDescription: (description) => pc.setRemoteDescription(description as never),
-      addIceCandidate: (candidate) => pc.addIceCandidate(candidate),
+      setLocalDescription: (description) => {
+        debug?.(`set local ${description.type} ufrag ${sdpUfrag(description.sdp)}`);
+        return pc.setLocalDescription(description as never);
+      },
+      setRemoteDescription: (description) => {
+        debug?.(`set remote ${description.type} ufrag ${sdpUfrag(description.sdp)}`);
+        return pc.setRemoteDescription(description as never);
+      },
+      addIceCandidate: (candidate) => {
+        if (candidate.candidate) debug?.(`remote ${candidateSummary(candidate.candidate)}`);
+        return pc.addIceCandidate(candidate);
+      },
       get localDescription() {
         const local = pc.localDescription;
         return local ? { type: local.type as SessionInit['type'], sdp: local.sdp } : null;

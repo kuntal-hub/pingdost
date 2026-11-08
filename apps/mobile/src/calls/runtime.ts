@@ -28,7 +28,7 @@ import type { MessageEngine } from '@pingdost/message-engine';
 
 import { CallKitBridge } from './callkit';
 import { missedCallContent, wantsProximity } from './logic';
-import { grantCallPermissions, NativeCallPlatform } from './platform';
+import { deviceTag, grantCallPermissions, NativeCallPlatform } from './platform';
 import { useCallPrefs } from './prefs';
 import { consumeCallKitEvents } from './voip';
 import {
@@ -121,8 +121,12 @@ export function startCalls(chat: {
         .catch(() => undefined);
       if (call.direction === 'in' && call.outcome === 'missed') void notifyMissed(call);
     },
+    // `console.log`: Metro does not show `console.debug`. Two phones share one Metro, so the
+    // model tells them apart.
     ...(__DEV__
-      ? { log: (message, fields) => console.debug(`[calls] ${message}`, fields ?? '') }
+      ? {
+          log: (message, fields) => console.log(`[calls ${deviceTag()}] ${message}`, fields ?? ''),
+        }
       : {}),
   });
   const callkit = callkitNative
