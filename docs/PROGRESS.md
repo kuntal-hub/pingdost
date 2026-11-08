@@ -34,8 +34,9 @@ Same phones and accounts. Commits `d13aaef`, `60a9d39`, `1bfa095`, `35f31c5`, `7
 - Screen-off row (Phase 21): with the dev server stopped and the vivo's screen off for 5 min, its app was **frozen** (`isFrozen=true` despite the `connectedDevice` foreground service), A's packets went unanswered and A closed the link. After `dumpsys deviceidle whitelist +com.pingdost.app` (what "Unrestricted" sets) it unfroze and the message arrived with the screen still off. `35f31c5`: Settings → Nearby messaging now shows "Keep it working with the screen off" while the exemption is missing (`needsBatteryExemption` in `nearby/status.ts`, unit-tested; seen on the Nothing, absent on the exempt vivo).
 - `7a815bd`: **calls hung up on a Wi-Fi ↔ mobile data switch.** WebRTC rode out the switch (ICE restart done, connection still "connected"), but `networkChanged()` marked the call "reconnecting" itself and the reconnect timer ended it after 30 s. A network change now only restarts ICE. Test fails without the fix; on the phones one call then held through both switches (4:42). Dev builds now log ICE/connection states, candidate types and restarts per phone model (`[webrtc <model>]`, `[calls <model>]`).
 
+- After Remove data the account had no phone, yet the takeover screen offered "Approve on my other phone", which nobody could approve. Setup now reads the account's own directory (`DeviceSetupError.otherPhone`; unknown counts as a phone) and the screen offers only Restore and Start fresh, with "This account has no phone right now". Tests fail without it; checked on the vivo (Remove data → log in), which then started fresh again. Those recovery screens cannot be screenshotted (capture fails), so the check was by UI dump.
+
 **Open findings:**
-- After Remove data the account has no phone, yet the takeover screen still offers "Approve on my other phone" (`screens/recovery/new-phone.tsx`), which can never be approved. Check the own directory for an active phone and hide it.
 - Drafts are not kept when leaving a chat (seen at Huge; may be by design).
 
 **Remaining:**

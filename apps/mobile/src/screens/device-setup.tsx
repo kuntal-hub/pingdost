@@ -16,7 +16,7 @@ import { ApiError } from '@pingdost/api-client';
 
 type SetupState =
   | { status: 'working' }
-  | { status: 'problem'; problem: DeviceSetupProblem }
+  | { status: 'problem'; problem: DeviceSetupProblem; otherPhone: boolean }
   | { status: 'error'; message: string };
 
 const problems: Record<DeviceSetupProblem, { title: string; body: string }> = {
@@ -49,7 +49,7 @@ export function DeviceSetupScreen() {
     setUpThisDevice().catch((error: unknown) => {
       if (!active) return;
       if (error instanceof DeviceSetupError) {
-        setState({ status: 'problem', problem: error.problem });
+        setState({ status: 'problem', problem: error.problem, otherPhone: error.otherPhone });
         return;
       }
       const described = describeError(error);
@@ -68,7 +68,7 @@ export function DeviceSetupScreen() {
   const logout = () => void authStore.getState().logout();
 
   if (state.status === 'problem' && state.problem === 'primary_exists') {
-    return <NewPhoneScreen onLogout={logout} />;
+    return <NewPhoneScreen onLogout={logout} otherPhone={state.otherPhone} />;
   }
 
   if (state.status === 'problem') {

@@ -265,9 +265,11 @@ describe('device setup', () => {
     const server = fakeServer();
     server.setAccountIdentityKey(provider.createSigningKey().publicKey());
     const newPhone = phone(server);
+    // No active phone (e.g. after "Remove data"): there is nobody to approve a transfer.
     await expect(setUpDevice(newPhone.deps())).rejects.toEqual(
-      new DeviceSetupError('primary_exists'),
+      new DeviceSetupError('primary_exists', { otherPhone: false }),
     );
+    await expect(setUpDevice(newPhone.deps())).rejects.toMatchObject({ otherPhone: false });
     expect(newPhone.identitySecret()).toBeNull();
     // The phone is not claimed: another account can still set it up.
     expect(newPhone.local()).toBeNull();
@@ -288,6 +290,19 @@ describe('device setup', () => {
     await expect(setUpDevice(second.deps())).rejects.toEqual(
       new DeviceSetupError('primary_exists'),
     );
+    await expect(setUpDevice(second.deps())).rejects.toMatchObject({ otherPhone: true });
+  });
+
+  it('says there is another phone when the directory cannot be read', async () => {
+    const server = fakeServer();
+    server.setAccountIdentityKey(provider.createSigningKey().publicKey());
+    const newPhone = phone(server);
+    const deps = newPhone.deps();
+    deps.api.directory = () => Promise.reject(new Error('offline'));
+    await expect(setUpDevice(deps)).rejects.toMatchObject({
+      problem: 'primary_exists',
+      otherPhone: true,
+    });
   });
 
   it('starts over with a new device identity after this device was revoked', async () => {

@@ -387,12 +387,22 @@ function FreshFlow({ onBack }: { onBack: () => void }) {
   );
 }
 
-/** Shown by device setup when the account already has a phone (or its key is elsewhere). */
-export function NewPhoneScreen({ onLogout }: { onLogout: () => void }) {
+/**
+ * Shown by device setup when the account already has a phone (or its key is elsewhere). With no
+ * active phone (after "Remove data", or a revoked lost phone), nobody could approve a transfer,
+ * so that way is not offered.
+ */
+export function NewPhoneScreen({
+  onLogout,
+  otherPhone,
+}: {
+  onLogout: () => void;
+  otherPhone: boolean;
+}) {
   const [way, setWay] = useState<Way>('choose');
   const back = () => setWay('choose');
   const titles: Record<Way, string> = {
-    choose: 'Your account is on another phone',
+    choose: otherPhone ? 'Your account is on another phone' : 'Set up your account here',
     transfer: 'Approve on your other phone',
     restore: 'Restore from a backup',
     fresh: 'Start fresh',
@@ -402,14 +412,18 @@ export function NewPhoneScreen({ onLogout }: { onLogout: () => void }) {
       {way === 'choose' && (
         <>
           <Text className="text-base text-foreground">
-            PingDost runs on one phone per account. Choose how this phone takes over:
+            {otherPhone
+              ? 'PingDost runs on one phone per account. Choose how this phone takes over:'
+              : 'This account has no phone right now. Choose how to set it up on this one:'}
           </Text>
           <ListSection>
-            <ListRow
-              title="Approve on my other phone"
-              subtitle="You still have it. Chats stay on that phone."
-              onPress={() => setWay('transfer')}
-            />
+            {otherPhone && (
+              <ListRow
+                title="Approve on my other phone"
+                subtitle="You still have it. Chats stay on that phone."
+                onPress={() => setWay('transfer')}
+              />
+            )}
             <ListRow
               title="Restore from a backup"
               subtitle="Your backup file and its 24-word phrase bring your chats back."

@@ -31,9 +31,19 @@ export interface LocalDevice {
 export type DeviceSetupProblem = 'primary_exists' | 'other_account' | 'username_required';
 
 export class DeviceSetupError extends Error {
-  constructor(readonly problem: DeviceSetupProblem) {
+  /**
+   * `primary_exists` only: whether the account has an active phone that could approve a
+   * transfer. False after "Remove data" or a lost phone that was revoked; true when unknown.
+   */
+  readonly otherPhone: boolean;
+
+  constructor(
+    readonly problem: DeviceSetupProblem,
+    details: { otherPhone?: boolean } = {},
+  ) {
     super(`device setup stopped: ${problem}`);
     this.name = 'DeviceSetupError';
+    this.otherPhone = details.otherPhone ?? true;
   }
 }
 
@@ -75,13 +85,25 @@ export interface DeviceSetupResult {
 
 const MAX_ATTEMPTS = 3;
 
+/** Whether the account has an active phone now; unknown (e.g. offline) counts as yes. */
+async function hasActivePhone(deps: DeviceSetupDeps): Promise<boolean> {
+  try {
+    const { devices } = await deps.api.directory(deps.userId);
+    return devices.some((device) => device.role === 'primary');
+  } catch {
+    return true;
+  }
+}
+
 async function loadIdentityKey(deps: DeviceSetupDeps): Promise<SigningKey> {
   const secret = await deps.identityKey.load();
   if (secret) return deps.provider.restoreSigningKey(secret);
   // The account already has an identity key, but not on this phone: it cannot certify
   // itself. Replacing the primary phone is the recovery flow (Phase 19).
   const { accountIdentityKey } = await deps.api.me();
-  if (accountIdentityKey) throw new DeviceSetupError('primary_exists');
+  if (accountIdentityKey) {
+    throw new DeviceSetupError('primary_exists', { otherPhone: await hasActivePhone(deps) });
+  }
   const key = deps.provider.createSigningKey();
   // Stored before registration, so a retry certifies with the same key.
   await deps.identityKey.save(key.exportSecret());
