@@ -4,6 +4,17 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-09 — New requirement: calls change while they go on (ADR 0037)
+1. **Voice ↔ video without hanging up.** Voice → video is a request the other side accepts or declines; video → voice applies at once on both sides. Every call now carries a video section in its SDP; with an app from before this change, switching is refused with a notice.
+   - *Affects:* new Phase 32. 25, 26 (done parts) are not reworked; the protocol change is additive (`CallSignal.TYPE_MODE`, `screen_sharing`).
+2. **Screen sharing**, one app (Android 14+; a window in browsers) or the whole screen, after the system's or browser's own consent. PingDost's own window/tab never appears in the share. No screen audio.
+   - *Affects:* 32. iOS screen sharing (ReplayKit) goes to 29/30.
+3. **Background:** the call already ran in a foreground service (26); it now also holds wake and Wi-Fi locks. **Video calls shrink into picture-in-picture** when the user leaves the app; without it the camera pauses until the app is back (privacy default, not asked for by the user). In the app, a mini call window replaces the full-screen call when the user goes elsewhere; on the web, a minimized call window and browser picture-in-picture.
+   - *Affects:* 32; iOS picture-in-picture goes to 29/30.
+4. **Front/back camera** already existed on Android (26); the back camera's self view is no longer mirrored, and the web gets "Next camera".
+5. **Camera filters:** feasibility only (ADR 0037); not built until the user decides.
+6. **A new native Android build is required** (calls module, manifest, `with-call-pip` plugin).
+
 ### 2026-11-07 — New requirement: the whole UI redone for Gen Z and Gen Alpha, configurable by the user (ADR 0035)
 1. **The UI of both apps was replaced by the "Pop" design system.** Requirements from the user: light and dark mode; several color schemes; configurable from settings; interactive animations; standard UI/UX guidelines; icons instead of emoji where applicable. Done before the open phases, by the user's choice.
    - *Affects:* new Phase 31. Finished phases are not reworked beyond their look; their behavior and tests are unchanged.

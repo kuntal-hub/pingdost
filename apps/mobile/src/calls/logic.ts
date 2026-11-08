@@ -96,11 +96,68 @@ export function missedCallContent(
     : { title: 'PingDost', body: `Missed ${kind}` };
 }
 
-/** Screen off at the ear: a voice call that plays on the earpiece. */
+/** Screen off at the ear: a voice call that plays on the earpiece, with no screen to watch. */
 export function wantsProximity(call: CallSnapshot | null, route: AudioRoute | null): boolean {
-  if (!call || call.video) return false;
+  if (!call || call.video || call.screenSharing || call.remoteScreenSharing) return false;
   const live = ['outgoing', 'ringing', 'connecting', 'connected', 'reconnecting'].includes(
     call.state,
   );
   return live && route === 'earpiece';
+}
+
+/** Answered and not over: in-call changes apply (ADR 0037). */
+export function inCall(call: CallSnapshot | null): call is CallSnapshot {
+  return call !== null && ['connecting', 'connected', 'reconnecting'].includes(call.state);
+}
+
+/** The other side's picture is worth showing: their camera in a video call, or their screen. */
+export function showsRemoteVideo(call: CallSnapshot | null): boolean {
+  if (!call) return false;
+  return call.remoteScreenSharing || (call.video && !call.remoteCameraOff);
+}
+
+/**
+ * Picture-in-picture when the user leaves the app: in a video call, or while the other side
+ * shares their screen. A voice call keeps its notification instead.
+ */
+export function wantsPip(call: CallSnapshot | null): boolean {
+  return inCall(call) && showsRemoteVideo(call);
+}
+
+/**
+ * The camera pauses while nobody can see the app (another app, the lock screen, no
+ * picture-in-picture): a phone in a pocket should not keep filming. It comes back on return.
+ */
+export function shouldPauseCamera(
+  call: CallSnapshot | null,
+  appActive: boolean,
+  inPip: boolean,
+): boolean {
+  return inCall(call) && call.video && !call.cameraOff && !appActive && !inPip;
+}
+
+/**
+ * The speaker after a switch: video moves the sound from the earpiece to the speaker, voice
+ * moves it back. A headset or Bluetooth stays as it is. Null: no change.
+ */
+export function routeAfterSwitch(
+  video: boolean,
+  routes: { available: AudioRoute[]; current: AudioRoute | null } | null,
+): AudioRoute | null {
+  if (!routes) return null;
+  if (video && routes.current === 'earpiece' && routes.available.includes('speaker')) {
+    return 'speaker';
+  }
+  if (!video && routes.current === 'speaker' && routes.available.includes('earpiece')) {
+    return 'earpiece';
+  }
+  return null;
+}
+
+/**
+ * What the user may choose to share on this Android version: one app needs Android 14
+ * (API 34), where the system dialog picks the app; before that only the whole screen.
+ */
+export function screenShareChoices(apiLevel: number): ('app' | 'screen')[] {
+  return apiLevel >= 34 ? ['app', 'screen'] : ['screen'];
 }

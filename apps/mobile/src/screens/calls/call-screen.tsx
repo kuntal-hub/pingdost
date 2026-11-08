@@ -1,8 +1,9 @@
-// The call screen (Phase 26, ADR 0029), opened by a call button, by the in-app ring, or by
+// The call screen (Phase 26, ADR 0029, 0037), opened by a call button, by the in-app ring, by
 // the incoming-call notification (`pingdost://call?callId=…&action=answer|show`, also over
-// the lock screen). Incoming: Answer / Decline. Live: the other side's video (or picture),
-// a self view, mute, camera on/off and switch, speaker/earpiece/headset/Bluetooth, hang up.
-// It closes itself a moment after the call ends.
+// the lock screen) or by the call's mini window. Incoming: Answer / Decline. Live: the other
+// side's video, screen (or picture), a self view, mute, camera on/off and flip, voice ↔ video,
+// screen sharing, speaker/earpiece/headset/Bluetooth, hang up. "Minimize" (or Back) returns to
+// the app with the call going on in a mini window. It closes itself after the call ends.
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -10,26 +11,41 @@ import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RTCView } from 'react-native-webrtc';
 
-import { callStatus, ERROR_TEXT } from '@/calls/logic';
+import { callStatus, ERROR_TEXT, inCall, showsRemoteVideo } from '@/calls/logic';
 import {
   accept,
+  acceptVideo,
+  cancelVideoRequest,
   clearEnded,
   decline,
+  declineVideo,
   hangup,
+  requestVideo,
   setAudioRoute,
   setCameraOff,
   setMuted,
+  shareChoices,
+  startScreenShare,
+  stopScreenShare,
   switchCamera,
+  switchToVoice,
   useCalls,
 } from '@/calls/runtime';
+import { ActionSheet, type SheetAction } from '@/components/action-sheet';
 import { Avatar } from '@/components/avatar';
+import { Button } from '@/components/button';
 import {
+  AppWindowIcon,
   CheckIcon,
+  ChevronDownIcon,
   Icon,
   MicIcon,
   MicOffIcon,
+  MonitorIcon,
   PhoneIcon,
   PhoneOffIcon,
+  ScreenShareIcon,
+  ScreenShareOffIcon,
   SwitchCameraIcon,
   VideoIcon,
   VideoOffIcon,
@@ -51,6 +67,9 @@ const ROUTE_LABEL: Record<AudioRoute, string> = {
   headset: 'Headset',
   bluetooth: 'Bluetooth',
 };
+
+/** How long "They stayed on voice" stays. */
+const DECLINED_NOTICE_MS = 4_000;
 
 const RIPPLE = {
   from: { transform: [{ scale: 1 }], opacity: 0.5 },
@@ -86,12 +105,16 @@ function Ripples({ size }: { size: number }) {
 
 function RoundButton({
   label,
+  description,
   icon,
   onPress,
   tone = 'neutral',
   pressed = false,
 }: {
+  /** Short, under the button. */
   label: string;
+  /** What screen readers say, when the short label is not enough. */
+  description?: string;
   icon: LucideIcon;
   onPress: () => void;
   tone?: 'neutral' | 'danger' | 'accept';
@@ -114,9 +137,9 @@ function RoundButton({
         ? 'on-danger'
         : '#04210F';
   return (
-    <View className="items-center gap-1">
+    <View className="w-[72px] items-center gap-1">
       <Tap
-        accessibilityLabel={label}
+        accessibilityLabel={description ?? label}
         accessibilityState={{ selected: pressed }}
         feedback={tone === 'danger' ? 'medium' : 'selection'}
         scaleTo={0.88}
@@ -125,7 +148,9 @@ function RoundButton({
       >
         <Icon icon={icon} size={28} color={color} strokeWidth={2.4} />
       </Tap>
-      <Text className="text-xs font-semibold text-white">{label}</Text>
+      <Text className="text-center text-xs font-semibold text-white" numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -146,12 +171,15 @@ export function CallScreen() {
   const call = useCalls((state) => state.call);
   const local = useCalls((state) => state.local);
   const remote = useCalls((state) => state.remote);
+  const front = useCalls((state) => state.front);
   const routes = useCalls((state) => state.routes);
+  const notice = useCalls((state) => state.notice);
   const contact = useContact(call?.peerUserId);
   const { palette } = useTheme();
   const name = contactName(contact);
   const now = useNow();
   const [routePicker, setRoutePicker] = useState(false);
+  const [shareSheet, setShareSheet] = useState(false);
   const answered = useRef<string | null>(null);
 
   // "Answer" on the notification: answer once, as soon as the invite is here.
@@ -177,6 +205,13 @@ export function CallScreen() {
     return () => clearTimeout(timer);
   }, [call, router]);
 
+  // Notices (no camera, sharing failed) fade after a while.
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => useCalls.setState({ notice: null }), 5_000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
   // A deep backdrop in the scheme's colors, kept dark so white text always reads.
   const backdrop = {
     backgroundImage: `linear-gradient(160deg, ${palette.secondary}, #07070F 62%)`,
@@ -192,23 +227,61 @@ export function CallScreen() {
     );
   }
 
+  const minimize = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/chats');
+  };
   const live = ['outgoing', 'ringing', 'connecting', 'connected', 'reconnecting'].includes(
     call.state,
   );
   const ringing = ['incoming', 'outgoing', 'ringing', 'connecting'].includes(call.state);
-  const remoteVideo =
-    call.video && !call.remoteCameraOff && remote && remote.getVideoTracks().length > 0;
-  const localVideo = call.video && !call.cameraOff && local && local.getVideoTracks().length > 0;
+  const remoteVideo = showsRemoteVideo(call) && remote && remote.getVideoTracks().length > 0;
+  const localVideo =
+    local &&
+    local.getVideoTracks().length > 0 &&
+    ((call.video && !call.cameraOff) || call.videoRequest === 'out');
   const route = routes?.current ?? null;
+  const canSwitch = inCall(call) && call.canVideo;
+  const choices = shareChoices();
+  const declined = call.videoDeclinedAt !== null && now - call.videoDeclinedAt < DECLINED_NOTICE_MS;
+  const shareActions: SheetAction[] = choices.map((surface) =>
+    surface === 'app'
+      ? {
+          label: 'One app',
+          detail: 'Android asks which app next. Only that app is shared.',
+          icon: AppWindowIcon,
+          onPress: () => void startScreenShare('app'),
+        }
+      : {
+          label: 'Entire screen',
+          detail: 'Everything on your screen, including your notifications.',
+          icon: MonitorIcon,
+          onPress: () => void startScreenShare('screen'),
+        },
+  );
 
   return (
     <View className="flex-1 bg-black" style={backdrop}>
       {remoteVideo ? (
         <RTCView
           streamURL={remote.toURL()}
-          objectFit="cover"
+          // A screen is shown whole; a face fills the screen.
+          objectFit={call.remoteScreenSharing ? 'contain' : 'cover'}
           style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
         />
+      ) : null}
+      {live ? (
+        <View className="absolute left-4 z-10" style={{ top: insets.top + 8 }}>
+          <Tap
+            accessibilityLabel="Minimize the call"
+            accessibilityHint="The call goes on in a small window while you use the app"
+            feedback="selection"
+            onPress={minimize}
+            className="h-11 w-11 items-center justify-center rounded-full bg-black/30"
+          >
+            <Icon icon={ChevronDownIcon} size={26} color="#FFFFFF" />
+          </Tap>
+        </View>
       ) : null}
       <View className="items-center gap-3 px-6" style={{ paddingTop: insets.top + 56 }}>
         {!remoteVideo && (
@@ -223,6 +296,7 @@ export function CallScreen() {
         <Text className="text-base font-semibold text-white/90" accessibilityLiveRegion="polite">
           {callStatus(call, now)}
           {call.remoteMuted && call.state === 'connected' ? ' · their microphone is off' : ''}
+          {call.remoteScreenSharing ? ' · sharing their screen' : ''}
         </Text>
         {call.relayOnly && call.state === 'connected' ? (
           <Text className="text-xs text-white/70">Relayed (TURN), forced</Text>
@@ -235,12 +309,13 @@ export function CallScreen() {
         <RTCView
           streamURL={local.toURL()}
           objectFit="cover"
-          mirror
+          // A front camera shows like a mirror; the back camera shows the world as it is.
+          mirror={front}
           zOrder={1}
           style={{
             position: 'absolute',
             right: 16,
-            bottom: insets.bottom + 180,
+            bottom: insets.bottom + 260,
             width: 110,
             height: 160,
             borderRadius: 20,
@@ -248,6 +323,63 @@ export function CallScreen() {
         />
       ) : null}
       <View className="flex-1" />
+      <View className="mx-4 mb-3 gap-2">
+        {call.screenSharing ? (
+          <View
+            accessibilityLiveRegion="polite"
+            className="flex-row items-center gap-3 rounded-2xl bg-danger px-4 py-3"
+          >
+            <Icon icon={ScreenShareIcon} size={22} color="on-danger" />
+            <Text className="flex-1 text-sm font-semibold text-on-danger">
+              You are sharing your screen. PingDost itself stays hidden from it.
+            </Text>
+          </View>
+        ) : null}
+        {call.videoRequest === 'in' ? (
+          <View accessibilityLiveRegion="assertive" className="gap-3 rounded-2xl bg-surface p-4">
+            <Text className="text-base font-bold">{name} wants to switch to video</Text>
+            <View className="flex-row gap-3">
+              <View className="flex-1">
+                <Button label="Not now" variant="secondary" onPress={declineVideo} />
+              </View>
+              <View className="flex-1">
+                <Button label="Switch" icon={VideoIcon} onPress={() => void acceptVideo()} />
+              </View>
+            </View>
+          </View>
+        ) : null}
+        {call.videoRequest === 'out' ? (
+          <View className="flex-row items-center gap-3 rounded-2xl bg-black/50 px-4 py-3">
+            <Text className="flex-1 text-sm font-semibold text-white">
+              Asking {name} to switch to video…
+            </Text>
+            <Tap
+              accessibilityLabel="Cancel the request"
+              feedback="selection"
+              onPress={cancelVideoRequest}
+              className="min-h-[44px] justify-center rounded-full bg-white/20 px-4"
+            >
+              <Text className="text-sm font-bold text-white">Cancel</Text>
+            </Tap>
+          </View>
+        ) : null}
+        {declined ? (
+          <Text
+            accessibilityLiveRegion="polite"
+            className="self-center rounded-full bg-black/50 px-4 py-2 text-sm text-white"
+          >
+            {name} stayed on voice
+          </Text>
+        ) : null}
+        {notice ? (
+          <Text
+            accessibilityLiveRegion="polite"
+            className="self-center rounded-2xl bg-black/60 px-4 py-2 text-center text-sm text-white"
+          >
+            {notice}
+          </Text>
+        ) : null}
+      </View>
       {routePicker && routes ? (
         <View className="mx-6 mb-4 gap-1 rounded-2xl bg-white/15 p-2">
           {routes.available.map((option) => (
@@ -268,7 +400,7 @@ export function CallScreen() {
         </View>
       ) : null}
       <View
-        className="mx-4 flex-row flex-wrap justify-center gap-5 rounded-2xl bg-black/30 px-3 py-4"
+        className="mx-4 flex-row flex-wrap justify-center gap-x-2 gap-y-4 rounded-2xl bg-black/30 px-2 py-4"
         style={{ marginBottom: insets.bottom + 20 }}
       >
         {call.state === 'incoming' ? (
@@ -304,13 +436,48 @@ export function CallScreen() {
                 />
                 <RoundButton
                   label="Flip"
+                  description={front ? 'Use the back camera' : 'Use the front camera'}
                   icon={SwitchCameraIcon}
                   onPress={() => void switchCamera()}
                 />
               </>
             ) : null}
+            {canSwitch ? (
+              call.video ? (
+                <RoundButton
+                  label="Voice"
+                  description="Switch to a voice call"
+                  icon={PhoneIcon}
+                  onPress={switchToVoice}
+                />
+              ) : (
+                <RoundButton
+                  label="Video"
+                  description={
+                    call.videoRequest === 'out'
+                      ? 'Cancel the request to switch to video'
+                      : 'Switch to a video call'
+                  }
+                  icon={VideoIcon}
+                  pressed={call.videoRequest === 'out'}
+                  onPress={() =>
+                    call.videoRequest === 'out' ? cancelVideoRequest() : void requestVideo()
+                  }
+                />
+              )
+            ) : null}
+            {canSwitch && choices.length > 0 ? (
+              <RoundButton
+                label={call.screenSharing ? 'Stop share' : 'Share'}
+                description={call.screenSharing ? 'Stop sharing your screen' : 'Share your screen'}
+                icon={call.screenSharing ? ScreenShareOffIcon : ScreenShareIcon}
+                pressed={call.screenSharing}
+                onPress={() => (call.screenSharing ? void stopScreenShare() : setShareSheet(true))}
+              />
+            ) : null}
             <RoundButton
               label={route ? ROUTE_LABEL[route] : 'Audio'}
+              description="Choose where the sound plays"
               icon={Volume2Icon}
               pressed={route === 'speaker'}
               onPress={() => setRoutePicker((open) => !open)}
@@ -324,6 +491,18 @@ export function CallScreen() {
           </>
         ) : null}
       </View>
+      <ActionSheet
+        visible={shareSheet}
+        onClose={() => setShareSheet(false)}
+        title="What do you want to share?"
+        header={
+          <Text className="px-5 pb-2 text-sm text-muted">
+            PingDost hides its own window from the share, so your chats stay private. The picture
+            goes encrypted, straight to {name}.
+          </Text>
+        }
+        actions={shareActions}
+      />
     </View>
   );
 }

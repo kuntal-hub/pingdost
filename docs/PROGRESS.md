@@ -17,6 +17,27 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-09 — Phase 32: Calls C: voice ↔ video, screen sharing, background, picture-in-picture — 🔄 partial (code done; phone checks need the user)
+New phase from the user's request (CHANGES 2026-11-09, ADR 0037).
+
+**Done:**
+- Protocol `CallSignal.TYPE_MODE` (`mode_change`, `mode_request_id`) and `screen_sharing`; call engine: every call has a `sendrecv` video section, so voice ↔ video and screen sharing are `replaceTrack` (no renegotiation). Voice → video is a request (accept/decline/withdraw, 30 s timeout, both asking at once); video → voice is immediate.
+- Web: share chooser (window/app or entire screen, never this tab), voice ↔ video, request banners, "Next camera", minimized draggable call window, picture-in-picture (+ Chrome's auto PiP), `display-capture=(self)`.
+- Android: same model on react-native-webrtc; screen sharing through Android's dialog (one app from Android 14) with PingDost's window secure meanwhile; the back camera's self view is no longer mirrored; picture-in-picture (`CallPip`, `plugins/with-call-pip.js`) with Mute and Hang up; the camera pauses while nobody can see the app; wake and Wi-Fi locks in the call service; a draggable mini call window over every screen.
+- Sim peer: agrees to every switch to video; chat commands `!video`, `!voice`, `!share`, `!unshare` during a call.
+- Camera filters: feasibility only (ADR 0037, end). Not built: waiting for the user's decision.
+
+**Remaining:**
+- [ ] Phone checks in the phase file (both phones were locked; new dev build already installed on both, data kept). The vivo needs a test account.
+- [ ] Web: the real picker (Test media off), Chrome's own "Stop sharing", Decline.
+- [ ] Filters: only if the user says so.
+
+**Verification results:** protocol 125 tests, call-engine 49 (13 new), web 25, mobile 138 pass; `calls-webrtc.int.test.ts` 3/3 (new: voice → video → screen → voice on one connection, frame scan clean, no Mongo writes); `:pingdost-calls:compileDebugKotlin` and the arm64 APK build pass; Chrome smoke test with Test media passed (phase file). Full `pnpm turbo run lint typecheck test`: 59/59.
+
+**Known issues:** iOS has none of this yet (ReplayKit, `AVPictureInPictureController`: Phases 29/30). No screen audio. A video request that arrives while the app is in the background without PiP shows only when the app comes back.
+
+**State:** both phones: the new build installed, stay-awake off, screens off. The API server on :3000 was already running (started 01:21, not by this session) and was left running; Metro, the web dev server and the sim peer are stopped. Chrome: Test media turned off again. Docker infra is still up.
+
 ## 2026-11-09 — Device test, part 5: the checks Claude could do alone (17, 18, 19, 27) — 🔄 partial (what is left needs the user, money or other hardware)
 Same phones and Chrome linked to `pd_nothing`. Commits `d66fbb5`, `0a5281e`, `f19f79a`, `866f15a`, `e4fc1ab` plus docs (not pushed).
 

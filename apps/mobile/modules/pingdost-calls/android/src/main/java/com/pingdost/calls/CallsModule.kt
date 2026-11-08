@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import android.view.WindowManager
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -14,10 +15,32 @@ import java.lang.ref.WeakReference
 
 /**
  * `PingdostCalls` (Phase 26, ADR 0029): what the JS call runtime needs from Android besides
- * WebRTC (react-native-webrtc). Events: `action` ({action: decline | hangup, callId}) from
- * the notification buttons; `audioRoutes` ({available, current}) when devices come and go.
+ * WebRTC (react-native-webrtc). Events: `action` ({action: decline | hangup | mute | unmute,
+ * callId}) from the notification and picture-in-picture buttons; `audioRoutes`
+ * ({available, current}) when devices come and go. ADR 0037 adds picture-in-picture and the
+ * screen-sharing service.
  */
 class CallsModule : Module() {
+  companion object {
+    private const val TAG = "PingdostCalls"
+
+    /**
+     * Screen sharing on Android 14+ needs a `mediaProjection` foreground service started right
+     * after the user's consent; react-native-webrtc has one but starts it only when this option
+     * is on (ADR 0037). Set by reflection so this module does not compile against the library;
+     * release builds keep the class (app.json `extraProguardRules`).
+     */
+    private fun enableScreenSharingService() {
+      try {
+        val options = Class.forName("com.oney.WebRTCModule.WebRTCModuleOptions")
+        val instance = options.getMethod("getInstance").invoke(null)
+        options.getField("enableMediaProjectionService").setBoolean(instance, true)
+      } catch (error: Exception) {
+        Log.w(TAG, "screen sharing service not enabled: ${error.javaClass.simpleName}")
+      }
+    }
+  }
+
   private val forward: (String, Map<String, Any?>) -> Unit = { name, body -> sendEvent(name, body) }
 
   private val context: Context
@@ -36,6 +59,7 @@ class CallsModule : Module() {
     OnCreate {
       CallBridge.emitter = forward
       appContext.reactContext?.let { CallNotifications.ensureChannels(it) }
+      enableScreenSharingService()
     }
 
     OnDestroy {
@@ -83,6 +107,22 @@ class CallsModule : Module() {
 
     /** The call screen over the lock screen (an incoming call or a live one), or not. */
     Function("setShowWhenLocked") { on: Boolean -> onUi { CallLockScreen.apply(it, on) } }
+
+    Function("pipSupported") { CallPip.supported(context) }
+
+    /** Picture-in-picture on leaving the app (a video call), with Mute/Unmute and Hang up. */
+    Function("setPip") { enabled: Boolean, muted: Boolean, callId: String ->
+      CallPip.enabled = enabled
+      CallPip.muted = muted
+      CallPip.callId = callId
+      onUi { CallPip.apply(it) }
+    }
+
+    Function("isInPictureInPicture") {
+      CallPip.isActive(appContext.currentActivity ?: CallBridge.activity?.get())
+    }
+
+    Function("exitPip") { onUi { CallPip.exit(it) } }
 
     /** Android 14+: the user may turn full-screen notifications off for PingDost. */
     Function("canUseFullScreenIntent") {

@@ -11,6 +11,7 @@ import type { CallSignalData, IncomingCallSignal } from '@pingdost/protocol';
 
 import {
   CallMediaError,
+  type CameraState,
   type CallPeer,
   type CallPlatform,
   type CallSignaling,
@@ -18,6 +19,7 @@ import {
   type IceServer,
   type PeerEvents,
   type PeerOptions,
+  type ScreenSurface,
   type SessionDescription,
 } from './types';
 
@@ -108,6 +110,15 @@ export class FakePeer implements CallPeer {
   readonly remoteCandidates: IceCandidate[] = [];
   muted = false;
   cameraOff = false;
+  /** The camera as the manager last set it (a video call starts with it on). */
+  camera: CameraState;
+  /** Every `setCamera` call, in order. */
+  readonly cameraLog: CameraState[] = [];
+  screen: ScreenSurface | null = null;
+  /** The next `setCamera` other than 'off' (or `setScreenShare`) throws this. */
+  mediaError: CallMediaError | undefined;
+  /** False: the other side's app negotiated no video (an older version). */
+  canVideo = true;
   closed = false;
   /** ICE generation: an ICE restart starts the next one. */
   generation = 1;
@@ -120,7 +131,9 @@ export class FakePeer implements CallPeer {
     readonly options: PeerOptions,
     readonly events: PeerEvents,
     private readonly network: FakeRtcNetwork,
-  ) {}
+  ) {
+    this.camera = options.video ? 'on' : 'off';
+  }
 
   createOffer(options?: { iceRestart?: boolean }): Promise<SessionDescription> {
     if (options?.iceRestart) this.generation++;
@@ -186,6 +199,38 @@ export class FakePeer implements CallPeer {
 
   setCameraOff(off: boolean): void {
     this.cameraOff = off;
+  }
+
+  setCamera(state: CameraState): Promise<void> {
+    if (this.closed) return Promise.reject(new Error('closed'));
+    this.cameraLog.push(state);
+    if (state !== 'off' && this.mediaError) {
+      const error = this.mediaError;
+      this.mediaError = undefined;
+      return Promise.reject(error);
+    }
+    this.camera = state;
+    // Opening a camera takes a moment.
+    return new Promise((resolve) => setTimeout(resolve, 2));
+  }
+
+  setScreenShare(surface: ScreenSurface | null): Promise<void> {
+    if (this.closed) return Promise.reject(new Error('closed'));
+    if (surface && this.mediaError) {
+      const error = this.mediaError;
+      this.mediaError = undefined;
+      return Promise.reject(error);
+    }
+    this.screen = surface;
+    return Promise.resolve();
+  }
+
+  /** The system's "Stop sharing" (or the shared app closed). */
+  endScreenShare(): void {
+    this.screen = null;
+    setTimeout(() => {
+      if (!this.closed) this.events.onScreenShareEnded();
+    }, 0);
   }
 
   close(): void {

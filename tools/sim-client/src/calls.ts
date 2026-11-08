@@ -2,7 +2,9 @@
  * Calls for the headless sim client (ADR 0028): the shared `CallManager` on the engine's E2EE
  * signaling, with werift (MIT, pure TypeScript WebRTC) as the media stack. It has no camera
  * or microphone: it sends back whatever it receives (an echo), so a phone or browser hears
- * and sees itself once media really flows, direct or through TURN.
+ * and sees itself once media really flows, direct or through TURN. Every call carries a video
+ * section (ADR 0037): a voice call that switches to video, or a shared screen, echoes too, and
+ * the sim agrees to every request to switch to video.
  */
 import { RTCPeerConnection, type MediaStreamTrack, type RTCRtpTransceiver } from 'werift';
 
@@ -79,11 +81,12 @@ export function echoPlatform(client: SimClient): CallPlatform {
       let transceivers = false;
       const peer: CallPeer = {
         createOffer: async (offerOptions) => {
-          // Calling out: one echoing transceiver per kind, before the first offer.
+          // Calling out: one echoing transceiver per kind, before the first offer. Video too
+          // in a voice call, so it can switch.
           if (!transceivers) {
             transceivers = true;
             echo(pc.addTransceiver('audio', { direction: 'sendrecv' }));
-            if (options.video) echo(pc.addTransceiver('video', { direction: 'sendrecv' }));
+            echo(pc.addTransceiver('video', { direction: 'sendrecv' }));
           }
           const offer = await timed('createOffer', () => pc.createOffer(offerOptions));
           return { type: 'offer', sdp: offer.sdp };
@@ -118,6 +121,14 @@ export function echoPlatform(client: SimClient): CallPlatform {
         },
         setMuted: () => undefined,
         setCameraOff: () => undefined,
+        // No camera or screen: the echo goes on whatever is asked.
+        setCamera: () => Promise.resolve(),
+        setScreenShare: () => Promise.resolve(),
+        get canVideo() {
+          return pc
+            .getTransceivers()
+            .some((t) => t.kind === 'video' && t.currentDirection === 'sendrecv');
+        },
         close: () => void pc.close(),
       };
       return Promise.resolve(peer);
@@ -151,8 +162,20 @@ export function simCalls(client: SimClient, options: SimCallsOptions = {}): Call
     },
   });
   let last: CallSnapshot['state'] | undefined;
+  let lastMedia = '';
   manager.onChange((call) => {
-    if (!call || call.state === last) return;
+    if (!call) return;
+    // In-call changes (ADR 0037): log them; agree to every switch to video.
+    const media = `${call.video ? 'video' : 'voice'}${call.remoteScreenSharing ? ', their screen' : ''}`;
+    if (call.state === 'connected' && last === 'connected' && media !== lastMedia) {
+      log(`call ${call.callId.slice(-6)} is now ${media}`);
+    }
+    lastMedia = media;
+    if (call.videoRequest === 'in') {
+      log(`call ${call.callId.slice(-6)}: asked to switch to video, agreeing`);
+      void manager.acceptVideo().catch(() => undefined);
+    }
+    if (call.state === last) return;
     last = call.state;
     const setup =
       call.state === 'connected' && call.answeredAt !== null && call.connectedAt !== null

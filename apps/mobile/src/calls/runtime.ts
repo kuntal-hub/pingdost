@@ -9,13 +9,21 @@
 // - Wi-Fi ↔ mobile data or a reconnect restarts ICE ("Reconnecting");
 // - a GSM call going on answers new invites busy;
 // - ended calls go to the local history; a missed one makes a notification.
+// In a call (ADR 0037):
+// - voice ↔ video (the sound moves between earpiece and speaker; the foreground service adds
+//   its camera type), screen sharing (PingDost's own window is secure meanwhile, so other chats
+//   never show in the share), front ↔ back camera;
+// - leaving the app during a video call shrinks it into picture-in-picture; without it (the
+//   lock screen, PiP turned off), the camera pauses until the app is back. The call itself
+//   goes on in the background either way.
 // On iOS (Phase 29, ADR 0032) CallKit does the ringing, the incoming-call screen and the lock
 // screen, and owns the audio session; `CallKitBridge` keeps it in step with the manager. The
 // module's Android-only functions are no-ops there.
 import * as Crypto from 'expo-crypto';
 import * as Network from 'expo-network';
 import * as Notifications from 'expo-notifications';
-import { AppState, Platform } from 'react-native';
+import * as ScreenCapture from 'expo-screen-capture';
+import { AppState, Dimensions, Platform } from 'react-native';
 import { RTCAudioSession, type MediaStream } from 'react-native-webrtc';
 import { create } from 'zustand';
 
@@ -23,11 +31,25 @@ import { api } from '@/api';
 import { contactName, loadContact } from '@/engine/contacts';
 import { ensureChannels, MISSED_CALLS_CHANNEL } from '@/push/notifications';
 import { useNotificationPrefs } from '@/push/prefs';
-import { CallError, CallManager, isLive, type CallSnapshot } from '@pingdost/call-engine';
+import {
+  CallError,
+  CallManager,
+  CallMediaError,
+  isLive,
+  type CallSnapshot,
+  type ScreenSurface,
+} from '@pingdost/call-engine';
 import type { MessageEngine } from '@pingdost/message-engine';
 
 import { CallKitBridge } from './callkit';
-import { missedCallContent, wantsProximity } from './logic';
+import {
+  missedCallContent,
+  routeAfterSwitch,
+  screenShareChoices,
+  shouldPauseCamera,
+  wantsPip,
+  wantsProximity,
+} from './logic';
 import { deviceTag, grantCallPermissions, NativeCallPlatform } from './platform';
 import { useCallPrefs } from './prefs';
 import { consumeCallKitEvents } from './voip';
@@ -40,20 +62,34 @@ import {
 
 interface CallsState {
   call: CallSnapshot | null;
+  /** The camera's self view. */
   local: MediaStream | null;
+  /** The other side's picture (camera or screen). */
   remote: MediaStream | null;
+  /** The front camera is in use: the self view is mirrored. */
+  front: boolean;
   routes: AudioRoutes | null;
-  /** Why the last dial did not start. */
+  /** Why the last action did not work (a dial, a switch to video, screen sharing). */
   notice: string | null;
+  /** The app is in picture-in-picture: only the call's picture shows. */
+  pip: boolean;
+  /** The camera was paused because nobody could see the app; it comes back on return. */
+  autoPaused: boolean;
 }
 
 export const useCalls = create<CallsState>()(() => ({
   call: null,
   local: null,
   remote: null,
+  front: true,
   routes: null,
   notice: null,
+  pip: false,
+  autoPaused: false,
 }));
+
+/** expo-screen-capture key: PingDost's window stays out of a shared screen. */
+const SHARE_GUARD = 'call-screen-share';
 
 interface Running {
   manager: CallManager;
@@ -87,6 +123,7 @@ export function startCalls(chat: {
 }): () => void {
   const native = Platform.OS === 'android' || Platform.OS === 'ios' ? PingdostCalls : null;
   const callkitNative = Platform.OS === 'ios' ? callKitNative() : null;
+  const pipSupported = native?.pipSupported?.() ?? false;
   const platform = new NativeCallPlatform(
     async () => (await api.calls.turnCredentials()).iceServers,
     (media) => useCalls.setState(media),
@@ -173,6 +210,18 @@ export function startCalls(chat: {
       wantsProximity(useCalls.getState().call, useCalls.getState().routes?.current ?? null),
     );
   };
+  // PingDost's window is secure while this side shares its screen (ADR 0037).
+  let shareGuard = false;
+  /** The picture-in-picture state last given to Android ('off', or call and mute). */
+  let pipKey = 'off';
+  const setShareGuard = (on: boolean) => {
+    if (shareGuard === on) return;
+    shareGuard = on;
+    const change = on
+      ? ScreenCapture.preventScreenCaptureAsync(SHARE_GUARD)
+      : ScreenCapture.allowScreenCaptureAsync(SHARE_GUARD);
+    void change.catch(() => undefined);
+  };
   const startMedia = (call: CallSnapshot) => {
     if (!native || mediaFor === call.callId) return;
     mediaFor = call.callId;
@@ -184,6 +233,13 @@ export function startCalls(chat: {
   };
   const stopMedia = () => {
     mediaFor = null;
+    setShareGuard(false);
+    if (pipKey !== 'off') {
+      pipKey = 'off';
+      native?.setPip?.(false, false, '');
+    }
+    if (useCalls.getState().pip) native?.exitPip?.();
+    useCalls.setState({ pip: false, autoPaused: false });
     if (!native) return;
     native.setProximityScreenOff(false);
     native.stopAudio();
@@ -191,6 +247,64 @@ export function startCalls(chat: {
     native.setKeepScreenOn(false);
     native.setShowWhenLocked(false);
     useCalls.setState({ routes: null });
+  };
+
+  // ADR 0037: what follows the call's in-call changes.
+  /** The camera is in use (a video call, or this side asking for one). */
+  const usesCamera = (call: CallSnapshot | null) =>
+    call !== null && (call.video || call.videoRequest === 'out');
+  const onMediaChange = (call: CallSnapshot, before: CallSnapshot | null) => {
+    // The call's first snapshot: `startMedia` set everything up for its kind.
+    if (!native || !before || mediaFor !== call.callId || !isLive(call.state)) return;
+    const name = names.get(call.callId) ?? 'PingDost call';
+    // Started again from the foreground: the service adds its camera type for the camera.
+    if (usesCamera(call) && !usesCamera(before) && AppState.currentState === 'active') {
+      try {
+        native.startOngoing(call.callId, name, true);
+      } catch {
+        // The call goes on; only the camera may stop in the background.
+      }
+    }
+    if (before && before.video !== call.video) {
+      const route = routeAfterSwitch(call.video, useCalls.getState().routes);
+      if (route && native.setAudioRoute(route)) useCalls.setState({ routes: native.audioRoutes() });
+      if (!call.video && AppState.currentState === 'active') {
+        try {
+          native.startOngoing(call.callId, name, false);
+        } catch {
+          // Only the notification's wording.
+        }
+      }
+    }
+  };
+  const updatePip = (call: CallSnapshot | null) => {
+    if (!pipSupported || !native?.setPip) return;
+    const wanted = call !== null && mediaFor === call.callId && wantsPip(call);
+    const key = wanted ? `${call.callId}:${call.muted}` : 'off';
+    if (key === pipKey) return;
+    pipKey = key;
+    native.setPip(wanted, call?.muted ?? false, call?.callId ?? '');
+  };
+  /** Pauses the camera while nobody sees the app; turns it back on when they do. */
+  const reviewCamera = () => {
+    const call = manager.call;
+    const { autoPaused, pip } = useCalls.getState();
+    const active = AppState.currentState === 'active';
+    if (autoPaused) {
+      if (!active && !pip && call && isLive(call.state)) return;
+      useCalls.setState({ autoPaused: false });
+      if (call?.video && isLive(call.state)) manager.setCameraOff(false);
+      return;
+    }
+    if (shouldPauseCamera(call, active, pip)) {
+      useCalls.setState({ autoPaused: true });
+      manager.setCameraOff(true);
+    }
+  };
+  const refreshPip = () => {
+    const pip = native?.isInPictureInPicture?.() ?? false;
+    if (useCalls.getState().pip !== pip) useCalls.setState({ pip });
+    reviewCamera();
   };
 
   // Synchronous, so a quick ring-then-cancel can never leave the phone ringing; the name for
@@ -220,6 +334,11 @@ export function startCalls(chat: {
       stopRinging();
       stopMedia();
     }
+    if (call && isLive(call.state)) {
+      onMediaChange(call, before?.callId === call.callId ? before : null);
+      setShareGuard(call.screenSharing);
+    }
+    updatePip(call);
     updateProximity();
   };
   const unsubscribe = manager.onChange(onChange);
@@ -228,6 +347,8 @@ export function startCalls(chat: {
     if (manager.call?.callId !== callId) return;
     if (action === 'decline') void manager.reject();
     if (action === 'hangup') void manager.hangup();
+    // The picture-in-picture window's button.
+    if (action === 'mute' || action === 'unmute') manager.setMuted(action === 'mute');
   };
   const listeners = native
     ? [
@@ -241,11 +362,23 @@ export function startCalls(chat: {
   for (const action of native?.takePendingActions() ?? []) handleAction(action);
   const stopCallKit = callkit ? consumeCallKitEvents((event) => callkit.onEvent(event)) : null;
 
-  // On screen the app rings; off screen the notification does.
-  const appState = AppState.addEventListener('change', () => {
+  // On screen the app rings; off screen the notification does. Leaving the app may shrink a
+  // video call into picture-in-picture: Android takes a moment, so it is checked again.
+  let pipTimers: ReturnType<typeof setTimeout>[] = [];
+  const appState = AppState.addEventListener('change', (next) => {
     const call = manager.call;
     if (call?.state === 'incoming') ring(call);
+    for (const timer of pipTimers) clearTimeout(timer);
+    pipTimers = [];
+    if (next === 'active') {
+      refreshPip();
+      return;
+    }
+    if (!call || !isLive(call.state)) return;
+    pipTimers = [300, 1_000].map((ms) => setTimeout(refreshPip, ms));
   });
+  // Entering and leaving picture-in-picture resizes the window.
+  const dimensions = Dimensions.addEventListener('change', refreshPip);
   // Wi-Fi ↔ mobile data, or the network came back: restart ICE now.
   let lastType: Network.NetworkStateType | undefined;
   const network = Network.addNetworkStateListener((state) => {
@@ -260,6 +393,8 @@ export function startCalls(chat: {
     callkit?.dispose();
     for (const listener of listeners) listener.remove();
     appState.remove();
+    dimensions.remove();
+    for (const timer of pipTimers) clearTimeout(timer);
     network.remove();
     stopRinging();
     stopMedia();
@@ -340,6 +475,88 @@ export function setCameraOff(off: boolean): void {
 
 export function switchCamera(): Promise<void> {
   return running?.platform.switchCamera() ?? Promise.resolve();
+}
+
+const CAMERA_SETTINGS = Platform.OS === 'ios' ? 'Settings' : 'Android settings';
+
+/** A notice for an in-call action that failed; other errors go on up. */
+function noticeFor(error: unknown): void {
+  if (error instanceof CallMediaError) {
+    useCalls.setState({
+      notice:
+        error.reason === 'denied'
+          ? `Video needs the camera. Allow it in ${CAMERA_SETTINGS}.`
+          : 'The camera is not available.',
+    });
+    return;
+  }
+  if (error instanceof CallError && error.code === 'no_video') {
+    useCalls.setState({
+      notice: 'This call cannot switch to video: the other app needs an update.',
+    });
+    return;
+  }
+  throw error;
+}
+
+/** Voice → video: asks the other side (or agrees, if they asked first). */
+export async function requestVideo(): Promise<void> {
+  const r = running;
+  if (!r) return;
+  useCalls.setState({ notice: null });
+  if (!(await grantCallPermissions(true))) {
+    noticeFor(new CallMediaError('denied'));
+    return;
+  }
+  await r.manager.requestVideo().catch(noticeFor);
+}
+
+export async function acceptVideo(): Promise<void> {
+  const r = running;
+  if (!r) return;
+  if (!(await grantCallPermissions(true))) {
+    r.manager.declineVideo();
+    noticeFor(new CallMediaError('denied'));
+    return;
+  }
+  await r.manager.acceptVideo().catch(noticeFor);
+}
+
+export function declineVideo(): void {
+  running?.manager.declineVideo();
+}
+
+export function cancelVideoRequest(): void {
+  running?.manager.cancelVideoRequest();
+}
+
+/** Video → voice for both sides. */
+export function switchToVoice(): void {
+  running?.manager.switchToVoice();
+}
+
+/** What this phone can share: one app from Android 14, else the whole screen. */
+export function shareChoices(): ScreenSurface[] {
+  if (Platform.OS !== 'android') return [];
+  return screenShareChoices(typeof Platform.Version === 'number' ? Platform.Version : 0);
+}
+
+/** Shares one app or the whole screen, after Android's own consent dialog. */
+export async function startScreenShare(surface: ScreenSurface): Promise<void> {
+  const r = running;
+  if (!r) return;
+  useCalls.setState({ notice: null });
+  const result = await r.manager.startScreenShare(surface).catch((error: unknown) => {
+    noticeFor(error);
+    return 'cancelled' as const;
+  });
+  if (result === 'unavailable') {
+    useCalls.setState({ notice: 'Screen sharing did not start on this phone.' });
+  }
+}
+
+export function stopScreenShare(): Promise<void> {
+  return running?.manager.stopScreenShare() ?? Promise.resolve();
 }
 
 export function setAudioRoute(route: AudioRoute): void {

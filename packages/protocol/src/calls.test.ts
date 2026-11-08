@@ -7,7 +7,11 @@ import {
   callSignalToProto,
   type CallSignalData,
 } from './calls';
-import { CallSignal_Type, CallSignalSchema } from './gen/pingdost/v1/content_pb';
+import {
+  CallSignal_Type,
+  CallSignalSchema,
+  type CallSignal_ModeChange,
+} from './gen/pingdost/v1/content_pb';
 import { uuidv7 } from './ids';
 
 const base = (): Pick<CallSignalData, 'callId' | 'callerDeviceId' | 'calleeDeviceId'> => ({
@@ -29,6 +33,11 @@ describe('call signals as plain data', () => {
       { ...base(), type: 'busy' },
       { ...base(), type: 'ringing' },
       { ...base(), type: 'media', muted: true },
+      { ...base(), type: 'media', cameraOff: true, screenSharing: true },
+      { ...base(), type: 'mode', modeChange: 'video_request', modeRequestId: 4_000_000_000 },
+      { ...base(), type: 'mode', modeChange: 'video_accept', modeRequestId: 7 },
+      { ...base(), type: 'mode', modeChange: 'video_decline', modeRequestId: 7 },
+      { ...base(), type: 'mode', modeChange: 'voice' },
     ];
     for (const signal of signals) {
       expect(callSignalFromProto(callSignalToProto(signal))).toEqual(signal);
@@ -54,6 +63,12 @@ describe('call signals as plain data', () => {
     // An offer or answer without SDP is useless.
     const offer = callSignalToProto({ ...base(), type: 'offer', sdp: 'v=0' });
     expect(callSignalFromProto({ ...offer, sdp: '' })).toBeUndefined();
+    // A mode signal must say which change it is (an unknown value from a newer app too).
+    const mode = callSignalToProto({ ...base(), type: 'mode', modeChange: 'voice' });
+    expect(callSignalFromProto({ ...mode, modeChange: 0 })).toBeUndefined();
+    expect(
+      callSignalFromProto({ ...mode, modeChange: 99 as CallSignal_ModeChange }),
+    ).toBeUndefined();
     // Phase 4's vector had no device IDs: such a signal is not accepted.
     expect(
       callSignalFromProto(

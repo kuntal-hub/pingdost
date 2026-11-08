@@ -17,7 +17,9 @@
  * `--answer-after` seconds (default 1; a negative value declines them) and sends back what it
  * receives (werift echo), so the caller hears and sees itself. `--relay` forces TURN on its
  * side; `--dial-user <user ID> [--video]` calls that user 5 s after start. `--calls false`
- * turns this off.
+ * turns this off. It agrees to every request to switch to video (ADR 0037). During a call,
+ * chat messages drive its side: `!video` asks you to switch to video, `!voice` switches back,
+ * `!share` / `!unshare` mark its (echoed) picture as a shared screen.
  */
 import { parseArgs } from 'node:util';
 
@@ -51,8 +53,9 @@ async function main(): Promise<void> {
   // Online for anyone who watches (the app watches the open chat's peer).
   peer.transport.setPresence(true);
   console.log(`echo peer ready: username ${peer.username} (user ${peer.userId})`);
+  let calls: ReturnType<typeof simCalls> | undefined;
   if (values.calls !== 'false') {
-    const calls = simCalls(peer, {
+    calls = simCalls(peer, {
       answerAfterMs: Number(values['answer-after']) * 1_000,
       relayOnly: values.relay,
     });
@@ -61,7 +64,7 @@ async function main(): Promise<void> {
     if (dialUser) {
       setTimeout(() => {
         console.log(`calling ${dialUser}…`);
-        void calls.dial(dialUser, { video: values.video }).catch((error: unknown) => {
+        void calls?.dial(dialUser, { video: values.video }).catch((error: unknown) => {
           console.log(`call failed: ${String(error)}`);
         });
       }, 5_000);
@@ -106,6 +109,22 @@ async function main(): Promise<void> {
           answered.add(message.messageId);
           console.log(`← ${message.body}`);
           await peer.engine.markRead(conversationId);
+          // In-call commands (ADR 0037).
+          const inCall = /^!(video|voice|share|unshare)\b/.exec(message.body)?.[1];
+          if (inCall && calls) {
+            const action =
+              inCall === 'video'
+                ? calls.requestVideo()
+                : inCall === 'voice'
+                  ? Promise.resolve(calls.switchToVoice())
+                  : inCall === 'share'
+                    ? calls.startScreenShare('screen')
+                    : calls.stopScreenShare();
+            await action.then(
+              () => console.log(`  in call: ${inCall}`),
+              (error: unknown) => console.log(`  in call: ${inCall} failed: ${String(error)}`),
+            );
+          }
           const command = /^!(react|edit|delete)\b/.exec(message.body)?.[1];
           if (command === 'react') await peer.engine.react(message.messageId, '👍');
           await peer.engine.setTyping(conversationId, true);

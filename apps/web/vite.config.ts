@@ -94,7 +94,7 @@ export function pagesHeaders(env: Record<string, string>): string {
     '  X-Content-Type-Options: nosniff',
     '  X-Frame-Options: DENY',
     '  Cross-Origin-Opener-Policy: same-origin',
-    '  Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()',
+    '  Permissions-Policy: camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=(), browsing-topics=()',
     '/sw.js',
     '  Cache-Control: no-cache',
     '/assets/*',

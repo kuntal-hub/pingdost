@@ -19,6 +19,7 @@ const FAST: CallSettings = {
   candidateBatchMs: 5,
   signalRetryMs: 20,
   finalSignalRetryWindowMs: 200,
+  videoRequestTimeoutMs: 300,
 };
 
 interface Device {
@@ -360,5 +361,235 @@ describe('CallManager', () => {
     // A copy of the same invite does not ring again.
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(bob.manager.busy).toBe(false);
+  });
+});
+
+describe('CallManager: voice ↔ video in a call (ADR 0037)', () => {
+  const peer = (d: Device) => d.platform.peers.at(-1)!;
+  const call = (d: Device) => d.manager.call!;
+
+  it('voice → video: the asker previews, the other side accepts, both cameras go on', async () => {
+    const { hub, alice, bob } = setup();
+    await connect(alice, bob);
+    expect(call(alice)).toMatchObject({ video: false, canVideo: true, videoRequest: null });
+    expect(peer(alice).camera).toBe('off');
+
+    await alice.manager.requestVideo();
+    // The asker sees itself; nothing is sent yet.
+    expect(peer(alice).camera).toBe('preview');
+    expect(call(alice).videoRequest).toBe('out');
+    await until(() => call(bob).videoRequest === 'in');
+    expect(peer(bob).camera).toBe('off');
+    expect(call(bob).video).toBe(false);
+
+    await bob.manager.acceptVideo();
+    expect(call(bob)).toMatchObject({ video: true, videoRequest: null });
+    expect(peer(bob).camera).toBe('on');
+    await until(() => call(alice).video);
+    expect(peer(alice).camera).toBe('on');
+    expect(call(alice).videoRequest).toBeNull();
+    // Same connection: no renegotiation, no ICE restart.
+    expect(hub.count('renegotiate')).toBe(0);
+    expect(alice.platform.peers).toHaveLength(1);
+    expect(state(alice)).toBe('connected');
+  });
+
+  it('a declined request closes the asker’s camera and tells it', async () => {
+    const { alice, bob } = setup();
+    await connect(alice, bob);
+    await alice.manager.requestVideo();
+    await until(() => call(bob).videoRequest === 'in');
+    bob.manager.declineVideo();
+    expect(call(bob).videoRequest).toBeNull();
+    await until(() => call(alice).videoRequest === null);
+    expect(call(alice)).toMatchObject({ video: false });
+    expect(call(alice).videoDeclinedAt).not.toBeNull();
+    expect(peer(alice).camera).toBe('off');
+    expect(peer(bob).cameraLog).toEqual([]);
+  });
+
+  it('the asker can withdraw; an unanswered request lapses on both sides', async () => {
+    const { alice, bob } = setup();
+    await connect(alice, bob);
+    await alice.manager.requestVideo();
+    await until(() => call(bob).videoRequest === 'in');
+    alice.manager.cancelVideoRequest();
+    expect(peer(alice).camera).toBe('off');
+    await until(() => call(bob).videoRequest === null);
+    // Accepting a withdrawn request does nothing.
+    await bob.manager.acceptVideo();
+    expect(call(bob).video).toBe(false);
+
+    // Nobody answers: withdrawn after the timeout (300 ms here).
+    await alice.manager.requestVideo();
+    await until(() => call(bob).videoRequest === 'in');
+    await until(() => call(alice).videoRequest === null && call(bob).videoRequest === null, 2_000);
+    expect(peer(alice).camera).toBe('off');
+    expect(call(alice).videoDeclinedAt).toBeNull();
+  });
+
+  it('a late answer to an old request is ignored', async () => {
+    const { hub, alice, bob } = setup();
+    await connect(alice, bob);
+    await alice.manager.requestVideo();
+    await until(() => call(bob).videoRequest === 'in');
+    alice.manager.cancelVideoRequest();
+    await until(() => call(bob).videoRequest === null);
+    const old = hub.sent.find((s) => s.signal.modeChange === 'video_request')!.signal;
+    // Bob's "yes" to the withdrawn request arrives after Alice asked again.
+    await alice.manager.requestVideo();
+    hub.inject(alice.deviceId, {
+      fromUserId: 'bob',
+      fromDeviceId: bob.deviceId,
+      signal: { ...old, modeChange: 'video_accept' },
+    });
+    await alice.manager.idle();
+    expect(call(alice)).toMatchObject({ video: false, videoRequest: 'out' });
+  });
+
+  it('both ask at once: each agrees to the other and the call is video', async () => {
+    const { alice, bob } = setup();
+    await connect(alice, bob);
+    await Promise.all([alice.manager.requestVideo(), bob.manager.requestVideo()]);
+    await until(() => call(alice).video && call(bob).video);
+    expect(call(alice).videoRequest).toBeNull();
+    expect(call(bob).videoRequest).toBeNull();
+    expect(peer(alice).camera).toBe('on');
+    expect(peer(bob).camera).toBe('on');
+  });
+
+  it('asking while asked accepts the other side’s request', async () => {
+    const { alice, bob } = setup();
+    await connect(alice, bob);
+    await alice.manager.requestVideo();
+    await until(() => call(bob).videoRequest === 'in');
+    await bob.manager.requestVideo();
+    await until(() => call(alice).video && call(bob).video);
+  });
+
+  it('video → voice applies at once on both sides', async () => {
+    const { alice, bob } = setup();
+    await connect(alice, bob, true);
+    expect(call(alice).video).toBe(true);
+    bob.manager.setCameraOff(true);
+    await until(() => call(alice).remoteCameraOff);
+    alice.manager.switchToVoice();
+    expect(call(alice)).toMatchObject({ video: false, cameraOff: false, remoteCameraOff: false });
+    expect(peer(alice).camera).toBe('off');
+    await until(() => !call(bob).video);
+    expect(peer(bob).camera).toBe('off');
+    expect(call(bob).cameraOff).toBe(false);
+    // And back to video, on the same connection.
+    await bob.manager.requestVideo();
+    await until(() => call(alice).videoRequest === 'in');
+    await alice.manager.acceptVideo();
+    await until(() => call(bob).video);
+    expect(peer(bob).cameraOff).toBe(false);
+    expect(alice.platform.peers).toHaveLength(1);
+  });
+
+  it('no camera: the request is not sent, or the answer is a no', async () => {
+    const { hub, alice, bob } = setup();
+    await connect(alice, bob);
+    peer(alice).mediaError = new CallMediaError('denied');
+    await expect(alice.manager.requestVideo()).rejects.toBeInstanceOf(CallMediaError);
+    expect(call(alice).videoRequest).toBeNull();
+    expect(hub.count('mode')).toBe(0);
+
+    await bob.manager.requestVideo();
+    await until(() => call(alice).videoRequest === 'in');
+    peer(alice).mediaError = new CallMediaError('unavailable');
+    await expect(alice.manager.acceptVideo()).rejects.toBeInstanceOf(CallMediaError);
+    await until(() => call(bob).videoRequest === null);
+    expect(call(bob).video).toBe(false);
+    expect(call(bob).videoDeclinedAt).not.toBeNull();
+    expect(peer(bob).camera).toBe('off');
+  });
+
+  it('refuses to switch when the connection has no video both ways (older app)', async () => {
+    const { hub, alice, bob } = setup();
+    await connect(alice, bob);
+    peer(alice).canVideo = false;
+    expect(call(alice).canVideo).toBe(false);
+    await expect(alice.manager.requestVideo()).rejects.toMatchObject({ code: 'no_video' });
+    await expect(alice.manager.startScreenShare('screen')).rejects.toMatchObject({
+      code: 'no_video',
+    });
+    expect(hub.count('mode')).toBe(0);
+  });
+
+  it('only once answered, and only from the call’s device', async () => {
+    const { hub, network, alice, bob } = setup();
+    await alice.manager.dial('bob', { video: false });
+    await until(() => state(bob) === 'incoming');
+    await alice.manager.requestVideo();
+    await bob.manager.requestVideo();
+    expect(hub.count('mode')).toBe(0);
+    await bob.manager.accept();
+    await until(() => state(alice) === 'connected' && state(bob) === 'connected');
+    // A request from another of Alice's devices is ignored.
+    const other = device(hub, network, 'alice');
+    hub.inject(bob.deviceId, {
+      fromUserId: 'alice',
+      fromDeviceId: other.deviceId,
+      signal: {
+        callId: call(bob).callId,
+        type: 'mode',
+        modeChange: 'video_request',
+        modeRequestId: 5,
+        callerDeviceId: other.deviceId,
+        calleeDeviceId: bob.deviceId,
+      },
+    });
+    await bob.manager.idle();
+    expect(call(bob).videoRequest).toBeNull();
+  });
+});
+
+describe('CallManager: screen sharing (ADR 0037)', () => {
+  const peer = (d: Device) => d.platform.peers.at(-1)!;
+  const call = (d: Device) => d.manager.call!;
+
+  it('shares in a voice call; the other side is told; stopping restores the camera state', async () => {
+    const { alice, bob } = setup();
+    await connect(alice, bob);
+    expect(await alice.manager.startScreenShare('app')).toBe('sharing');
+    expect(peer(alice).screen).toBe('app');
+    expect(call(alice).screenSharing).toBe(true);
+    // Sharing does not make it a video call.
+    expect(call(alice).video).toBe(false);
+    await until(() => call(bob).remoteScreenSharing);
+    await alice.manager.stopScreenShare();
+    expect(peer(alice).screen).toBeNull();
+    await until(() => !call(bob).remoteScreenSharing);
+  });
+
+  it('a cancelled picker shares nothing; the system’s "Stop sharing" ends it', async () => {
+    const { alice, bob } = setup();
+    await connect(alice, bob, true);
+    peer(alice).mediaError = new CallMediaError('denied');
+    expect(await alice.manager.startScreenShare('screen')).toBe('cancelled');
+    peer(alice).mediaError = new CallMediaError('unavailable');
+    expect(await alice.manager.startScreenShare('screen')).toBe('unavailable');
+    expect(call(alice).screenSharing).toBe(false);
+
+    expect(await alice.manager.startScreenShare('screen')).toBe('sharing');
+    await until(() => call(bob).remoteScreenSharing);
+    peer(alice).endScreenShare();
+    await until(() => !call(alice).screenSharing && !call(bob).remoteScreenSharing);
+    // The camera stayed on through it.
+    expect(peer(alice).camera).toBe('on');
+  });
+
+  it('switching to voice keeps the shared screen', async () => {
+    const { alice, bob } = setup();
+    await connect(alice, bob, true);
+    await alice.manager.startScreenShare('screen');
+    await until(() => call(bob).remoteScreenSharing);
+    bob.manager.switchToVoice();
+    await until(() => !call(alice).video);
+    expect(call(alice).screenSharing).toBe(true);
+    expect(peer(alice).screen).toBe('screen');
+    expect(call(bob).remoteScreenSharing).toBe(true);
   });
 });

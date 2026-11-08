@@ -3,6 +3,8 @@
 // `pingdost-call` Web Lock for the whole call and tells the other tabs, which stop ringing;
 // while the lock is held elsewhere, the other tabs leave new invites to that tab, which
 // answers busy. Network changes restart ICE. Ended calls go to the local call history.
+// In a call (ADR 0037): voice ↔ video, screen sharing, the next camera, and a minimized call
+// window so the rest of the app stays usable.
 import { create } from 'zustand';
 
 import type { ChatClient } from '@/chat/client';
@@ -11,9 +13,11 @@ import { api } from '@/session/session';
 import {
   CallError,
   CallManager,
+  CallMediaError,
   isLive,
   type CallSnapshot,
   type IceServer,
+  type ScreenSurface,
 } from '@pingdost/call-engine';
 
 import { WebCallPlatform, type CallPath } from './platform';
@@ -29,19 +33,45 @@ interface CallsState {
   call: CallSnapshot | null;
   local: MediaStream | null;
   remote: MediaStream | null;
+  /** This tab's shared screen. */
+  screen: MediaStream | null;
+  mirrorSelf: boolean;
   /** How media flows once connected (direct or TURN), refreshed every few seconds. */
   path: CallPath | null;
-  /** Why the last dial did not start (another tab is in a call). */
+  /** Why the last action did not work (another tab is in a call, no camera, …). */
   notice: string | null;
+  /** The call shows as a small window, so the rest of the app can be used. */
+  minimized: boolean;
 }
 
 export const useCalls = create<CallsState>()(() => ({
   call: null,
   local: null,
   remote: null,
+  screen: null,
+  mirrorSelf: true,
   path: null,
   notice: null,
+  minimized: false,
 }));
+
+const CAMERA_DENIED = 'PingDost may not use the camera. Allow it in the site settings.';
+const NO_VIDEO = 'This call cannot switch to video: the other app needs an update.';
+
+/** A notice for an in-call action that failed; other errors go on up. */
+function noticeFor(error: unknown): void {
+  if (error instanceof CallMediaError) {
+    useCalls.setState({
+      notice: error.reason === 'denied' ? CAMERA_DENIED : 'No camera was found.',
+    });
+    return;
+  }
+  if (error instanceof CallError && error.code === 'no_video') {
+    useCalls.setState({ notice: NO_VIDEO });
+    return;
+  }
+  throw error;
+}
 
 interface Runtime {
   manager: CallManager;
@@ -168,7 +198,10 @@ export function startCalls(self: { userId: string; deviceId: string }): () => vo
     pathTimer = undefined;
   };
   manager.onChange((call) => {
-    useCalls.setState({ call, ...(call && isLive(call.state) ? {} : { path: null }) });
+    useCalls.setState({
+      call,
+      ...(call && isLive(call.state) ? {} : { path: null, minimized: false }),
+    });
     if (call?.state === 'incoming') {
       ringtone.start();
       if (document.visibilityState !== 'visible') void notice(true);
@@ -209,7 +242,14 @@ export function startCalls(self: { userId: string; deviceId: string }): () => vo
     runtime?.release?.();
     channel.close();
     runtime = null;
-    useCalls.setState({ call: null, local: null, remote: null, path: null });
+    useCalls.setState({
+      call: null,
+      local: null,
+      remote: null,
+      screen: null,
+      path: null,
+      minimized: false,
+    });
   };
 }
 
@@ -278,6 +318,58 @@ export function setCameraOff(off: boolean): void {
 
 export function switchInput(kind: 'microphone' | 'camera', deviceId: string): Promise<void> {
   return runtime?.platform.switchInput(kind, deviceId) ?? Promise.resolve();
+}
+
+/** Voice → video: asks the other side (or agrees, if they asked first). */
+export async function requestVideo(): Promise<void> {
+  await runtime?.manager.requestVideo().catch(noticeFor);
+}
+
+export async function acceptVideo(): Promise<void> {
+  await runtime?.manager.acceptVideo().catch(noticeFor);
+}
+
+export function declineVideo(): void {
+  runtime?.manager.declineVideo();
+}
+
+export function cancelVideoRequest(): void {
+  runtime?.manager.cancelVideoRequest();
+}
+
+/** Video → voice for both sides. */
+export function switchToVoice(): void {
+  runtime?.manager.switchToVoice();
+}
+
+/** Shares a window or the whole screen; call it straight from the click (browser rule). */
+export async function startScreenShare(surface: ScreenSurface): Promise<void> {
+  const r = runtime;
+  if (!r) return;
+  const result = await r.manager.startScreenShare(surface).catch((error: unknown) => {
+    noticeFor(error);
+    return 'cancelled' as const;
+  });
+  if (result === 'unavailable') {
+    useCalls.setState({ notice: 'This browser cannot share the screen.' });
+  }
+}
+
+export function stopScreenShare(): Promise<void> {
+  return runtime?.manager.stopScreenShare() ?? Promise.resolve();
+}
+
+/** The next camera (front ↔ back, or the next webcam). */
+export function flipCamera(): Promise<void> {
+  return runtime?.platform.flipCamera().catch(() => undefined) ?? Promise.resolve();
+}
+
+export function cameraCount(): Promise<number> {
+  return runtime?.platform.cameras().then((list) => list.length) ?? Promise.resolve(0);
+}
+
+export function setMinimized(minimized: boolean): void {
+  useCalls.setState({ minimized });
 }
 
 /** Hides the "Call ended" line. */

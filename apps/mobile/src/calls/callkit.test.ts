@@ -26,6 +26,11 @@ function snapshot(fields: Partial<CallSnapshot> = {}): CallSnapshot {
     remoteMuted: false,
     remoteCameraOff: false,
     relayOnly: false,
+    videoRequest: null,
+    videoDeclinedAt: null,
+    screenSharing: false,
+    remoteScreenSharing: false,
+    canVideo: false,
     ...fields,
   };
 }

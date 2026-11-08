@@ -14,9 +14,14 @@
  *   the caller; the callee asks for it. No connection within the timeouts ends the call.
  * - Signals name both call devices and are checked against the sender; late or duplicate
  *   signals for another or an ended call are ignored.
+ * - In a call (ADR 0037): voice → video is a request the other side accepts (both cameras go
+ *   on) or declines; the asker sees its own camera meanwhile and withdraws after a timeout.
+ *   Video → voice applies at once on both sides. Either side may share its screen (or one
+ *   app) in place of its camera. None of it renegotiates: every call has a video section.
  */
 import {
   uuidv7,
+  type CallModeChange,
   type CallOutcome,
   type CallSignalData,
   type IncomingCallSignal,
@@ -30,6 +35,7 @@ import {
   type CallSignaling,
   type IceCandidate,
   type PeerConnectionState,
+  type ScreenSurface,
 } from './types';
 
 export interface CallSettings {
@@ -49,6 +55,8 @@ export interface CallSettings {
   signalRetryMs: number;
   /** How long a hang-up or reject keeps being tried. */
   finalSignalRetryWindowMs: number;
+  /** A request to switch to video that gets no answer is withdrawn after this long. */
+  videoRequestTimeoutMs: number;
 }
 
 export const DEFAULT_CALL_SETTINGS: CallSettings = {
@@ -60,6 +68,7 @@ export const DEFAULT_CALL_SETTINGS: CallSettings = {
   candidateBatchMs: 40,
   signalRetryMs: 1_000,
   finalSignalRetryWindowMs: 10_000,
+  videoRequestTimeoutMs: 30_000,
 };
 
 export type CallErrorReason =
@@ -71,6 +80,7 @@ export interface CallSnapshot {
   /** The other side's call device once known: the caller's, or the callee's that answered. */
   peerDeviceId: string | null;
   direction: 'in' | 'out';
+  /** The call is a video call now (it may switch, ADR 0037). */
   video: boolean;
   state: CallState;
   outcome: CallOutcome | null;
@@ -85,7 +95,19 @@ export interface CallSnapshot {
   remoteCameraOff: boolean;
   /** "Force relay (TURN)" was on for this call. */
   relayOnly: boolean;
+  /** A request to switch to video is waiting: this side asked ('out') or was asked ('in'). */
+  videoRequest: 'in' | 'out' | null;
+  /** When the other side last declined this side's request (for a short notice). */
+  videoDeclinedAt: number | null;
+  /** This side shares its screen (or one app) in place of its camera. */
+  screenSharing: boolean;
+  remoteScreenSharing: boolean;
+  /** The connection can carry video both ways: switching to video and screen sharing work. */
+  canVideo: boolean;
 }
+
+/** How a screen-sharing attempt went. */
+export type ScreenShareResult = 'sharing' | 'cancelled' | 'unavailable';
 
 /** What to do with an invite while this manager has no call. */
 export type IncomingPolicy = 'ring' | 'busy' | 'ignore';
@@ -107,7 +129,8 @@ export interface CallManagerOptions {
 
 export class CallError extends Error {
   constructor(
-    readonly code: 'busy' | 'self',
+    /** `no_video`: the other side's app cannot take video in this call (an older version). */
+    readonly code: 'busy' | 'self' | 'no_video',
     message: string,
   ) {
     super(message);
@@ -144,7 +167,18 @@ interface Active {
   reconnectTimer?: ReturnType<typeof setTimeout>;
   restartTimer?: ReturnType<typeof setTimeout>;
   batchTimer?: ReturnType<typeof setTimeout>;
+  /** The open request to switch to video lapses (either direction). */
+  requestTimer?: ReturnType<typeof setTimeout>;
   lastRestartAskAt: number;
+  /** This side's open request to switch to video. */
+  outgoingRequest: number | null;
+  /** The other side's open request. */
+  incomingRequest: number | null;
+}
+
+/** A request number for a `mode` signal: random, never 0 (proto's "not set"). */
+function requestId(): number {
+  return 1 + Math.floor(Math.random() * 0xffff_fffe);
 }
 
 /** Call IDs remembered after the call ended, so late signals for them are ignored. */
@@ -173,7 +207,12 @@ export class CallManager {
 
   /** The live call, or the one that ended last (until `clearEnded`). */
   get call(): CallSnapshot | null {
-    return this.#active ? { ...this.#active.snap } : this.#last;
+    const active = this.#active;
+    if (!active) return this.#last;
+    return {
+      ...active.snap,
+      canVideo: active.remoteDescription && (active.peer?.canVideo ?? false),
+    };
   }
 
   get busy(): boolean {
@@ -350,6 +389,124 @@ export class CallManager {
   }
 
   /**
+   * Voice → video: asks the other side, with this camera open for the self view meanwhile.
+   * Answers a request from the other side instead when there is one. Throws `CallMediaError`
+   * when the camera cannot be opened, `CallError('no_video')` when the call cannot carry video.
+   */
+  async requestVideo(): Promise<void> {
+    const active = this.#active;
+    if (!active?.peer || !this.#answered(active) || active.snap.video) return;
+    if (active.snap.videoRequest === 'in') {
+      await this.acceptVideo();
+      return;
+    }
+    if (active.snap.videoRequest === 'out') return;
+    if (!active.peer.canVideo) throw new CallError('no_video', 'this call cannot carry video');
+    await active.peer.setCamera('preview');
+    if (!this.#current(active) || active.snap.video || active.snap.videoRequest === 'out') return;
+    if (active.snap.videoRequest === 'in') {
+      // They asked while the camera opened: that is a yes from both.
+      await this.acceptVideo();
+      return;
+    }
+    const id = requestId();
+    active.outgoingRequest = id;
+    active.snap.videoRequest = 'out';
+    active.snap.videoDeclinedAt = null;
+    active.requestTimer = this.#after(active, this.#settings.videoRequestTimeoutMs, () =>
+      this.#withdrawVideo(active, id),
+    );
+    this.#emit();
+    this.#sendMode(active, 'video_request', id);
+  }
+
+  /** Agrees to the other side's request: this camera goes on and the call is a video call. */
+  async acceptVideo(): Promise<void> {
+    const active = this.#active;
+    if (!active?.peer || active.snap.videoRequest !== 'in' || active.incomingRequest === null) {
+      return;
+    }
+    const id = active.incomingRequest;
+    try {
+      await active.peer.setCamera('on');
+    } catch (error) {
+      // No camera here: say no rather than leave the asker waiting.
+      this.declineVideo();
+      throw error;
+    }
+    if (!this.#current(active)) return;
+    if (active.incomingRequest !== id) {
+      // Withdrawn while the camera opened.
+      if (!active.snap.video) this.#closeCamera(active);
+      return;
+    }
+    this.#becomeVideo(active);
+    this.#sendMode(active, 'video_accept', id);
+  }
+
+  /** Turns the other side's request down. */
+  declineVideo(): void {
+    const active = this.#active;
+    if (!active || active.snap.videoRequest !== 'in' || active.incomingRequest === null) return;
+    const id = active.incomingRequest;
+    this.#clearRequest(active);
+    this.#emit();
+    this.#sendMode(active, 'video_decline', id);
+  }
+
+  /** Withdraws this side's request. */
+  cancelVideoRequest(): void {
+    const active = this.#active;
+    if (active?.snap.videoRequest !== 'out' || active.outgoingRequest === null) return;
+    this.#withdrawVideo(active, active.outgoingRequest);
+  }
+
+  /** Video → voice on both sides at once (no answer needed: nobody shows more than before). */
+  switchToVoice(): void {
+    const active = this.#active;
+    if (!active || !this.#answered(active) || !active.snap.video) return;
+    this.#becomeVoice(active);
+    this.#sendMode(active, 'voice');
+  }
+
+  /**
+   * Shares the screen (or one app) in place of the camera, after the system or browser
+   * picker. Call it straight from the user's tap.
+   */
+  async startScreenShare(surface: ScreenSurface): Promise<ScreenShareResult> {
+    const active = this.#active;
+    if (!active?.peer || !this.#answered(active) || active.snap.screenSharing) return 'cancelled';
+    if (!active.peer.canVideo) throw new CallError('no_video', 'this call cannot carry video');
+    try {
+      await active.peer.setScreenShare(surface);
+    } catch (error) {
+      this.#log('screen share not started', { error: String(error) });
+      if (error instanceof CallMediaError) {
+        return error.reason === 'denied' ? 'cancelled' : 'unavailable';
+      }
+      return 'unavailable';
+    }
+    if (!this.#current(active)) return 'cancelled';
+    active.snap.screenSharing = true;
+    this.#emit();
+    this.#sendMediaState(active);
+    return 'sharing';
+  }
+
+  async stopScreenShare(): Promise<void> {
+    const active = this.#active;
+    if (!active?.snap.screenSharing) return;
+    active.snap.screenSharing = false;
+    this.#emit();
+    this.#sendMediaState(active);
+    try {
+      await active.peer?.setScreenShare(null);
+    } catch (error) {
+      this.#log('screen share not stopped', { error: String(error) });
+    }
+  }
+
+  /**
    * The device switched networks (Wi-Fi ↔ mobile, or came back online): restart ICE now, in the
    * background. The call state follows the connection itself: WebRTC often rides out the switch
    * without leaving "connected" (seen on two phones), so only a real "disconnected" or "failed"
@@ -444,11 +601,143 @@ export class CallManager {
       case 'media':
         active.snap.remoteMuted = signal.muted ?? false;
         active.snap.remoteCameraOff = signal.cameraOff ?? false;
+        active.snap.remoteScreenSharing = signal.screenSharing ?? false;
         this.#emit();
+        break;
+      case 'mode':
+        await this.#onMode(active, signal);
         break;
       default:
         break;
     }
+  }
+
+  async #onMode(active: Active, signal: CallSignalData): Promise<void> {
+    if (!this.#answered(active) || !active.peer) return;
+    const id = signal.modeRequestId ?? 0;
+    switch (signal.modeChange) {
+      case 'video_request': {
+        if (active.snap.video) {
+          // Already a video call (a repeat, or both asked): agree again.
+          this.#sendMode(active, 'video_accept', id);
+          return;
+        }
+        if (active.snap.videoRequest === 'out') {
+          // Both asked at once: agree to theirs, which also answers ours.
+          try {
+            await active.peer.setCamera('on');
+          } catch (error) {
+            this.#log('camera not opened', { error: String(error) });
+            if (active.outgoingRequest !== null)
+              this.#withdrawVideo(active, active.outgoingRequest);
+            this.#sendMode(active, 'video_decline', id);
+            return;
+          }
+          if (!this.#current(active) || active.snap.video) return;
+          this.#becomeVideo(active);
+          this.#sendMode(active, 'video_accept', id);
+          return;
+        }
+        this.#clearRequest(active);
+        active.incomingRequest = id;
+        active.snap.videoRequest = 'in';
+        // The asker withdraws by itself at its timeout; this covers a lost withdrawal.
+        active.requestTimer = this.#after(active, this.#settings.videoRequestTimeoutMs, () => {
+          if (active.incomingRequest !== id) return;
+          this.#clearRequest(active);
+          this.#emit();
+        });
+        this.#emit();
+        return;
+      }
+      case 'video_accept':
+        if (active.snap.videoRequest !== 'out' || active.outgoingRequest !== id) return;
+        try {
+          await active.peer.setCamera('on');
+        } catch (error) {
+          // The camera went away meanwhile: back to voice on both sides.
+          this.#log('camera not opened', { error: String(error) });
+          this.#becomeVoice(active);
+          this.#sendMode(active, 'voice');
+          return;
+        }
+        if (!this.#current(active) || active.outgoingRequest !== id) return;
+        this.#becomeVideo(active);
+        return;
+      case 'video_decline':
+        if (active.snap.videoRequest === 'out' && active.outgoingRequest === id) {
+          this.#clearRequest(active);
+          active.snap.videoDeclinedAt = this.#now();
+          this.#closeCamera(active);
+          this.#emit();
+        } else if (active.snap.videoRequest === 'in' && active.incomingRequest === id) {
+          // They withdrew it.
+          this.#clearRequest(active);
+          this.#emit();
+        }
+        return;
+      case 'voice':
+        if (active.snap.video) this.#becomeVoice(active);
+        return;
+      default:
+        return;
+    }
+  }
+
+  #becomeVideo(active: Active): void {
+    this.#clearRequest(active);
+    active.snap.video = true;
+    active.snap.videoDeclinedAt = null;
+    if (active.snap.cameraOff) {
+      active.snap.cameraOff = false;
+      this.#sendMediaState(active);
+    }
+    active.peer?.setCameraOff(false);
+    this.#emit();
+  }
+
+  #becomeVoice(active: Active): void {
+    this.#clearRequest(active);
+    active.snap.video = false;
+    active.snap.cameraOff = false;
+    active.snap.remoteCameraOff = false;
+    this.#closeCamera(active);
+    this.#emit();
+  }
+
+  #withdrawVideo(active: Active, id: number): void {
+    if (!this.#current(active) || active.outgoingRequest !== id) return;
+    this.#clearRequest(active);
+    this.#closeCamera(active);
+    this.#emit();
+    this.#sendMode(active, 'video_decline', id);
+  }
+
+  #clearRequest(active: Active): void {
+    active.outgoingRequest = null;
+    active.incomingRequest = null;
+    active.snap.videoRequest = null;
+    this.#clear(active, 'requestTimer');
+  }
+
+  #closeCamera(active: Active): void {
+    const peer = active.peer;
+    if (!peer) return;
+    void peer.setCamera('off').catch((error: unknown) => {
+      this.#log('camera not closed', { error: String(error) });
+    });
+  }
+
+  #onScreenShareEnded(active: Active): void {
+    if (!this.#current(active) || !active.snap.screenSharing) return;
+    active.snap.screenSharing = false;
+    this.#emit();
+    this.#sendMediaState(active);
+  }
+
+  /** Answered and not over: in-call changes (video, screen sharing) apply. */
+  #answered(active: Active): boolean {
+    return this.#current(active) && !isUnanswered(active.snap.state);
   }
 
   async #onOffer({ fromUserId, fromDeviceId, signal }: IncomingCallSignal): Promise<void> {
@@ -868,8 +1157,25 @@ export class CallManager {
         type: 'media',
         muted: active.snap.muted,
         cameraOff: active.snap.cameraOff,
+        screenSharing: active.snap.screenSharing,
       },
       this.#now() + 5_000,
+    );
+  }
+
+  #sendMode(active: Active, modeChange: CallModeChange, id?: number): void {
+    const deviceId = active.snap.peerDeviceId;
+    if (!deviceId) return;
+    void this.#sendReliable(
+      active,
+      deviceId,
+      {
+        ...this.#ids(active, deviceId),
+        type: 'mode',
+        modeChange,
+        ...(id ? { modeRequestId: id } : {}),
+      },
+      this.#now() + 10_000,
     );
   }
 
@@ -904,6 +1210,11 @@ export class CallManager {
         remoteMuted: false,
         remoteCameraOff: false,
         relayOnly: this.#o.relayOnly?.() ?? false,
+        videoRequest: null,
+        videoDeclinedAt: null,
+        screenSharing: false,
+        remoteScreenSharing: false,
+        canVideo: false,
       },
       everConnected: false,
       peer: null,
@@ -915,6 +1226,8 @@ export class CallManager {
       gathered: [],
       timers: new Set(),
       lastRestartAskAt: 0,
+      outgoingRequest: null,
+      incomingRequest: null,
     };
     this.#active = active;
     this.#last = null;
@@ -932,6 +1245,7 @@ export class CallManager {
         {
           onIceCandidate: (candidate) => this.#onLocalCandidate(active, candidate),
           onConnectionState: (state) => this.#onPeerState(active, state),
+          onScreenShareEnded: () => this.#onScreenShareEnded(active),
         },
       );
     } catch (error) {
@@ -1070,7 +1384,10 @@ export class CallManager {
     return timer;
   }
 
-  #clear(active: Active, key: 'connectTimer' | 'reconnectTimer' | 'restartTimer'): void {
+  #clear(
+    active: Active,
+    key: 'connectTimer' | 'reconnectTimer' | 'restartTimer' | 'requestTimer',
+  ): void {
     const timer = active[key];
     if (timer === undefined) return;
     clearTimeout(timer);

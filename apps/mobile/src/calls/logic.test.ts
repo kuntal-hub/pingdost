@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import type { CallSnapshot } from '@pingdost/call-engine';
 
-import { callActionsFor, callStatus, missedCallContent, pushKind, wantsProximity } from './logic';
+import {
+  callActionsFor,
+  callStatus,
+  missedCallContent,
+  pushKind,
+  routeAfterSwitch,
+  screenShareChoices,
+  shouldPauseCamera,
+  wantsPip,
+  wantsProximity,
+} from './logic';
 
 function snapshot(fields: Partial<CallSnapshot> = {}): CallSnapshot {
   return {
@@ -23,6 +33,11 @@ function snapshot(fields: Partial<CallSnapshot> = {}): CallSnapshot {
     remoteMuted: false,
     remoteCameraOff: false,
     relayOnly: false,
+    videoRequest: null,
+    videoDeclinedAt: null,
+    screenSharing: false,
+    remoteScreenSharing: false,
+    canVideo: true,
     ...fields,
   };
 }
@@ -75,5 +90,50 @@ describe('call screen wording', () => {
     expect(wantsProximity(snapshot({ video: true }), 'earpiece')).toBe(false);
     expect(wantsProximity(snapshot({ state: 'incoming' }), 'earpiece')).toBe(false);
     expect(wantsProximity(null, 'earpiece')).toBe(false);
+    // A shared screen is something to look at (ADR 0037).
+    expect(wantsProximity(snapshot({ remoteScreenSharing: true }), 'earpiece')).toBe(false);
+    expect(wantsProximity(snapshot({ screenSharing: true }), 'earpiece')).toBe(false);
+  });
+});
+
+describe('in-call changes (ADR 0037)', () => {
+  it('offers picture-in-picture for video and for the other side’s screen, not for voice', () => {
+    expect(wantsPip(snapshot({ video: true }))).toBe(true);
+    expect(wantsPip(snapshot({ remoteScreenSharing: true }))).toBe(true);
+    expect(wantsPip(snapshot())).toBe(false);
+    expect(wantsPip(snapshot({ video: true, remoteCameraOff: true }))).toBe(false);
+    expect(wantsPip(snapshot({ video: true, state: 'incoming' }))).toBe(false);
+    expect(wantsPip(snapshot({ video: true, state: 'ended' }))).toBe(false);
+    expect(wantsPip(null)).toBe(false);
+  });
+
+  it('pauses the camera only while nobody can see the app', () => {
+    const video = snapshot({ video: true });
+    expect(shouldPauseCamera(video, false, false)).toBe(true);
+    expect(shouldPauseCamera(video, true, false)).toBe(false);
+    expect(shouldPauseCamera(video, false, true)).toBe(false);
+    expect(shouldPauseCamera(snapshot(), false, false)).toBe(false);
+    // Already off by the user: nothing to pause (and nothing to turn back on later).
+    expect(shouldPauseCamera(snapshot({ video: true, cameraOff: true }), false, false)).toBe(false);
+  });
+
+  it('moves the sound to the speaker for video and back for voice, leaving headsets alone', () => {
+    expect(
+      routeAfterSwitch(true, { available: ['earpiece', 'speaker'], current: 'earpiece' }),
+    ).toBe('speaker');
+    expect(
+      routeAfterSwitch(false, { available: ['earpiece', 'speaker'], current: 'speaker' }),
+    ).toBe('earpiece');
+    expect(routeAfterSwitch(true, { available: ['speaker', 'headset'], current: 'headset' })).toBe(
+      null,
+    );
+    expect(routeAfterSwitch(false, { available: ['speaker'], current: 'speaker' })).toBe(null);
+    expect(routeAfterSwitch(true, null)).toBe(null);
+  });
+
+  it('offers one app only from Android 14', () => {
+    expect(screenShareChoices(36)).toEqual(['app', 'screen']);
+    expect(screenShareChoices(34)).toEqual(['app', 'screen']);
+    expect(screenShareChoices(33)).toEqual(['screen']);
   });
 });

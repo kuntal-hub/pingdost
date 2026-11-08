@@ -47,6 +47,8 @@ module.exports = ({ config }) => {
       ...(iosUrlScheme ? [['@react-native-google-signin/google-signin', { iosUrlScheme }]] : []),
       // Release builds signed with the upload key from ~/.gradle/gradle.properties (Phase 20).
       './plugins/with-release-signing',
+      // Video calls shrink into picture-in-picture (ADR 0037).
+      './plugins/with-call-pip',
     ],
   };
 };

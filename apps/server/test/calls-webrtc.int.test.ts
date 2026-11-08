@@ -164,4 +164,33 @@ describe('WebRTC calls between two sim clients', () => {
     expect(call_.relayOnly).toBe(true);
     expect(mongoWrites).toEqual([]);
   }, 60_000);
+
+  // ADR 0037: a voice call switches to video and back, and shares a screen, on one connection.
+  it('switches voice → video → voice and shares a screen without reconnecting', async () => {
+    const { bob, caller, callee } = await pair(false);
+    const before = frames.length;
+    recording = true;
+    await caller.dial(bob.userId, { video: false });
+    await until(
+      () => caller.call?.state === 'connected' && callee.call?.state === 'connected',
+      'a connected call',
+    );
+    await until(() => caller.call!.canVideo, 'a video section both ways');
+    const connectedAt = caller.call!.connectedAt;
+    // The callee sim agrees by itself.
+    await caller.requestVideo();
+    await until(() => caller.call!.video && callee.call!.video, 'a video call');
+    expect(await caller.startScreenShare('screen')).toBe('sharing');
+    await until(() => callee.call!.remoteScreenSharing, 'the shared screen');
+    callee.switchToVoice();
+    await until(() => !caller.call!.video, 'a voice call again');
+    expect(caller.call).toMatchObject({ state: 'connected', connectedAt, screenSharing: true });
+    await caller.hangup();
+    await until(() => callee.call?.state === 'ended', 'the hang-up');
+    recording = false;
+    for (const frame of frames.slice(before)) {
+      for (const marker of MARKERS) expect(containsMarker(frame, marker), marker).toBe(false);
+    }
+    expect(mongoWrites).toEqual([]);
+  }, 60_000);
 });

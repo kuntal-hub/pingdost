@@ -37,6 +37,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 29 | [iOS: push (APNs) + calls (CallKit)](phases/phase-29-ios-push-calls.md) | 28 | 🔄 |
 | 30 | [iOS: nearby / mesh + Android↔iOS](phases/phase-30-ios-mesh.md) | 28 | 🔄 |
 | 31 | [UI/UX refresh: "Pop" design system, configurable appearance](phases/phase-31-ui-refresh.md) | — | 🔄 |
+| 32 | [Calls C: voice ↔ video, screen sharing, background, picture-in-picture](phases/phase-32-calls-in-call.md) | 25, 26 | 🔄 |
 
 **Order notes**
 - Phases mostly run in number order. Where dependencies allow, some can move:
@@ -76,7 +77,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | §9 | Mailbox, retention, migration, monitoring | 08, 20 |
 | §10 | Attachments | 14, 15, 18, 24 |
 | §11 | Nearby + mesh | 21, 22, 23, 24, (30) |
-| §12 | Calls | 25, 26, (29) |
+| §12 | Calls | 25, 26, 32, (29) |
 | §13 | Web pairing + sync | 16, 17, 18 |
 | §14 | Local storage + controls | 03, 10, 11, 15, 16, 17, 23 |
 | §15 | Backend modules | 05, 06, 08, 11, 12, 13, 14, 16, 23, 25 |

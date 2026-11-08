@@ -34,7 +34,21 @@ export interface PeerEvents {
   /** A gathered local candidate; null when gathering is complete. */
   onIceCandidate(candidate: IceCandidate | null): void;
   onConnectionState(state: PeerConnectionState): void;
+  /** The system or browser stopped the screen sharing (its own "Stop sharing", app closed). */
+  onScreenShareEnded(): void;
 }
+
+/**
+ * The camera of a call (ADR 0037): `preview` is open for the self view only (while asking to
+ * switch to video), `on` is sent. `off` closes it.
+ */
+export type CameraState = 'off' | 'preview' | 'on';
+
+/**
+ * What the user chose to share: one app or window (Android 14+ lets the user pick an app; a
+ * browser preselects windows), or the whole screen.
+ */
+export type ScreenSurface = 'app' | 'screen';
 
 export interface CallPeer {
   createOffer(options?: { iceRestart?: boolean }): Promise<SessionDescription>;
@@ -49,6 +63,22 @@ export interface CallPeer {
   setMuted(muted: boolean): void;
   /** Turns the outgoing camera track off or on (video calls). */
   setCameraOff(off: boolean): void;
+  /**
+   * Opens, sends or closes the camera on the call's video sender (ADR 0037). Throws
+   * `CallMediaError` when the camera cannot be opened. A shared screen keeps the sender.
+   */
+  setCamera(state: CameraState): Promise<void>;
+  /**
+   * Starts sharing `surface` in place of the camera, or stops (null; the camera comes back if
+   * it is on). Asks the user through the system or browser picker; throws `CallMediaError`
+   * ('denied') when they cancel. Must run straight from the user's tap (browsers require it).
+   */
+  setScreenShare(surface: ScreenSurface | null): Promise<void>;
+  /**
+   * The connection carries video both ways (a negotiated send-and-receive video section), so
+   * the call can switch to video or share a screen. False with an older app on the other side.
+   */
+  readonly canVideo: boolean;
   /** Stops local media and closes the connection. */
   close(): void;
 }
@@ -57,6 +87,10 @@ export interface PeerOptions {
   iceServers: IceServer[];
   /** "Force relay (TURN)": `iceTransportPolicy: 'relay'`. */
   relayOnly: boolean;
+  /**
+   * The call starts as a video call: the camera opens with the microphone. Either way the
+   * connection gets a send-and-receive video section, so the call can switch later.
+   */
   video: boolean;
 }
 

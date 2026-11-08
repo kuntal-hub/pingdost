@@ -1,10 +1,12 @@
 import * as Notifications from 'expo-notifications';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
+import { View } from 'react-native';
 
 import { useCalls } from '@/calls/runtime';
 import { conversationOf } from '@/push/notifications';
 import { usePhoneRequests } from '@/recovery/approvals';
+import { CallMiniWindow, CallPipView } from '@/screens/calls/call-overlays';
 
 // Deep links into a chat still have the tabs underneath to go back to.
 export const unstable_settings = { anchor: '(tabs)' };
@@ -49,11 +51,25 @@ function useIncomingCallScreen(): void {
   }, [ringing, router]);
 }
 
-/** The signed-in app: the tabs, with chats and contacts pushed over them (no tab bar there). */
+/**
+ * The signed-in app: the tabs, with chats and contacts pushed over them (no tab bar there). A
+ * call going on shows over every screen as a mini window, and alone in picture-in-picture
+ * (ADR 0037).
+ */
 export default function AppStack() {
   useNotificationTaps();
   usePhoneRequestPrompt();
   useIncomingCallScreen();
+  return (
+    <View style={{ flex: 1 }}>
+      <Screens />
+      <CallMiniWindow />
+      <CallPipView />
+    </View>
+  );
+}
+
+function Screens() {
   return (
     <Stack screenOptions={{ headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

@@ -1,6 +1,7 @@
 // The icon set: Lucide, the same glyphs as the web app. Each icon is imported on its own so only
 // the ones listed here end up in the bundle. Add new ones to this list.
 import type { LucideIcon } from 'lucide-react-native';
+import AppWindowIcon from 'lucide-react-native/icons/app-window';
 import ArchiveIcon from 'lucide-react-native/icons/archive';
 import ArchiveRestoreIcon from 'lucide-react-native/icons/archive-restore';
 import ArrowDownIcon from 'lucide-react-native/icons/arrow-down';
@@ -15,6 +16,7 @@ import CameraIcon from 'lucide-react-native/icons/camera';
 import CaseSensitiveIcon from 'lucide-react-native/icons/case-sensitive';
 import CheckIcon from 'lucide-react-native/icons/check';
 import CheckCheckIcon from 'lucide-react-native/icons/check-check';
+import ChevronDownIcon from 'lucide-react-native/icons/chevron-down';
 import ChevronRightIcon from 'lucide-react-native/icons/chevron-right';
 import CircleAlertIcon from 'lucide-react-native/icons/circle-alert';
 import ClockIcon from 'lucide-react-native/icons/clock';
@@ -42,6 +44,7 @@ import MessageCircleIcon from 'lucide-react-native/icons/message-circle';
 import MessageCirclePlusIcon from 'lucide-react-native/icons/message-circle-plus';
 import MicIcon from 'lucide-react-native/icons/mic';
 import MicOffIcon from 'lucide-react-native/icons/mic-off';
+import MonitorIcon from 'lucide-react-native/icons/monitor';
 import MoonIcon from 'lucide-react-native/icons/moon';
 import MusicIcon from 'lucide-react-native/icons/music';
 import PaletteIcon from 'lucide-react-native/icons/palette';
@@ -62,6 +65,8 @@ import ReplyIcon from 'lucide-react-native/icons/reply';
 import RotateCcwIcon from 'lucide-react-native/icons/rotate-ccw';
 import RouteIcon from 'lucide-react-native/icons/route';
 import ScanLineIcon from 'lucide-react-native/icons/scan-line';
+import ScreenShareIcon from 'lucide-react-native/icons/screen-share';
+import ScreenShareOffIcon from 'lucide-react-native/icons/screen-share-off';
 import SearchIcon from 'lucide-react-native/icons/search';
 import SendIcon from 'lucide-react-native/icons/send';
 import SettingsIcon from 'lucide-react-native/icons/settings';
@@ -89,6 +94,7 @@ import { usePalette } from '@/theme/theme-root';
 import type { ColorName } from '@pingdost/ui-tokens';
 
 export {
+  AppWindowIcon,
   ArchiveIcon,
   ArchiveRestoreIcon,
   ArrowDownIcon,
@@ -103,6 +109,7 @@ export {
   CaseSensitiveIcon,
   CheckCheckIcon,
   CheckIcon,
+  ChevronDownIcon,
   ChevronRightIcon,
   CircleAlertIcon,
   ClockIcon,
@@ -130,6 +137,7 @@ export {
   MessageCirclePlusIcon,
   MicIcon,
   MicOffIcon,
+  MonitorIcon,
   MoonIcon,
   MusicIcon,
   PaletteIcon,
@@ -150,6 +158,8 @@ export {
   RotateCcwIcon,
   RouteIcon,
   ScanLineIcon,
+  ScreenShareIcon,
+  ScreenShareOffIcon,
   SearchIcon,
   SendIcon,
   SettingsIcon,

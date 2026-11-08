@@ -8,11 +8,13 @@ export type {
   CallSettings,
   CallSnapshot,
   IncomingPolicy,
+  ScreenShareResult,
 } from './manager';
 export { isLive, isUnanswered, LIVE_STATES, transition } from './machine';
 export type { CallContext, CallEvent, CallState, Transition } from './machine';
 export { CallMediaError } from './types';
 export type {
+  CameraState,
   CallPeer,
   CallPlatform,
   CallSignaling,
@@ -21,6 +23,7 @@ export type {
   PeerConnectionState,
   PeerEvents,
   PeerOptions,
+  ScreenSurface,
   SessionDescription,
 } from './types';
 export type { CallOutcome, CallSignalData, IncomingCallSignal } from '@pingdost/protocol';

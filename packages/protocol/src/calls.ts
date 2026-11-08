@@ -6,6 +6,7 @@
 import { create } from '@bufbuild/protobuf';
 
 import {
+  CallSignal_ModeChange,
   CallSignal_Reason,
   CallSignal_Type,
   CallSignalSchema,
@@ -14,10 +15,25 @@ import {
 import { bytesToUuid, uuidToBytes } from './ids';
 
 export type CallSignalType =
-  'offer' | 'answer' | 'ice' | 'hangup' | 'reject' | 'busy' | 'renegotiate' | 'ringing' | 'media';
+  | 'offer'
+  | 'answer'
+  | 'ice'
+  | 'hangup'
+  | 'reject'
+  | 'busy'
+  | 'renegotiate'
+  | 'ringing'
+  | 'media'
+  | 'mode';
 
 export type CallHangupReason =
   'normal' | 'answered_elsewhere' | 'no_answer' | 'failed' | 'replaced' | 'declined_elsewhere';
+
+/**
+ * `mode` signals (ADR 0037): voice → video is a request the other side accepts or declines
+ * (or the asker withdraws); video → voice applies at once.
+ */
+export type CallModeChange = 'video_request' | 'video_accept' | 'video_decline' | 'voice';
 
 export interface CallSignalData {
   /** UUIDv7. */
@@ -40,6 +56,12 @@ export interface CallSignalData {
   /** media (and offer/answer). */
   muted?: boolean;
   cameraOff?: boolean;
+  /** media: the sender's video is its screen or one app. */
+  screenSharing?: boolean;
+  /** mode. */
+  modeChange?: CallModeChange;
+  /** mode: the asker's random request number, repeated by the answer. */
+  modeRequestId?: number;
 }
 
 /**
@@ -74,6 +96,14 @@ const TYPES: Record<CallSignalType, CallSignal_Type> = {
   renegotiate: CallSignal_Type.RENEGOTIATE,
   ringing: CallSignal_Type.RINGING,
   media: CallSignal_Type.MEDIA_STATE,
+  mode: CallSignal_Type.MODE,
+};
+
+const MODE_CHANGES: Record<CallModeChange, CallSignal_ModeChange> = {
+  video_request: CallSignal_ModeChange.VIDEO_REQUEST,
+  video_accept: CallSignal_ModeChange.VIDEO_ACCEPT,
+  video_decline: CallSignal_ModeChange.VIDEO_DECLINE,
+  voice: CallSignal_ModeChange.VOICE,
 };
 
 const REASONS: Record<CallHangupReason, CallSignal_Reason> = {
@@ -91,6 +121,7 @@ function invert<K extends string, V extends number>(map: Record<K, V>): Map<V, K
 
 const TYPE_NAMES = invert(TYPES);
 const REASON_NAMES = invert(REASONS);
+const MODE_CHANGE_NAMES = invert(MODE_CHANGES);
 
 /** Limits on what a peer may make this device parse and keep (defence in depth). */
 export const CALL_SIGNAL_LIMITS = {
@@ -113,6 +144,9 @@ export function callSignalToProto(data: CallSignalData): CallSignal {
     reason: data.reason ? REASONS[data.reason] : CallSignal_Reason.UNSPECIFIED,
     muted: data.muted ?? false,
     cameraOff: data.cameraOff ?? false,
+    modeChange: data.modeChange ? MODE_CHANGES[data.modeChange] : CallSignal_ModeChange.UNSPECIFIED,
+    modeRequestId: data.modeRequestId ?? 0,
+    screenSharing: data.screenSharing ?? false,
   });
 }
 
@@ -134,6 +168,8 @@ export function callSignalFromProto(signal: CallSignal): CallSignalData | undefi
     return undefined;
   }
   if ((type === 'offer' || type === 'answer') && signal.sdp === '') return undefined;
+  const modeChange = MODE_CHANGE_NAMES.get(signal.modeChange);
+  if (type === 'mode' && !modeChange) return undefined;
   const data: CallSignalData = { callId, type, callerDeviceId, calleeDeviceId };
   if (signal.video) data.video = true;
   if (signal.sdp !== '') data.sdp = signal.sdp;
@@ -144,5 +180,8 @@ export function callSignalFromProto(signal: CallSignal): CallSignalData | undefi
   if (reason) data.reason = reason;
   if (signal.muted) data.muted = true;
   if (signal.cameraOff) data.cameraOff = true;
+  if (signal.screenSharing) data.screenSharing = true;
+  if (modeChange) data.modeChange = modeChange;
+  if (signal.modeRequestId > 0) data.modeRequestId = signal.modeRequestId;
   return data;
 }

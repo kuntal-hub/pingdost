@@ -65,7 +65,7 @@ describe('Cloudflare Pages headers', () => {
 
   it('limits powerful features to calls on this origin', () => {
     expect(headers).toMatch(
-      /Permissions-Policy: camera=\(self\), microphone=\(self\), geolocation=\(\)/,
+      /Permissions-Policy: camera=\(self\), microphone=\(self\), display-capture=\(self\), geolocation=\(\)/,
     );
   });
 

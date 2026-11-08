@@ -378,8 +378,24 @@ message CallSignal {
     TYPE_RENEGOTIATE = 7;
     // Callee → caller: the invite arrived and is ringing on this device.
     TYPE_RINGING = 8;
-    // Either side: its microphone or camera was turned off or on.
+    // Either side: its microphone or camera was turned off or on, or its screen sharing
+    // started or stopped.
     TYPE_MEDIA_STATE = 9;
+    // Either side, in a call: switches the call between voice and video (`mode_change`,
+    // ADR 0037). No renegotiation: every call carries a video section from the start.
+    TYPE_MODE = 10;
+  }
+
+  enum ModeChange {
+    MODE_CHANGE_UNSPECIFIED = 0;
+    // Asks the other side to turn the voice call into a video call (`mode_request_id`).
+    MODE_CHANGE_VIDEO_REQUEST = 1;
+    // Agrees to that request (same `mode_request_id`): both cameras go on.
+    MODE_CHANGE_VIDEO_ACCEPT = 2;
+    // Turns the request down, or the asker withdrew it (same `mode_request_id`).
+    MODE_CHANGE_VIDEO_DECLINE = 3;
+    // The call is a voice call again: both cameras go off at once (no answer needed).
+    MODE_CHANGE_VOICE = 4;
   }
 
   enum Reason {
@@ -420,6 +436,12 @@ message CallSignal {
   // MEDIA_STATE (and OFFER/ANSWER: the state at the start).
   bool muted = 12;
   bool camera_off = 13;
+  // MODE.
+  ModeChange mode_change = 14;
+  // MODE: a random number the asker picks for a VIDEO_REQUEST; the answer repeats it.
+  uint32 mode_request_id = 15;
+  // MEDIA_STATE: the sender's video is its screen (or one app), not its camera.
+  bool screen_sharing = 16;
 }
 
 // Asks the peer device to start a new Olm session, e.g. after an undecryptable message.

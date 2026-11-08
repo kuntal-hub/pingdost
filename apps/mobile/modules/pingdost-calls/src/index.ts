@@ -16,7 +16,8 @@ export interface AudioRoutes {
 }
 
 export interface CallAction {
-  action: 'decline' | 'hangup';
+  /** `mute` / `unmute`: the picture-in-picture window's button (ADR 0037). */
+  action: 'decline' | 'hangup' | 'mute' | 'unmute';
   callId: string;
 }
 
@@ -52,6 +53,14 @@ export interface CallsNative {
   setShowWhenLocked(on: boolean): void;
   canUseFullScreenIntent(): boolean;
   openFullScreenIntentSettings(): void;
+  // Android, ADR 0037. Optional: absent in builds made before them, and on iOS.
+  /** The phone has picture-in-picture (Android 8+, not turned off by the maker). */
+  pipSupported?(): boolean;
+  /** Picture-in-picture when the user leaves the app, with Mute/Unmute and Hang up. */
+  setPip?(enabled: boolean, muted: boolean, callId: string): void;
+  isInPictureInPicture?(): boolean;
+  /** Closes the picture-in-picture window (the call ended in it). */
+  exitPip?(): void;
 }
 
 /** iOS only: the CallKit and PushKit functions (absent on Android). */

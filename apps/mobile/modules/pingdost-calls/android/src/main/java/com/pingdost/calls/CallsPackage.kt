@@ -29,6 +29,11 @@ class CallActivityListener : ReactActivityLifecycleListener {
     CallBridge.activity = WeakReference(activity)
   }
 
+  /** Home or Recents during a video call: picture-in-picture on Android 8–11 (ADR 0037). */
+  override fun onUserLeaveHint(activity: Activity) {
+    CallPip.onUserLeaveHint(activity)
+  }
+
   override fun onNewIntent(intent: Intent?): Boolean {
     if (CallLockScreen.isCallIntent(intent)) {
       CallBridge.activity?.get()?.let { activity ->
