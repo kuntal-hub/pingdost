@@ -386,6 +386,72 @@ export function ChatView() {
   const [notice, setNotice] = useState<string>();
   const [atBottom, setAtBottom] = useState(true);
   const list = useRef<VirtuosoHandle>(null);
+  // A chat opens on its newest message. The list places itself before its rows exist (the
+  // leader tab may still be starting) and before they are measured, which left it at the top
+  // or short of the end in Chrome. So for a moment after the first rows render, it is moved
+  // to the end again, unless the reader has started scrolling.
+  const settleFrom = useRef<number | undefined>(undefined);
+  const touched = useRef(false);
+  const scroller = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    settleFrom.current = undefined;
+    touched.current = false;
+  }, [conversationId]);
+  /**
+   * To the real end of the content. The list's own `scrollToIndex('LAST')` stopped 58 px
+   * short in Chrome (its idea of the end, not the rendered one), so the DOM decides.
+   */
+  const toEnd = useCallback(() => {
+    const element = scroller.current;
+    if (element) element.scrollTop = element.scrollHeight;
+  }, []);
+  const settle = useCallback(
+    (rendered: number) => {
+      if (rendered === 0 || touched.current) return;
+      const now = Date.now();
+      settleFrom.current ??= now;
+      if (now - settleFrom.current > 1_500) return;
+      requestAnimationFrame(toEnd);
+    },
+    [toEnd],
+  );
+  // A new message at the end: followed when the reader was at the end, and always when it was
+  // just sent from this browser. Again once its row is measured.
+  const lastKey = items.at(-1)?.key;
+  const previousLastKey = useRef(lastKey);
+  // Whether the reader is at the end, from scroll events only: a new row makes the content
+  // taller without a scroll event, so it does not count as having scrolled away (the list's
+  // own "at bottom" flipped before the new row could be followed).
+  const atEnd = useRef(true);
+  useEffect(() => {
+    atEnd.current = true;
+  }, [conversationId]);
+  const onScroll = useCallback(() => {
+    const element = scroller.current;
+    if (element)
+      atEnd.current = element.scrollHeight - element.scrollTop - element.clientHeight < 40;
+  }, []);
+  const watchScroller = useCallback(
+    (element: HTMLElement | Window | null) => {
+      scroller.current?.removeEventListener('scroll', onScroll);
+      scroller.current = element instanceof HTMLElement ? element : null;
+      scroller.current?.addEventListener('scroll', onScroll, { passive: true });
+    },
+    [onScroll],
+  );
+  useEffect(() => {
+    if (lastKey === previousLastKey.current) return;
+    previousLastKey.current = lastKey;
+    const last = items.at(-1);
+    const ownNew =
+      last?.type === 'message' &&
+      last.message.senderDeviceId === deviceId &&
+      Date.now() - last.message.sortAt < 10_000;
+    if (!atEnd.current && !ownNew) return;
+    requestAnimationFrame(toEnd);
+    const again = setTimeout(toEnd, 200);
+    return () => clearTimeout(again);
+  }, [lastKey, items, deviceId, toEnd]);
 
   useEffect(() => {
     if (!client) return;
@@ -494,10 +560,15 @@ export function ChatView() {
   const oldestMessage = items.find(
     (item): item is Extract<TimelineItem, { type: 'message' }> => item.type === 'message',
   )?.message;
-  // Messages scroll under the floating header, so the list starts below it.
+  // Messages scroll under the floating header, so the list starts below it. The "older from
+  // phone" area always takes the same height: when it grew or shrank after the list had
+  // placed itself, the list's idea of its bottom went wrong and a chat opened short of the
+  // newest message (measured in Chrome).
   const listHeader = () => (
     <div className="pt-20">
-      {complete && <OlderFromPhone conversationId={conversationId} oldest={oldestMessage} />}
+      <div className="h-20 overflow-hidden">
+        {complete && <OlderFromPhone conversationId={conversationId} oldest={oldestMessage} />}
+      </div>
     </div>
   );
   const name = isGroup ? groupName(group) : contactName(peer);
@@ -516,7 +587,12 @@ export function ChatView() {
             : 'Offline. Messages you write wait here and go out when you are back.'}
         </p>
       )}
-      <div className="relative min-h-0 flex-1">
+      <div
+        className="relative min-h-0 flex-1"
+        onWheel={() => (touched.current = true)}
+        onTouchStart={() => (touched.current = true)}
+        onKeyDown={() => (touched.current = true)}
+      >
         {items.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center pt-16">
             <EmptyState icon={Lock} title="Just you two">
@@ -529,10 +605,19 @@ export function ChatView() {
         ) : (
           <Virtuoso
             ref={list}
+            scrollerRef={watchScroller}
             data={items}
             firstItemIndex={firstItemIndex}
             initialTopMostItemIndex={items.length - 1}
-            followOutput="smooth"
+            itemsRendered={(rendered) => settle(rendered.length)}
+            totalListHeightChanged={() => {
+              settle(1);
+              // Rows that change height at the end (a time line moving to the newest bubble).
+              if (atEnd.current) requestAnimationFrame(toEnd);
+            }}
+            // Following new messages is done below (`toEnd`): the list's own follow stopped
+            // short of the end like `scrollToIndex`.
+            followOutput={false}
             startReached={() => void loadOlder()}
             atBottomStateChange={setAtBottom}
             computeItemKey={(_, item) => item.key}
@@ -571,9 +656,7 @@ export function ChatView() {
         {!atBottom && items.length > 0 && (
           <IconButton
             aria-label="Jump to the latest message"
-            onClick={() =>
-              list.current?.scrollToIndex({ index: 'LAST', align: 'end', behavior: 'smooth' })
-            }
+            onClick={toEnd}
             className="pd-pop pd-floating absolute right-4 bottom-3 z-10"
           >
             <ArrowDown size={20} />
