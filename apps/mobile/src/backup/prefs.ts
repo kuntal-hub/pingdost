@@ -9,6 +9,8 @@ import { getCryptoContext } from '@/crypto/bootstrap';
 import { readSetting, SETTING_KEYS, writeSetting } from '@/db/settings';
 import { ensureChannels, MESSAGES_CHANNEL } from '@/push/notifications';
 
+import { reminderDate } from './reminder';
+
 const BackupPrefsSchema = z.object({
   lastBackupAt: z.number().nullable(),
   /** The bytes of the last backup file. */
@@ -19,7 +21,7 @@ export type BackupPrefs = z.infer<typeof BackupPrefsSchema>;
 
 const DEFAULTS: BackupPrefs = { lastBackupAt: null, lastBackupBytes: null, reminder: false };
 const REMINDER_ID = 'pingdost-backup-reminder';
-export const REMINDER_DAYS = 30;
+export { REMINDER_DAYS } from './reminder';
 
 interface BackupPrefsState {
   prefs: BackupPrefs | null;
@@ -49,8 +51,7 @@ export const useBackupPrefs = create<BackupPrefsState>()((set, get) => ({
 async function scheduleReminder(prefs: BackupPrefs): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(REMINDER_ID).catch(() => undefined);
   if (!prefs.reminder) return;
-  const from = prefs.lastBackupAt ?? Date.now();
-  const date = new Date(Math.max(from + REMINDER_DAYS * 86_400_000, Date.now() + 60_000));
+  const date = reminderDate(prefs.lastBackupAt, Date.now());
   await ensureChannels();
   await Notifications.scheduleNotificationAsync({
     identifier: REMINDER_ID,
