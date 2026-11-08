@@ -17,6 +17,45 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-08 — Two-phone device test, part 2 (13, 19, 21–24, 26, 31) — 🔄 paused (Windows stopped server and Metro: low memory)
+Same phones and accounts. Commits `0b15ab5`, `982b02a`, `dde9242` (not pushed). Phase files and ROADMAP not yet updated.
+
+**Passed on the phones:**
+- 13: re-add, leave, group picture.
+- 21: discovery 0.7 s, setup 1.0 s, MTU 517, 2M PHY, ping 61 ms avg (20/20). 10 MB: 83.7 KB/s notify, 87.6 KB/s write, 20 299/20 299 frames. Airplane mode with Bluetooth on works.
+- 22: all checks. With the server **stopped**, message info said "Over Bluetooth, directly to this phone". Also: queued and sent on return, no duplicates after the internet came back, Bluetooth off and permission denied shown clearly.
+- 23 (two-phone part): relay on and off, notification text, "Forwarded by 1 device", pause on battery saver and when not charging, Clear relay cache.
+- 24 (direct): 12 MB with a 30 s cut resumed from chunk 75/193 to 193/193, SHA-256 identical.
+- 21 matrix: delivered over Bluetooth with B on Home, in forced Doze, and on battery saver (unplugged).
+- 26: voice, video (remote picture measured, screenshots deleted), speaker, mute, missed call, busy, TURN-forced ("Relayed (TURN), forced"; local coturn over `adb reverse tcp:3478`), locked-screen incoming call while B's socket was still up.
+- 19: backup (24 words, quiz, 196.9 MB incl. files), then Clear storage, log in, restore with phrase and email code. History back; B saw "moved to a new phone", and chat resumed.
+
+**Fixed (tests first, each failed without the fix):**
+- Nearby frames of 514 B: Android refuses GATT values over 512, so every long packet hung. Capped on Android and iOS; a throwing write fails the link.
+- A half-dead link after airplane mode flips: two missed ACKs close it, and it recovered by itself (about 3 min).
+- Re-added group member stuck as "not a member": the server notice used up the version.
+- Relay switched on while phones were already linked was ignored: the change now goes out as a new signed HELLO.
+- "online" stayed after the socket dropped; the offline banner was see-through.
+- Bubble said "Sent to the server" with no server: now neutral when offline.
+- `text-white`/`bg-black` did nothing (palette replaced): black text on the call screen, invisible Share in the viewer.
+- Text collided with the status bar.
+- The nearby dev screen and the chat's nearby layer competed for one inbound queue.
+
+**Open finding (not fixed yet):** after the backup restore, B also showed "Your safety number with this contact changed", though the number is identical (checked) and the other notice says it is unchanged. A false alarm; look at what writes `safety_number_changed` on a `primary_device_changed`.
+
+**Dev-only, not bugs:** a debug build aborts (`UniffiPlayerRoot` assert) on any JS reload. Don't edit sources during device runs. The Metro deep link reloads a running app: bring it forward with `monkey` instead.
+
+**Remaining:**
+- [ ] 19: path (a) approve on other phone, Start fresh, Remove data, monthly reminder.
+- [ ] 21: screen-off row, Rotate token, 1 h battery, range (user walks).
+- [ ] 23/24: third phone; restart reminder needs a reboot.
+- [ ] 26: mobile data, network switch, app killed (needs Firebase), phone↔web, proximity, Bluetooth audio, GSM.
+- [ ] 16–18 web (Chrome, plus a QR scan the user must do by hand); 10 QR verify; 11 typing Hindi in search.
+- [ ] 31: Large/Huge text sizes, the feel check (user). Motion: A is back on Full after the wipe, B still Off.
+- Blocked on the user: 12 Firebase, 20/25 VPS, 27 Play US$25, 28–30 Apple and iPhone.
+
+**Phone state to restore at the end:** `svc power stayon false` on both; Bluetooth back off on the Nothing (it was off); delete `/sdcard/Download/pdtest` (holds the 206 MB test backup); scratchpad `phrase.txt`.
+
 ## 2026-11-07 — Two-phone device test (Phases 10, 11, 13, 15, 31) — 🔄 stopped part-way (usage limit)
 Local arm64 debug APK on both phones (Nothing A001T, Vivo V2437; Android 16), adb mode. Accounts `pd_nothing`, `pd_vivo` (password `PingDost-Test-1107`, dev server only). No phase moved to ✅; phase-file checkboxes are not yet updated.
 
