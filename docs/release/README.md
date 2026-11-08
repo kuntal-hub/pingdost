@@ -9,7 +9,7 @@ Production runs on the same VPS and domains as staging (`api.pingdost.com`, `app
 - [ ] A metadata restore practised (`docs/ops/restore-metadata-db.md`).
 - [ ] Legal: bracketed fields in `docs/legal/privacy-policy.md` and `terms.md` filled in and reviewed; the policy published at a public URL; the in-app explainer (`packages/chat-core/src/privacy.ts`) still matches.
 - [ ] Capacity re-measured on the VPS (`docs/ops/capacity.md` §5); Atlas alerts set (350 MB, 60 ops/s).
-- [ ] **Account deletion** (Google Play requires an in-app path and a web URL for apps with accounts): the in-app path is built (Settings → Delete account, ADR 0036). Still to do: the web resource for people without the app (a page with the request address), and deleting the Cloudinary profile picture.
+- [ ] **Account deletion** (Google Play requires an in-app path and a web URL for apps with accounts): the in-app path is built (Settings → Delete account, ADR 0036). Still to do: the web resource for people without the app (a page with the request address), and one real check of the Cloudinary picture deletion (tested against a fake only).
 
 ## Server: promote staging to production
 1. `.env` on the VPS (`/srv/pingdost/.env`):

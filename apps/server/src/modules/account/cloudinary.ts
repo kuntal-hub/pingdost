@@ -53,6 +53,36 @@ export function signAvatarUpload(
   };
 }
 
+/**
+ * Deletes the user's avatar (`avatars/<userId>`) when the account is deleted (ADR 0036): POST
+ * `/image/destroy`, signed like uploads; `invalidate` drops the CDN copies. Throws unless
+ * Cloudinary answers `{"result":"ok"}`.
+ */
+export async function destroyAvatar(
+  settings: CloudinarySettings,
+  userId: string,
+  nowMs: number,
+  fetchFn: typeof fetch = fetch,
+): Promise<void> {
+  const params = {
+    invalidate: 'true',
+    public_id: `avatars/${userId}`,
+    timestamp: String(Math.floor(nowMs / 1000)),
+  };
+  const body = new URLSearchParams({
+    ...params,
+    api_key: settings.apiKey,
+    signature: cloudinarySignature(params, settings.apiSecret),
+  });
+  const response = await fetchFn(
+    `https://api.cloudinary.com/v1_1/${settings.cloudName}/image/destroy`,
+    { method: 'POST', body },
+  );
+  if (!response.ok) throw new Error(`Cloudinary destroy failed: HTTP ${response.status}`);
+  const { result } = (await response.json()) as { result?: string };
+  if (result !== 'ok') throw new Error(`Cloudinary destroy: ${result ?? 'no result'}`);
+}
+
 /** Whether `url` is the `secure_url` of this user's avatar in our cloud. */
 export function isOwnAvatarUrl(settings: CloudinarySettings, userId: string, url: string): boolean {
   const cloud = settings.cloudName.replace(/[^a-z0-9_-]/gi, '');

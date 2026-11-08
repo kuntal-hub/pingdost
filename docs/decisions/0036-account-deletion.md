@@ -25,13 +25,14 @@ Google Play requires apps with accounts to let people delete their account from 
   4. delete blocks both ways (`BlockService.removeUser`, cache dropped), pairing and phone-transfer requests, email codes, sessions and device records;
   5. delete the user record last, so a failure part-way can be retried with a new code;
   6. record a `security_events` entry `account_delete` (its own retention, `SECURITY_EVENT_RETENTION_SECONDS`).
+- The profile picture at Cloudinary (`avatars/<userId>`) is deleted before the account record, when the account has one and Cloudinary is configured: `POST /v1_1/<cloud>/image/destroy` with `public_id`, `timestamp`, `invalidate=true`, signed like uploads (`destroyAvatar`). Best effort: a failure is logged (`account deletion: avatar not deleted`) and does not stop the deletion, so an image-host outage cannot keep an account alive.
 - Kept: envelopes this account already sent to other people (they belong to the recipients and expire with the mailbox retention), staged attachments for them (same), abuse reports (`ABUSE_REPORT_RETENTION_SECONDS`).
 - Hard delete: the username is free again. Contacts' chats point at the old user ID, so a newcomer with the same username appears as a new contact, never inside an old chat.
 - Android: Settings → **Delete account** (`apps/mobile/src/screens/settings/delete-account.tsx`, `src/recovery/delete-account.ts`): what goes and what stays, the email code (the shared `CodeStep`), then the chat engine stops, the server deletes, and the phone runs the Remove-data wipe.
 
 ## Consequences
 - Not done yet (follow-ups for Phase 27):
-  - the profile picture on Cloudinary is not deleted (needs Cloudinary's signed Destroy API; avatars are off unless the Cloudinary variables are set);
+  - the Cloudinary deletion has only been tested against a fake (`cloudinary.test.ts`); check it once against the real account, and watch the log line above;
   - the web app has no Delete account entry (Play needs it in the Android app; a browser is a linked device);
   - Play's web resource: a page or address where people without the app can ask (the privacy policy names how).
 - `docs/legal/privacy-policy.md` and `docs/release/README.md` describe the in-app path.
@@ -39,3 +40,4 @@ Google Play requires apps with accounts to let people delete their account from 
 ## Evidence
 - `apps/server/test/account-deletion.int.test.ts`: a wrong code deletes nothing; after deletion the user, devices, sessions, one-time keys, blocks (only this account's), email codes and the waiting message in the device's mailbox are gone, revocation reached both devices, the old token gets 401, contacts get `NOT_FOUND` for the directory and the username, and the group goes on without the account under a new owner. The mailbox check fails without `purgeDevice` (checked 2026-11-09).
 - Related suites still pass: recovery, groups, security, gateway (35 tests together).
+- Cloudinary's destroy call checked 2026-11-09 at cloudinary.com/documentation/image_upload_api_reference_destroy_by_public_id and /authentication_signatures (POST `/:resource_type/destroy`, `public_id` without extension, optional `invalidate`, success `{"result":"ok"}`; SHA-1 or SHA-256 signatures accepted). The response for a missing image is not documented, so anything but `ok` counts as a failure.

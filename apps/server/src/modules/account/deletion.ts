@@ -9,9 +9,10 @@
  * The account record goes last, so a failure part-way can be retried with a new code.
  * Not removed here: envelopes this account already sent to other people (they are theirs,
  * and expire with the retention), abuse reports (their own retention), the `account_delete`
- * security event (its own retention), and a profile picture on Cloudinary (ADR 0036).
+ * security event (its own retention). A profile picture at Cloudinary is deleted best-effort.
  */
 import type { Collection } from 'mongodb';
+import type { Logger } from 'pino';
 
 import type { Clock } from '../../infra/clock';
 import { AppError } from '../../infra/errors';
@@ -38,6 +39,9 @@ export interface AccountDeletionDeps {
   primaryTransfers: Collection<PrimaryTransferDoc>;
   events: Pick<SecurityEvents, 'record'>;
   clock: Clock;
+  /** Deletes the profile picture at Cloudinary; undefined when avatars are not configured. */
+  deleteAvatar?: (userId: string) => Promise<void>;
+  log: Pick<Logger, 'warn'>;
 }
 
 export class AccountDeletion {
@@ -72,6 +76,12 @@ export class AccountDeletion {
     await this.d.auth.otps.deleteMany({ email: user.email });
     await this.d.auth.sessions.deleteMany({ userId });
     await this.d.devices.devices.deleteMany({ userId });
+    if (user.avatarUrl && this.d.deleteAvatar) {
+      // Best effort: an image host outage must not keep the account alive. Logged to follow up.
+      await this.d.deleteAvatar(userId).catch((error: unknown) => {
+        this.d.log.warn({ err: error, userId }, 'account deletion: avatar not deleted');
+      });
+    }
     await this.d.auth.users.deleteOne({ _id: userId });
     await this.d.events.record('account_delete', context, userId);
   }

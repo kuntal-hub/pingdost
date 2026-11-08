@@ -26,6 +26,7 @@ import { schedulerIndexes } from './infra/scheduler';
 import { Hasher } from './infra/secrets';
 import { DEFAULT_THROTTLES, type ThrottleSettings } from './infra/throttles';
 import { TtlCache } from './infra/ttl-cache';
+import { destroyAvatar } from './modules/account/cloudinary';
 import { AccountDeletion } from './modules/account/deletion';
 import { accountRoutes } from './modules/account/routes';
 import { createAttachmentService } from './modules/attachments';
@@ -331,6 +332,7 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
 
   await app.register(healthRoutes, { mongo: deps.mongo, redis: deps.redis });
   await app.register(authRoutes, { service: authService, authenticate, limits });
+  const { cloudinary } = config;
   const deletion = new AccountDeletion({
     auth: collections,
     authService,
@@ -343,6 +345,10 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     primaryTransfers: primaryTransfers(db),
     events,
     clock,
+    ...(cloudinary
+      ? { deleteAvatar: (userId: string) => destroyAvatar(cloudinary, userId, clock.now()) }
+      : {}),
+    log: deps.logger,
   });
   await app.register(accountRoutes, {
     collections,
