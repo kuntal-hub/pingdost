@@ -50,6 +50,14 @@ export type BusMessage =
 /** A call that waits longer than this failed (the leader is gone or busy). */
 const CALL_TIMEOUT_MS = 30_000;
 
+/**
+ * The leader tab's answer to another tab's `hello`: who the leader is. A tab opened after the
+ * leader started missed its first announcement, and makes no call until it knows.
+ */
+export function leaderGreeting(message: BusMessage, tab: string): BusMessage | undefined {
+  return message.type === 'hello' ? { type: 'leader', tab } : undefined;
+}
+
 interface Pending {
   resolve(value: unknown): void;
   reject(error: Error): void;

@@ -5,7 +5,7 @@
 import { installNotices } from '@/push/push';
 import { onSignedOut, signOut } from '@/session/session';
 
-import { CHANNEL, RemoteChat, type BusMessage } from './bus';
+import { CHANNEL, leaderGreeting, RemoteChat, type BusMessage } from './bus';
 import { startLeader, type LeaderRuntime } from './leader';
 import { useChat } from './store';
 
@@ -37,6 +37,9 @@ export function startChat(): () => void {
       return;
     }
     if (leader) {
+      // A tab opened after this one became the leader learns about it here.
+      const greeting = leaderGreeting(message, tab);
+      if (greeting) post(greeting);
       leader.handle(message);
       return;
     }

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { MessageRecord } from '@pingdost/message-engine';
 import { messageRecord } from '@pingdost/message-engine/testing';
 
-import { CHANNEL, RemoteChat, type BusMessage } from './bus';
+import { CHANNEL, leaderGreeting, RemoteChat, type BusMessage } from './bus';
 import { RemoteError } from './client';
 
 const open: BroadcastChannel[] = [];
@@ -105,6 +105,32 @@ describe('RemoteChat', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(seen.map((m) => m.messageId)).toEqual([message.messageId]);
     expect(listChanges).toBeGreaterThanOrEqual(1);
+  });
+
+  it('answers a tab opened after the leader started', async () => {
+    // Found in Chrome: a second tab stayed on "Opening the chat…". The leader had announced
+    // itself once, before that tab existed, and did not answer its hello. This leader handles
+    // its channel the way start.ts does.
+    const channel = new BroadcastChannel(CHANNEL);
+    open.push(channel);
+    channel.postMessage({ type: 'leader', tab: 'leader-1' } satisfies BusMessage);
+    channel.onmessage = (event: MessageEvent<BusMessage>) => {
+      const message = event.data;
+      const greeting = leaderGreeting(message, 'leader-1');
+      if (greeting) channel.postMessage(greeting);
+      if (message.type === 'call') {
+        channel.postMessage({
+          type: 'result',
+          id: message.id,
+          to: message.from,
+          ok: true,
+          value: [],
+        } satisfies BusMessage);
+      }
+    };
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const { remote } = follower();
+    expect(await remote.client.listConversations()).toEqual([]);
   });
 
   it('fails calls left pending when another tab takes over', async () => {
