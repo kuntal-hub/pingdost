@@ -41,6 +41,8 @@ History sync from the phone and attachments on web (18); calls (25).
 - Push arrives with the tab closed (Chrome) and contains no content.
 - `pnpm lint typecheck test` and `pnpm --filter @pingdost/web build` pass.
 
+**Real-phone checks 2026-11-08** (Chrome linked to the Nothing, chatting with the vivo): 1:1 both ways; a group created on the web, its message on the vivo and the vivo's reply on the web and the Nothing. Two tabs: **failed, fixed, then passed.** A tab opened after the leader hung on "Opening the chat…" (`22875ef`). With two tabs, a token refresh signed the browser out (`8065a22`). Afterwards both tabs stayed consistent and linked through eight refreshes. Still open: the push with the tab closed (needs a build with VAPID keys and Chrome's notification permission). Seen: the open chat does not always move to a new message, and "Jump to the latest message" can stop short when a photo loads after the jump.
+
 ## Handoff notes
 **From Phase 9 (ADR 0011):**
 - The Dexie store must pass `runEngineStoreContract` from `@pingdost/message-engine/testing`, and `apply(batch)` must be one IndexedDB transaction.

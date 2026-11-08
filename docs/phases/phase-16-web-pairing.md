@@ -46,6 +46,8 @@ Web chat (17); history sync (18).
 - Replayed or expired QR payloads are rejected (tests + a manual check).
 - `pnpm lint typecheck test` and `pnpm --filter @pingdost/web build` pass.
 
+**Real-phone checks 2026-11-08:** the Nothing scanned desktop Chrome's code and approved it ("Chrome on Windows is linked"; listed under Devices with "History sent"); "Unlink this browser" on the web wiped it. Still open: a second browser (e.g. Edge) linked next to Chrome, and removing a browser from the phone's Devices list.
+
 ## Handoff notes
 **From Phase 5:** the API has no CORS yet. Register `@fastify/cors` (check the current version) restricted to `WEB_ORIGIN` before the web client calls it.
 - **From Phase 6 (ADR 0008):** linked devices go into `devices` with `role: 'linked'` and `platform: 'web'`. The phone supplies the `deviceCertificate`: the account identity key's signature over `deviceCertificateMessage(webDeviceId, webKeys)`. Bind the web session with `AuthService.bindDevice` so its tokens carry `did`. The primary can already revoke linked devices.

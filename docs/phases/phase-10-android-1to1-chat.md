@@ -40,6 +40,8 @@ Reactions, edit, search and other extras (11); push (12); groups (13); attachmen
 - QR verification marks the contact verified.
 - `pnpm lint typecheck test` passes.
 
+**Device checks 2026-11-07/08** (Nothing A001T + vivo V2437): E2EE both ways, receipts, offline delivery, history kept across kill and relaunch, matching safety numbers; QR verification both ways ("Verified. You compared safety numbers with …" on each phone). Offline sends were tested with the dev server stopped (airplane mode does not cut adb reverse). Ciphertext-only storage is covered by the sim-client frame scan and the engine integration tests, not by a manual Mongo/Redis look.
+
 ## Handoff notes
 **From Phase 3 (ADR 0005):**
 - Add chat tables as migration 002 in `apps/mobile/src/db/migrate.ts` (ordered, `PRAGMA user_version`).

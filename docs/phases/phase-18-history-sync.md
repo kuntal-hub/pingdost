@@ -35,6 +35,8 @@ Recovery backups (19).
 - Web views and sends images and docs.
 - `pnpm lint typecheck test` passes.
 
+**Real-phone checks 2026-11-08:** after pairing, the chat history came from the Nothing ("sent from your other device", safety notices included); "Load older messages from phone" answered (0 older: nothing outside the window). The web sent a text file (82 B) and a photo (157 KB, sent as 17 KB with Standard quality); both arrived on the vivo, and the web shows the photo. Still open: resuming after killing the tab mid-sync, and a photo received on the web from a phone.
+
 ## Handoff notes
 **From Phase 14 (ADR 0017):**
 - A web device can download a staged attachment only if it was in `recipientDeviceIds` when the sender uploaded. `engine.attachmentRecipients` lists the devices current at send time, so files sent before pairing come from the phone (the relay path above).

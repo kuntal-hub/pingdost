@@ -28,7 +28,8 @@ Reliable one-to-one audio and video calls on Android, phone↔phone and phone↔
   - **2026-11-08 on two phones** (dev server; the only TURN the phones reach is the local coturn through `adb reverse tcp:3478`):
     - passed: same Wi-Fi (voice, video, speaker, mute, missed, busy); TURN-forced ("Relayed (TURN), forced"); mobile data ↔ Wi-Fi (connected, held 1:30+); locked-screen incoming call while the callee's socket was up; the full-screen-intent card appears when the permission is off and opens Android's page.
     - **a network switch mid-call: failed, fixed (`7a815bd`), then passed.** Wi-Fi → mobile data and back on the callee ended every call after about 30–35 s, with or without forced relay. Timed dev logs showed WebRTC rode out the switch: the ICE restart went through and the connection never left "connected". But `networkChanged()` had marked the call "reconnecting" and started the reconnect timer, which only a fresh "connected" event clears, so it hung up a healthy call. Now a network change only restarts ICE; real "disconnected"/"failed" events drive the state. After the fix one call held through Wi-Fi off and back on (4:42); B's ICE stayed "connected" after each restart. The caller switching passed too (A's Wi-Fi off for 63 s, then on; each restart ended in ICE "completed", the call ran 2:00+). Not yet tried against staging coturn.
-    - open: phone↔web (needs the QR scan), the app killed (needs Firebase), proximity sensor, Bluetooth headset, a GSM call during a call.
+    - phone↔web passed: web → vivo and vivo → web (the call rang the Nothing and the web; answered on the web, the Nothing stopped ringing). Direct host/host UDP, media counters rising.
+    - open: the app killed (needs Firebase), proximity sensor, Bluetooth headset, a GSM call during a call.
 - [x] Confirm group chats have no call actions (a UI test or snapshot). (`callActionsFor` unit test)
 
 ## Key files

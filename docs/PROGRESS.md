@@ -17,6 +17,30 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-08 — Device test, part 4: web with real phones (10, 16–18, 26) — 🔄 partial (what is left needs the user, money or other hardware)
+Same phones and accounts, plus desktop Chrome on this PC linked to `pd_nothing` (the user scanned the QR). Commits `22875ef`, `8065a22` plus docs (not pushed). Part 3 (below) has the earlier fixes of the day.
+
+**Passed:**
+- 10 → ✅: QR safety-number verification both ways.
+- 16: pairing with the Nothing; web "Unlink this browser".
+- 17: 1:1 and group phone ↔ web; two tabs (after the fixes below).
+- 18: history from the phone, "Load older messages from phone", a file and a photo sent from the web.
+- 26: calls web → phone and phone → web (both the Nothing and the web rang; answered on the web), direct UDP. Caller-side network switch held (part 3's fix).
+
+**Fixed (tests failed without each fix):**
+- `22875ef`: a tab opened after the leader tab hung on "Opening the chat…": the leader never answered a later tab's `hello` with `leader` (the unit tests' fake leader did).
+- `8065a22`: with two tabs, a token refresh signed the browser out. One tab rotated the refresh token, the other refreshed with its stale copy, and the server revoked the session (reuse detection, ADR 0007). Refreshes are now shared across tabs (`session/refresh.ts`: Web Lock, stored tokens read first). Checked with `ACCESS_TOKEN_TTL_SECONDS=60`: eight refreshes, all 200, no reuse.
+
+**Remaining:**
+- [ ] 16: a second browser next to Chrome; remove a browser from the phone's Devices list (Chrome is still linked to `pd_nothing`: removing it there is the check).
+- [ ] 17: push with the tab closed (build + `preview`, VAPID keys, Chrome's notification permission). Web chat does not always scroll to new messages; "Jump to the latest message" can stop short when a photo loads.
+- [ ] 18: resume after killing the tab mid-sync; a photo received on the web.
+- [ ] 11: typing Hindi in search (the user). 21: range and 1 h battery (the user). 19: the monthly reminder (date +30 days).
+- [ ] 26: the switch through staging coturn; app killed (Firebase); proximity, Bluetooth headset, GSM. 31: the feel check (the user).
+- Blocked on the user: 12 Firebase, 20/25 VPS, 27 Play US$25, 28–30 Apple and iPhone; pushing.
+
+**State:** the vivo is restored (stay-awake off, battery allowlist entry removed, `/sdcard/Download/pdtest` deleted). The Nothing dropped off adb before its cleanup: `svc power stayon false`, Bluetooth back off (it was off), Motion back to Full in Appearance, and look for leftover test files in `/sdcard/Download`. Nearby messaging is still on in both apps (turn it off in Settings if not wanted). The API server (normal 15-min tokens, dev TURN), Metro and the web dev server are running.
+
 ## 2026-11-08 — Two-phone device test, part 3 (19, 21–24, 26, 31; docs) — 🔄 partial (what is left needs the user, money or other hardware)
 Same phones and accounts. Commits `d13aaef`, `60a9d39`, `1bfa095`, `35f31c5`, `7a815bd`, `e5f26c9` plus docs (not pushed). Phase files, ADR 0023's measured column and ROADMAP are now updated from parts 1–3. **ROADMAP:** 13, 15, 19, 22, 23, 24 → ✅ (24 after Phase 21's screen-off and Recents rows passed; the mesh line in ROADMAP lists its limits).
 
