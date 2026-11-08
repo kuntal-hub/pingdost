@@ -15,6 +15,14 @@ function list(users: string[], who: (userId: string) => string): string {
   return `${named.slice(0, -1).join(', ')} and ${named.at(-1)}`;
 }
 
+/**
+ * Whether a system message says the contact's safety number changed, and so asks to verify it
+ * again. "Moved to a new phone" keeps the same number, and must not raise that alarm.
+ */
+export function isSafetyNumberChange(message: Pick<MessageRecord, 'kind' | 'body'>): boolean {
+  return message.kind === 'system' && message.body === 'safety_number_changed';
+}
+
 /** A system message as a sentence: a changed safety number, or a group event (ADR 0016). */
 export function systemText(message: MessageRecord, names?: Names): string {
   const who = (userId: string) =>

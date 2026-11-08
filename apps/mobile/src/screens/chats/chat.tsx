@@ -62,6 +62,7 @@ import {
 import {
   attachmentType,
   isBigEmoji,
+  isSafetyNumberChange,
   previewText,
   shownState,
   stateLabel,
@@ -78,7 +79,6 @@ import { formatSize } from '@pingdost/attachments';
 import {
   canReact,
   MessageActionError,
-  parseGroupNotice,
   summarizeReactions,
   type ConversationRecord,
   type MessageRecord,
@@ -365,8 +365,9 @@ function SystemNotice({
   people,
 }: Pick<BubbleProps, 'message' | 'isGroup' | 'people'>) {
   const router = useRouter();
-  // Group events are just told; a changed safety number links to that person.
-  const safety = parseGroupNotice(message.body) === undefined;
+  // Group events and "moved to a new phone" are just told; a changed safety number links to
+  // that person.
+  const safety = isSafetyNumberChange(message);
   const userId = message.senderUserId;
   return (
     <Pressable

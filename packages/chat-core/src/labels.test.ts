@@ -6,6 +6,7 @@ import { MessageStateSchema } from '@pingdost/shared-types';
 import {
   attachmentType,
   isBigEmoji,
+  isSafetyNumberChange,
   previewText,
   shownState,
   stateLabel,
@@ -144,6 +145,18 @@ describe('systemText', () => {
     });
     expect(systemText(changed, names)).toBe('Safety number changed for Bilal');
     expect(previewText(changed)).toBe('Safety number changed');
+  });
+
+  it('raises the safety alarm only for a changed number, not for a new phone or a group event', () => {
+    // Seen on a real phone: after a backup restore the chat said the number changed, though it
+    // had not and the other notice said so.
+    const notice = (body: string) => messageRecord({ kind: 'system', senderUserId: 'b', body });
+    expect(isSafetyNumberChange(notice('safety_number_changed'))).toBe(true);
+    expect(isSafetyNumberChange(notice('primary_device_changed'))).toBe(false);
+    expect(isSafetyNumberChange(notice('group:{"type":"left","users":["b"]}'))).toBe(false);
+    expect(
+      isSafetyNumberChange(messageRecord({ kind: 'text', body: 'safety_number_changed' })),
+    ).toBe(false);
   });
 
   it('says when a contact moved to a new phone with the same safety number', () => {

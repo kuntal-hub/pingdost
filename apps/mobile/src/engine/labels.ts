@@ -4,6 +4,7 @@ export {
   attachmentText,
   attachmentType,
   isBigEmoji,
+  isSafetyNumberChange,
   previewText,
   shownState,
   stateLabel,

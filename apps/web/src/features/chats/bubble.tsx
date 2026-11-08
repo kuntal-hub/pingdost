@@ -35,6 +35,7 @@ import { formatSize } from '@pingdost/attachments';
 import {
   attachmentType,
   isBigEmoji,
+  isSafetyNumberChange,
   previewText,
   shownState,
   stateLabel,
@@ -44,12 +45,7 @@ import {
   type Names,
   type StateIcon,
 } from '@pingdost/chat-core';
-import {
-  canReact,
-  parseGroupNotice,
-  summarizeReactions,
-  type MessageRecord,
-} from '@pingdost/message-engine';
+import { canReact, summarizeReactions, type MessageRecord } from '@pingdost/message-engine';
 import { bubbleCorners, quickReactions, senderColor } from '@pingdost/ui-tokens';
 
 const STATE_ICONS: Record<StateIcon, LucideIcon> = {
@@ -139,7 +135,8 @@ export function Bubble({
   const [burst, setBurst] = useState(0);
 
   if (message.kind === 'system') {
-    const safety = parseGroupNotice(message.body) === undefined;
+    // "Moved to a new phone" keeps the same number: only a real change asks to verify again.
+    const safety = isSafetyNumberChange(message);
     return (
       <div className="mx-auto my-2 flex w-fit max-w-md items-center gap-2 rounded-lg bg-surface/90 px-3 py-2 text-center text-sm font-medium text-muted">
         {safety && <ShieldCheck aria-hidden size={16} className="shrink-0 text-accent" />}
