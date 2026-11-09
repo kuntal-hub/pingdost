@@ -8,6 +8,8 @@
 // - Screen sharing goes through Android's own consent dialog (MediaProjection); Android 14+
 //   lets the user pick one app there. react-native-webrtc runs the `mediaProjection`
 //   foreground service (turned on by the PingdostCalls module).
+// - Every camera track carries the PingdostCalls effects processor (ADR 0038); the runtime
+//   tells the module which effect to draw.
 import { PermissionsAndroid, Platform } from 'react-native';
 import {
   mediaDevices,
@@ -106,6 +108,8 @@ class Session {
     readonly mic: MediaStream,
     readonly events: PeerEvents,
     readonly emit: () => void,
+    /** The native video processor for camera effects (ADR 0038), when this build has it. */
+    readonly effectsProcessor: string | null,
   ) {}
 
   videoTransceiver(): RTCRtpTransceiver | undefined {
@@ -137,8 +141,9 @@ class Session {
 
   async openCamera(): Promise<MediaStream> {
     if (this.camera) return this.camera;
+    let camera: MediaStream;
     try {
-      return await mediaDevices.getUserMedia({
+      camera = await mediaDevices.getUserMedia({
         audio: false,
         video: {
           facingMode: this.front ? 'user' : 'environment',
@@ -150,6 +155,11 @@ class Session {
     } catch (error) {
       throw mediaError(error);
     }
+    // Every camera frame passes the effects processor; with no effect chosen it changes nothing.
+    if (this.effectsProcessor) {
+      for (const track of camera.getVideoTracks()) track._setVideoEffects([this.effectsProcessor]);
+    }
+    return camera;
   }
 
   closeCamera(): void {
@@ -247,6 +257,8 @@ export class NativeCallPlatform implements CallPlatform {
   constructor(
     private readonly fetchIceServers: () => Promise<IceServer[]>,
     private readonly onMedia: (media: CallMedia) => void,
+    /** The native camera effects processor (ADR 0038); null without one. */
+    private readonly effectsProcessor: string | null = null,
   ) {}
 
   iceServers(): Promise<IceServer[]> {
@@ -268,7 +280,7 @@ export class NativeCallPlatform implements CallPlatform {
       iceServers: options.iceServers,
       iceTransportPolicy: options.relayOnly ? 'relay' : 'all',
     });
-    const session = new Session(pc, mic, events, () => this.#emit(session));
+    const session = new Session(pc, mic, events, () => this.#emit(session), this.effectsProcessor);
     for (const track of mic.getTracks()) pc.addTrack(track, mic);
     if (options.video) {
       try {

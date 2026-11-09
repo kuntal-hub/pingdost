@@ -61,6 +61,11 @@ export interface CallsNative {
   isInPictureInPicture?(): boolean;
   /** Closes the picture-in-picture window (the call ended in it). */
   exitPip?(): void;
+  // Android, ADR 0038. Optional like the ones above.
+  /** The react-native-webrtc video processor name every camera track should carry. */
+  videoEffectsProcessor?(): string;
+  /** The camera effect: its GLSL source and whether it tracks the face; "none" turns it off. */
+  setVideoEffect?(id: string, shader: string, face: boolean): void;
 }
 
 /** iOS only: the CallKit and PushKit functions (absent on Android). */

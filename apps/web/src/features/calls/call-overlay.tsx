@@ -16,6 +16,7 @@ import {
   ScreenShare,
   ScreenShareOff,
   Settings2,
+  Sparkles,
   SwitchCamera,
   Video,
   VideoOff,
@@ -37,12 +38,14 @@ import {
   clearEnded,
   decline,
   declineVideo,
+  effectChoices,
   flipCamera,
   hangup,
   requestVideo,
   setCameraOff,
   setMinimized,
   setMuted,
+  setVideoEffect,
   startScreenShare,
   stopScreenShare,
   switchInput,
@@ -321,6 +324,49 @@ function ShareChooser({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Camera filters and effects (ADR 0038): drawn here before the picture is encrypted. */
+function EffectsPanel({ onClose }: { onClose: () => void }) {
+  const effect = useCalls((state) => state.effect);
+  const options = [{ id: 'none', label: 'None' }, ...effectChoices()];
+  return (
+    <div
+      role="dialog"
+      aria-labelledby="effects-title"
+      className="absolute bottom-24 left-1/2 flex w-[min(92vw,30rem)] -translate-x-1/2 flex-col gap-3 rounded-lg border border-border bg-surface p-4 text-foreground shadow-xl"
+    >
+      <p id="effects-title" className="font-semibold">
+        Camera effects
+      </p>
+      <div role="radiogroup" aria-labelledby="effects-title" className="flex flex-wrap gap-2">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            role="radio"
+            aria-checked={effect === option.id}
+            onClick={() => void setVideoEffect(option.id)}
+            className={cn(
+              'min-h-9 cursor-pointer rounded-full px-3 text-sm font-semibold',
+              effect === option.id
+                ? 'bg-brand text-on-primary'
+                : 'bg-raised text-foreground hover:bg-accent/15',
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-sm text-muted">
+        Effects are drawn in this browser before the picture is encrypted. Face effects (ears,
+        glasses) are in the phone app.
+      </p>
+      <Button variant="secondary" onClick={onClose}>
+        Done
+      </Button>
+    </div>
+  );
+}
+
 function Incoming({ call }: { call: CallSnapshot }) {
   const peer = useContact(call.peerUserId);
   const name = contactName(peer);
@@ -411,8 +457,10 @@ function InCall({ call }: { call: CallSnapshot }) {
   const path = useCalls((state) => state.path);
   const mirrorSelf = useCalls((state) => state.mirrorSelf);
   const now = useNow(true);
-  const [panel, setPanel] = useState<'devices' | 'share' | null>(null);
+  const [panel, setPanel] = useState<'devices' | 'share' | 'effects' | null>(null);
   const [cameras, setCameras] = useState(0);
+  const effect = useCalls((state) => state.effect);
+  const canEffects = call.video && effectChoices().length > 0;
   const showRemoteVideo = showsRemoteVideo(call, remote);
   const showLocalVideo =
     (local?.getVideoTracks().length ?? 0) > 0 &&
@@ -510,6 +558,15 @@ function InCall({ call }: { call: CallSnapshot }) {
             <SwitchCamera aria-hidden />
           </RoundButton>
         )}
+        {canEffects && (
+          <RoundButton
+            label="Camera effects"
+            pressed={panel === 'effects' || effect !== 'none'}
+            onClick={() => setPanel((open) => (open === 'effects' ? null : 'effects'))}
+          >
+            <Sparkles aria-hidden />
+          </RoundButton>
+        )}
         {answered &&
           call.canVideo &&
           (call.video ? (
@@ -551,6 +608,7 @@ function InCall({ call }: { call: CallSnapshot }) {
         </RoundButton>
         {panel === 'devices' && <DevicePicker onClose={() => setPanel(null)} />}
         {panel === 'share' && <ShareChooser onClose={() => setPanel(null)} />}
+        {panel === 'effects' && canEffects && <EffectsPanel onClose={() => setPanel(null)} />}
       </div>
     </div>
   );

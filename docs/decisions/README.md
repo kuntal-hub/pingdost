@@ -64,6 +64,7 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ �
 | Mesh file transfer & Wi-Fi bulk path | 24 | No (done: 0027) |
 | Incoming-call UX on Android | 26 | No (done: 0029) |
 | In-call voice ↔ video, screen sharing, background and picture-in-picture | 32 | No (done: 0037) |
+| Camera filters and effects, face tracking | 33 | No (done: 0038) |
 | APNs route, iOS message wake, CallKit | 29 | No (done: 0032) |
 | iOS nearby link layer, Android↔iOS connect rule, MultipeerConnectivity / Wi-Fi Aware | 30 | No (done: 0033) |
 | Project license | 01 | **Yes** (done: 0001) |

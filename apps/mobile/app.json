@@ -59,7 +59,7 @@
         {
           "android": {
             "buildArchs": ["arm64-v8a", "x86_64"],
-            "extraProguardRules": "-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**\n-keep class com.oney.WebRTCModule.WebRTCModuleOptions { *; }"
+            "extraProguardRules": "-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**"
           }
         }
       ],

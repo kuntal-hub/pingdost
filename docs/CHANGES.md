@@ -4,6 +4,12 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-09 — New requirement: camera filters and effects in video calls (ADR 0038)
+1. **21 effects** (beauty, face, colour and fun) drawn on the device before encryption: Android for all of them, the web (Chrome and Edge) for all but the face ones.
+   - *Affects:* new Phase 33. No protocol or server change.
+2. **Face tracking uses Android's built-in `FaceDetector`**, not MediaPipe or ML Kit: MediaPipe Tasks send usage metrics to Google, and ML Kit's terms are not OSI. Face effects on the web are deferred.
+3. **A new native Android build is required** (calls module).
+
 ### 2026-11-09 — New requirement: calls change while they go on (ADR 0037)
 1. **Voice ↔ video without hanging up.** Voice → video is a request the other side accepts or declines; video → voice applies at once on both sides. Every call now carries a video section in its SDP; with an app from before this change, switching is refused with a notice.
    - *Affects:* new Phase 32. 25, 26 (done parts) are not reworked; the protocol change is additive (`CallSignal.TYPE_MODE`, `screen_sharing`).

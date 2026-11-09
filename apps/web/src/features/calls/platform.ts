@@ -7,16 +7,22 @@
 //   on, else nothing. The camera is closed whenever it is not in use.
 // - Screen sharing never offers this PingDost tab itself (`selfBrowserSurface: 'exclude'`): no
 //   chats in the share and no mirror of the call.
+// - Camera effects (ADR 0038): once the user picks one, the camera runs through
+//   `CameraEffects` and its output track stands in for the camera on the sender and the self
+//   view for the rest of the call.
 import {
   CallMediaError,
+  videoEffect,
   type CameraState,
   type CallPeer,
   type CallPlatform,
   type IceServer,
   type PeerEvents,
   type ScreenSurface,
+  type VideoEffect,
 } from '@pingdost/call-engine';
 
+import { CameraEffects, webEffects } from './effects';
 import { callPrefs } from './prefs';
 import { testMediaStream, testVideoTrack } from './test-media';
 
@@ -97,6 +103,8 @@ class Session {
   screen: MediaStreamTrack | null = null;
   view: MediaStream | null = null;
   screenView: MediaStream | null = null;
+  /** The camera through the chosen effect, once one was chosen. */
+  effects: CameraEffects | null = null;
   closed = false;
   readonly stops: (() => void)[] = [];
   /** Camera changes run one after another (preview → on can follow quickly). */
@@ -125,18 +133,39 @@ class Session {
     return this.videoTransceiver()?.currentDirection === 'sendrecv';
   }
 
+  /** What the camera sends: through the effects when there are any. */
+  get cameraOut(): MediaStreamTrack | null {
+    return this.camera ? (this.effects?.track ?? this.camera) : null;
+  }
+
   async updateSender(): Promise<void> {
     const sender = this.videoTransceiver()?.sender;
     if (!sender || this.closed) return;
-    const track = this.screen ?? (this.cameraState === 'on' ? this.camera : null);
+    const track = this.screen ?? (this.cameraState === 'on' ? this.cameraOut : null);
     if (sender.track !== track) await sender.replaceTrack(track);
   }
 
   setCameraTrack(track: MediaStreamTrack | null): void {
     const old = this.camera;
     this.camera = track;
-    this.view = track ? new MediaStream([track]) : null;
+    this.effects?.setSource(track);
+    const out = this.cameraOut;
+    this.view = out ? new MediaStream([out]) : null;
     if (old && old !== track) old.stop();
+  }
+
+  /** Draws `effect` on the camera from now on (null: the picture as it is). */
+  async setEffect(effect: VideoEffect | null): Promise<void> {
+    if (this.closed) return;
+    if (effect && !this.effects) {
+      this.effects = new CameraEffects();
+      this.effects.setSource(this.camera);
+      const out = this.cameraOut;
+      this.view = out ? new MediaStream([out]) : null;
+    }
+    this.effects?.setEffect(effect);
+    await this.updateSender();
+    this.emit();
   }
 
   async openCamera(): Promise<MediaStreamTrack> {
@@ -241,6 +270,8 @@ class Session {
     this.pc.close();
     for (const track of this.mic.getTracks()) track.stop();
     this.setCameraTrack(null);
+    this.effects?.stop();
+    this.effects = null;
     this.stopScreen();
     for (const stop of this.stops.splice(0)) stop();
   }
@@ -366,6 +397,16 @@ export class WebCallPlatform implements CallPlatform {
     session.mic.removeTrack(old);
     old.stop();
     session.mic.addTrack(track);
+  }
+
+  /** Camera effects this browser can draw (ADR 0038). */
+  effects(): VideoEffect[] {
+    return webEffects();
+  }
+
+  /** Draws the effect `id` on the live call's camera ('none': the picture as it is). */
+  async setEffect(id: string): Promise<void> {
+    await this.#session?.setEffect(videoEffect(id) ?? null);
   }
 
   /** The cameras this browser can use (the flip button shows with two or more). */

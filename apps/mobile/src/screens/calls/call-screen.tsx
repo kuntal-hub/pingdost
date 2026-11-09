@@ -19,11 +19,13 @@ import {
   clearEnded,
   decline,
   declineVideo,
+  effectChoices,
   hangup,
   requestVideo,
   setAudioRoute,
   setCameraOff,
   setMuted,
+  setVideoEffect,
   shareChoices,
   startScreenShare,
   stopScreenShare,
@@ -34,6 +36,7 @@ import {
 import { ActionSheet, type SheetAction } from '@/components/action-sheet';
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
+import { Chip, ChipRow } from '@/components/controls';
 import {
   AppWindowIcon,
   CheckIcon,
@@ -46,6 +49,7 @@ import {
   PhoneOffIcon,
   ScreenShareIcon,
   ScreenShareOffIcon,
+  SparklesIcon,
   SwitchCameraIcon,
   VideoIcon,
   VideoOffIcon,
@@ -174,12 +178,14 @@ export function CallScreen() {
   const front = useCalls((state) => state.front);
   const routes = useCalls((state) => state.routes);
   const notice = useCalls((state) => state.notice);
+  const effect = useCalls((state) => state.effect);
   const contact = useContact(call?.peerUserId);
   const { palette } = useTheme();
   const name = contactName(contact);
   const now = useNow();
   const [routePicker, setRoutePicker] = useState(false);
   const [shareSheet, setShareSheet] = useState(false);
+  const [effectsOpen, setEffectsOpen] = useState(false);
   const answered = useRef<string | null>(null);
 
   // "Answer" on the notification: answer once, as soon as the invite is here.
@@ -243,6 +249,8 @@ export function CallScreen() {
   const route = routes?.current ?? null;
   const canSwitch = inCall(call) && call.canVideo;
   const choices = shareChoices();
+  const effects = effectChoices();
+  const showEffects = effectsOpen && call.video && live && effects.length > 0;
   const declined = call.videoDeclinedAt !== null && now - call.videoDeclinedAt < DECLINED_NOTICE_MS;
   const shareActions: SheetAction[] = choices.map((surface) =>
     surface === 'app'
@@ -380,6 +388,28 @@ export function CallScreen() {
           </Text>
         ) : null}
       </View>
+      {showEffects ? (
+        <View className="mb-3 gap-1">
+          <Text className="px-5 text-xs font-semibold text-white/80">
+            Effects run on your phone before the picture is encrypted.
+          </Text>
+          <ChipRow label="Camera effects">
+            <Chip
+              label="None"
+              selected={effect === 'none'}
+              onPress={() => setVideoEffect('none')}
+            />
+            {effects.map((option) => (
+              <Chip
+                key={option.id}
+                label={option.label}
+                selected={effect === option.id}
+                onPress={() => setVideoEffect(option.id)}
+              />
+            ))}
+          </ChipRow>
+        </View>
+      ) : null}
       {routePicker && routes ? (
         <View className="mx-6 mb-4 gap-1 rounded-2xl bg-white/15 p-2">
           {routes.available.map((option) => (
@@ -440,6 +470,15 @@ export function CallScreen() {
                   icon={SwitchCameraIcon}
                   onPress={() => void switchCamera()}
                 />
+                {effects.length > 0 ? (
+                  <RoundButton
+                    label="Effects"
+                    description={effectsOpen ? 'Hide camera effects' : 'Show camera effects'}
+                    icon={SparklesIcon}
+                    pressed={effectsOpen || effect !== 'none'}
+                    onPress={() => setEffectsOpen((open) => !open)}
+                  />
+                ) : null}
               </>
             ) : null}
             {canSwitch ? (

@@ -10,6 +10,14 @@ export type {
   IncomingPolicy,
   ScreenShareResult,
 } from './manager';
+export {
+  availableEffects,
+  EFFECT_VERTEX_SHADER,
+  VIDEO_EFFECTS,
+  videoEffect,
+  effectFragmentShader,
+} from './effects';
+export type { FaceAnchor, VideoEffect, VideoEffectKind } from './effects';
 export { isLive, isUnanswered, LIVE_STATES, transition } from './machine';
 export type { CallContext, CallEvent, CallState, Transition } from './machine';
 export { CallMediaError } from './types';

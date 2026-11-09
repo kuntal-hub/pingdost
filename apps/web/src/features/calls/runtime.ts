@@ -18,6 +18,7 @@ import {
   type CallSnapshot,
   type IceServer,
   type ScreenSurface,
+  type VideoEffect,
 } from '@pingdost/call-engine';
 
 import { WebCallPlatform, type CallPath } from './platform';
@@ -42,6 +43,8 @@ interface CallsState {
   notice: string | null;
   /** The call shows as a small window, so the rest of the app can be used. */
   minimized: boolean;
+  /** The camera effect of this call ('none' or a `VIDEO_EFFECTS` ID; ADR 0038). */
+  effect: string;
 }
 
 export const useCalls = create<CallsState>()(() => ({
@@ -53,6 +56,7 @@ export const useCalls = create<CallsState>()(() => ({
   path: null,
   notice: null,
   minimized: false,
+  effect: 'none',
 }));
 
 const CAMERA_DENIED = 'PingDost may not use the camera. Allow it in the site settings.';
@@ -200,7 +204,7 @@ export function startCalls(self: { userId: string; deviceId: string }): () => vo
   manager.onChange((call) => {
     useCalls.setState({
       call,
-      ...(call && isLive(call.state) ? {} : { path: null, minimized: false }),
+      ...(call && isLive(call.state) ? {} : { path: null, minimized: false, effect: 'none' }),
     });
     if (call?.state === 'incoming') {
       ringtone.start();
@@ -370,6 +374,21 @@ export function cameraCount(): Promise<number> {
 
 export function setMinimized(minimized: boolean): void {
   useCalls.setState({ minimized });
+}
+
+/** The camera effects this browser offers (Chrome and Edge; none elsewhere). */
+export function effectChoices(): VideoEffect[] {
+  return runtime?.platform.effects() ?? [];
+}
+
+/** Draws `id` on this side's camera for the rest of the call ('none' to stop). */
+export async function setVideoEffect(id: string): Promise<void> {
+  const r = runtime;
+  if (!r) return;
+  useCalls.setState({ effect: id });
+  await r.platform.setEffect(id).catch(() => {
+    useCalls.setState({ effect: 'none', notice: 'This effect could not start here.' });
+  });
 }
 
 /** Hides the "Call ended" line. */

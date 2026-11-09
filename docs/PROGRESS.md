@@ -17,6 +17,22 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-09 — Phase 33: Calls D: camera filters and effects — 🔄 partial (code done; two-phone check with the user next)
+User asked for filters after ADR 0037's feasibility answer (CHANGES 2026-11-09, ADR 0038).
+
+**Done:**
+- 21 GLSL effects in `@pingdost/call-engine` (`effects.ts`): Beauty, Soft glow; Cat, Dog, Bunny, Shades, Clown, Big eyes, Party hat, Mustache; Warm, Cool, B&W, Vintage, Vivid, Comic, Sketch, Pixel, Thermal, Neon, Mirror.
+- Android: `CallEffects.kt` (react-native-webrtc processor `pingdost-effects`, upright pass + effect program + texture pool; Android `FaceDetector` tracking). Effects button and chip row on the call screen. `CallsModule` now compiles against react-native-webrtc (`compileOnly`), so the screen-sharing option is set directly (no reflection, no ProGuard rule).
+- Web: insertable streams + WebGL (Chrome/Edge), Effects panel, no face effects (no tracker without MediaPipe, which sends usage metrics to Google).
+
+**Remaining:**
+- [ ] Two-phone check (phase 33 "Done when"), plus phase 32's phone checks in the same session.
+- [ ] Web: Phase 32's open items (real picker, Chrome's Stop sharing, Decline).
+
+**Verification results:** call-engine 53 tests; all 21 shaders compile in Chrome's WebGL; web call with Test media against the sim peer showed Vintage, Pixel, Neon and Comic in the self view and in the echo, upright, and kept through voice ↔ video; `:pingdost-calls:compileDebugKotlin` and the arm64 APK build pass (APK dex holds `CallEffects`). Repo-wide `pnpm turbo run lint typecheck test`: 59/59.
+
+**State:** the PC had restarted: Docker Desktop and the infra (+ coturn) were started again, and the API server runs on :3000 (this session's). The native Windows MongoDB service is running again on 127.0.0.1:27017 (`.env` uses `localhost`, which reaches Docker's Mongo on ::1). The new APK is installed on the vivo; the Nothing still has the Phase 32 build. Metro, the web dev server and the sim peer are stopped. Chrome: Test media off.
+
 ## 2026-11-09 — Phase 32: Calls C: voice ↔ video, screen sharing, background, picture-in-picture — 🔄 partial (code done; phone checks need the user)
 New phase from the user's request (CHANGES 2026-11-09, ADR 0037).
 

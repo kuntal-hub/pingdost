@@ -15,7 +15,9 @@
 //   never show in the share), front ↔ back camera;
 // - leaving the app during a video call shrinks it into picture-in-picture; without it (the
 //   lock screen, PiP turned off), the camera pauses until the app is back. The call itself
-//   goes on in the background either way.
+//   goes on in the background either way;
+// - camera filters and effects (ADR 0038): the PingdostCalls module draws the chosen one on
+//   every camera frame; each call starts without one.
 // On iOS (Phase 29, ADR 0032) CallKit does the ringing, the incoming-call screen and the lock
 // screen, and owns the audio session; `CallKitBridge` keeps it in step with the manager. The
 // module's Android-only functions are no-ops there.
@@ -32,12 +34,16 @@ import { contactName, loadContact } from '@/engine/contacts';
 import { ensureChannels, MISSED_CALLS_CHANNEL } from '@/push/notifications';
 import { useNotificationPrefs } from '@/push/prefs';
 import {
+  availableEffects,
   CallError,
   CallManager,
   CallMediaError,
+  effectFragmentShader,
   isLive,
+  videoEffect,
   type CallSnapshot,
   type ScreenSurface,
+  type VideoEffect,
 } from '@pingdost/call-engine';
 import type { MessageEngine } from '@pingdost/message-engine';
 
@@ -75,6 +81,8 @@ interface CallsState {
   pip: boolean;
   /** The camera was paused because nobody could see the app; it comes back on return. */
   autoPaused: boolean;
+  /** The camera effect of this call ('none', or an ID from `VIDEO_EFFECTS`; ADR 0038). */
+  effect: string;
 }
 
 export const useCalls = create<CallsState>()(() => ({
@@ -86,6 +94,7 @@ export const useCalls = create<CallsState>()(() => ({
   notice: null,
   pip: false,
   autoPaused: false,
+  effect: 'none',
 }));
 
 /** expo-screen-capture key: PingDost's window stays out of a shared screen. */
@@ -127,6 +136,7 @@ export function startCalls(chat: {
   const platform = new NativeCallPlatform(
     async () => (await api.calls.turnCredentials()).iceServers,
     (media) => useCalls.setState(media),
+    native?.setVideoEffect ? (native.videoEffectsProcessor?.() ?? null) : null,
   );
   void useCallPrefs
     .getState()
@@ -239,7 +249,9 @@ export function startCalls(chat: {
       native?.setPip?.(false, false, '');
     }
     if (useCalls.getState().pip) native?.exitPip?.();
-    useCalls.setState({ pip: false, autoPaused: false });
+    // The next call starts without an effect.
+    native?.setVideoEffect?.('none', '', false);
+    useCalls.setState({ pip: false, autoPaused: false, effect: 'none' });
     if (!native) return;
     native.setProximityScreenOff(false);
     native.stopAudio();
@@ -557,6 +569,26 @@ export async function startScreenShare(surface: ScreenSurface): Promise<void> {
 
 export function stopScreenShare(): Promise<void> {
   return running?.manager.stopScreenShare() ?? Promise.resolve();
+}
+
+/**
+ * The camera effects this phone offers (ADR 0038): all of them on Android, face ones included
+ * (Android's own face detector); none on a build without the effects processor.
+ */
+export function effectChoices(): VideoEffect[] {
+  if (Platform.OS !== 'android' || !PingdostCalls?.setVideoEffect) return [];
+  return availableEffects({ faceTracking: true });
+}
+
+/** Draws `id` on this side's camera picture for the rest of the call ('none' to stop). */
+export function setVideoEffect(id: string): void {
+  const effect = videoEffect(id);
+  PingdostCalls?.setVideoEffect?.(
+    effect ? id : 'none',
+    effect ? effectFragmentShader(effect) : '',
+    effect?.face ?? false,
+  );
+  useCalls.setState({ effect: effect ? id : 'none' });
 }
 
 export function setAudioRoute(route: AudioRoute): void {

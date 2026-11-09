@@ -7,8 +7,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.util.Log
 import android.view.WindowManager
+import com.oney.WebRTCModule.WebRTCModuleOptions
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.lang.ref.WeakReference
@@ -18,29 +18,9 @@ import java.lang.ref.WeakReference
  * WebRTC (react-native-webrtc). Events: `action` ({action: decline | hangup | mute | unmute,
  * callId}) from the notification and picture-in-picture buttons; `audioRoutes`
  * ({available, current}) when devices come and go. ADR 0037 adds picture-in-picture and the
- * screen-sharing service.
+ * screen-sharing service; ADR 0038 the camera effects.
  */
 class CallsModule : Module() {
-  companion object {
-    private const val TAG = "PingdostCalls"
-
-    /**
-     * Screen sharing on Android 14+ needs a `mediaProjection` foreground service started right
-     * after the user's consent; react-native-webrtc has one but starts it only when this option
-     * is on (ADR 0037). Set by reflection so this module does not compile against the library;
-     * release builds keep the class (app.json `extraProguardRules`).
-     */
-    private fun enableScreenSharingService() {
-      try {
-        val options = Class.forName("com.oney.WebRTCModule.WebRTCModuleOptions")
-        val instance = options.getMethod("getInstance").invoke(null)
-        options.getField("enableMediaProjectionService").setBoolean(instance, true)
-      } catch (error: Exception) {
-        Log.w(TAG, "screen sharing service not enabled: ${error.javaClass.simpleName}")
-      }
-    }
-  }
-
   private val forward: (String, Map<String, Any?>) -> Unit = { name, body -> sendEvent(name, body) }
 
   private val context: Context
@@ -59,7 +39,10 @@ class CallsModule : Module() {
     OnCreate {
       CallBridge.emitter = forward
       appContext.reactContext?.let { CallNotifications.ensureChannels(it) }
-      enableScreenSharingService()
+      // Screen sharing on Android 14+ needs a `mediaProjection` foreground service started right
+      // after the user's consent: react-native-webrtc has one, off unless asked (ADR 0037).
+      WebRTCModuleOptions.getInstance().enableMediaProjectionService = true
+      CallEffects.register()
     }
 
     OnDestroy {
@@ -123,6 +106,15 @@ class CallsModule : Module() {
     }
 
     Function("exitPip") { onUi { CallPip.exit(it) } }
+
+    /** The react-native-webrtc video processor that every camera track should carry. */
+    Function("videoEffectsProcessor") { CallEffects.PROCESSOR }
+
+    /** The camera effect of the live call (ADR 0038): its GLSL source, or "none". */
+    Function("setVideoEffect") { id: String, shader: String, face: Boolean ->
+      CallEffects.current =
+        if (id == "none" || shader.isEmpty()) null else CallEffects.Effect(id, shader, face)
+    }
 
     /** Android 14+: the user may turn full-screen notifications off for PingDost. */
     Function("canUseFullScreenIntent") {
