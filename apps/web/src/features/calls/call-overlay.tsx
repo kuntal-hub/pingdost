@@ -483,6 +483,7 @@ function InCall({ call }: { call: CallSnapshot }) {
   const [controlsShown, setControlsShown] = useState(true);
   const [touchedAt, setTouchedAt] = useState(() => Date.now());
   const [swapped, setSwapped] = useState(false);
+  const revealedAt = useRef(0);
   const immersive = call.state === 'connected' && (call.video || call.remoteScreenSharing);
   const holdControls = call.videoRequest === 'in' || panel !== null;
   const showControls = !immersive || holdControls || controlsShown;
@@ -490,7 +491,16 @@ function InCall({ call }: { call: CallSnapshot }) {
     const at = Date.now();
     // Mouse moves come in floods: once a second is enough to keep the controls up.
     if (controlsShown && at - touchedAt < 1_000) return;
+    if (!controlsShown) revealedAt.current = at;
     setControlsShown(true);
+    setTouchedAt(at);
+  };
+  const clickPicture = () => {
+    const at = Date.now();
+    // A mouse moves before it clicks, and that move already showed the controls: the click
+    // that follows belongs to the same gesture and must not hide them again.
+    const hide = controlsShown && at - revealedAt.current >= 1_000;
+    setControlsShown(!hide);
     setTouchedAt(at);
   };
   useEffect(() => {
@@ -517,8 +527,7 @@ function InCall({ call }: { call: CallSnapshot }) {
         className="relative min-h-0 flex-1"
         onClick={(event) => {
           if (!immersive || (event.target as HTMLElement).closest('button')) return;
-          setControlsShown((shown) => !shown);
-          setTouchedAt(Date.now());
+          clickPicture();
         }}
       >
         {bigIsLocal ? (

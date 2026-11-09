@@ -23,9 +23,14 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 - they hide after 10 s without a touch, and stay up while a switch request, the route list or the share chooser is open, or while a screen reader is on;
 - a tap on the small video swaps it with the big one (own video large, mirrored for the front camera).
 
-**Verification:** mobile tests 138/138, web tests 25/25, typecheck, lint and Prettier pass. **Not seen on a device yet:** the API server and Metro were stopped when the PC ran low on memory. The check list is in the phase 32 file ("Hide controls and swap videos").
+**Verification:**
+- Mobile tests 138/138, web tests 25/25, typecheck, lint and Prettier pass.
+- **Web in Chrome (sim peer, Test media): passed**, after one fix: with a mouse, the move before a click had already shown the controls and the click hid them again.
+- **Phones: not checked yet** (not attached). The check list is in the phase 32 file ("Hide controls and swap videos").
 
-**Next:** start Docker infra, the server and Metro (`--clear`) again, and run the check on both phones and in Chrome. The earlier entry below still lists the other open device items.
+**State:** Docker infra and the API server (:3000) are running; the web dev server and the sim peer are stopped. Metro is not running.
+
+**Next:** with both phones attached, start Metro (`--clear`), reload both apps and run the phone check. The earlier entry below still lists the other open device items.
 
 ## 2026-11-09 — Phases 32 and 33 on two phones — 🔄 partial (most device checks passed; the rest in the phase files)
 Nothing A001T (`pd_nothing`) ↔ vivo V2437 (new test account `pd_vivo_t1` on the local server; its password is not in the repo), Android 16, USB + `adb reverse`, local server and Metro.

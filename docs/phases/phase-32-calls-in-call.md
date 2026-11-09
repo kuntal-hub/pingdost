@@ -57,7 +57,15 @@
   - a request banner keeps them up;
   - a tap on the small video swaps it with the big one, and a second tap swaps it back;
   - the header and Minimize hide with the controls.
-  - 2026-11-09: tests, typecheck and lint pass; not yet seen on a device. The server and Metro were stopped when the PC ran low on memory.
+  - 2026-11-09: tests, typecheck and lint pass. The server and Metro were stopped once when the PC ran low on memory.
+  - **Web, Chrome against the sim peer (Test media on): passed.**
+    - The controls hide after 10 s.
+    - A click shows them, the next click hides them, and the one after shows them again.
+    - The small video swaps both ways: own video big and mirrored, the peer's small and playing.
+    - Hang up works once the controls are shown.
+    - **Fixed during the check:** with a mouse, a click never showed the controls. The move before the click already showed them, and the click then hid them again. Now a click within 1 s of the controls appearing keeps them up.
+  - Phones: not checked yet (not attached).
+  - Seen on the way, not a bug in this change: the sim peer (werift) never notices that a browser vanished mid-call (page reload). It stays "connected" and answers every later call Busy, so restart it after reloading during a call.
 
 ## Handoff notes
 - iOS: screen sharing needs a ReplayKit broadcast extension and PiP needs `AVPictureInPictureController` with a sample-buffer layer: Phase 29/30 work, not done.
