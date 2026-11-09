@@ -20,6 +20,7 @@ import { Tap } from '@/components/tap';
 import { Text } from '@/components/text';
 import { contactName } from '@/engine/contacts';
 import { useContact } from '@/engine/hooks';
+import { usePalette } from '@/theme/theme-root';
 
 const MARGIN = 12;
 const LIVE = ['outgoing', 'ringing', 'connecting', 'connected', 'reconnecting'];
@@ -43,6 +44,7 @@ export function CallMiniWindow() {
   const remote = useCalls((state) => state.remote);
   const pip = useCalls((state) => state.pip);
   const contact = useContact(call?.peerUserId);
+  const palette = usePalette();
   const shown = call !== null && LIVE.includes(call.state) && pathname !== '/call' && !pip;
   const now = useNow(shown);
   const video =
@@ -93,7 +95,22 @@ export function CallMiniWindow() {
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
-        style={[{ position: 'absolute', left: 0, top: 0, width: w, height: h }, position]}
+        style={[
+          {
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: w,
+            height: h,
+            borderRadius: 24,
+            overflow: 'hidden',
+            backgroundColor: '#0B0B12',
+            borderWidth: asked ? 3 : 1,
+            borderColor: asked ? palette.accent : 'rgba(255, 255, 255, 0.18)',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
+          },
+          position,
+        ]}
       >
         <Tap
           accessibilityLabel={`Call with ${name}, ${status}`}
@@ -101,7 +118,7 @@ export function CallMiniWindow() {
           feedback="selection"
           scaleTo={0.94}
           onPress={() => router.push('/call')}
-          className={`h-full w-full overflow-hidden rounded-3xl bg-black ${asked ? 'border-4 border-accent' : ''}`}
+          className="h-full w-full"
         >
           {video ? (
             <View className="flex-1">

@@ -278,8 +278,19 @@ export function startCalls(chat: {
       }
     }
     if (before && before.video !== call.video) {
-      const route = routeAfterSwitch(call.video, useCalls.getState().routes);
-      if (route && native.setAudioRoute(route)) useCalls.setState({ routes: native.audioRoutes() });
+      // Android's routes now, not the stored copy (it may lag behind the device).
+      const routes = native.audioRoutes();
+      const route = routeAfterSwitch(call.video, routes);
+      const moved = route ? native.setAudioRoute(route) : false;
+      if (__DEV__) {
+        console.log(`[calls ${deviceTag()}] route after switch`, {
+          video: call.video,
+          current: routes.current,
+          route,
+          moved,
+        });
+      }
+      useCalls.setState({ routes: native.audioRoutes() });
       if (!call.video && AppState.currentState === 'active') {
         try {
           native.startOngoing(call.callId, name, false);
@@ -297,18 +308,24 @@ export function startCalls(chat: {
     pipKey = key;
     native.setPip(wanted, call?.muted ?? false, call?.callId ?? '');
   };
-  /** Pauses the camera while nobody sees the app; turns it back on when they do. */
+  /**
+   * Pauses the camera while nobody sees the app; turns it back on when they do. The window's
+   * visibility comes from the module (picture-in-picture counts as seen); a build without it
+   * falls back to the app state.
+   */
   const reviewCamera = () => {
     const call = manager.call;
     const { autoPaused, pip } = useCalls.getState();
-    const active = AppState.currentState === 'active';
+    const seen = native?.isAppVisible
+      ? native.isAppVisible()
+      : AppState.currentState === 'active' || pip;
     if (autoPaused) {
-      if (!active && !pip && call && isLive(call.state)) return;
+      if (!seen && call && isLive(call.state)) return;
       useCalls.setState({ autoPaused: false });
       if (call?.video && isLive(call.state)) manager.setCameraOff(false);
       return;
     }
-    if (shouldPauseCamera(call, active, pip)) {
+    if (shouldPauseCamera(call, seen, false)) {
       useCalls.setState({ autoPaused: true });
       manager.setCameraOff(true);
     }
@@ -369,19 +386,25 @@ export function startCalls(chat: {
           useCalls.setState({ routes });
           updateProximity();
         }),
+        // Hidden or shown again (another app, the lock screen, PiP closed): the camera follows.
+        native.addListener('visibility', () => refreshPip()),
       ]
     : [];
   for (const action of native?.takePendingActions() ?? []) handleAction(action);
   const stopCallKit = callkit ? consumeCallKitEvents((event) => callkit.onEvent(event)) : null;
 
   // On screen the app rings; off screen the notification does. Leaving the app may shrink a
-  // video call into picture-in-picture: Android takes a moment, so it is checked again.
+  // video call into picture-in-picture: Android takes a moment, so it is checked again. (JS
+  // timers stop in the background; the module's `visibility` event covers the rest.)
   let pipTimers: ReturnType<typeof setTimeout>[] = [];
+  const stopPipWatch = () => {
+    for (const timer of pipTimers) clearTimeout(timer);
+    pipTimers = [];
+  };
   const appState = AppState.addEventListener('change', (next) => {
     const call = manager.call;
     if (call?.state === 'incoming') ring(call);
-    for (const timer of pipTimers) clearTimeout(timer);
-    pipTimers = [];
+    stopPipWatch();
     if (next === 'active') {
       refreshPip();
       return;
@@ -406,7 +429,7 @@ export function startCalls(chat: {
     for (const listener of listeners) listener.remove();
     appState.remove();
     dimensions.remove();
-    for (const timer of pipTimers) clearTimeout(timer);
+    stopPipWatch();
     network.remove();
     stopRinging();
     stopMedia();

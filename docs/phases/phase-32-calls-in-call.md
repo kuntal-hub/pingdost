@@ -29,7 +29,26 @@
   - Home during a video call → picture-in-picture, Mute and Hang up from the window, expand back; the call ends in PiP → the window closes;
   - lock the screen in a video call: the sound goes on, the other side sees "camera off", the camera comes back after unlock;
   - another app open for several minutes during a voice call (and with the screen off) on both phone models: the call holds.
-  - 2026-11-09: not done. The new build is installed on both phones, but both were behind a secure lock screen (2 a.m.) and Claude does not unlock phones. The vivo has no PingDost account (it needs a test sign-up first).
+  - 2026-11-09 night: not done. Both phones were behind a secure lock screen and Claude does not unlock phones.
+  - **2026-11-09 morning, Nothing A001T (`pd_nothing`) ↔ vivo V2437 (test account `pd_vivo_t1`), Android 16, same Wi-Fi, direct:**
+    - passed:
+      - voice → video both ways (the vivo asking and the Nothing asking), the request banner and "Asking … Cancel", audio moving to the speaker;
+      - video → voice on both (speaker → earpiece, cameras released);
+      - flip both ways with an effect on;
+      - screen sharing "Entire screen" (Android's dialog → Continue): the Nothing showed the vivo's screen, PingDost's own window black in the share and in screenshots, "sharing their screen" label, our Stop share;
+      - Home during a video call → picture-in-picture on both phones (auto-enter); Mute and Unmute from the PiP window reached the other side; expand back;
+      - no PiP after the call ended;
+      - a voice call kept for 60 s with the Nothing in Settings;
+      - the mini window: shows, drags and snaps to an edge, a tap reopens the call;
+      - the other phone killed mid-call → "Call failed" after about 35 s;
+      - video call made directly, and calls in both directions.
+    - **Fixed during the test:**
+      - the self view covered the request banner and the effects row (now above the measured bottom panel);
+      - closing the PiP window did not pause the camera (JS timers stop in the background): a native `visibility` event (`CallVisibility`, activity started/stopped) now drives it; checked: camera released, the other side sees the avatar, back on return;
+      - the speaker switch used a stale stored route and once stayed on the earpiece (now read fresh from Android; checked again);
+      - the mini window had no rounded corners (fixed; not looked at again).
+    - Not checked: "One app" sharing, Android's own Stop sharing, Decline on a phone, the lock screen (PIN), ending a call inside PiP, more than a few minutes in the background, the screen off.
+    - Seen once: the first Answer tap after the app's first start did nothing (missed call); not reproduced after a fresh start.
 
 ## Handoff notes
 - iOS: screen sharing needs a ReplayKit broadcast extension and PiP needs `AVPictureInPictureController` with a sample-buffer layer: Phase 29/30 work, not done.

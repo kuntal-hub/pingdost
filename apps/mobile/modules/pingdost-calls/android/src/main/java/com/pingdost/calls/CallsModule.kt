@@ -34,7 +34,7 @@ class CallsModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("PingdostCalls")
 
-    Events("action", "audioRoutes")
+    Events("action", "audioRoutes", "visibility")
 
     OnCreate {
       CallBridge.emitter = forward
@@ -106,6 +106,9 @@ class CallsModule : Module() {
     }
 
     Function("exitPip") { onUi { CallPip.exit(it) } }
+
+    /** PingDost's window can be seen (started; picture-in-picture counts). */
+    Function("isAppVisible") { CallVisibility.visible }
 
     /** The react-native-webrtc video processor that every camera track should carry. */
     Function("videoEffectsProcessor") { CallEffects.PROCESSOR }

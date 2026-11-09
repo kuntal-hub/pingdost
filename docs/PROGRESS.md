@@ -17,6 +17,21 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-09 — Phases 32 and 33 on two phones — 🔄 partial (most device checks passed; the rest in the phase files)
+Nothing A001T (`pd_nothing`) ↔ vivo V2437 (new test account `pd_vivo_t1` on the local server; its password is not in the repo), Android 16, USB + `adb reverse`, local server and Metro.
+
+**Passed:** voice ↔ video both ways and both directions; flip; screen sharing (entire screen) with PingDost black in the share; PiP on both phones with Mute/Unmute/expand from the window; a voice call kept with another app open; the mini window; the other side killed → "Call failed" after ~35 s; face effects (Cat, Dog, Shades, Big eyes) following the face; colour effects on both phones; effects through flip, sharing and PiP. Details: phase 32 and 33 files.
+
+**Fixed (commit below):**
+- the self view covered banners and the effects row;
+- closing PiP did not pause the camera: new native `visibility` event (`CallVisibility.kt`; needs this APK);
+- a stale stored audio route kept a switch to video on the earpiece;
+- the mini window's corners.
+
+**Remaining:** "One app" sharing, Android's own Stop sharing, Decline on a phone, the lock screen and screen off (the phones have PINs), ending a call inside PiP, all 21 effects and frame rate, a new call starting with None, the web real picker. Seen once and not reproduced: a first Answer tap after a fresh app start did nothing.
+
+**State:** both phones have the new APK and stay-awake back off; `adb reverse` still set. The API server (:3000), Metro (`CI=1`) and Docker infra are still running for more testing; stop them when done. The Windows MongoDB service runs again since the restart (`.env` uses `localhost`, which reaches Docker's).
+
 ## 2026-11-09 — Phase 33: Calls D: camera filters and effects — 🔄 partial (code done; two-phone check with the user next)
 User asked for filters after ADR 0037's feasibility answer (CHANGES 2026-11-09, ADR 0038).
 

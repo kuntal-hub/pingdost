@@ -22,6 +22,7 @@ class CallsPackage : Package {
 class CallActivityListener : ReactActivityLifecycleListener {
   override fun onCreate(activity: Activity, savedInstanceState: Bundle?) {
     CallBridge.activity = WeakReference(activity)
+    CallVisibility.register(activity)
     if (CallLockScreen.isCallIntent(activity.intent)) CallLockScreen.apply(activity, true)
   }
 

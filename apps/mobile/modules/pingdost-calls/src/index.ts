@@ -24,6 +24,8 @@ export interface CallAction {
 type CallsEvents = {
   action: (event: CallAction) => void;
   audioRoutes: (event: AudioRoutes) => void;
+  /** Android: PingDost's window became visible (started, PiP included) or not (stopped). */
+  visibility: (event: { visible: boolean }) => void;
   /** iOS: CallKit actions, audio session changes and calls reported for VoIP pushes. */
   callkit: (event: CallKitEvent) => void;
   /** iOS: the PushKit VoIP token changed (null: invalidated). */
@@ -61,6 +63,8 @@ export interface CallsNative {
   isInPictureInPicture?(): boolean;
   /** Closes the picture-in-picture window (the call ended in it). */
   exitPip?(): void;
+  /** PingDost's window can be seen (started; picture-in-picture counts). */
+  isAppVisible?(): boolean;
   // Android, ADR 0038. Optional like the ones above.
   /** The react-native-webrtc video processor name every camera track should carry. */
   videoEffectsProcessor?(): string;

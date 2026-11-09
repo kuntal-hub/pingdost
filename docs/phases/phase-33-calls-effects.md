@@ -19,6 +19,13 @@
 - [x] Web: effects visible in a call (self view and the peer's echo), upright, and kept through voice ↔ video.
 - [x] `:pingdost-calls:compileDebugKotlin` and the arm64 APK build pass.
 - [ ] **Android, on two phones:** every effect in a video call; the face effects follow the face (front and back camera, phone upright); the other phone sees the same; no stutter on the slower phone (frame rate in the call stats); effects off after the call; screen sharing and picture-in-picture still work with an effect on.
+  - 2026-11-09, Nothing A001T ↔ vivo V2437 (Android 16):
+    - passed:
+      - Cat, Dog, Shades and Big eyes on the Nothing followed the user's face (front camera), in the self view and on the vivo;
+      - Vintage on the Nothing and Comic on the vivo showed on the other phone;
+      - the effect stayed through flips, screen sharing and picture-in-picture;
+      - no effect errors in the native log.
+    - Not checked: every one of the 21 effects, the back camera with a face effect, Beauty and Soft glow by eye, frame rate (no stats screen on the phone; nothing looked stuck), that a new call starts with None.
 
 ## Handoff notes
 - Web face effects need a face tracker (TF.js + BlazeFace, Apache-2.0, about 2 MB): later, if wanted.
