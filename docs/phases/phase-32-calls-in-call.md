@@ -64,7 +64,15 @@
     - The small video swaps both ways: own video big and mirrored, the peer's small and playing.
     - Hang up works once the controls are shown.
     - **Fixed during the check:** with a mouse, a click never showed the controls. The move before the click already showed them, and the click then hid them again. Now a click within 1 s of the controls appearing keeps them up.
-  - Phones: not checked yet (not attached).
+  - **Phones, Nothing A001T ↔ vivo V2437, video call through the dev TURN relay: passed.**
+    - Both phones hid the controls after 10 s.
+    - On the vivo:
+      - a tap showed the header, Minimize and both rows, with the small video above them;
+      - the next tap hid them all, and the small video dropped to the corner;
+      - a tap on the small video showed its own camera big, and another tap swapped back.
+    - While "Reconnecting…" the controls came back by themselves (only a connected call hides them).
+    - Not checked: tap and swap on the Nothing (it dropped off USB mid-test); the hold for an open request, route list or share chooser.
+    - Network that day: the vivo ran a hotspot that the PC and the Nothing were on. Android's WebRTC does not use the hotspot interface, so a direct call failed (ICE failed). The relay over USB fixed it: coturn (`--profile calls`), the server started with `TURN_URLS=turn:127.0.0.1:3478?transport=tcp` plus the dev secret, and `adb reverse tcp:3478 tcp:3478` on each phone.
   - Seen on the way, not a bug in this change: the sim peer (werift) never notices that a browser vanished mid-call (page reload). It stays "connected" and answers every later call Busy, so restart it after reloading during a call.
 
 ## Handoff notes

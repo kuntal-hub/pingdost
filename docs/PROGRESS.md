@@ -26,11 +26,13 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Verification:**
 - Mobile tests 138/138, web tests 25/25, typecheck, lint and Prettier pass.
 - **Web in Chrome (sim peer, Test media): passed**, after one fix: with a mouse, the move before a click had already shown the controls and the click hid them again.
-- **Phones: not checked yet** (not attached). The check list is in the phase 32 file ("Hide controls and swap videos").
+- **Phones (Nothing ↔ vivo, via the dev TURN relay over `adb reverse`): passed**: auto-hide on both; tap show/hide and swap both ways on the vivo. The Nothing dropped off USB before its own tap and swap check. Details are in the phase 32 file.
 
-**State:** Docker infra and the API server (:3000) are running; the web dev server and the sim peer are stopped. Metro is not running.
+**State:**
+- Running: Docker infra, coturn (`--profile calls`), the API server with `TURN_URLS=turn:127.0.0.1:3478?transport=tcp` (process env only; `.env` unchanged) and Metro (`CI=1`).
+- The vivo has `adb reverse` for 3000, 8081 and 3478.
 
-**Next:** with both phones attached, start Metro (`--clear`), reload both apps and run the phone check. The earlier entry below still lists the other open device items.
+**Next:** stop the services when done (`docker compose --profile calls down` for coturn). The earlier entry below still lists the other open device items.
 
 ## 2026-11-09 — Phases 32 and 33 on two phones — 🔄 partial (most device checks passed; the rest in the phase files)
 Nothing A001T (`pd_nothing`) ↔ vivo V2437 (new test account `pd_vivo_t1` on the local server; its password is not in the repo), Android 16, USB + `adb reverse`, local server and Metro.
