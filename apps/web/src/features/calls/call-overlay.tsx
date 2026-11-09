@@ -77,6 +77,9 @@ const ERROR_TEXT: Record<NonNullable<CallSnapshot['error']>, string> = {
 /** How long "They declined video" stays. */
 const DECLINED_NOTICE_MS = 4_000;
 
+/** In a video call the controls hide after this long without a click, move or key. */
+const CONTROLS_HIDE_MS = 10_000;
+
 function duration(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1_000));
   const m = Math.floor(seconds / 60);
@@ -474,15 +477,58 @@ function InCall({ call }: { call: CallSnapshot }) {
     void cameraCount().then(setCameras);
   }, [call.video, local]);
 
+  // In a video call a click (or tap) on the picture shows or hides the controls, moving the
+  // mouse or using the keyboard shows them, and they hide after a while. The small picture
+  // swaps with the big one.
+  const [controlsShown, setControlsShown] = useState(true);
+  const [touchedAt, setTouchedAt] = useState(() => Date.now());
+  const [swapped, setSwapped] = useState(false);
+  const immersive = call.state === 'connected' && (call.video || call.remoteScreenSharing);
+  const holdControls = call.videoRequest === 'in' || panel !== null;
+  const showControls = !immersive || holdControls || controlsShown;
+  const reveal = () => {
+    const at = Date.now();
+    // Mouse moves come in floods: once a second is enough to keep the controls up.
+    if (controlsShown && at - touchedAt < 1_000) return;
+    setControlsShown(true);
+    setTouchedAt(at);
+  };
+  useEffect(() => {
+    if (!immersive || holdControls || !controlsShown) return;
+    const timer = setTimeout(() => setControlsShown(false), CONTROLS_HIDE_MS);
+    return () => clearTimeout(timer);
+  }, [immersive, holdControls, controlsShown, touchedAt]);
+  const canSwap = showRemoteVideo && showLocalVideo;
+  const bigIsLocal = canSwap && swapped;
+
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={`Call with ${name}`}
+      onPointerMove={(event) => {
+        if (event.pointerType === 'mouse') reveal();
+      }}
+      onKeyDown={reveal}
+      onFocus={reveal}
       className="fixed inset-0 z-50 flex flex-col bg-black text-white"
     >
-      <div className="relative min-h-0 flex-1">
-        {showRemoteVideo ? (
+      <div
+        className="relative min-h-0 flex-1"
+        onClick={(event) => {
+          if (!immersive || (event.target as HTMLElement).closest('button')) return;
+          setControlsShown((shown) => !shown);
+          setTouchedAt(Date.now());
+        }}
+      >
+        {bigIsLocal ? (
+          <Media
+            stream={local}
+            kind="video"
+            muted
+            className={cn('h-full w-full object-contain', mirrorSelf && '-scale-x-100')}
+          />
+        ) : showRemoteVideo ? (
           <Media
             stream={remote}
             kind="video"
@@ -496,120 +542,136 @@ function InCall({ call }: { call: CallSnapshot }) {
           </div>
         )}
         {showLocalVideo && (
-          <Media
-            stream={local}
-            kind="video"
-            muted
-            className={cn(
-              'absolute right-4 bottom-4 w-32 rounded-md border border-white/30 md:w-48',
-              mirrorSelf && '-scale-x-100',
+          <button
+            type="button"
+            aria-label={bigIsLocal ? 'Show their video large' : 'Show your video large'}
+            disabled={!canSwap}
+            onClick={() => {
+              setSwapped((current) => !current);
+              setTouchedAt(Date.now());
+            }}
+            className="absolute right-4 bottom-4 w-32 cursor-pointer overflow-hidden rounded-md border border-white/30 disabled:cursor-default md:w-48"
+          >
+            {bigIsLocal ? (
+              <Media stream={remote} kind="video" muted remoteVideo className="block w-full" />
+            ) : (
+              <Media
+                stream={local}
+                kind="video"
+                muted
+                className={cn('block w-full', mirrorSelf && '-scale-x-100')}
+              />
             )}
-          />
+          </button>
         )}
-        <div className="absolute inset-x-0 top-0 flex items-start gap-2 bg-gradient-to-b from-black/70 to-transparent p-4">
-          <RoundButton small label="Minimize the call" onClick={() => setMinimized(true)}>
-            <Minimize2 aria-hidden className="h-5 w-5" />
-          </RoundButton>
-          <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <p className="truncate text-lg font-semibold">{name}</p>
-            <p className="text-sm" aria-live="polite">
-              {statusText(call, now)}
-              {call.remoteMuted && call.state === 'connected' ? ' · their microphone is off' : ''}
-              {call.remoteScreenSharing ? ' · sharing their screen' : ''}
-            </p>
-            {path && call.state === 'connected' && (
-              <p className="text-xs text-white/70">
-                {path.relayed ? 'Relayed (TURN)' : 'Direct'} · {path.localType}/{path.remoteType} ·{' '}
-                {path.protocol}
-                {call.relayOnly ? ' · relay forced' : ''} ·{' '}
-                {((path.bytesSent + path.bytesReceived) / 1_048_576).toFixed(1)} MB
+        {showControls && (
+          <div className="absolute inset-x-0 top-0 flex items-start gap-2 bg-gradient-to-b from-black/70 to-transparent p-4">
+            <RoundButton small label="Minimize the call" onClick={() => setMinimized(true)}>
+              <Minimize2 aria-hidden className="h-5 w-5" />
+            </RoundButton>
+            <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
+              <p className="truncate text-lg font-semibold">{name}</p>
+              <p className="text-sm" aria-live="polite">
+                {statusText(call, now)}
+                {call.remoteMuted && call.state === 'connected' ? ' · their microphone is off' : ''}
+                {call.remoteScreenSharing ? ' · sharing their screen' : ''}
               </p>
+              {path && call.state === 'connected' && (
+                <p className="text-xs text-white/70">
+                  {path.relayed ? 'Relayed (TURN)' : 'Direct'} · {path.localType}/{path.remoteType}{' '}
+                  · {path.protocol}
+                  {call.relayOnly ? ' · relay forced' : ''} ·{' '}
+                  {((path.bytesSent + path.bytesReceived) / 1_048_576).toFixed(1)} MB
+                </p>
+              )}
+            </div>
+            {canPip ? (
+              <RoundButton small label="Picture in picture" onClick={() => void pictureInPicture()}>
+                <PictureInPicture2 aria-hidden className="h-5 w-5" />
+              </RoundButton>
+            ) : (
+              <span className="w-10" />
             )}
           </div>
-          {canPip ? (
-            <RoundButton small label="Picture in picture" onClick={() => void pictureInPicture()}>
-              <PictureInPicture2 aria-hidden className="h-5 w-5" />
-            </RoundButton>
-          ) : (
-            <span className="w-10" />
-          )}
-        </div>
+        )}
         <Banners call={call} name={name} now={now} />
       </div>
-      <div className="relative flex flex-wrap items-center justify-center gap-4 p-6">
-        <RoundButton
-          label={call.muted ? 'Unmute' : 'Mute'}
-          pressed={call.muted}
-          onClick={() => setMuted(!call.muted)}
-        >
-          {call.muted ? <MicOff aria-hidden /> : <Mic aria-hidden />}
-        </RoundButton>
-        {call.video && (
+      {showControls && (
+        <div className="relative flex flex-wrap items-center justify-center gap-4 p-6">
           <RoundButton
-            label={call.cameraOff ? 'Turn camera on' : 'Turn camera off'}
-            pressed={call.cameraOff}
-            onClick={() => setCameraOff(!call.cameraOff)}
+            label={call.muted ? 'Unmute' : 'Mute'}
+            pressed={call.muted}
+            onClick={() => setMuted(!call.muted)}
           >
-            {call.cameraOff ? <VideoOff aria-hidden /> : <Video aria-hidden />}
+            {call.muted ? <MicOff aria-hidden /> : <Mic aria-hidden />}
           </RoundButton>
-        )}
-        {call.video && cameras > 1 && (
-          <RoundButton label="Next camera" onClick={() => void flipCamera()}>
-            <SwitchCamera aria-hidden />
-          </RoundButton>
-        )}
-        {canEffects && (
-          <RoundButton
-            label="Camera effects"
-            pressed={panel === 'effects' || effect !== 'none'}
-            onClick={() => setPanel((open) => (open === 'effects' ? null : 'effects'))}
-          >
-            <Sparkles aria-hidden />
-          </RoundButton>
-        )}
-        {answered &&
-          call.canVideo &&
-          (call.video ? (
-            <RoundButton label="Switch to voice" onClick={switchToVoice}>
-              <Phone aria-hidden />
-            </RoundButton>
-          ) : (
+          {call.video && (
             <RoundButton
-              label="Switch to video"
-              pressed={call.videoRequest === 'out'}
+              label={call.cameraOff ? 'Turn camera on' : 'Turn camera off'}
+              pressed={call.cameraOff}
+              onClick={() => setCameraOff(!call.cameraOff)}
+            >
+              {call.cameraOff ? <VideoOff aria-hidden /> : <Video aria-hidden />}
+            </RoundButton>
+          )}
+          {call.video && cameras > 1 && (
+            <RoundButton label="Next camera" onClick={() => void flipCamera()}>
+              <SwitchCamera aria-hidden />
+            </RoundButton>
+          )}
+          {canEffects && (
+            <RoundButton
+              label="Camera effects"
+              pressed={panel === 'effects' || effect !== 'none'}
+              onClick={() => setPanel((open) => (open === 'effects' ? null : 'effects'))}
+            >
+              <Sparkles aria-hidden />
+            </RoundButton>
+          )}
+          {answered &&
+            call.canVideo &&
+            (call.video ? (
+              <RoundButton label="Switch to voice" onClick={switchToVoice}>
+                <Phone aria-hidden />
+              </RoundButton>
+            ) : (
+              <RoundButton
+                label="Switch to video"
+                pressed={call.videoRequest === 'out'}
+                onClick={() =>
+                  call.videoRequest === 'out' ? cancelVideoRequest() : void requestVideo()
+                }
+              >
+                <Video aria-hidden />
+              </RoundButton>
+            ))}
+          {canShare && (
+            <RoundButton
+              label={call.screenSharing ? 'Stop sharing your screen' : 'Share your screen'}
+              pressed={call.screenSharing}
               onClick={() =>
-                call.videoRequest === 'out' ? cancelVideoRequest() : void requestVideo()
+                call.screenSharing
+                  ? void stopScreenShare()
+                  : setPanel((open) => (open === 'share' ? null : 'share'))
               }
             >
-              <Video aria-hidden />
+              {call.screenSharing ? <ScreenShareOff aria-hidden /> : <ScreenShare aria-hidden />}
             </RoundButton>
-          ))}
-        {canShare && (
+          )}
           <RoundButton
-            label={call.screenSharing ? 'Stop sharing your screen' : 'Share your screen'}
-            pressed={call.screenSharing}
-            onClick={() =>
-              call.screenSharing
-                ? void stopScreenShare()
-                : setPanel((open) => (open === 'share' ? null : 'share'))
-            }
+            label="Audio and video devices"
+            onClick={() => setPanel((open) => (open === 'devices' ? null : 'devices'))}
           >
-            {call.screenSharing ? <ScreenShareOff aria-hidden /> : <ScreenShare aria-hidden />}
+            <Settings2 aria-hidden />
           </RoundButton>
-        )}
-        <RoundButton
-          label="Audio and video devices"
-          onClick={() => setPanel((open) => (open === 'devices' ? null : 'devices'))}
-        >
-          <Settings2 aria-hidden />
-        </RoundButton>
-        <RoundButton label="Hang up" tone="danger" onClick={() => void hangup()}>
-          <PhoneOff aria-hidden />
-        </RoundButton>
-        {panel === 'devices' && <DevicePicker onClose={() => setPanel(null)} />}
-        {panel === 'share' && <ShareChooser onClose={() => setPanel(null)} />}
-        {panel === 'effects' && canEffects && <EffectsPanel onClose={() => setPanel(null)} />}
-      </div>
+          <RoundButton label="Hang up" tone="danger" onClick={() => void hangup()}>
+            <PhoneOff aria-hidden />
+          </RoundButton>
+          {panel === 'devices' && <DevicePicker onClose={() => setPanel(null)} />}
+          {panel === 'share' && <ShareChooser onClose={() => setPanel(null)} />}
+          {panel === 'effects' && canEffects && <EffectsPanel onClose={() => setPanel(null)} />}
+        </div>
+      )}
     </div>
   );
 }

@@ -5,9 +5,9 @@
 // screen sharing, speaker/earpiece/headset/Bluetooth, hang up. "Minimize" (or Back) returns to
 // the app with the call going on in a mini window. It closes itself after the call ends.
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { AccessibilityInfo, Pressable, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RTCView } from 'react-native-webrtc';
 
@@ -74,6 +74,35 @@ const ROUTE_LABEL: Record<AudioRoute, string> = {
 
 /** How long "They stayed on voice" stays. */
 const DECLINED_NOTICE_MS = 4_000;
+
+/** In a video call the controls hide after this long without a touch. */
+const CONTROLS_HIDE_MS = 10_000;
+
+/** A screen reader is on: controls never hide by themselves then. */
+function useScreenReader(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    void AccessibilityInfo.isScreenReaderEnabled().then(setOn);
+    const subscription = AccessibilityInfo.addEventListener('screenReaderChanged', setOn);
+    return () => subscription.remove();
+  }, []);
+  return on;
+}
+
+/** Shows or hides call controls, fading when the user's Motion setting allows it. */
+function Fade({ shown, children }: { shown: boolean; children: ReactNode }) {
+  const { fades } = useMotion();
+  if (!shown) return null;
+  return (
+    <Animated.View
+      entering={fades ? FadeIn.duration(180) : undefined}
+      exiting={fades ? FadeOut.duration(180) : undefined}
+      pointerEvents="box-none"
+    >
+      {children}
+    </Animated.View>
+  );
+}
 
 const RIPPLE = {
   from: { transform: [{ scale: 1 }], opacity: 0.5 },
@@ -189,6 +218,24 @@ export function CallScreen() {
   /** Height of everything below the picture (controls, banners, effects): the self view sits above. */
   const [bottomHeight, setBottomHeight] = useState(240);
   const answered = useRef<string | null>(null);
+  // In a video call a tap on the picture shows or hides the controls; they hide by themselves
+  // after a while. The small picture swaps with the big one when tapped.
+  const [controlsShown, setControlsShown] = useState(true);
+  const [touchedAt, setTouchedAt] = useState(() => Date.now());
+  const [swapped, setSwapped] = useState(false);
+  const screenReader = useScreenReader();
+  const immersive =
+    call?.state === 'connected' && (call.video || call.remoteScreenSharing) && !screenReader;
+  /** Something the user must see or is using: the controls stay. */
+  const holdControls = call?.videoRequest === 'in' || routePicker || shareSheet;
+  const showControls = !immersive || holdControls || controlsShown;
+  const touch = () => setTouchedAt(Date.now());
+
+  useEffect(() => {
+    if (!immersive || holdControls || !controlsShown) return;
+    const timer = setTimeout(() => setControlsShown(false), CONTROLS_HIDE_MS);
+    return () => clearTimeout(timer);
+  }, [immersive, holdControls, controlsShown, touchedAt]);
 
   // "Answer" on the notification: answer once, as soon as the invite is here.
   useEffect(() => {
@@ -270,17 +317,36 @@ export function CallScreen() {
         },
   );
 
+  // The big picture is theirs, unless the user tapped the small one to see themselves big.
+  const canSwap = Boolean(remoteVideo && localVideo);
+  const bigIsLocal = canSwap && swapped;
+  const bigStream = bigIsLocal ? local : remoteVideo ? remote : null;
+  const smallStream = bigIsLocal ? remote : localVideo ? local : null;
+  const toggleControls = () => {
+    if (!immersive) return;
+    setControlsShown((shown) => !shown);
+    touch();
+  };
+
   return (
-    <View className="flex-1 bg-black" style={backdrop}>
-      {remoteVideo ? (
+    <Pressable
+      className="flex-1 bg-black"
+      style={backdrop}
+      onPress={toggleControls}
+      accessible={false}
+    >
+      {bigStream ? (
         <RTCView
-          streamURL={remote.toURL()}
+          key={bigIsLocal ? 'big-local' : 'big-remote'}
+          streamURL={bigStream.toURL()}
           // A screen is shown whole; a face fills the screen.
-          objectFit={call.remoteScreenSharing ? 'contain' : 'cover'}
+          objectFit={!bigIsLocal && call.remoteScreenSharing ? 'contain' : 'cover'}
+          // A front camera shows like a mirror; the back camera shows the world as it is.
+          mirror={bigIsLocal && front}
           style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
         />
       ) : null}
-      {live ? (
+      <Fade shown={live && (showControls || !remoteVideo)}>
         <View className="absolute left-4 z-10" style={{ top: insets.top + 8 }}>
           <Tap
             accessibilityLabel="Minimize the call"
@@ -292,49 +358,73 @@ export function CallScreen() {
             <Icon icon={ChevronDownIcon} size={26} color="#FFFFFF" />
           </Tap>
         </View>
-      ) : null}
-      <View className="items-center gap-3 px-6" style={{ paddingTop: insets.top + 56 }}>
-        {!remoteVideo && (
-          <View className="mb-4 items-center justify-center">
-            {ringing && <Ripples size={124} />}
-            <Avatar name={name} url={contact?.avatarUrl ?? null} size={124} />
-          </View>
-        )}
-        <Text className="font-display text-4xl text-white" numberOfLines={1}>
-          {name}
-        </Text>
-        <Text className="text-base font-semibold text-white/90" accessibilityLiveRegion="polite">
-          {callStatus(call, now)}
-          {call.remoteMuted && call.state === 'connected' ? ' · their microphone is off' : ''}
-          {call.remoteScreenSharing ? ' · sharing their screen' : ''}
-        </Text>
-        {call.relayOnly && call.state === 'connected' ? (
-          <Text className="text-xs text-white/70">Relayed (TURN), forced</Text>
-        ) : null}
-        {call.error ? (
-          <Text className="text-center text-sm text-white/80">{ERROR_TEXT[call.error]}</Text>
-        ) : null}
-      </View>
-      {localVideo ? (
-        <RTCView
-          streamURL={local.toURL()}
-          objectFit="cover"
-          // A front camera shows like a mirror; the back camera shows the world as it is.
-          mirror={front}
-          zOrder={1}
+      </Fade>
+      <Fade shown={showControls || !remoteVideo}>
+        <View
+          className="items-center gap-3 px-6"
+          style={{ paddingTop: insets.top + 56 }}
+          pointerEvents="none"
+        >
+          {!remoteVideo && (
+            <View className="mb-4 items-center justify-center">
+              {ringing && <Ripples size={124} />}
+              <Avatar name={name} url={contact?.avatarUrl ?? null} size={124} />
+            </View>
+          )}
+          <Text className="font-display text-4xl text-white" numberOfLines={1}>
+            {name}
+          </Text>
+          <Text className="text-base font-semibold text-white/90" accessibilityLiveRegion="polite">
+            {callStatus(call, now)}
+            {call.remoteMuted && call.state === 'connected' ? ' · their microphone is off' : ''}
+            {call.remoteScreenSharing ? ' · sharing their screen' : ''}
+          </Text>
+          {call.relayOnly && call.state === 'connected' ? (
+            <Text className="text-xs text-white/70">Relayed (TURN), forced</Text>
+          ) : null}
+          {call.error ? (
+            <Text className="text-center text-sm text-white/80">{ERROR_TEXT[call.error]}</Text>
+          ) : null}
+        </View>
+      </Fade>
+      {smallStream ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={bigIsLocal ? 'Show their video large' : 'Show your video large'}
+          disabled={!canSwap}
+          onPress={() => {
+            setSwapped((current) => !current);
+            touch();
+          }}
           style={{
             position: 'absolute',
             right: 16,
-            // Above the controls, banners and the effects row, whatever they hold right now.
+            // Above whatever is below the picture right now (controls, banners, effects).
             bottom: bottomHeight + 12,
             width: 110,
             height: 160,
             borderRadius: 20,
+            overflow: 'hidden',
           }}
-        />
+        >
+          <RTCView
+            key={bigIsLocal ? 'small-remote' : 'small-local'}
+            streamURL={smallStream.toURL()}
+            objectFit="cover"
+            mirror={!bigIsLocal && front}
+            zOrder={1}
+            style={{ flex: 1 }}
+          />
+        </Pressable>
       ) : null}
-      <View className="flex-1" />
-      <View onLayout={(event) => setBottomHeight(event.nativeEvent.layout.height)}>
+      <View className="flex-1" pointerEvents="none" />
+      <View
+        onLayout={(event) => setBottomHeight(event.nativeEvent.layout.height)}
+        // Touches in the panel never toggle the controls, and every touch keeps them up.
+        onStartShouldSetResponder={() => true}
+        onTouchStart={touch}
+        style={showControls ? undefined : { paddingBottom: insets.bottom + 8 }}
+      >
         <View className="mx-4 mb-3 gap-2">
           {call.screenSharing ? (
             <View
@@ -392,152 +482,154 @@ export function CallScreen() {
             </Text>
           ) : null}
         </View>
-        {showEffects ? (
-          <View className="mb-3 gap-1">
-            <Text className="px-5 text-xs font-semibold text-white/80">
-              Effects run on your phone before the picture is encrypted.
-            </Text>
-            <ChipRow label="Camera effects">
-              <Chip
-                label="None"
-                selected={effect === 'none'}
-                onPress={() => setVideoEffect('none')}
-              />
-              {effects.map((option) => (
+        <Fade shown={showControls}>
+          {showEffects ? (
+            <View className="mb-3 gap-1">
+              <Text className="px-5 text-xs font-semibold text-white/80">
+                Effects run on your phone before the picture is encrypted.
+              </Text>
+              <ChipRow label="Camera effects">
                 <Chip
-                  key={option.id}
-                  label={option.label}
-                  selected={effect === option.id}
-                  onPress={() => setVideoEffect(option.id)}
+                  label="None"
+                  selected={effect === 'none'}
+                  onPress={() => setVideoEffect('none')}
                 />
-              ))}
-            </ChipRow>
-          </View>
-        ) : null}
-        {routePicker && routes ? (
-          <View className="mx-6 mb-4 gap-1 rounded-2xl bg-white/15 p-2">
-            {routes.available.map((option) => (
-              <Pressable
-                key={option}
-                accessibilityRole="button"
-                accessibilityState={{ selected: option === route }}
-                onPress={() => {
-                  setAudioRoute(option);
-                  setRoutePicker(false);
-                }}
-                className="min-h-[48px] flex-row items-center justify-between rounded-lg px-4 active:opacity-70"
-              >
-                <Text className="text-base font-semibold text-white">{ROUTE_LABEL[option]}</Text>
-                {option === route && <Icon icon={CheckIcon} size={20} color="#FFFFFF" />}
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-        <View
-          className="mx-4 flex-row flex-wrap justify-center gap-x-2 gap-y-4 rounded-2xl bg-black/30 px-2 py-4"
-          style={{ marginBottom: insets.bottom + 20 }}
-        >
-          {call.state === 'incoming' ? (
-            <>
-              <RoundButton
-                label="Decline"
-                icon={PhoneOffIcon}
-                tone="danger"
-                onPress={() => void decline()}
-              />
-              <RoundButton
-                label="Answer"
-                icon={call.video ? VideoIcon : PhoneIcon}
-                tone="accept"
-                onPress={() => void accept(call.callId)}
-              />
-            </>
-          ) : live ? (
-            <>
-              <RoundButton
-                label={call.muted ? 'Unmute' : 'Mute'}
-                icon={call.muted ? MicOffIcon : MicIcon}
-                pressed={call.muted}
-                onPress={() => setMuted(!call.muted)}
-              />
-              {call.video ? (
-                <>
-                  <RoundButton
-                    label={call.cameraOff ? 'Camera on' : 'Camera off'}
-                    icon={call.cameraOff ? VideoOffIcon : VideoIcon}
-                    pressed={call.cameraOff}
-                    onPress={() => setCameraOff(!call.cameraOff)}
+                {effects.map((option) => (
+                  <Chip
+                    key={option.id}
+                    label={option.label}
+                    selected={effect === option.id}
+                    onPress={() => setVideoEffect(option.id)}
                   />
-                  <RoundButton
-                    label="Flip"
-                    description={front ? 'Use the back camera' : 'Use the front camera'}
-                    icon={SwitchCameraIcon}
-                    onPress={() => void switchCamera()}
-                  />
-                  {effects.length > 0 ? (
-                    <RoundButton
-                      label="Effects"
-                      description={effectsOpen ? 'Hide camera effects' : 'Show camera effects'}
-                      icon={SparklesIcon}
-                      pressed={effectsOpen || effect !== 'none'}
-                      onPress={() => setEffectsOpen((open) => !open)}
-                    />
-                  ) : null}
-                </>
-              ) : null}
-              {canSwitch ? (
-                call.video ? (
-                  <RoundButton
-                    label="Voice"
-                    description="Switch to a voice call"
-                    icon={PhoneIcon}
-                    onPress={switchToVoice}
-                  />
-                ) : (
-                  <RoundButton
-                    label="Video"
-                    description={
-                      call.videoRequest === 'out'
-                        ? 'Cancel the request to switch to video'
-                        : 'Switch to a video call'
-                    }
-                    icon={VideoIcon}
-                    pressed={call.videoRequest === 'out'}
-                    onPress={() =>
-                      call.videoRequest === 'out' ? cancelVideoRequest() : void requestVideo()
-                    }
-                  />
-                )
-              ) : null}
-              {canSwitch && choices.length > 0 ? (
-                <RoundButton
-                  label={call.screenSharing ? 'Stop share' : 'Share'}
-                  description={
-                    call.screenSharing ? 'Stop sharing your screen' : 'Share your screen'
-                  }
-                  icon={call.screenSharing ? ScreenShareOffIcon : ScreenShareIcon}
-                  pressed={call.screenSharing}
-                  onPress={() =>
-                    call.screenSharing ? void stopScreenShare() : setShareSheet(true)
-                  }
-                />
-              ) : null}
-              <RoundButton
-                label={route ? ROUTE_LABEL[route] : 'Audio'}
-                description="Choose where the sound plays"
-                icon={Volume2Icon}
-                pressed={route === 'speaker'}
-                onPress={() => setRoutePicker((open) => !open)}
-              />
-              <RoundButton
-                label="Hang up"
-                icon={PhoneOffIcon}
-                tone="danger"
-                onPress={() => void hangup()}
-              />
-            </>
+                ))}
+              </ChipRow>
+            </View>
           ) : null}
-        </View>
+          {routePicker && routes ? (
+            <View className="mx-6 mb-4 gap-1 rounded-2xl bg-white/15 p-2">
+              {routes.available.map((option) => (
+                <Pressable
+                  key={option}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: option === route }}
+                  onPress={() => {
+                    setAudioRoute(option);
+                    setRoutePicker(false);
+                  }}
+                  className="min-h-[48px] flex-row items-center justify-between rounded-lg px-4 active:opacity-70"
+                >
+                  <Text className="text-base font-semibold text-white">{ROUTE_LABEL[option]}</Text>
+                  {option === route && <Icon icon={CheckIcon} size={20} color="#FFFFFF" />}
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+          <View
+            className="mx-4 flex-row flex-wrap justify-center gap-x-2 gap-y-4 rounded-2xl bg-black/30 px-2 py-4"
+            style={{ marginBottom: insets.bottom + 20 }}
+          >
+            {call.state === 'incoming' ? (
+              <>
+                <RoundButton
+                  label="Decline"
+                  icon={PhoneOffIcon}
+                  tone="danger"
+                  onPress={() => void decline()}
+                />
+                <RoundButton
+                  label="Answer"
+                  icon={call.video ? VideoIcon : PhoneIcon}
+                  tone="accept"
+                  onPress={() => void accept(call.callId)}
+                />
+              </>
+            ) : live ? (
+              <>
+                <RoundButton
+                  label={call.muted ? 'Unmute' : 'Mute'}
+                  icon={call.muted ? MicOffIcon : MicIcon}
+                  pressed={call.muted}
+                  onPress={() => setMuted(!call.muted)}
+                />
+                {call.video ? (
+                  <>
+                    <RoundButton
+                      label={call.cameraOff ? 'Camera on' : 'Camera off'}
+                      icon={call.cameraOff ? VideoOffIcon : VideoIcon}
+                      pressed={call.cameraOff}
+                      onPress={() => setCameraOff(!call.cameraOff)}
+                    />
+                    <RoundButton
+                      label="Flip"
+                      description={front ? 'Use the back camera' : 'Use the front camera'}
+                      icon={SwitchCameraIcon}
+                      onPress={() => void switchCamera()}
+                    />
+                    {effects.length > 0 ? (
+                      <RoundButton
+                        label="Effects"
+                        description={effectsOpen ? 'Hide camera effects' : 'Show camera effects'}
+                        icon={SparklesIcon}
+                        pressed={effectsOpen || effect !== 'none'}
+                        onPress={() => setEffectsOpen((open) => !open)}
+                      />
+                    ) : null}
+                  </>
+                ) : null}
+                {canSwitch ? (
+                  call.video ? (
+                    <RoundButton
+                      label="Voice"
+                      description="Switch to a voice call"
+                      icon={PhoneIcon}
+                      onPress={switchToVoice}
+                    />
+                  ) : (
+                    <RoundButton
+                      label="Video"
+                      description={
+                        call.videoRequest === 'out'
+                          ? 'Cancel the request to switch to video'
+                          : 'Switch to a video call'
+                      }
+                      icon={VideoIcon}
+                      pressed={call.videoRequest === 'out'}
+                      onPress={() =>
+                        call.videoRequest === 'out' ? cancelVideoRequest() : void requestVideo()
+                      }
+                    />
+                  )
+                ) : null}
+                {canSwitch && choices.length > 0 ? (
+                  <RoundButton
+                    label={call.screenSharing ? 'Stop share' : 'Share'}
+                    description={
+                      call.screenSharing ? 'Stop sharing your screen' : 'Share your screen'
+                    }
+                    icon={call.screenSharing ? ScreenShareOffIcon : ScreenShareIcon}
+                    pressed={call.screenSharing}
+                    onPress={() =>
+                      call.screenSharing ? void stopScreenShare() : setShareSheet(true)
+                    }
+                  />
+                ) : null}
+                <RoundButton
+                  label={route ? ROUTE_LABEL[route] : 'Audio'}
+                  description="Choose where the sound plays"
+                  icon={Volume2Icon}
+                  pressed={route === 'speaker'}
+                  onPress={() => setRoutePicker((open) => !open)}
+                />
+                <RoundButton
+                  label="Hang up"
+                  icon={PhoneOffIcon}
+                  tone="danger"
+                  onPress={() => void hangup()}
+                />
+              </>
+            ) : null}
+          </View>
+        </Fade>
       </View>
       <ActionSheet
         visible={shareSheet}
@@ -551,6 +643,6 @@ export function CallScreen() {
         }
         actions={shareActions}
       />
-    </View>
+    </Pressable>
   );
 }

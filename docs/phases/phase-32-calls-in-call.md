@@ -14,6 +14,7 @@
 - [x] Android JS: the same platform model on react-native-webrtc; voice ↔ video (speaker ↔ earpiece, the foreground service adds `camera`); screen sharing through Android's dialog (one app from Android 14) with PingDost's window secure meanwhile; the back camera's self view not mirrored; the camera pauses while nobody sees the app; the mini window over every screen; the picture-in-picture view.
 - [x] Android native (`modules/pingdost-calls`): `CallPip` (params, auto-enter on 12+, `onUserLeaveHint` on 8–11, Mute/Unmute and Hang up buttons, exit when the call ends), the screen-sharing service switched on, `ic_notification`, `FOREGROUND_SERVICE_MEDIA_PROJECTION`, wake and Wi-Fi locks in `CallService`; `plugins/with-call-pip.js`.
 - [x] ADR 0037 (with the filters feasibility), CHANGES, ROADMAP, ARCHITECTURE, CLAUDE.md.
+- [x] Follow-up (user, 2026-11-09): in a connected video call, or while the other side shares a screen, a tap on the picture hides or shows the controls. They also hide after 10 s without a touch, but stay up while a switch request is open, the audio route list or share chooser is open, or a screen reader is on. A tap on the small video swaps it with the big one, so the user can watch their own video large (mirrored for the front camera). The web works the same way; a mouse move or a key also shows the controls.
 - [ ] Camera filters: only if the user decides (proposal in ADR 0037: colour/fun and beauty first, face filters after).
 
 ## Done when
@@ -49,6 +50,14 @@
       - the mini window had no rounded corners (fixed; not looked at again).
     - Not checked: "One app" sharing, Android's own Stop sharing, Decline on a phone, the lock screen (PIN), ending a call inside PiP, more than a few minutes in the background, the screen off.
     - Seen once: the first Answer tap after the app's first start did nothing (missed call); not reproduced after a fresh start.
+
+- [ ] **Hide controls and swap videos (follow-up), on the two phones and in Chrome:**
+  - a tap hides and shows the controls;
+  - they hide after 10 s;
+  - a request banner keeps them up;
+  - a tap on the small video swaps it with the big one, and a second tap swaps it back;
+  - the header and Minimize hide with the controls.
+  - 2026-11-09: tests, typecheck and lint pass; not yet seen on a device. The server and Metro were stopped when the PC ran low on memory.
 
 ## Handoff notes
 - iOS: screen sharing needs a ReplayKit broadcast extension and PiP needs `AVPictureInPictureController` with a sample-buffer layer: Phase 29/30 work, not done.
