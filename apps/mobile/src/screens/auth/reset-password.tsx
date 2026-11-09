@@ -6,6 +6,8 @@ import { describeError } from '@/api/errors';
 import { ResetPasswordFormSchema } from '@/auth/forms';
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
+import { PasswordField } from '@/components/password-field';
+import { PasswordMeter } from '@/components/password-meter';
 import { Screen } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import { useForm } from '@/forms/use-form';
@@ -51,6 +53,7 @@ export function ResetPasswordScreen() {
       title="Choose a new password"
       subtitle={params.email ? `Enter the code we sent to ${params.email}.` : undefined}
       offlineBanner
+      brand
     >
       {!params.email && (
         <TextField
@@ -69,17 +72,16 @@ export function ResetPasswordScreen() {
         maxLength={6}
         {...form.field('otp')}
       />
-      <TextField
+      <PasswordField
         label="New password"
         hint="At least 10 characters"
-        secureTextEntry
         autoComplete="password-new"
         textContentType="newPassword"
         {...form.field('newPassword')}
       />
-      <TextField
+      <PasswordMeter password={form.values.newPassword} email={form.values.email} />
+      <PasswordField
         label="Confirm new password"
-        secureTextEntry
         autoComplete="password-new"
         textContentType="newPassword"
         returnKeyType="done"

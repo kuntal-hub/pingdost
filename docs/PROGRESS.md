@@ -17,6 +17,27 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-10 — Phases 34 and 35: sign-in and sign-up polish; chat look — 🔄 partial (code done; real-phone check next)
+The user's UI/UX list (`prompts/UI_modifications.txt`) was planned as Phases 34–40 (CHANGES 2026-11-10). The user chose server-held Circles (37), prefix + exact-email search (38) and the name "Circle". This session built 34 and 35 (ADR 0039).
+
+**Done:**
+- 34: live username check (`GET /v1/usernames/availability?username=`, no sign-in, per-IP limit; the phone waits 400 ms, aborts stale requests, caches 60 s); `PasswordField` with an eye button on every password field; `react-native-keyboard-controller` (`KeyboardProvider`, `Screen` = `KeyboardAwareScrollView`); field messages that say what to change, plus a password meter that only advises; the PingDost mark and wordmark on every account screen (`Screen brand`).
+- 35: tab titles one step smaller; the Chats "+" (56 dp) floats above a full-width tab bar and bounces in; time and state on every message, inline when they fit (invisible spacer); bubbles at most 80% wide (phone and web); `isBigEmoji` = exactly one emoji; **item 14 found and fixed**: `SwipeAction` remounted a message that lost its swipe action (deleted for everyone) inside its recycled list cell, leaving a blank gap.
+
+**Verification:**
+- Server `test/auth-register.int.test.ts` 11/11 (availability, log hygiene, rate limit). `pnpm turbo run lint typecheck test` for mobile, web, chat-core, server, api-client and shared-types: 18/18.
+- Chrome with the sim peer: items 12, 13, 14 and 15 behave as asked.
+- Pixel 8 emulator with the new debug APK: register (Taken / available live, keyboard, eye, meter), login, Chats layout, inline times, 80% bubbles, one big emoji. Delete for everyone turned into the placeholder at once on both sides. Putting the old `SwipeAction` line back made the gap return, which confirms the cause.
+  - Two bugs fixed during these checks: a shown password fed the keyboard's suggestions; the time spacer was visible on Android (`transparent` on a nested span).
+- `pnpm format:check` flags `packages/message-engine/src/engine.test.ts`, unchanged since 2026-11-08 (not this session's).
+
+**Remaining:**
+- [ ] Install the new APK on both phones (`apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`, arm64 + x86_64; `adb install -r` keeps data) and run the phone checks in both phase files (Nothing and vivo: keyboard on every account screen, the bounce at each Motion level, text sizes, delete for everyone between the two phones).
+
+**State:** Docker infra still running; the server, Metro, the sim peer, the web dev server and the emulator were stopped. The emulator has a local test account `pd_emu_p35` (password only in this session's scratchpad). Phones were not connected this session.
+
+**Next:** the phone check above, then Phase 36 (composer; keyboard-controller is in place) or Phase 37 (Circles, the largest).
+
 ## 2026-11-09 — Phase 32 follow-up: hide call controls, swap videos — 🔄 partial (code done; device check next)
 **Done:** in a connected video call (phone `call-screen.tsx`, web `call-overlay.tsx`):
 - a tap on the picture hides or shows the controls, header and Minimize;

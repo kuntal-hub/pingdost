@@ -2,6 +2,8 @@
 // messages. Issues can carry the input, so they are never logged.
 import type { z } from 'zod';
 
+import { fieldMessage } from './messages';
+
 export type FieldErrors = Partial<Record<string, string>>;
 
 export type ValidationResult<T> = { ok: true; data: T } | { ok: false; errors: FieldErrors };
@@ -33,14 +35,18 @@ export function issueMessage(issue: z.core.$ZodIssue): string {
   return 'Invalid value';
 }
 
-/** Parses `values`; on failure returns the first message per top-level field. */
+/**
+ * Parses `values`; on failure returns the first message per top-level field: the field's own
+ * message that says what to change (`fieldMessage`), else a generic one.
+ */
 export function validate<T>(schema: z.ZodType<T>, values: unknown): ValidationResult<T> {
   const parsed = schema.safeParse(values);
   if (parsed.success) return { ok: true, data: parsed.data };
+  const record = (values ?? {}) as Record<string, unknown>;
   const errors: FieldErrors = {};
   for (const issue of parsed.error.issues) {
     const field = String(issue.path[0] ?? 'form');
-    errors[field] ??= issueMessage(issue);
+    errors[field] ??= fieldMessage(field, record[field]) ?? issueMessage(issue);
   }
   return { ok: false, errors };
 }

@@ -7,6 +7,7 @@ export {
   isSafetyNumberChange,
   previewText,
   shownState,
+  startsRightToLeft,
   stateLabel,
   systemText,
 } from '@pingdost/chat-core';

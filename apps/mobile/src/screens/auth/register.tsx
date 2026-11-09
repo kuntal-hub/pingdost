@@ -2,8 +2,12 @@ import { useRouter } from 'expo-router';
 
 import { api } from '@/api';
 import { RegisterFormSchema } from '@/auth/forms';
+import { useUsernameAvailability } from '@/auth/use-username-availability';
+import { availabilityNote } from '@/auth/username-availability';
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
+import { PasswordField } from '@/components/password-field';
+import { PasswordMeter } from '@/components/password-meter';
 import { Screen } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import { useForm } from '@/forms/use-form';
@@ -16,6 +20,8 @@ export function RegisterScreen() {
     password: '',
     confirmPassword: '',
   });
+  const availability = useUsernameAvailability(form.values.username);
+  const usernameNote = availabilityNote(availability);
 
   const submit = () =>
     form.submit(async ({ username, email, password }) => {
@@ -28,6 +34,7 @@ export function RegisterScreen() {
       title="Create account"
       subtitle="We email you a code to confirm the address."
       offlineBanner
+      brand
     >
       <TextField
         label="Username"
@@ -36,6 +43,7 @@ export function RegisterScreen() {
         autoCorrect={false}
         autoComplete="username-new"
         textContentType="username"
+        {...(usernameNote ? { note: usernameNote } : {})}
         {...form.field('username')}
       />
       <TextField
@@ -46,17 +54,20 @@ export function RegisterScreen() {
         textContentType="emailAddress"
         {...form.field('email')}
       />
-      <TextField
+      <PasswordField
         label="Password"
         hint="At least 10 characters"
-        secureTextEntry
         autoComplete="password-new"
         textContentType="newPassword"
         {...form.field('password')}
       />
-      <TextField
+      <PasswordMeter
+        password={form.values.password}
+        username={form.values.username}
+        email={form.values.email}
+      />
+      <PasswordField
         label="Confirm password"
-        secureTextEntry
         autoComplete="password-new"
         textContentType="newPassword"
         returnKeyType="done"

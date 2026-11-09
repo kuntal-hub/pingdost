@@ -1,6 +1,7 @@
 /** `/v1/auth/*` routes (Phase 5). DTOs come from `@pingdost/shared-types`. */
 import type { FastifyPluginCallback, FastifyRequest, preHandlerAsyncHookHandler } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 
 import {
   AuthSessionSchema,
@@ -15,6 +16,7 @@ import {
   RefreshRequestSchema,
   RegisterRequestSchema,
   RegisterResponseSchema,
+  UsernameAvailabilityResponseSchema,
   VerifyEmailRequestSchema,
 } from '@pingdost/shared-types';
 
@@ -128,6 +130,19 @@ export const authRoutes: FastifyPluginCallback<AuthRoutesOptions> = (fastify, op
       schema: { body: GoogleCompleteRequestSchema, response: { 200: AuthUserSchema } },
     },
     async (request) => service.completeGoogle(authOf(request).userId, request.body.username),
+  );
+
+  // The name goes in the query, which request logs leave out (ARCHITECTURE A10).
+  app.get(
+    '/v1/usernames/availability',
+    {
+      config: { rateLimit: limits.usernameAvailability },
+      schema: {
+        querystring: z.object({ username: z.string().min(1).max(64) }),
+        response: { 200: UsernameAvailabilityResponseSchema },
+      },
+    },
+    async (request) => service.usernameAvailability(request.query.username),
   );
 
   app.post(

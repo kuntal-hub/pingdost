@@ -23,6 +23,9 @@ import { Tap } from './tap';
 import { Text } from './text';
 
 const BAR_HEIGHT = 64;
+/** The Chats tab's "+" floats above the bar (Phase 35), a little smaller than the bar is tall. */
+const NEW_BUTTON = 56;
+const GAP = 12;
 /** The first screen of each tab; deeper screens get the whole height. */
 const ROOT_SCREENS: readonly string[] = ['chats', 'calls', 'settings'];
 const PAD = 5;
@@ -33,10 +36,13 @@ const TABS: Record<string, { label: string; icon: LucideIcon }> = {
   '(settings)': { label: 'Settings', icon: SettingsIcon },
 };
 
-/** Bottom padding that keeps a tab's content clear of the floating bar. */
-export function useTabBarInset(): number {
+/**
+ * Bottom padding that keeps a tab's content clear of the floating bar, and with `newButton`
+ * also of the "+" above it.
+ */
+export function useTabBarInset({ newButton = false }: { newButton?: boolean } = {}): number {
   const insets = useSafeAreaInsets();
-  return insets.bottom + BAR_HEIGHT + 32;
+  return insets.bottom + BAR_HEIGHT + 32 + (newButton ? NEW_BUTTON + GAP : 0);
 }
 
 const DIAL_IN = {
@@ -44,7 +50,17 @@ const DIAL_IN = {
   to: { transform: [{ translateY: 0 }, { scale: 1 }], opacity: 1 },
 };
 
-/** The "+" beside the tabs: opens a small fan of "start something" actions. */
+/** A small bounce when the "+" appears: overshoot, settle back, rest. */
+const BOUNCE_IN = {
+  '0%': { transform: [{ scale: 0.3 }], opacity: 0 },
+  '55%': { transform: [{ scale: 1.14 }], opacity: 1 },
+  '75%': { transform: [{ scale: 0.94 }] },
+  '90%': { transform: [{ scale: 1.03 }] },
+  '100%': { transform: [{ scale: 1 }], opacity: 1 },
+};
+const FADE_IN = { from: { opacity: 0 }, to: { opacity: 1 } };
+
+/** The "+" above the tabs on Chats: opens a small fan of "start something" actions. */
 function NewButton() {
   const router = useRouter();
   const { floating, palette, prefs } = useTheme();
@@ -70,7 +86,7 @@ function NewButton() {
       scaleTo={0.9}
       onPress={() => setOpen(!open)}
       className="items-center justify-center rounded-full"
-      style={[{ width: BAR_HEIGHT, height: BAR_HEIGHT }, fill]}
+      style={[{ width: NEW_BUTTON, height: NEW_BUTTON }, fill]}
     >
       <Animated.View
         style={{
@@ -84,14 +100,29 @@ function NewButton() {
             : {}),
         }}
       >
-        <Icon icon={PlusIcon} size={28} color="on-secondary" strokeWidth={2.6} />
+        <Icon icon={PlusIcon} size={26} color="on-secondary" strokeWidth={2.6} />
       </Animated.View>
     </Tap>
   );
 
   return (
     <>
-      {button(false)}
+      <Animated.View
+        style={
+          moves
+            ? {
+                animationName: BOUNCE_IN,
+                animationDuration: 520,
+                animationFillMode: 'both',
+                animationTimingFunction: CSS_EASE_OUT,
+              }
+            : fades
+              ? { animationName: FADE_IN, animationDuration: 180, animationFillMode: 'both' }
+              : undefined
+        }
+      >
+        {button(false)}
+      </Animated.View>
       <Modal
         visible={open}
         transparent
@@ -109,7 +140,7 @@ function NewButton() {
         <View
           pointerEvents="box-none"
           className="absolute right-4 items-end gap-3"
-          style={{ bottom: insets.bottom + 12 }}
+          style={{ bottom: insets.bottom + GAP + BAR_HEIGHT + GAP }}
         >
           {items.map((item, index) => (
             <Animated.View
@@ -166,11 +197,13 @@ export function FloatingTabBar({ state, emitter, navigateToTab }: BottomTabBarPr
   return (
     <Animated.View
       pointerEvents={hidden ? 'none' : 'box-none'}
-      className="absolute left-4 right-4 flex-row items-center gap-3"
+      className="absolute left-4 right-4 gap-3"
       style={{
-        bottom: insets.bottom + 12,
+        bottom: insets.bottom + GAP,
         opacity: hidden ? 0 : 1,
-        transform: [{ translateY: hidden ? BAR_HEIGHT + insets.bottom + 24 : 0 }],
+        transform: [
+          { translateY: hidden ? BAR_HEIGHT + NEW_BUTTON + insets.bottom + 2 * GAP + 24 : 0 },
+        ],
         ...(fades
           ? {
               transitionProperty: ['transform', 'opacity'],
@@ -180,10 +213,16 @@ export function FloatingTabBar({ state, emitter, navigateToTab }: BottomTabBarPr
           : {}),
       }}
     >
+      {/* Above the bar, so the bar spans the full width on every tab. */}
+      {onChats && (
+        <View pointerEvents="box-none" className="items-end">
+          <NewButton />
+        </View>
+      )}
       <View
         accessibilityRole="tablist"
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-        className="flex-1 flex-row rounded-full bg-surface"
+        className="flex-row rounded-full bg-surface"
         style={[{ height: BAR_HEIGHT, padding: PAD }, floating]}
       >
         {slot > 0 && (
@@ -245,7 +284,6 @@ export function FloatingTabBar({ state, emitter, navigateToTab }: BottomTabBarPr
           );
         })}
       </View>
-      {onChats && <NewButton />}
     </Animated.View>
   );
 }

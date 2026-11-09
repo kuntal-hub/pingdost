@@ -4,6 +4,29 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-10 — The user's UI/UX list: account screens, chat look and composer, Circles, people search, selection and forwarding, voice-note gestures
+The user's 22-item list is in `prompts/UI_modifications.txt`; item numbers below refer to it. Planned as Phases 34–40; nothing is built yet.
+1. **Circles: consent before contact (item 8).** People can message, call or add to a group only those in their circle; getting in takes a request the other side accepts. A deviation from REQ §8.1 and §8.2 (anyone could start a conversation with any username), and a change to ARCHITECTURE A2 ("the server keeps no contact list") and A4.
+   - **The server stores the circle links**, by the user's choice over enforcement on the phones only. A stranger's data then never reaches the recipient's phone. The cost: a lasting "who is connected to whom" list on the server, which the privacy policy and the in-app explainer will state. The apps also drop content from outside the circle, because nearby and mesh routes have no server.
+   - Name chosen by the user: **Circle**.
+   - *Affects:* new Phase 37; 38 and 39 build on it. Finished phases are not reworked, but their integration tests and the sim peer must link test users first (37).
+2. **People search (item 9):** username and display-name prefix from 2 characters, and email only as a whole address. At most 10 results, rate-limited, never returning anyone's email; users can turn off being found by name or by email. Replaces A2's "exact-match username lookup only". The user chose this over partial matching of everything, which would let anyone discover email addresses by typing fragments.
+   - *Affects:* new Phase 38.
+3. **Group members come only from the circle (item 10)**, picked several at a time. **New groups get a description field (item 11)**; the description already travels E2EE in `GroupControl` and is editable in Group info.
+   - *Affects:* 37 (server check), 38 (UI). Phase 13's group model is unchanged.
+4. **Account screens (items 1–5):** live username availability (a new endpoint that needs no sign-in and has a per-IP rate limit; it only reveals whether a name is free, which `by-username` already reveals to signed-in users), a password visibility toggle, a keyboard-safe layout, specific error messages, and the logo and brand colours. A failed sign-in still never says whether the email or the password was wrong.
+   - *Affects:* new Phase 34 (phone only; the web has no sign-up).
+5. **Chat look (items 6, 7, 12–15):** smaller screen titles, the Chats "+" floating above a full-width tab bar, a time and state on every message, bubbles at most 80% wide with the time inline when it fits, "This message was deleted" at once on both sides, and a single emoji shown large.
+   - *Affects:* new Phase 35 (phone and web).
+6. **Composer (items 16–19):** an emoji picker (recents stay on the device), the composer directly on the keyboard, a jump to the newest message on send, and a new-message pill.
+   - *Affects:* new Phase 36 (phone and web).
+7. **Selection and forwarding (items 20–21):** multi-select with copy, delete for me or everyone, and forward to up to 5 chats. A new optional `forwarded` field in message Content (an additive protocol change) marks other people's messages; one's own forwarded messages carry no mark.
+   - *Affects:* new Phase 39.
+8. **Voice notes by hold and slide (item 22):** hold to record, release to send, slide left to cancel, slide up to lock, then review before sending. Replaces Phase 15's tap to start, which stays for screen-reader users.
+   - *Affects:* new Phase 40.
+9. **A new native Android build is required** from Phase 34 on: `react-native-keyboard-controller` 1.22.7 (MIT; ADR 0039). Phase 36 may add an emoji picker.
+10. **Phases 34 and 35 were built on 2026-11-10** (ADR 0039). Decided while building: the availability check takes the name as a query parameter (request logs leave queries out); an unverified sign-up's name counts as taken; the password meter only advises (the rule stays 10–128 characters); "big emoji" now means exactly one emoji.
+
 ### 2026-11-09 — New requirement: camera filters and effects in video calls (ADR 0038)
 1. **21 effects** (beauty, face, colour and fun) drawn on the device before encryption: Android for all of them, the web (Chrome and Edge) for all but the face ones.
    - *Affects:* new Phase 33. No protocol or server change.

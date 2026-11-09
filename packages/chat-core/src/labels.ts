@@ -81,13 +81,30 @@ export function attachmentText(message: Pick<MessageRecord, 'attachment' | 'body
   return caption || name;
 }
 
-const EMOJI_ONLY =
-  /^(?:\p{Regional_Indicator}{2}|\p{Extended_Pictographic}[\p{Emoji_Modifier}️‍\p{Extended_Pictographic}]*)+$/u;
+/**
+ * One emoji as people see it: a flag (two regional indicators), a keycap (1️⃣), or a pictograph
+ * with its variation selector, skin tone or tag characters (subdivision flags such as Scotland's),
+ * joined by zero-width joiners
+ * into one picture (👩‍👩‍👧, ❤️‍🔥).
+ */
+const ONE_EMOJI = new RegExp(
+  String.raw`^(?:\p{Regional_Indicator}{2}|[#*0-9]\u{FE0F}?\u{20E3}|\p{Extended_Pictographic}[\u{FE0F}\p{Emoji_Modifier}\u{E0020}-\u{E007F}]*(?:\u{200D}\p{Extended_Pictographic}[\u{FE0F}\p{Emoji_Modifier}]*)*)$`,
+  'u',
+);
 
-/** A short message of nothing but emoji: shown large, without a bubble. */
+/**
+ * A message that is exactly one emoji (Phase 35): shown large, without a bubble. Two or more
+ * emoji, or any text, show at normal size.
+ */
 export function isBigEmoji(text: string): boolean {
-  const compact = text.replace(/\s/g, '');
-  return compact !== '' && compact.length <= 24 && EMOJI_ONLY.test(compact);
+  return ONE_EMOJI.test(text.trim());
+}
+
+const RTL_START = /^[^\p{L}]*[\u{0590}-\u{08FF}\u{FB1D}-\u{FDFF}\u{FE70}-\u{FEFF}]/u;
+
+/** Whether the text's first letter is Hebrew, Arabic or another right-to-left script. */
+export function startsRightToLeft(text: string): boolean {
+  return RTL_START.test(text);
 }
 
 /** One line standing for a message: previews, quotes, search results. */

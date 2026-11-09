@@ -12,7 +12,7 @@ import {
 } from '@pingdost/shared-types';
 
 const passwordsMatch = {
-  message: 'Passwords do not match',
+  message: 'Doesn’t match the password above',
   path: ['confirmPassword'],
 };
 

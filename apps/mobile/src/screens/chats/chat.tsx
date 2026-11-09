@@ -1,7 +1,7 @@
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Pressable, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Text as NativeText, Pressable, View } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -65,6 +65,7 @@ import {
   isSafetyNumberChange,
   previewText,
   shownState,
+  startsRightToLeft,
   stateLabel,
   systemText,
   type Names,
@@ -73,6 +74,7 @@ import { watchPresence } from '@/engine/runtime';
 import { timeLabel, type TimelineItem } from '@/engine/timeline';
 import { useNearbyPeer } from '@/nearby/service';
 import { dismissChatNotification } from '@/push/notifications';
+import { useAppearance } from '@/theme/appearance';
 import { CSS_EASE_OUT, CSS_POP, haptic, useMotion } from '@/theme/motion';
 import { useTheme } from '@/theme/theme-root';
 import { formatSize } from '@pingdost/attachments';
@@ -83,7 +85,14 @@ import {
   type ConversationRecord,
   type MessageRecord,
 } from '@pingdost/message-engine';
-import { brandGradient, bubbleCorners, quickReactions, senderColor } from '@pingdost/ui-tokens';
+import {
+  brandGradient,
+  bubbleCorners,
+  quickReactions,
+  senderColor,
+  textScales,
+  typeScale,
+} from '@pingdost/ui-tokens';
 
 import { AttachmentContent } from './attachment-bubble';
 import { VoiceRecorder, type VoiceNote } from './voice-recorder';
@@ -335,6 +344,58 @@ function HeartBurst({ outgoing }: { outgoing: boolean }) {
   );
 }
 
+/** Room for the state tick (14 + the 4 gap) in no-break spaces at the time's size. */
+const TICK_ROOM = '\u{00A0}'.repeat(6);
+const INVISIBLE = '#FFFFFF01';
+
+/**
+ * Invisible text at the end of a message, as wide as its time and tick (Phase 35). If it fits on
+ * the last line, the time drawn over it sits beside the text; if not, it wraps to a line of its
+ * own and the time sits under the text. No measuring needed. The leading normal space is the
+ * only place it may break.
+ */
+function MetaSpacer({ text, tick }: { text: string; tick: boolean }) {
+  const scale = useAppearance((state) => textScales[state.prefs.textSize]);
+  return (
+    <NativeText
+      accessible={false}
+      // Not 'transparent': on Android (Fabric) a nested span's colour 0 counts as unset and the
+      // text shows in the default colour. Alpha 1/255 is invisible and non-zero.
+      style={{ fontSize: Math.round(typeScale.xs[0] * scale), color: INVISIBLE }}
+    >
+      {` \u{00A0}\u{00A0}${text.replace(/ /g, '\u{00A0}')}${tick ? TICK_ROOM : ''}`}
+    </NativeText>
+  );
+}
+
+/** A message's time, "edited", unusual states in words, and its state tick. */
+function MessageMeta({
+  text,
+  status,
+  onBrand,
+  overlay,
+  className = '',
+}: {
+  text: string;
+  status: ReturnType<typeof stateLabel> | undefined;
+  onBrand: boolean;
+  /** Drawn over the spacer at the end of the last line. */
+  overlay: boolean;
+  className?: string;
+}) {
+  return (
+    <View
+      importantForAccessibility="no-hide-descendants"
+      className={`flex-row items-center justify-end gap-1 ${
+        overlay ? 'absolute bottom-0 right-0' : ''
+      } ${className}`}
+    >
+      <Text className={`text-xs ${onBrand ? 'text-on-primary/80' : 'text-muted'}`}>{text}</Text>
+      {status && <StateTick icon={status.icon} size={14} onBrand={onBrand} />}
+    </View>
+  );
+}
+
 interface BubbleProps {
   message: MessageRecord;
   online: boolean;
@@ -428,10 +489,25 @@ function Bubble(props: BubbleProps) {
   // The state in words only when it is unusual; the usual ones are the ticks.
   const stateWords =
     status && !['sent', 'delivered', 'read'].includes(status.icon) ? status.short : undefined;
-  const showMeta = last || status?.tone === 'danger' || edited || stateWords !== undefined;
+  // Every message shows its time and state (Phase 35).
+  const metaText = `${timeLabel(message.sortAt)}${edited ? ' · edited' : ''}${
+    stateWords ? ` · ${stateWords}` : ''
+  }`;
+  const textShown = attachment ? message.body : body;
+  // Beside the last line of text when it fits; under media, a big emoji or right-to-left text.
+  const inlineMeta = !bigEmoji && textShown !== '' && !startsRightToLeft(textShown);
+  const meta = (overlay: boolean, className?: string) => (
+    <MessageMeta
+      text={metaText}
+      status={status}
+      onBrand={onBrand}
+      overlay={overlay}
+      {...(className ? { className } : {})}
+    />
+  );
+  const spacer = inlineMeta ? <MetaSpacer text={metaText} tick={status !== undefined} /> : null;
 
   const corners = bubbleCorners(prefs.bubble, { outgoing, first, last });
-  const metaColor = onBrand ? 'text-on-primary/80' : 'text-muted';
 
   function onPress() {
     if (retry) {
@@ -457,7 +533,8 @@ function Bubble(props: BubbleProps) {
       {...(reactable ? { left: { icon: ReplyIcon, onCommit: () => props.onReply(message) } } : {})}
     >
       <Animated.View
-        className={`${prefs.density === 'compact' ? 'gap-[2px]' : 'gap-1'} max-w-[84%] px-3 ${
+        // At most 80% of the screen wide (Phase 35); the margin is outside that.
+        className={`${prefs.density === 'compact' ? 'gap-[2px]' : 'gap-1'} mx-3 max-w-[80%] ${
           outgoing ? 'self-end' : 'self-start'
         } ${first ? 'mt-2' : 'mt-[2px]'}`}
         style={
@@ -533,38 +610,39 @@ function Bubble(props: BubbleProps) {
               onLongPress={() => props.onLongPress(message)}
             />
           )}
-          {(!attachment || message.body !== '') &&
-            (bigEmoji ? (
+          {bigEmoji ? (
+            <>
               <Text selectable={false} className="text-5xl">
                 {message.body.trim()}
               </Text>
-            ) : deleted ? (
-              <View className="flex-row items-center gap-2">
-                <Icon icon={BanIcon} size={14} color="muted" />
-                <Text className="text-base italic text-muted">{body}</Text>
+              {meta(false)}
+            </>
+          ) : deleted ? (
+            <View className="flex-row items-center gap-2">
+              <Icon icon={BanIcon} size={14} color="muted" />
+              <View className="shrink">
+                <Text className="text-base italic text-muted">
+                  {body}
+                  {spacer}
+                </Text>
+                {meta(true)}
               </View>
-            ) : (
+            </View>
+          ) : textShown === '' ? (
+            // Media without a caption: the time goes under it.
+            meta(false, 'px-2 pb-1 pt-[2px]')
+          ) : (
+            <View className={attachment ? 'px-2 pb-1 pt-1' : ''}>
               <Text
                 selectable={false}
                 className={`text-base ${onBrand ? 'text-on-primary' : 'text-on-bubble-in'} ${
                   message.kind === 'unsupported' ? 'italic' : ''
-                } ${attachment ? 'mt-1 px-2' : ''}`}
+                }`}
               >
-                {attachment ? message.body : body}
+                {textShown}
+                {spacer}
               </Text>
-            ))}
-          {showMeta && (
-            <View
-              className={`flex-row items-center justify-end gap-1 ${
-                attachment ? 'px-2 pb-1' : ''
-              } ${bigEmoji ? '' : 'mt-[2px]'}`}
-            >
-              <Text className={`text-xs ${metaColor}`}>
-                {timeLabel(message.sortAt)}
-                {edited ? ' · edited' : ''}
-                {stateWords ? ` · ${stateWords}` : ''}
-              </Text>
-              {status && <StateTick icon={status.icon} size={14} onBrand={onBrand} />}
+              {inlineMeta ? meta(true) : meta(false, 'mt-[2px]')}
             </View>
           )}
         </Pressable>

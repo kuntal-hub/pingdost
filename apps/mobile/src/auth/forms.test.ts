@@ -41,10 +41,10 @@ describe('form schemas', () => {
     expect(result).toEqual({
       ok: false,
       errors: {
-        username: 'At least 3 characters',
-        email: 'Enter a valid email address',
-        password: 'At least 10 characters',
-        confirmPassword: 'Passwords do not match',
+        username: 'Use only letters, digits, _ and .',
+        email: 'Missing the @, as in name@example.com',
+        password: 'Too short: add 5 more characters',
+        confirmPassword: 'Doesn’t match the password above',
       },
     });
 
@@ -54,24 +54,49 @@ describe('form schemas', () => {
       password: 'correct horse',
       confirmPassword: 'correct horsf',
     });
-    expect(mismatch).toEqual({ ok: false, errors: { confirmPassword: 'Passwords do not match' } });
+    expect(mismatch).toEqual({
+      ok: false,
+      errors: { confirmPassword: 'Doesn’t match the password above' },
+    });
   });
 
-  it('uses the shared pattern messages', () => {
+  it('says what to change in each field (Phase 34)', () => {
     expect(validate(UsernameFormSchema, { username: 'bad name' })).toEqual({
       ok: false,
-      errors: { username: 'Letters, digits, _ and . only' },
+      errors: { username: 'No spaces: try _ or . instead' },
+    });
+    expect(validate(UsernameFormSchema, { username: 'al' })).toEqual({
+      ok: false,
+      errors: { username: 'Too short: add 1 more character' },
     });
     expect(validate(OtpFormSchema, { email: 'a@b.co', otp: '12a456' })).toEqual({
       ok: false,
-      errors: { otp: 'Must be 6 digits' },
+      errors: { otp: 'The code has digits only' },
+    });
+    expect(validate(OtpFormSchema, { email: 'a@b.co', otp: '1234' })).toEqual({
+      ok: false,
+      errors: { otp: 'The code has 6 digits (4 so far)' },
+    });
+    expect(
+      validate(RegisterFormSchema, {
+        username: 'alice',
+        email: 'alice@example',
+        password: 'correct horse',
+        confirmPassword: '',
+      }),
+    ).toEqual({
+      ok: false,
+      errors: {
+        email: 'The part after the @ needs a dot, as in example.com',
+        confirmPassword: 'Type the password again',
+      },
     });
   });
 
   it('checks login and reset forms', () => {
     expect(validate(LoginFormSchema, { identifier: '', password: '' })).toEqual({
       ok: false,
-      errors: { identifier: 'At least 3 characters', password: 'Required' },
+      errors: { identifier: 'Enter your email or username', password: 'Enter a password' },
     });
     expect(
       validate(ResetPasswordFormSchema, {
@@ -80,7 +105,7 @@ describe('form schemas', () => {
         newPassword: 'long enough!',
         confirmPassword: 'long enough?',
       }),
-    ).toEqual({ ok: false, errors: { confirmPassword: 'Passwords do not match' } });
+    ).toEqual({ ok: false, errors: { confirmPassword: 'Doesn’t match the password above' } });
   });
 });
 
@@ -103,8 +128,12 @@ describe('describeError', () => {
     });
     expect(describeError(http(400, 'OTP_INVALID'))).toMatchObject({ field: 'otp' });
     expect(describeError(http(401, 'INVALID_CREDENTIALS')).message).toBe(
-      'Wrong username, email or password.',
+      'That email or username and password don’t match. Check both, or reset your password.',
     );
+    expect(describeError(http(409, 'USERNAME_TAKEN'))).toEqual({
+      message: 'Taken. Try adding numbers, _ or .',
+      field: 'username',
+    });
   });
 
   it('includes wait times and validation fields', () => {

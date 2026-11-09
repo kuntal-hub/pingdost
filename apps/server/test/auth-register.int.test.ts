@@ -176,3 +176,64 @@ describe('OTP rules', () => {
     expect(await emailCount(email)).toBe(0);
   });
 });
+
+describe('username availability (Phase 34)', () => {
+  function availability(username: string, target: TestServer = server) {
+    return target.app.inject({
+      method: 'GET',
+      url: '/v1/usernames/availability',
+      query: { username },
+    });
+  }
+
+  it('answers what registration would, without signing in', async () => {
+    const free = newUser().username;
+    const response = await availability(` ${free.toUpperCase()} `);
+    expect(response.statusCode).toBe(200);
+    expect(json(response)).toEqual({ username: free, available: true });
+
+    const verified = newUser();
+    await register(verified);
+    await verify(verified.email, await otpFor(verified.email));
+    expect(json(await availability(verified.username))).toEqual({
+      username: verified.username,
+      available: false,
+      reason: 'taken',
+    });
+
+    // An unverified sign-up holds its name until it expires, as registration enforces.
+    const pending = newUser();
+    await register(pending);
+    expect(json(await availability(pending.username))).toMatchObject({ reason: 'taken' });
+
+    expect(json(await availability('admin'))).toEqual({
+      username: 'admin',
+      available: false,
+      reason: 'reserved',
+    });
+    expect(json(await availability('a b'))).toMatchObject({ available: false, reason: 'invalid' });
+    expect(json(await availability('ab'))).toMatchObject({ reason: 'invalid' });
+    expect((await availability('x'.repeat(65))).statusCode).toBe(400);
+  });
+
+  it('keeps the name out of the request log', async () => {
+    const name = newUser().username;
+    await availability(name);
+    expect(server.logs.join('\n')).not.toContain(name);
+  });
+
+  it('is rate-limited per address', async () => {
+    const limited = await startTestServer({
+      routeLimits: { usernameAvailability: { max: 2, timeWindow: 60_000 } },
+    });
+    try {
+      expect((await availability('alice', limited)).statusCode).toBe(200);
+      expect((await availability('alice', limited)).statusCode).toBe(200);
+      const third = await availability('alice', limited);
+      expect(third.statusCode).toBe(429);
+      expect(json(third)).toMatchObject({ code: 'RATE_LIMITED' });
+    } finally {
+      await limited.close();
+    }
+  });
+});

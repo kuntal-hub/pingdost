@@ -39,12 +39,23 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 31 | [UI/UX refresh: "Pop" design system, configurable appearance](phases/phase-31-ui-refresh.md) | — | 🔄 |
 | 32 | [Calls C: voice ↔ video, screen sharing, background, picture-in-picture](phases/phase-32-calls-in-call.md) | 25, 26 | 🔄 |
 | 33 | [Calls D: camera filters and effects](phases/phase-33-calls-effects.md) | 32 | 🔄 |
+| 34 | [Sign-in and sign-up polish](phases/phase-34-auth-polish.md) | 07, 31 | 🔄 |
+| 35 | [Chat look: titles, new-chat button, message times, bubbles, deleted messages, big emoji](phases/phase-35-chat-look.md) | 11, 17, 31 | 🔄 |
+| 36 | [Chat composer: emoji picker, keyboard, scrolling](phases/phase-36-chat-composer.md) | 34, 35 | ⬜ |
+| 37 | [Circles: nobody can contact you without your consent](phases/phase-37-circles.md) | 13, 17, 26 | ⬜ |
+| 38 | [Find people and pick group members](phases/phase-38-people-search.md) | 37 | ⬜ |
+| 39 | [Select several messages and forward them](phases/phase-39-select-forward.md) | 35, 37 | ⬜ |
+| 40 | [Voice notes: hold to record, slide to cancel, lock, review](phases/phase-40-voice-note-gestures.md) | 15, 36 | ⬜ |
 
 **Order notes**
 - Phases mostly run in number order. Where dependencies allow, some can move:
   - 04 can run before 03;
   - 21 (nearby spike) can run any time after 03 to surface Bluetooth risk early;
   - 20 (deployment) can move earlier if real-network testing is needed sooner.
+- 34–40 come from the user's UI/UX list of 2026-11-10 (CHANGES):
+  - 34, 35, 36 and 40 change only the apps' UI (34 also adds one server endpoint);
+  - 37 (Circles) is the largest: server, engine, both apps and every integration suite. It must come before 38 and 39;
+  - 36 needs 34's keyboard-library decision.
 - REQ §20's Phase 0 spikes are placed just-in-time:
 
   | Spike | Phase |
@@ -66,14 +77,14 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | REQ § | Topic | Phases |
 |---|---|---|
 | §1, §5 | Privacy promise, retention, deletion wording | 01 (README), 08, 14, 20, 27 |
-| §6.1 | Registration, OTP, login, Google | 05, 06, 07 |
+| §6.1 | Registration, OTP, login, Google | 05, 06, 07, 34 |
 | §6.2 | Device model, revoke | 06, 07, 16 |
 | §6.3 | Recovery | 19 |
 | §7.1–7.3 | E2EE gate, protocol, properties | 02, 03, 04, 09, 13 |
 | §7.4 | Attachment encryption | 02 (ADR), 14 |
 | §7.5 | Local encryption, log hygiene | 03, 05, 16, 27 |
-| §8.1 | Direct messages | 09, 10, 11 |
-| §8.2 | Groups | 13, 17 |
+| §8.1 | Direct messages (⚠ circle members only, CHANGES 2026-11-10) | 09, 10, 11, 35, 36, 37, 38, 39, 40 |
+| §8.2 | Groups | 13, 17, 37, 38 |
 | §8.3 | Message states | 09, 10, 22, 23 |
 | §9 | Mailbox, retention, migration, monitoring | 08, 20 |
 | §10 | Attachments | 14, 15, 18, 24 |
@@ -81,7 +92,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | §12 | Calls | 25, 26, 32, 33, (29) |
 | §13 | Web pairing + sync | 16, 17, 18 |
 | §14 | Local storage + controls | 03, 10, 11, 15, 16, 17, 23 |
-| §15 | Backend modules | 05, 06, 08, 11, 12, 13, 14, 16, 23, 25 |
+| §15 | Backend modules | 05, 06, 08, 11, 12, 13, 14, 16, 23, 25, 34, 37, 38 |
 | §16 | Data models | 05, 06, 08, 14 |
 | §17 | Env config | 01 (+ every phase adds vars) |
 | §18 | Reliability, metrics, cost alerts | 08, 20, 27 |

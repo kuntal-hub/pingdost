@@ -3,6 +3,7 @@ import {
   AuthTokensSchema,
   AuthUserSchema,
   RegisterResponseSchema,
+  UsernameAvailabilityResponseSchema,
   type AuthSession,
   type AuthTokens,
   type AuthUser,
@@ -11,6 +12,7 @@ import {
   type PasswordResetRequest,
   type RegisterRequest,
   type RegisterResponse,
+  type UsernameAvailabilityResponse,
   type VerifyEmailRequest,
 } from '@pingdost/shared-types';
 
@@ -32,6 +34,11 @@ export interface AuthApi {
   google(idToken: string): Promise<AuthSession>;
   /** Picks the username of a new Google account. */
   completeGoogle(username: string): Promise<AuthUser>;
+  /** Whether registration would accept `username` now (no sign-in; Phase 34). */
+  usernameAvailability(
+    username: string,
+    signal?: AbortSignal,
+  ): Promise<UsernameAvailabilityResponse>;
 }
 
 export function authApi(client: ApiClient): AuthApi {
@@ -101,6 +108,17 @@ export function authApi(client: ApiClient): AuthApi {
         path: '/v1/auth/google/complete',
         body: { username },
         response: AuthUserSchema,
+      }),
+    usernameAvailability: (username, signal) =>
+      client.request({
+        method: 'GET',
+        path: '/v1/usernames/availability',
+        query: { username },
+        auth: false,
+        // A stale answer is useless; the caller aborts it when the name changes.
+        timeoutMs: 8_000,
+        response: UsernameAvailabilityResponseSchema,
+        ...(signal ? { signal } : {}),
       }),
   };
 }

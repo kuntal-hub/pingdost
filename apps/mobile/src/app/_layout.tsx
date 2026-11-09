@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { LogBox, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { authStore } from '@/api';
 import { useAppStage } from '@/auth/use-auth';
@@ -86,31 +87,34 @@ export default function RootLayout() {
   const signedOut = stage === 'signedOut' || stage === 'needsUsername';
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeRoot>
-        <ThemedStatusBar />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Protected guard={signedOut}>
-            <Stack.Screen name="(auth)" />
-          </Stack.Protected>
-          <Stack.Protected guard={stage === 'deviceSetup'}>
-            <Stack.Screen name="setup" />
-          </Stack.Protected>
-          <Stack.Protected guard={stage === 'ready'}>
-            <Stack.Screen name="(app)" />
-          </Stack.Protected>
-          <Stack.Protected guard={__DEV__}>
-            <Stack.Screen
-              name="(dev)/crypto"
-              options={{ headerShown: true, title: 'Crypto interop (dev)' }}
-            />
-            <Stack.Screen
-              name="(dev)/nearby"
-              options={{ headerShown: true, title: 'Nearby spike (dev)' }}
-            />
-          </Stack.Protected>
-        </Stack>
-      </ThemeRoot>
+      {/* Keyboard insets for forms and the composer (Phase 34). */}
+      <KeyboardProvider>
+        <ThemeRoot>
+          <ThemedStatusBar />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Protected guard={signedOut}>
+              <Stack.Screen name="(auth)" />
+            </Stack.Protected>
+            <Stack.Protected guard={stage === 'deviceSetup'}>
+              <Stack.Screen name="setup" />
+            </Stack.Protected>
+            <Stack.Protected guard={stage === 'ready'}>
+              <Stack.Screen name="(app)" />
+            </Stack.Protected>
+            <Stack.Protected guard={__DEV__}>
+              <Stack.Screen
+                name="(dev)/crypto"
+                options={{ headerShown: true, title: 'Crypto interop (dev)' }}
+              />
+              <Stack.Screen
+                name="(dev)/nearby"
+                options={{ headerShown: true, title: 'Nearby spike (dev)' }}
+              />
+            </Stack.Protected>
+          </Stack>
+        </ThemeRoot>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

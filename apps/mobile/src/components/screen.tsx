@@ -1,10 +1,26 @@
+import { cssInterop } from 'nativewind';
 import type { ReactNode } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BrandMark } from './brand';
 import { useTabBarInset } from './floating-tab-bar';
 import { OfflineBanner } from './offline-banner';
 import { Text } from './text';
+import { Wallpaper } from './wallpaper';
+
+// Classes work on it as on React Native's own ScrollView.
+cssInterop(KeyboardAwareScrollView, {
+  className: 'style',
+  contentContainerClassName: 'contentContainerStyle',
+});
+
+/**
+ * Room kept between the keyboard and the focused field: enough for the button that usually
+ * follows a form's last field to stay in view too.
+ */
+const KEYBOARD_GAP = 96;
 
 interface ScreenProps {
   title?: string;
@@ -16,9 +32,24 @@ interface ScreenProps {
   headerless?: boolean;
   /** The first screen of a tab: keeps content clear of the floating tab bar. */
   tabRoot?: boolean;
+  /** The sign-in and sign-up look: PingDost's mark and name over the welcome wallpaper. */
+  brand?: boolean;
 }
 
-/** A scrolling page with the standard padding; taps reach buttons while the keyboard is up. */
+/** PingDost's mark and name, at the top of the account screens. */
+function BrandHeader() {
+  return (
+    <View className="flex-row items-center gap-3">
+      <BrandMark size={44} animated={false} />
+      <Text className="font-display text-2xl text-foreground">PingDost</Text>
+    </View>
+  );
+}
+
+/**
+ * A scrolling page with the standard padding. The focused field scrolls clear of the keyboard,
+ * and taps reach buttons while the keyboard is up.
+ */
 export function Screen({
   title,
   subtitle,
@@ -26,12 +57,14 @@ export function Screen({
   offlineBanner = false,
   headerless = false,
   tabRoot = false,
+  brand = false,
 }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const tabInset = useTabBarInset();
   const page = (
-    <ScrollView
-      className="flex-1 bg-background"
+    <KeyboardAwareScrollView
+      bottomOffset={KEYBOARD_GAP}
+      className={brand ? 'flex-1' : 'flex-1 bg-background'}
       contentContainerClassName="gap-5 p-5"
       contentContainerStyle={{
         ...(headerless ? { paddingTop: insets.top + 20 } : {}),
@@ -41,6 +74,7 @@ export function Screen({
       contentInsetAdjustmentBehavior="automatic"
     >
       {offlineBanner && <OfflineBanner />}
+      {brand && <BrandHeader />}
       {(title || subtitle) && (
         <View className="gap-1">
           {title && (
@@ -52,13 +86,14 @@ export function Screen({
         </View>
       )}
       {children}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
-  if (!headerless) return page;
+  if (!headerless && !brand) return page;
   return (
     <View className="flex-1 bg-background">
+      {brand && <Wallpaper id="aurora" />}
       {page}
-      <StatusBarBand />
+      {headerless && <StatusBarBand />}
     </View>
   );
 }
@@ -86,7 +121,7 @@ export function TabHeader({ title, children }: { title: string; children?: React
       <Text
         accessibilityRole="header"
         numberOfLines={1}
-        className="flex-1 font-display text-4xl text-foreground"
+        className="flex-1 font-display text-3xl text-foreground"
       >
         {title}
       </Text>

@@ -8,16 +8,18 @@ import type { Logger } from 'pino';
 
 import type { ServerConfig } from '@pingdost/config';
 import { uuidv7 } from '@pingdost/protocol';
-import type {
-  AuthSession,
-  AuthTokens,
-  AuthUser,
-  LoginRequest,
-  PasswordChangeRequest,
-  PasswordResetRequest,
-  RegisterRequest,
-  RegisterResponse,
-  VerifyEmailRequest,
+import {
+  UsernameSchema,
+  type AuthSession,
+  type AuthTokens,
+  type AuthUser,
+  type LoginRequest,
+  type PasswordChangeRequest,
+  type PasswordResetRequest,
+  type RegisterRequest,
+  type RegisterResponse,
+  type UsernameAvailabilityResponse,
+  type VerifyEmailRequest,
 } from '@pingdost/shared-types';
 
 import type { GoogleVerifier } from './google';
@@ -290,6 +292,28 @@ export class AuthService {
       if (duplicateKeyField(error) === 'username') throw new AppError('USERNAME_TAKEN');
       throw error;
     }
+  }
+
+  /**
+   * Whether registration would accept this username now (Phase 34): reserved names and names
+   * held by any account, unverified sign-ups included, are unavailable.
+   */
+  async usernameAvailability(raw: string): Promise<UsernameAvailabilityResponse> {
+    const parsed = UsernameSchema.safeParse(raw);
+    if (!parsed.success) {
+      return {
+        username: raw.trim().toLowerCase().slice(0, 64),
+        available: false,
+        reason: 'invalid',
+      };
+    }
+    const username = parsed.data;
+    if (isReservedUsername(username)) return { username, available: false, reason: 'reserved' };
+    const holder = await this.#d.collections.users.findOne(
+      { username },
+      { projection: { _id: 1 } },
+    );
+    return holder ? { username, available: false, reason: 'taken' } : { username, available: true };
   }
 
   async #linkGoogle(user: UserDoc, sub: string, context: RequestContext): Promise<UserDoc> {

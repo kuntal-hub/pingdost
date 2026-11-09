@@ -24,6 +24,7 @@ export function ForgotPasswordScreen() {
       title="Reset password"
       subtitle="If the address has an account, we email it a code."
       offlineBanner
+      brand
     >
       <TextField
         label="Email"

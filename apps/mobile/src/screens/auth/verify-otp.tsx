@@ -63,6 +63,7 @@ export function VerifyOtpScreen() {
           : 'Enter your email address and the 6-digit code we sent to it.'
       }
       offlineBanner
+      brand
     >
       {!params.email && (
         <TextField

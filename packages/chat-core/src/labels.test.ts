@@ -9,22 +9,33 @@ import {
   isSafetyNumberChange,
   previewText,
   shownState,
+  startsRightToLeft,
   stateLabel,
   systemText,
 } from './labels';
 import { buildTimeline, dayLabel } from './timeline';
 
 describe('isBigEmoji', () => {
-  it('accepts short runs of emoji, including joined ones and flags', () => {
-    for (const text of ['🔥', ' ❤️ ', '😂😂😂', '👨‍👩‍👧', '👍🏽', '🇮🇳']) {
+  it('accepts exactly one emoji, including joined ones, skin tones, flags and keycaps', () => {
+    for (const text of ['🔥', ' ❤️ ', '👨‍👩‍👧', '👍🏽', '👨🏽‍💻', '❤️‍🔥', '🏳️‍🌈', '🇮🇳', '🏴󠁧󠁢󠁳󠁣󠁴󠁿', '1️⃣']) {
       expect(isBigEmoji(text), text).toBe(true);
     }
   });
 
-  it('rejects text, digits, empty and long messages', () => {
-    for (const text of ['', 'hi', 'ok 👍', '123', '#', '😂'.repeat(20)]) {
+  it('shows two or more emoji, text, digits and empty messages at normal size', () => {
+    for (const text of ['', 'hi', 'ok 👍', '123', '#', '😂😂', '🔥 🔥', '🇮🇳🇮🇳', '👍🏽👍']) {
       expect(isBigEmoji(text), text).toBe(false);
     }
+  });
+});
+
+describe('startsRightToLeft', () => {
+  it('looks at the first letter', () => {
+    expect(startsRightToLeft('שלום')).toBe(true);
+    expect(startsRightToLeft('  «مرحبا» hi')).toBe(true);
+    expect(startsRightToLeft('hi שלום')).toBe(false);
+    expect(startsRightToLeft('123 ok')).toBe(false);
+    expect(startsRightToLeft('')).toBe(false);
   });
 });
 

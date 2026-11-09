@@ -6,6 +6,7 @@ import { LoginFormSchema } from '@/auth/forms';
 import { useGoogleSignIn } from '@/auth/use-google-sign-in';
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
+import { PasswordField } from '@/components/password-field';
 import { Screen } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import { useForm } from '@/forms/use-form';
@@ -31,7 +32,7 @@ export function LoginScreen() {
     });
 
   return (
-    <Screen title="Log in" offlineBanner>
+    <Screen title="Log in" subtitle="Welcome back. Your chats are waiting." offlineBanner brand>
       {params.notice === 'password-reset' && (
         <Notice tone="success" message="Password changed. Log in with your new password." />
       )}
@@ -43,9 +44,8 @@ export function LoginScreen() {
         textContentType="username"
         {...form.field('identifier')}
       />
-      <TextField
+      <PasswordField
         label="Password"
-        secureTextEntry
         autoComplete="current-password"
         textContentType="password"
         returnKeyType="done"

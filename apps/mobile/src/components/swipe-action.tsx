@@ -52,7 +52,7 @@ export function SwipeAction({ children, left, right, enabled = true }: SwipeActi
   };
 
   const pan = usePanGesture({
-    enabled,
+    enabled: enabled && (canLeft || canRight),
     activeOffsetX: [-16, 16],
     failOffsetY: [-12, 12],
     onUpdate: (event) => {
@@ -94,7 +94,9 @@ export function SwipeAction({ children, left, right, enabled = true }: SwipeActi
     return { opacity: progress, transform: [{ scale: 0.6 + progress * 0.5 }] };
   });
 
-  if (!moves || (!left && !right)) return <View>{children}</View>;
+  // The tree stays the same when a row loses its actions (a message deleted for everyone while
+  // on screen), so its content is updated in place rather than mounted again.
+  if (!moves) return <View>{children}</View>;
 
   return (
     <View>

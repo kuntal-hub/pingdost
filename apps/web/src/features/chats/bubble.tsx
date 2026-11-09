@@ -38,6 +38,7 @@ import {
   isSafetyNumberChange,
   previewText,
   shownState,
+  startsRightToLeft,
   stateLabel,
   systemText,
   timeLabel,
@@ -166,8 +167,6 @@ export function Bubble({
   const onBrand = outgoing && !deleted && !bigEmoji;
   const stateWords =
     status && !['sent', 'delivered', 'read'].includes(status.icon) ? status.short : undefined;
-  const showMeta =
-    last || status?.tone === 'danger' || edited || fromOtherDevice || stateWords !== undefined;
 
   const items: MenuItem[] = [];
   if (actions.canEdit(message) && !readOnly) {
@@ -206,12 +205,63 @@ export function Bubble({
   const AttachmentIcon = ATTACHMENT_ICONS[kind];
   const corners = bubbleCorners(bubbleShape, { outgoing, first, last });
   const StatusIcon = status ? STATE_ICONS[status.icon] : undefined;
+  const shownText = message.kind === 'attachment' && !deleted ? message.body : body;
+  // Every message shows its time and state (Phase 35): beside the last line of text when it
+  // fits, under media, a big emoji or right-to-left text.
+  const inlineMeta = !bigEmoji && shownText !== '' && !startsRightToLeft(shownText);
+
+  /**
+   * `overlay` sits at the end of the last line, over `spacer`: the same content, invisible, at
+   * the end of the text. If the spacer fits on the last line the time is beside the text; if
+   * not, it wraps to a line of its own and the time is under the text.
+   */
+  const meta = (variant: 'overlay' | 'spacer' | 'block') => (
+    <span
+      {...(variant === 'spacer' ? { 'aria-hidden': true } : {})}
+      className={cn(
+        'items-center justify-end gap-1 text-xs leading-4 whitespace-nowrap not-italic',
+        onBrand ? 'text-on-primary/80' : 'text-muted',
+        variant === 'overlay' && 'absolute right-0 bottom-0 flex',
+        variant === 'spacer' && 'invisible ml-2 inline-flex',
+        variant === 'block' && 'mt-0.5 flex flex-wrap whitespace-normal',
+      )}
+    >
+      <span>{timeLabel(message.sortAt)}</span>
+      {edited && <span>· edited</span>}
+      {fromOtherDevice && <span>· sent from your other device</span>}
+      {status &&
+        StatusIcon &&
+        (message.state === 'failed' && variant !== 'spacer' ? (
+          <button
+            type="button"
+            className="flex cursor-pointer items-center gap-1 font-bold text-danger underline"
+            onClick={() => actions.retry(message)}
+          >
+            <StatusIcon aria-hidden size={14} /> {status.short}
+          </button>
+        ) : (
+          <span
+            title={status.long}
+            aria-label={status.short}
+            className={cn(
+              'flex items-center gap-1',
+              status.tone === 'danger' && 'font-bold text-danger',
+              message.state === 'failed' && 'underline',
+            )}
+          >
+            {stateWords && <span>· {stateWords}</span>}
+            <StatusIcon aria-hidden size={14} strokeWidth={2.75} />
+          </span>
+        ))}
+    </span>
+  );
 
   return (
     <div
       className={cn(
-        'group relative flex w-fit max-w-[78%] flex-col gap-1 px-4',
-        outgoing ? 'ml-auto items-end' : 'items-start',
+        // At most 80% of the message column wide (Phase 35); the margin is outside that.
+        'group relative flex w-fit max-w-[80%] flex-col gap-1',
+        outgoing ? 'mr-4 ml-auto items-end' : 'ml-4 items-start',
         first ? 'mt-3' : compact ? 'mt-px' : 'mt-0.5',
         fresh && (outgoing ? 'pd-bubble-new-out' : 'pd-bubble-new-in'),
       )}
@@ -287,50 +337,24 @@ export function Bubble({
             )}
           </div>
         )}
-        {(message.kind !== 'attachment' || deleted || message.body !== '') &&
-          (bigEmoji ? (
+        {bigEmoji ? (
+          <>
             <span className="text-5xl leading-tight">{message.body.trim()}</span>
-          ) : deleted ? (
-            <span className="flex items-center gap-2">
-              <Ban aria-hidden size={14} className="shrink-0" />
-              {body}
+            {meta('block')}
+          </>
+        ) : shownText === '' ? (
+          // Media without a caption: the time goes under it.
+          meta('block')
+        ) : (
+          <div className="relative">
+            <span>
+              {deleted && (
+                <Ban aria-hidden size={14} className="mr-2 inline shrink-0 align-[-2px]" />
+              )}
+              {shownText}
+              {inlineMeta && meta('spacer')}
             </span>
-          ) : (
-            <span>{body}</span>
-          ))}
-        {showMeta && (
-          <div
-            className={cn(
-              'mt-0.5 flex flex-wrap items-center justify-end gap-1 text-xs',
-              onBrand ? 'text-on-primary/80' : 'text-muted',
-            )}
-          >
-            <span>{timeLabel(message.sortAt)}</span>
-            {edited && <span>· edited</span>}
-            {fromOtherDevice && <span>· sent from your other device</span>}
-            {status &&
-              StatusIcon &&
-              (message.state === 'failed' ? (
-                <button
-                  type="button"
-                  className="flex cursor-pointer items-center gap-1 font-bold text-danger underline"
-                  onClick={() => actions.retry(message)}
-                >
-                  <StatusIcon aria-hidden size={14} /> {status.short}
-                </button>
-              ) : (
-                <span
-                  title={status.long}
-                  aria-label={status.short}
-                  className={cn(
-                    'flex items-center gap-1',
-                    status.tone === 'danger' && 'font-bold text-danger',
-                  )}
-                >
-                  {stateWords && <span>· {stateWords}</span>}
-                  <StatusIcon aria-hidden size={14} strokeWidth={2.75} />
-                </span>
-              ))}
+            {meta(inlineMeta ? 'overlay' : 'block')}
           </div>
         )}
         {burst > 0 && (

@@ -24,7 +24,11 @@ type Described = Omit<UserFacingError, 'retryAfterSeconds'>;
 function describeCode(code: ErrorCode, retryAfter: number | undefined): Described | undefined {
   switch (code) {
     case 'INVALID_CREDENTIALS':
-      return { message: 'Wrong username, email or password.' };
+      // Never says which part was wrong, so it cannot reveal whether an account exists.
+      return {
+        message:
+          'That email or username and password don’t match. Check both, or reset your password.',
+      };
     case 'ACCOUNT_LOCKED':
       return { message: `Too many failed attempts. Try again in ${wait(retryAfter)}.` };
     case 'ACCOUNT_DISABLED':
@@ -32,9 +36,9 @@ function describeCode(code: ErrorCode, retryAfter: number | undefined): Describe
     case 'EMAIL_TAKEN':
       return { message: 'This email already has an account. Log in instead.', field: 'email' };
     case 'USERNAME_TAKEN':
-      return { message: 'This username is taken.', field: 'username' };
+      return { message: 'Taken. Try adding numbers, _ or .', field: 'username' };
     case 'USERNAME_RESERVED':
-      return { message: 'This username is reserved.', field: 'username' };
+      return { message: 'This username is reserved. Try another', field: 'username' };
     case 'EMAIL_NOT_VERIFIED':
       return { message: 'Verify your email address first.' };
     case 'OTP_INVALID':

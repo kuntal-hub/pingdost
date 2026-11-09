@@ -23,6 +23,8 @@ export const DEFAULT_ROUTE_LIMITS = {
   changePassword: { max: 10, timeWindow: 15 * MINUTE },
   google: { max: 30, timeWindow: 15 * MINUTE },
   googleComplete: { max: 10, timeWindow: 15 * MINUTE },
+  /** Checked while typing a new username, after a short pause (Phase 34). */
+  usernameAvailability: { max: 120, timeWindow: 15 * MINUTE },
   me: { max: 300, timeWindow: 15 * MINUTE },
   meUpdate: { max: 60, timeWindow: 15 * MINUTE },
   userLookup: { max: 60, timeWindow: 15 * MINUTE },

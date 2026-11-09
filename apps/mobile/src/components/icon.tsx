@@ -24,6 +24,8 @@ import CloudUploadIcon from 'lucide-react-native/icons/cloud-upload';
 import CopyIcon from 'lucide-react-native/icons/copy';
 import DatabaseIcon from 'lucide-react-native/icons/database';
 import DownloadIcon from 'lucide-react-native/icons/download';
+import EyeIcon from 'lucide-react-native/icons/eye';
+import EyeOffIcon from 'lucide-react-native/icons/eye-off';
 import FileIcon from 'lucide-react-native/icons/file';
 import FileTextIcon from 'lucide-react-native/icons/file-text';
 import FlagIcon from 'lucide-react-native/icons/flag';
@@ -117,6 +119,8 @@ export {
   CopyIcon,
   DatabaseIcon,
   DownloadIcon,
+  EyeIcon,
+  EyeOffIcon,
   FileIcon,
   FileTextIcon,
   FlagIcon,

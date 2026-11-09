@@ -295,7 +295,7 @@ function Empty({ archived, filter }: { archived: boolean; filter: Filter }) {
 export function ChatListScreen({ archived = false }: { archived?: boolean }) {
   const router = useRouter();
   const runtime = useChatRuntime();
-  const tabInset = useTabBarInset();
+  const tabInset = useTabBarInset({ newButton: !archived });
   const { entries, loading } = useConversations();
   const [menu, setMenu] = useState<{ entry: ChatListEntry; name: string }>();
   const [muting, setMuting] = useState<ConversationRecord>();

@@ -107,3 +107,15 @@ export type GoogleSignInRequest = z.infer<typeof GoogleSignInRequestSchema>;
 // tokens stay valid.
 export const GoogleCompleteRequestSchema = z.object({ username: UsernameSchema });
 export type GoogleCompleteRequest = z.infer<typeof GoogleCompleteRequestSchema>;
+
+// GET /v1/usernames/:username/availability (no sign-in; Phase 34). `taken` includes names held
+// by unverified sign-ups until they expire, as registration would refuse them too.
+export const UsernameUnavailableReasonSchema = z.enum(['taken', 'reserved', 'invalid']);
+export type UsernameUnavailableReason = z.infer<typeof UsernameUnavailableReasonSchema>;
+export const UsernameAvailabilityResponseSchema = z.object({
+  /** The normalized name (trimmed, lower case) the answer is about. */
+  username: z.string().max(64),
+  available: z.boolean(),
+  reason: UsernameUnavailableReasonSchema.optional(),
+});
+export type UsernameAvailabilityResponse = z.infer<typeof UsernameAvailabilityResponseSchema>;

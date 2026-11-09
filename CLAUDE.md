@@ -199,6 +199,9 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - A debug build contains only the ABI of the device it was built for: an APK built for a phone (arm64) crashes on the x86_64 emulator (`libreactnative.so` not found). Rebuild for the emulator with `npx expo run:android --no-bundler --device emulator-5554` in `apps/mobile`.
   - Routes are lazy bundles in dev. To check a screen compiles without a device, ask the running Metro for it: `http://127.0.0.1:8081/apps/mobile/src/app/<route>.bundle?platform=android&dev=true` (path from the monorepo root, URL-encoded).
   - UI automation over adb works (`uiautomator dump` plus `input tap/text`). Pull screenshots with `adb shell screencap -p /sdcard/x.png; adb pull …`: PowerShell's `>` mangles binary output.
+    - On a loaded PC the emulator lags: a dump or screenshot right after a tap can show the previous screen. The emulator's PC keyboard counts as a hardware one: `adb shell settings put secure show_ime_with_hard_keyboard 1` brings the on-screen keyboard back. If `Pixel_8_API_35` dies loading its snapshot ("WHPX: Unexpected VP exit"), start it with `-no-snapshot`.
+  - Keyboard (ADR 0039): `react-native-keyboard-controller` with `KeyboardProvider` at the root; `Screen` is a `KeyboardAwareScrollView`. Do not add React Native's `KeyboardAvoidingView` to new screens.
+  - On Android (Fabric), a nested `<Text>`'s colour `transparent` counts as unset and draws in the default colour: use `#FFFFFF01` for invisible text (the message-time spacer in `chat.tsx`).
 - Test conventions:
   - unit tests are `src/**/*.test.ts`, and each package with tests has a `vitest.config.ts` using `defineProject` (copy `packages/config/vitest.config.ts`);
   - integration tests are `*.int.test.ts`, with a `vitest.int.config.ts` and the script `"test:int": "vitest run --config vitest.int.config.ts"`;

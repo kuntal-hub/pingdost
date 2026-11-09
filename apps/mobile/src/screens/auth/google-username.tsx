@@ -1,5 +1,7 @@
 import { api, authStore } from '@/api';
 import { UsernameFormSchema } from '@/auth/forms';
+import { useUsernameAvailability } from '@/auth/use-username-availability';
+import { availabilityNote } from '@/auth/username-availability';
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
@@ -9,6 +11,7 @@ import { useForm } from '@/forms/use-form';
 /** A new Google account picks its username before anything else. */
 export function GoogleUsernameScreen() {
   const form = useForm(UsernameFormSchema, { username: '' });
+  const usernameNote = availabilityNote(useUsernameAvailability(form.values.username));
 
   const submit = () =>
     form.submit(async ({ username }) => {
@@ -21,6 +24,7 @@ export function GoogleUsernameScreen() {
       subtitle="People find you on PingDost by your exact username."
       offlineBanner
       headerless
+      brand
     >
       <TextField
         label="Username"
@@ -30,6 +34,7 @@ export function GoogleUsernameScreen() {
         autoComplete="username-new"
         returnKeyType="done"
         onSubmitEditing={() => void submit()}
+        {...(usernameNote ? { note: usernameNote } : {})}
         {...form.field('username')}
       />
       {form.formError && <Notice tone="error" message={form.formError.message} />}
