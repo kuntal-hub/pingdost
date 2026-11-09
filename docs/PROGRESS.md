@@ -29,7 +29,8 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 - **Phones (Nothing ↔ vivo, via the dev TURN relay over `adb reverse`): passed**: auto-hide on both; tap show/hide and swap both ways on the vivo. The Nothing dropped off USB before its own tap and swap check. Details are in the phase 32 file.
 
 **State:**
-- Running: Docker infra, coturn (`--profile calls`), the API server with `TURN_URLS=turn:127.0.0.1:3478?transport=tcp` (process env only; `.env` unchanged) and Metro (`CI=1`).
+- Running: Docker infra and coturn (`--profile calls`).
+- Stopped when the PC ran low on memory: the API server (it had run with `TURN_URLS=turn:127.0.0.1:3478?transport=tcp` as a process env var; `.env` is unchanged) and Metro.
 - The vivo has `adb reverse` for 3000, 8081 and 3478.
 
 **Next:** stop the services when done (`docker compose --profile calls down` for coturn). The earlier entry below still lists the other open device items.
