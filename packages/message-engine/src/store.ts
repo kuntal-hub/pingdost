@@ -218,6 +218,8 @@ export interface MessageRecord {
   readAt: number | null;
   /** At most one entry per user. */
   reactions: ReactionEntry[];
+  /** Forwarded from someone else's message (Phase 39): shown as "Forwarded". */
+  forwarded?: boolean;
 }
 
 export type OpType = 'edit' | 'delete' | 'reaction';

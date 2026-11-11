@@ -18,6 +18,7 @@ import { ATTACHMENT_FILES_SCHEMA } from './migrations/006-attachment-files';
 import { NEARBY_SCHEMA } from './migrations/007-nearby';
 import { MESH_RELAY_SCHEMA } from './migrations/008-mesh-relay';
 import { MESH_FILES_SCHEMA } from './migrations/009-mesh-files';
+import { FORWARDED_SCHEMA } from './migrations/010-forwarded';
 
 export interface Migration {
   version: number;
@@ -50,6 +51,7 @@ export const migrations: readonly Migration[] = [
   { version: 7, name: '007_nearby', sql: NEARBY_SCHEMA },
   { version: 8, name: '008_mesh_relay', sql: MESH_RELAY_SCHEMA },
   { version: 9, name: '009_mesh_files', sql: MESH_FILES_SCHEMA },
+  { version: 10, name: '010_forwarded', sql: FORWARDED_SCHEMA },
 ];
 
 /** The subset of `SQLiteDatabase` the runner needs (keeps it testable without native code). */

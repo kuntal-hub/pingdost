@@ -17,7 +17,7 @@ export type {
 } from './core';
 export { diffDirectory, verifyDirectory } from './directory';
 export type { DirectoryApi } from './directory';
-export { MessageEngine } from './engine';
+export { MAX_FORWARD_TARGETS, MessageEngine } from './engine';
 export type { ContactInfo } from './engine';
 export { MessageActionError, SyncError } from './errors';
 export { DEFAULT_SYNC_WINDOW, FILE_PART_BYTES } from './sync';

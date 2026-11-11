@@ -186,6 +186,8 @@ export async function startLeader(
     },
     downloadAttachment: (messageId, role) => transfers.download(messageId, role),
     sendFile: (conversationId, file, options) => transfers.sendFile(conversationId, file, options),
+    forwardFile: (messageId, conversationIds, forwarded) =>
+      transfers.forwardFile(messageId, conversationIds, forwarded),
     retryUpload: (messageId) => transfers.retryUpload(messageId),
     transfers: () => Promise.resolve(transfers.snapshot()),
     applyCacheLimit: () => transfers.applyCacheLimit(),

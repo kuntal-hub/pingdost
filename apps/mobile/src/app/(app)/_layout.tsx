@@ -90,6 +90,7 @@ function Screens() {
         options={{ title: 'Message info', presentation: 'modal' }}
       />
       <Stack.Screen name="send-attachment" options={{ title: 'Send', presentation: 'modal' }} />
+      <Stack.Screen name="forward" options={{ title: 'Forward to', presentation: 'modal' }} />
       <Stack.Screen name="media/[messageId]" options={{ title: '' }} />
       <Stack.Screen name="approve-phone" options={{ title: 'New phone', presentation: 'modal' }} />
       <Stack.Screen

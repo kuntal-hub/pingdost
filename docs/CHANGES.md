@@ -4,6 +4,16 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-11 — Phase 39 built: decisions taken while building (ADR 0043)
+1. **A forwarded file is a new attachment** sent from the forwarding device's own encrypted copy (new key, new upload per chat), since the server copy may already be gone (ADR 0017). A file that device never downloaded (or removed) is skipped, and the notice says so.
+   - *Affects:* 39 (done, phone check open).
+2. **Additive wire change:** `ContentHeader.forwarded` (E2EE; the server never sees it). Older apps ignore it.
+   - *Affects:* 39; 29/30 (iOS) read it the same way once built.
+3. **New native dependency `expo-clipboard` 58.0.4 (MIT)** for Copy on the phone: it needs a new APK. Older builds say copying needs the latest build; nothing else in Phase 39 needs a build.
+   - *Affects:* 39; the next EAS or local build.
+4. **The web starts selecting from a "Select" button in the hover toolbar** (then a click on any row selects it), rather than a checkbox always shown on hover, so incoming bubbles do not move when the pointer passes.
+   - *Affects:* 39.
+
 ### 2026-11-11 — Phases 36 and 37 built: decisions taken while building (ADR 0040, 0041)
 1. **Emoji data:** `emojibase-data` 18.0.0 (MIT) for both pickers, loaded on first use; emoji newer than the device's font are hidden; recents and skin tone stay on the device.
    - *Affects:* 36 (done, phone check open).

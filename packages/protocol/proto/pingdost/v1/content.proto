@@ -24,6 +24,9 @@ message ContentHeader {
   // to file their copy, and every receiver checks that
   // conversation_id = directConversationIdFor(sender_user_id, recipient_user_id).
   optional bytes recipient_user_id = 7;
+  // Forwarded from someone else's message (Phase 39, ADR 0043): shown as "Forwarded". Never
+  // set when one forwards one's own message. Older apps ignore it.
+  optional bool forwarded = 8;
 }
 
 message Content {

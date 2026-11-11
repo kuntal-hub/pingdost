@@ -17,6 +17,7 @@ import {
   canSend,
   ciphertextSizeFor,
   compressByDefault,
+  decryptStream,
   downloadCiphertext,
   encryptStream,
   formatSize,
@@ -74,6 +75,8 @@ export interface SendFileOptions {
   original: boolean;
   quality: ImageQuality;
   replyTo?: string;
+  /** Forwarded from someone else's message (Phase 39, ADR 0043). */
+  forwarded?: boolean;
 }
 
 /** Why a file cannot be sent; the message is for the user. */
@@ -321,6 +324,7 @@ export class Transfers {
     const message = await this.engine.sendAttachment(conversationId, manifest, {
       held: true,
       ...(options.replyTo ? { replyTo: options.replyTo } : {}),
+      ...(options.forwarded ? { forwarded: true } : {}),
     });
     await this.#savePending({
       messageId: message.messageId,
@@ -328,6 +332,41 @@ export class Transfers {
       recipients: null,
     });
     void this.#upload(message.messageId);
+  }
+
+  /**
+   * Forwards a cached file (Phase 39, ADR 0043): decrypted here, then sent again to each chat as
+   * a new attachment (new key, new upload), with its caption, since the server's copy may be
+   * gone (ADR 0017). False when the whole file is not in this browser.
+   */
+  async forwardFile(
+    messageId: string,
+    conversationIds: string[],
+    forwarded: boolean,
+  ): Promise<boolean> {
+    const message = await this.engine.getMessage(messageId);
+    const info = message?.kind === 'attachment' ? message.attachment : null;
+    if (!message || !info || !(await fileCache().isComplete(info.attachmentId))) return false;
+    const parts: Uint8Array<ArrayBuffer>[] = [];
+    for await (const chunk of decryptStream(
+      this.provider,
+      attachmentDecryptInput(info),
+      fileCache().read(info.attachmentId),
+    )) {
+      parts.push(new Uint8Array(chunk));
+    }
+    const kind = info.mimeType.split('/')[0] ?? 'file';
+    const name = info.fileName ?? `pingdost-${kind}.${info.mimeType.split('/')[1] ?? 'bin'}`;
+    const file = new File(parts, name, { type: info.mimeType });
+    for (const conversationId of conversationIds) {
+      await this.sendFile(conversationId, file, {
+        caption: message.body,
+        original: true,
+        quality: 'standard',
+        forwarded,
+      });
+    }
+    return true;
   }
 
   /** Uploads still waiting (e.g. after a closed tab or a lost connection) are tried again. */

@@ -122,6 +122,8 @@ export interface SendChoice {
   imageQuality: ImageQuality;
   caption: string;
   replyTo?: string;
+  /** Forwarded from someone else's message (Phase 39, ADR 0043). */
+  forwarded?: boolean;
 }
 
 export type SendStage =
@@ -244,6 +246,7 @@ export function sendDraft(
         // Staged uploads hold the message until the file is on the server; the mesh does not.
         held: !mesh,
         ...(choice.replyTo ? { replyTo: choice.replyTo } : {}),
+        ...(choice.forwarded ? { forwarded: true } : {}),
       });
       const now = Date.now();
       const row = (entry: VaultEntry, role: AttachmentRow['role']): AttachmentRow => ({

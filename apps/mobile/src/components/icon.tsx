@@ -25,11 +25,13 @@ import CopyIcon from 'lucide-react-native/icons/copy';
 import DatabaseIcon from 'lucide-react-native/icons/database';
 import DeleteIcon from 'lucide-react-native/icons/delete';
 import DownloadIcon from 'lucide-react-native/icons/download';
+import EllipsisVerticalIcon from 'lucide-react-native/icons/ellipsis-vertical';
 import EyeIcon from 'lucide-react-native/icons/eye';
 import EyeOffIcon from 'lucide-react-native/icons/eye-off';
 import FileIcon from 'lucide-react-native/icons/file';
 import FileTextIcon from 'lucide-react-native/icons/file-text';
 import FlagIcon from 'lucide-react-native/icons/flag';
+import ForwardIcon from 'lucide-react-native/icons/forward';
 import HandIcon from 'lucide-react-native/icons/hand';
 import HeadphonesIcon from 'lucide-react-native/icons/headphones';
 import HeartIcon from 'lucide-react-native/icons/heart';
@@ -204,6 +206,8 @@ export {
   KeyboardIcon,
   XIcon,
   ZapIcon,
+  EllipsisVerticalIcon,
+  ForwardIcon,
 };
 export type { LucideIcon };
 

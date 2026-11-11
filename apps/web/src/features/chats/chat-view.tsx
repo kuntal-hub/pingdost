@@ -7,6 +7,8 @@ import {
   ArrowDown,
   ArrowLeft,
   Check,
+  Copy,
+  Forward,
   Info,
   Lock,
   Paperclip,
@@ -15,6 +17,7 @@ import {
   Search,
   SendHorizontal,
   Smile,
+  Trash2,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
@@ -33,9 +36,15 @@ import { cn } from '@/lib/cn';
 import { api, useSession } from '@/session/session';
 import { syncLabel, useHistorySync } from '@/sync/sync-status';
 import {
+  copyable,
+  copyText,
+  deleteForEveryoneCheck,
+  forwardable,
   isAtEnd,
   newestMark,
   previewText,
+  selectedMessages,
+  toggleSelected,
   unseenCount,
   unseenLabel,
   type SeenMark,
@@ -53,6 +62,7 @@ import {
 import { Bubble, type BubbleActions } from './bubble';
 import { EmojiPanel } from './emoji-panel';
 import { groupName, groupPictureUri } from './format';
+import { ForwardDialog } from './forward-dialog';
 import { AttachmentView } from '../attachments/attachment-view';
 import { SendFileDialog } from '../attachments/send-file-dialog';
 import { CallButtons } from '../calls/call-buttons';
@@ -436,7 +446,11 @@ export function ChatView() {
   const outside = !isGroup && circleState !== undefined && circleState !== 'member';
   const [replyTo, setReplyTo] = useState<MessageRecord>();
   const [editing, setEditing] = useState<MessageRecord>();
-  const [deleting, setDeleting] = useState<MessageRecord>();
+  const [deleting, setDeleting] = useState<MessageRecord[]>();
+  // Selected messages (Phase 39), and the ones being forwarded.
+  const [selection, setSelection] = useState<string[]>([]);
+  const [forwarding, setForwarding] = useState<MessageRecord[]>([]);
+  const [done, setDone] = useState<string>();
   const [highlight, setHighlight] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [atBottom, setAtBottom] = useState(true);
@@ -518,6 +532,7 @@ export function ChatView() {
     void client.getConversation(conversationId).then(setConversation, () => undefined);
     setReplyTo(undefined);
     setEditing(undefined);
+    setSelection([]);
   }, [client, conversationId]);
 
   // Presence of the open chat's peer only (when they share it).
@@ -594,6 +609,24 @@ export function ChatView() {
     if (focus && hasItems) void jumpTo(focus);
   }, [focus, hasItems, jumpTo]);
 
+  // Selecting several messages (Phase 39): the toolbar's Select starts, clicks add or remove,
+  // and Esc, ✕ or unselecting the last one stops. A message deleted meanwhile drops out.
+  const picked = useMemo(() => selectedMessages(selection, loaded), [selection, loaded]);
+  const selecting = picked.length > 0;
+  useEffect(() => {
+    if (!selecting) return;
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setSelection([]);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selecting]);
+  useEffect(() => {
+    if (!done) return;
+    const timer = setTimeout(() => setDone(undefined), 4_000);
+    return () => clearTimeout(timer);
+  }, [done]);
+
   const now = Date.now();
   const actions: BubbleActions = {
     reply: (message) => {
@@ -608,10 +641,11 @@ export function ChatView() {
       client?.react(message.messageId, emoji).catch((e: unknown) => setNotice(failure(e)));
     },
     info: (message) => void navigate(`/message/${message.messageId}`),
-    remove: setDeleting,
+    remove: (message) => setDeleting([message]),
     retry: (message) => void client?.retry(message.messageId).catch(() => undefined),
     jumpTo: (messageId) => void jumpTo(messageId),
     canEdit: (message) => canEdit(message, names.selfUserId, RULES, now),
+    select: (message) => setSelection((current) => toggleSelected(current, message.messageId)),
   };
   const lastOwn = [...items]
     .reverse()
@@ -646,9 +680,71 @@ export function ChatView() {
   const name = isGroup ? groupName(group) : contactName(peer);
   const readReceipts = privacy?.readReceipts ?? false;
 
+  const copyCount = picked.filter(copyable).length;
+  const canForward = selecting && picked.every(forwardable) && !blocked;
+  const one = picked.length === 1 ? picked[0] : undefined;
+  const deleteCheck = deleting
+    ? deleteForEveryoneCheck(deleting, names.selfUserId, RULES, now)
+    : undefined;
+
   return (
     <div className="relative flex h-full flex-col">
-      <Header conversation={conversation} />
+      {selecting ? (
+        <header
+          aria-label="Selected messages"
+          className="pd-floating absolute inset-x-3 top-3 z-10 flex min-h-[60px] items-center gap-1 rounded-2xl p-1.5"
+        >
+          <IconButton aria-label="Stop selecting (Esc)" onClick={() => setSelection([])}>
+            <X size={20} />
+          </IconButton>
+          <span aria-live="polite" className="min-w-0 flex-1 truncate pl-1 text-lg font-bold">
+            {picked.length} selected
+          </span>
+          {one && !(blocked || left || outside) && one.kind !== 'deleted' && (
+            <IconButton
+              aria-label="Reply"
+              onClick={() => {
+                setSelection([]);
+                actions.reply(one);
+              }}
+            >
+              <Reply size={20} />
+            </IconButton>
+          )}
+          {copyCount > 0 && (
+            <IconButton
+              aria-label="Copy"
+              onClick={() => {
+                void navigator.clipboard.writeText(copyText(picked, names)).then(
+                  () => {
+                    setDone(copyCount === 1 ? 'Copied' : `${copyCount} messages copied`);
+                    setSelection([]);
+                  },
+                  () => setNotice('Copying did not work. Try again.'),
+                );
+              }}
+            >
+              <Copy size={20} />
+            </IconButton>
+          )}
+          {canForward && (
+            <IconButton
+              aria-label="Forward"
+              onClick={() => {
+                setForwarding(picked);
+                setSelection([]);
+              }}
+            >
+              <Forward size={20} />
+            </IconButton>
+          )}
+          <IconButton aria-label="Delete" onClick={() => setDeleting(picked)}>
+            <Trash2 size={20} />
+          </IconButton>
+        </header>
+      ) : (
+        <Header conversation={conversation} />
+      )}
       {status !== 'online' && (
         <p
           className="pd-rise absolute inset-x-6 top-22 z-10 rounded-lg bg-warning/20 px-4 py-1 text-center text-sm font-semibold backdrop-blur"
@@ -715,6 +811,8 @@ export function ChatView() {
                   // Scrolling back to it later must not replay the entrance.
                   fresh={Date.now() - item.message.sortAt < 1_200}
                   readOnly={blocked || left || outside}
+                  selecting={selecting}
+                  checked={selecting && selection.includes(item.message.messageId)}
                   actions={actions}
                   attachment={
                     item.message.attachment ? <AttachmentView message={item.message} /> : undefined
@@ -766,6 +864,14 @@ export function ChatView() {
           {notice}
         </p>
       )}
+      {done && (
+        <p
+          role="status"
+          className="pd-rise mx-4 mt-1 rounded-lg bg-surface px-3 py-1 text-sm font-medium text-success"
+        >
+          {done}
+        </p>
+      )}
       {left ? (
         <p className="m-3 rounded-xl bg-surface p-4 text-center text-muted">
           You&apos;re no longer a member of this group. You can read what is here, but not send.
@@ -809,41 +915,67 @@ export function ChatView() {
           onSent={jumpToEnd}
         />
       )}
+      <ForwardDialog
+        messages={forwarding}
+        selfUserId={names.selfUserId}
+        onClose={(result) => {
+          setForwarding([]);
+          if (result) setDone(result);
+        }}
+      />
       <Dialog
         open={deleting !== undefined}
         onOpenChange={(open) => !open && setDeleting(undefined)}
-        title="Delete this message?"
+        title={
+          deleting && deleting.length > 1
+            ? `Delete ${deleting.length} messages?`
+            : 'Delete this message?'
+        }
       >
         <div className="flex flex-col gap-2">
           <Button
             variant="danger"
             onClick={() => {
-              if (deleting) void client?.deleteForMe([deleting.messageId]);
+              if (deleting) void client?.deleteForMe(deleting.map((m) => m.messageId));
               setDeleting(undefined);
+              setSelection([]);
             }}
           >
             Delete for me
           </Button>
-          <p className="text-sm text-muted">Removes it from this browser only.</p>
-          {deleting && canDeleteForEveryone(deleting, names.selfUserId, RULES, now) && !left && (
-            <>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  client
-                    ?.deleteForEveryone(deleting.messageId)
-                    .catch((e: unknown) => setNotice(failure(e)));
-                  setDeleting(undefined);
-                }}
-              >
-                Delete for everyone
-              </Button>
-              <p className="text-sm text-muted">
-                Asks every copy to be removed. It can&apos;t erase screenshots, exports or copies
-                already saved elsewhere.
-              </p>
-            </>
-          )}
+          <p className="text-sm text-muted">
+            Removes {deleting && deleting.length > 1 ? 'them' : 'it'} from this browser only.
+          </p>
+          {deleting &&
+            !left &&
+            !outside &&
+            (deleteCheck?.allowed &&
+            deleting.every((m) => canDeleteForEveryone(m, names.selfUserId, RULES, now)) ? (
+              <>
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    const ids = deleting.map((m) => m.messageId);
+                    const sent =
+                      ids.length > 1
+                        ? client?.deleteManyForEveryone(ids)
+                        : client?.deleteForEveryone(ids[0] ?? '');
+                    sent?.catch((e: unknown) => setNotice(failure(e)));
+                    setDeleting(undefined);
+                    setSelection([]);
+                  }}
+                >
+                  Delete for everyone
+                </Button>
+                <p className="text-sm text-muted">
+                  Asks every copy to be removed. It can&apos;t erase screenshots, exports or copies
+                  already saved elsewhere.
+                </p>
+              </>
+            ) : (
+              deleteCheck &&
+              !deleteCheck.allowed && <p className="text-sm text-muted">{deleteCheck.reason}</p>
+            ))}
           <Button variant="secondary" onClick={() => setDeleting(undefined)}>
             Cancel
           </Button>

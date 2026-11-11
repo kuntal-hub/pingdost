@@ -149,3 +149,24 @@ describe('verifyDirectory', () => {
     expect(diffDirectory(undefined, next).identityChanged).toBe(false);
   });
 });
+
+describe('the forwarded mark (Phase 39)', () => {
+  it('travels in the header only when set, and reads back as false otherwise', () => {
+    const conversationId = directConversationIdFor(alice, bob);
+    const base = {
+      messageId: uuidv7(),
+      conversationId,
+      senderUserId: alice,
+      recipientUserId: bob,
+      sentAt: 1_000,
+    };
+    const body = { case: 'text' as const, value: { body: 'hi' } };
+    const marked = decodeContent(buildContent({ ...base, forwarded: true }, body));
+    const plain = decodeContent(buildContent(base, body));
+    expect(marked.header?.forwarded).toBe(true);
+    expect(plain.header?.forwarded).toBeUndefined();
+    const sender = { userId: alice, deviceId: uuidv7() };
+    expect(checkHeader(marked.header!, sender, bob)?.forwarded).toBe(true);
+    expect(checkHeader(plain.header!, sender, bob)?.forwarded).toBe(false);
+  });
+});

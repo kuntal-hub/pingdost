@@ -105,6 +105,8 @@ interface MessageRow {
   read_at: number | null;
   reactions: string;
   attachment: string | null;
+  /** Migration 010. */
+  forwarded: number;
 }
 
 interface OpRow {
@@ -197,6 +199,7 @@ const toMessage = (r: MessageRow): MessageRecord => ({
   readAt: r.read_at,
   reactions: JSON.parse(r.reactions) as MessageRecord['reactions'],
   attachment: r.attachment ? (JSON.parse(r.attachment) as MessageRecord['attachment']) : null,
+  ...(r.forwarded === 1 ? { forwarded: true } : {}),
 });
 
 const toOp = (r: OpRow): PendingOpRecord => ({
@@ -232,6 +235,7 @@ const MESSAGE_COLUMNS = [
   'read_at',
   'reactions',
   'attachment',
+  'forwarded',
 ] as const;
 
 const UPSERT_MESSAGE = `INSERT INTO messages (${MESSAGE_COLUMNS.join(', ')})
@@ -260,6 +264,7 @@ const messageParams = (m: MessageRecord): SqlValue[] => [
   m.readAt,
   JSON.stringify(m.reactions),
   m.attachment ? JSON.stringify(m.attachment) : null,
+  m.forwarded ? 1 : 0,
 ];
 
 const toDelivery = (r: DeliveryRow): DeliveryRecord => ({

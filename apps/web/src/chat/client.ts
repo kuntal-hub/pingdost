@@ -26,6 +26,8 @@ export const ENGINE_METHODS = [
   'markRead',
   'editMessage',
   'deleteForEveryone',
+  'deleteManyForEveryone',
+  'forwardText',
   'react',
   'deleteForMe',
   'deleteConversation',
@@ -66,6 +68,11 @@ export interface LeaderApi {
   downloadAttachment(messageId: string, role?: 'file' | 'thumbnail'): Promise<void>;
   /** Compresses (images), encrypts and sends a file; throws `SendFileError` with the reason. */
   sendFile(conversationId: string, file: File, options: SendFileOptions): Promise<void>;
+  /**
+   * Sends a cached file again as a new attachment to each chat (Phase 39); false when the file
+   * is not in this browser.
+   */
+  forwardFile(messageId: string, conversationIds: string[], forwarded: boolean): Promise<boolean>;
   retryUpload(messageId: string): Promise<void>;
   transfers(): Promise<TransferStatus[]>;
   /** Trims the cache to its limit (after the limit changed); returns the bytes freed. */
@@ -77,6 +84,7 @@ export const LEADER_METHODS = [
   'watchPresence',
   'downloadAttachment',
   'sendFile',
+  'forwardFile',
   'retryUpload',
   'transfers',
   'applyCacheLimit',

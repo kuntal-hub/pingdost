@@ -80,6 +80,22 @@ export interface ContactInfo {
   verified: boolean;
 }
 
+/** What an op stores and sends for its target. */
+type OpMaker = (targetMessageId: string) => {
+  body: string;
+  remove: boolean;
+  content: Parameters<typeof buildContent>[1];
+};
+
+const deleteContent: OpMaker = (target) => ({
+  body: '',
+  remove: false,
+  content: { case: 'delete', value: { targetMessageId: uuidToBytes(target) } },
+});
+
+/** Chats one forward may go to at once (Phase 39). */
+export const MAX_FORWARD_TARGETS = 5;
+
 export class MessageEngine {
   readonly #core: EngineCore;
   readonly #outbox: Outbox;
@@ -343,7 +359,7 @@ export class MessageEngine {
   sendText(
     conversationId: string,
     text: string,
-    options: { replyTo?: string } = {},
+    options: { replyTo?: string; forwarded?: boolean } = {},
   ): Promise<MessageRecord> {
     return this.#send(conversationId, { kind: 'text', body: text, attachment: null }, options);
   }
@@ -360,7 +376,7 @@ export class MessageEngine {
   async sendAttachment(
     conversationId: string,
     manifest: AttachmentManifest,
-    options: { replyTo?: string; held?: boolean } = {},
+    options: { replyTo?: string; held?: boolean; forwarded?: boolean } = {},
   ): Promise<MessageRecord> {
     const read = readAttachment(manifest);
     if (!read) throw new MessageActionError('invalid', 'invalid attachment manifest');
@@ -423,7 +439,7 @@ export class MessageEngine {
   async #send(
     conversationId: string,
     fields: Pick<MessageRecord, 'kind' | 'body' | 'attachment'>,
-    options: { replyTo?: string; held?: boolean },
+    options: { replyTo?: string; held?: boolean; forwarded?: boolean },
   ): Promise<MessageRecord> {
     const core = this.#core;
     const message = await core.mutex.run(async () => {
@@ -450,6 +466,7 @@ export class MessageEngine {
         deletedAt: null,
         readAt: now,
         reactions: [],
+        ...(options.forwarded ? { forwarded: true } : {}),
       };
       // Throws OVERSIZED for text that cannot fit in an envelope: nothing is stored then.
       const content = this.#contentFor(record, audience);
@@ -468,6 +485,29 @@ export class MessageEngine {
     });
     if (!options.held) this.#outbox.kick();
     return message;
+  }
+
+  /**
+   * Forwards a text message to up to `MAX_FORWARD_TARGETS` conversations (Phase 39): a new
+   * message in each, marked forwarded when someone else wrote it (one's own goes as new).
+   * Attachments are forwarded by the app, which re-encrypts its local copy.
+   */
+  async forwardText(
+    messageId: string,
+    conversationIds: readonly string[],
+  ): Promise<MessageRecord[]> {
+    const core = this.#core;
+    if (conversationIds.length > MAX_FORWARD_TARGETS) {
+      throw new MessageActionError('invalid', `at most ${MAX_FORWARD_TARGETS} chats`);
+    }
+    const source = await core.store.getMessage(messageId);
+    if (source?.kind !== 'text') throw new MessageActionError('invalid', 'not a text message');
+    const forwarded = source.senderUserId !== core.self.userId;
+    const sent: MessageRecord[] = [];
+    for (const conversationId of conversationIds) {
+      sent.push(await this.sendText(conversationId, source.body, forwarded ? { forwarded } : {}));
+    }
+    return sent;
   }
 
   /** Sends a `failed` message again to the recipient's current devices. */
@@ -626,11 +666,7 @@ export class MessageEngine {
    * copy. Best-effort: it cannot erase copies, screenshots, exports or notifications.
    */
   deleteForEveryone(messageId: string): Promise<MessageRecord> {
-    return this.#op(messageId, 'delete', (target) => ({
-      body: '',
-      remove: false,
-      content: { case: 'delete', value: { targetMessageId: uuidToBytes(target) } },
-    }));
+    return this.#op(messageId, 'delete', deleteContent);
   }
 
   /** Sets this user's reaction to `message` (one per user), or withdraws it with `null`. */
@@ -648,66 +684,99 @@ export class MessageEngine {
     }));
   }
 
-  /** Applies an op locally and queues it for the peer's and this user's other devices. */
-  async #op(
-    messageId: string,
-    type: Op['type'],
-    make: (targetMessageId: string) => {
-      body: string;
-      remove: boolean;
-      content: Parameters<typeof buildContent>[1];
-    },
-  ): Promise<MessageRecord> {
+  /**
+   * Deletes several of this user's messages for everyone at once (Phase 39 selection): one
+   * batch of ops, all or nothing. Refused (and nothing changes) when any of them is not this
+   * user's or is past the delete window.
+   */
+  async deleteManyForEveryone(messageIds: readonly string[]): Promise<MessageRecord[]> {
     const core = this.#core;
     const changed = await core.mutex.run(async () => {
-      const target = await core.store.getMessage(messageId);
-      const conversation = target && (await core.store.getConversation(target.conversationId));
-      if (!target || !conversation) throw new MessageActionError('not_found', 'no such message');
-      const audience = await this.#audience(conversation);
-      if (type === 'reaction' && !canReact(target)) {
-        throw new MessageActionError('not_allowed', 'cannot react to this message');
-      }
       const now = core.now();
-      const { body, remove, content } = make(target.messageId);
-      const op: Op = {
-        opId: uuidv7(),
-        type,
-        targetMessageId: target.messageId,
-        conversationId: target.conversationId,
-        senderUserId: core.self.userId,
-        sentAt: now,
-        body,
-        remove,
-      };
-      const next = applyOp(target, op, core.opRules);
-      if (!next) throw new MessageActionError('not_allowed', `${type} is not allowed`);
-      // Throws OVERSIZED for an edit that cannot fit in an envelope: nothing is stored then.
-      const encoded = buildContent(
-        {
-          messageId: op.opId,
-          conversationId: target.conversationId,
-          senderUserId: core.self.userId,
-          ...(audience.peerUserId ? { recipientUserId: audience.peerUserId } : {}),
-          sentAt: now,
-        },
-        content,
-        core.settings.envelopeMaxBytes,
-      );
-      const batch: WriteBatch = {
-        messages: [next],
-        outbox: [this.#controlFanout(op.opId, conversation, audience, encoded, now)],
-      };
-      if (type === 'delete') {
-        // Not sent yet to anyone: the message itself need not go out any more.
-        batch.deleteOutbox = (await core.store.listOutbox())
-          .filter((item) => item.messageId === messageId && item.type !== 'receipt')
-          .map((item) => item.id);
+      const outbox = await core.store.listOutbox();
+      const batch: WriteBatch = { messages: [], outbox: [], deleteOutbox: [] };
+      for (const messageId of new Set(messageIds)) {
+        const built = await this.#buildOp(messageId, 'delete', deleteContent, now, outbox);
+        batch.messages!.push(built.next);
+        batch.outbox!.push(built.item);
+        batch.deleteOutbox!.push(...built.dropped);
       }
       await core.commit(batch);
-      return next;
+      return batch.messages!;
     });
     this.#outbox.kick();
     return changed;
+  }
+
+  /** Applies an op locally and queues it for the peer's and this user's other devices. */
+  async #op(messageId: string, type: Op['type'], make: OpMaker): Promise<MessageRecord> {
+    const core = this.#core;
+    const changed = await core.mutex.run(async () => {
+      const now = core.now();
+      const outbox = type === 'delete' ? await core.store.listOutbox() : [];
+      const built = await this.#buildOp(messageId, type, make, now, outbox);
+      const batch: WriteBatch = { messages: [built.next], outbox: [built.item] };
+      if (built.dropped.length > 0) batch.deleteOutbox = built.dropped;
+      await core.commit(batch);
+      return built.next;
+    });
+    this.#outbox.kick();
+    return changed;
+  }
+
+  /** One op, checked and encoded: the changed message, its fan-out, and outbox items to drop. */
+  async #buildOp(
+    messageId: string,
+    type: Op['type'],
+    make: OpMaker,
+    now: number,
+    outbox: readonly OutboxItem[],
+  ): Promise<{ next: MessageRecord; item: FanoutItem; dropped: string[] }> {
+    const core = this.#core;
+    const target = await core.store.getMessage(messageId);
+    const conversation = target && (await core.store.getConversation(target.conversationId));
+    if (!target || !conversation) throw new MessageActionError('not_found', 'no such message');
+    const audience = await this.#audience(conversation);
+    if (type === 'reaction' && !canReact(target)) {
+      throw new MessageActionError('not_allowed', 'cannot react to this message');
+    }
+    const { body, remove, content } = make(target.messageId);
+    const op: Op = {
+      opId: uuidv7(),
+      type,
+      targetMessageId: target.messageId,
+      conversationId: target.conversationId,
+      senderUserId: core.self.userId,
+      sentAt: now,
+      body,
+      remove,
+    };
+    const next = applyOp(target, op, core.opRules);
+    if (!next) throw new MessageActionError('not_allowed', `${type} is not allowed`);
+    // Throws OVERSIZED for an edit that cannot fit in an envelope: nothing is stored then.
+    const encoded = buildContent(
+      {
+        messageId: op.opId,
+        conversationId: target.conversationId,
+        senderUserId: core.self.userId,
+        ...(audience.peerUserId ? { recipientUserId: audience.peerUserId } : {}),
+        sentAt: now,
+      },
+      content,
+      core.settings.envelopeMaxBytes,
+    );
+    // A deleted message not sent yet to anyone need not go out any more.
+    const dropped =
+      type === 'delete'
+        ? outbox
+            .filter((item) => item.messageId === messageId && item.type !== 'receipt')
+            .map((item) => item.id)
+        : [];
+    return {
+      next,
+      item: this.#controlFanout(op.opId, conversation, audience, encoded, now),
+      dropped,
+    };
   }
 
   /**

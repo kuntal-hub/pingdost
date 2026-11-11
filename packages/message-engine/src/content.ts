@@ -27,6 +27,8 @@ export interface HeaderFields {
   recipientUserId?: string;
   sentAt: number;
   replyTo?: string | null;
+  /** Forwarded from someone else's message (Phase 39). */
+  forwarded?: boolean;
 }
 
 export function buildContent(
@@ -44,6 +46,7 @@ export function buildContent(
         sentAtMs: BigInt(header.sentAt),
         ...(header.replyTo ? { replyTo: uuidToBytes(header.replyTo) } : {}),
         ...(header.recipientUserId ? { recipientUserId: uuidToBytes(header.recipientUserId) } : {}),
+        ...(header.forwarded ? { forwarded: true } : {}),
       },
       body,
     }),
@@ -68,6 +71,7 @@ export function textContentFor(
       ...(peerUserId ? { recipientUserId: peerUserId } : {}),
       sentAt: message.sentAt,
       replyTo: message.replyTo,
+      ...(message.forwarded ? { forwarded: true } : {}),
     },
     { case: 'text', value: { body: message.body } },
     envelopeMaxBytes,
@@ -91,6 +95,7 @@ export interface CheckedHeader {
   recipientUserId: string | undefined;
   sentAt: number;
   replyTo: string | null;
+  forwarded: boolean;
 }
 
 /**
@@ -108,6 +113,7 @@ function readHeader(header: ContentHeader): CheckedHeader | undefined {
       recipientUserId: header.recipientUserId ? bytesToUuid(header.recipientUserId) : undefined,
       sentAt: Number(header.sentAtMs),
       replyTo: header.replyTo ? bytesToUuid(header.replyTo) : null,
+      forwarded: header.forwarded === true,
     };
   } catch {
     return undefined; // not a 16-byte ID

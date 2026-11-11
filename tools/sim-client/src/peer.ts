@@ -70,7 +70,9 @@ async function main(): Promise<void> {
       console.log(`circle check failed: ${String(error)}`);
     }
   };
-  setInterval(() => void acceptAll(), 2_000).unref();
+  // Every 5 s: the server allows 300 circle reads per 15 minutes per IP, and every local client
+  // (this peer, the emulator, the browser) shares 127.0.0.1. Every 2 s used them all up.
+  setInterval(() => void acceptAll(), 5_000).unref();
   void acceptAll();
   let calls: ReturnType<typeof simCalls> | undefined;
   if (values.calls !== 'false') {

@@ -5,4 +5,5 @@ export * from './labels';
 export * from './people';
 export * from './privacy';
 export * from './scroll';
+export * from './selection';
 export * from './timeline';

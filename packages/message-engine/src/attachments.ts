@@ -109,6 +109,7 @@ export function attachmentContentFor(
       ...(peerUserId ? { recipientUserId: peerUserId } : {}),
       sentAt: message.sentAt,
       replyTo: message.replyTo,
+      ...(message.forwarded ? { forwarded: true } : {}),
     },
     { case: 'attachmentManifest', value: manifestFrom(message.attachment, message.body) },
     envelopeMaxBytes,

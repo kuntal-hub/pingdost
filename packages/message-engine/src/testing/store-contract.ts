@@ -135,6 +135,15 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
       expect((await store.getMessage(photo.messageId))?.attachment).toBeNull();
     });
 
+    it('keeps the forwarded mark (Phase 39), and its absence', async () => {
+      const store = await makeStore();
+      const forwarded = messageRecord({ forwarded: true });
+      const plain = messageRecord();
+      await store.apply({ messages: [forwarded, plain] });
+      expect(await store.getMessage(forwarded.messageId)).toEqual(forwarded);
+      expect((await store.getMessage(plain.messageId))?.forwarded).toBeFalsy();
+    });
+
     it('pages messages newest first, ties broken by message ID', async () => {
       const store = await makeStore();
       const conversationId = testId();

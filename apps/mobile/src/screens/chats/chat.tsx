@@ -1,13 +1,16 @@
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
+import { requireOptionalNativeModule } from 'expo';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import {
   AccessibilityInfo,
   Alert,
   BackHandler,
+  Platform,
   Text as NativeText,
   type TextInput as NativeTextInput,
   Pressable,
+  ToastAndroid,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -33,6 +36,7 @@ import { dial, useCalls } from '@/calls/runtime';
 import { ActionSheet, type SheetAction } from '@/components/action-sheet';
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
+import { CheckMark } from '@/components/controls';
 import { EmptyState, TypingDots } from '@/components/feedback';
 import {
   ArrowDownIcon,
@@ -40,7 +44,10 @@ import {
   BadgeCheckIcon,
   BanIcon,
   CameraIcon,
+  CopyIcon,
+  EllipsisVerticalIcon,
   FileTextIcon,
+  ForwardIcon,
   HeartIcon,
   Icon,
   ImageIcon,
@@ -102,8 +109,21 @@ import { useAppearance } from '@/theme/appearance';
 import { CSS_EASE_OUT, CSS_POP, haptic, useMotion } from '@/theme/motion';
 import { useTheme } from '@/theme/theme-root';
 import { formatSize } from '@pingdost/attachments';
-import { isAtEnd, newestMark, unseenCount, unseenLabel, type SeenMark } from '@pingdost/chat-core';
+import {
+  copyable,
+  copyText,
+  deleteForEveryoneCheck,
+  forwardable,
+  isAtEnd,
+  newestMark,
+  selectedMessages,
+  toggleSelected,
+  unseenCount,
+  unseenLabel,
+  type SeenMark,
+} from '@pingdost/chat-core';
 import { deleteBefore, insertAt } from '@pingdost/chat-core/emoji';
+import { DEFAULT_LIMITS } from '@pingdost/config/public';
 import {
   canReact,
   MessageActionError,
@@ -122,6 +142,7 @@ import {
 
 import { AttachmentContent } from './attachment-bubble';
 import { EmojiPanel } from './emoji-panel';
+import { takeForwardNotice } from './forward';
 import { VoiceRecorder, type VoiceNote } from './voice-recorder';
 import { CircleAction } from '../circle/circle-action';
 
@@ -145,6 +166,31 @@ const PICK_ACTIONS: { source: PickSource; label: string; detail: string; icon: L
   { source: 'video', label: 'Video', detail: 'Record one now', icon: VideoIcon },
   { source: 'document', label: 'Document', detail: 'Any file up to 100 MB', icon: FileTextIcon },
 ];
+
+/** Who may delete what for everyone, for the reasons shown (the engine checks again). */
+const OP_RULES = {
+  editWindowMs: DEFAULT_LIMITS.messageEditWindowSeconds * 1_000,
+  deleteWindowMs: DEFAULT_LIMITS.messageDeleteWindowSeconds * 1_000,
+};
+
+/** A short confirmation at the bottom of the screen. */
+function toast(text: string): void {
+  if (Platform.OS === 'android') ToastAndroid.show(text, ToastAndroid.SHORT);
+  else AccessibilityInfo.announceForAccessibility(text);
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  // An older build has no clipboard module: loading expo-clipboard there would throw outside
+  // this try (module evaluation), so look first (Phase 39).
+  if (!requireOptionalNativeModule('ExpoClipboard')) return false;
+  try {
+    const Clipboard = await import('expo-clipboard');
+    await Clipboard.setStringAsync(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function failed(action: string, error: unknown): void {
   haptic('error');
@@ -458,7 +504,11 @@ interface BubbleProps {
   fresh: boolean;
   /** Replies are off for a blocked contact or a group this user left. */
   readOnly: boolean;
-  onLongPress: (message: MessageRecord) => void;
+  /** Selection mode (Phase 39): a tap selects or unselects instead of acting. */
+  selecting: boolean;
+  checked: boolean;
+  /** Selects or unselects the message (a long press starts selecting). */
+  onSelect: (message: MessageRecord) => void;
   onQuotePress: (messageId: string) => void;
   onReact: (message: MessageRecord, emoji: string | null) => void;
   onReply: (message: MessageRecord) => void;
@@ -554,6 +604,11 @@ function Bubble(props: BubbleProps) {
   const corners = bubbleCorners(prefs.bubble, { outgoing, first, last });
 
   function onPress() {
+    if (props.selecting) {
+      haptic('light');
+      props.onSelect(message);
+      return;
+    }
     if (retry) {
       retry();
       return;
@@ -571,135 +626,174 @@ function Bubble(props: BubbleProps) {
     }
   }
 
+  const forwarded = message.forwarded === true && !deleted;
+  const label = `${forwarded ? 'Forwarded. ' : ''}${sender}: ${body}. ${timeLabel(message.sortAt)}`;
+
   return (
-    <SwipeAction
-      enabled={reactable}
-      {...(reactable ? { left: { icon: ReplyIcon, onCommit: () => props.onReply(message) } } : {})}
-    >
-      <Animated.View
-        // At most 80% of the screen wide (Phase 35); the margin is outside that.
-        className={`${prefs.density === 'compact' ? 'gap-[2px]' : 'gap-1'} mx-3 max-w-[80%] ${
-          outgoing ? 'self-end' : 'self-start'
-        } ${first ? 'mt-2' : 'mt-[2px]'}`}
-        style={
-          props.fresh && moves
-            ? {
-                animationName: BUBBLE_IN,
-                animationDuration: 260,
-                animationTimingFunction: CSS_POP,
-              }
-            : undefined
-        }
+    <View className={props.checked ? 'bg-accent/15' : ''}>
+      <SwipeAction
+        enabled={reactable && !props.selecting}
+        {...(reactable
+          ? { left: { icon: ReplyIcon, onCommit: () => props.onReply(message) } }
+          : {})}
       >
-        <Pressable
-          accessibilityRole="text"
-          accessibilityLabel={`${sender}: ${body}. ${timeLabel(message.sortAt)}${edited ? ', edited' : ''}${status ? `. ${status.long}` : ''}`}
-          accessibilityHint={
-            retry ? 'Double tap to send it again' : 'Swipe right to reply. Long press for actions'
-          }
-          delayLongPress={320}
-          onLongPress={() => {
-            haptic('medium');
-            props.onLongPress(message);
-          }}
-          onPress={onPress}
-          className={bigEmoji ? '' : attachment ? 'p-1' : 'px-3 py-2'}
+        <Animated.View
+          // At most 80% of the screen wide (Phase 35); the margin is outside that. While
+          // selecting, incoming bubbles make room for the check mark.
+          className={`${prefs.density === 'compact' ? 'gap-[2px]' : 'gap-1'} ${
+            props.selecting && !outgoing ? 'ml-12 mr-3' : 'mx-3'
+          } max-w-[80%] ${outgoing ? 'self-end' : 'self-start'} ${first ? 'mt-2' : 'mt-[2px]'}`}
           style={
-            bigEmoji
-              ? undefined
-              : {
-                  borderTopLeftRadius: corners.topLeft,
-                  borderTopRightRadius: corners.topRight,
-                  borderBottomLeftRadius: corners.bottomLeft,
-                  borderBottomRightRadius: corners.bottomRight,
-                  ...(deleted
-                    ? { borderWidth: 1, borderStyle: 'dashed', borderColor: palette.border }
-                    : outgoing
-                      ? {
-                          backgroundImage: brandGradient(palette),
-                          ...(prefs.look === 'sticker' ? card : {}),
-                        }
-                      : {
-                          backgroundColor: palette['bubble-in'],
-                          ...(prefs.look === 'soft' ? { boxShadow: card.boxShadow } : card),
-                        }),
-                  ...(highlighted ? { borderWidth: 2, borderColor: palette.accent } : {}),
+            props.fresh && moves
+              ? {
+                  animationName: BUBBLE_IN,
+                  animationDuration: 260,
+                  animationTimingFunction: CSS_POP,
                 }
+              : undefined
           }
         >
-          {isGroup && !outgoing && first && (
-            <Text
-              numberOfLines={1}
-              importantForAccessibility="no"
-              className={`font-bold ${attachment ? 'px-2 pb-1' : ''}`}
-              style={{ color: senderColor(message.senderUserId, dark) }}
-            >
-              {sender}
-            </Text>
-          )}
-          {message.replyTo && !deleted && (
-            <Quote
-              replyTo={message.replyTo}
-              conversationId={message.conversationId}
-              loaded={props.loaded}
-              names={props.names}
-              outgoing={outgoing}
-              onPress={props.onQuotePress}
-            />
-          )}
-          {attachment && (
-            <AttachmentContent
-              message={message}
-              outgoing={outgoing}
-              onLongPress={() => props.onLongPress(message)}
-            />
-          )}
-          {bigEmoji ? (
-            <>
-              <Text selectable={false} className="text-5xl">
-                {message.body.trim()}
+          <Pressable
+            accessibilityRole="text"
+            accessibilityLabel={`${label}${edited ? ', edited' : ''}${status ? `. ${status.long}` : ''}`}
+            accessibilityHint={
+              retry
+                ? 'Double tap to send it again'
+                : 'Swipe right to reply. Long press to select it'
+            }
+            delayLongPress={320}
+            onLongPress={() => {
+              haptic('medium');
+              props.onSelect(message);
+            }}
+            onPress={onPress}
+            className={bigEmoji ? '' : attachment ? 'p-1' : 'px-3 py-2'}
+            style={
+              bigEmoji
+                ? undefined
+                : {
+                    borderTopLeftRadius: corners.topLeft,
+                    borderTopRightRadius: corners.topRight,
+                    borderBottomLeftRadius: corners.bottomLeft,
+                    borderBottomRightRadius: corners.bottomRight,
+                    ...(deleted
+                      ? { borderWidth: 1, borderStyle: 'dashed', borderColor: palette.border }
+                      : outgoing
+                        ? {
+                            backgroundImage: brandGradient(palette),
+                            ...(prefs.look === 'sticker' ? card : {}),
+                          }
+                        : {
+                            backgroundColor: palette['bubble-in'],
+                            ...(prefs.look === 'soft' ? { boxShadow: card.boxShadow } : card),
+                          }),
+                    ...(highlighted ? { borderWidth: 2, borderColor: palette.accent } : {}),
+                  }
+            }
+          >
+            {isGroup && !outgoing && first && (
+              <Text
+                numberOfLines={1}
+                importantForAccessibility="no"
+                className={`font-bold ${attachment ? 'px-2 pb-1' : ''}`}
+                style={{ color: senderColor(message.senderUserId, dark) }}
+              >
+                {sender}
               </Text>
-              {meta(false)}
-            </>
-          ) : deleted ? (
-            <View className="flex-row items-center gap-2">
-              <Icon icon={BanIcon} size={14} color="muted" />
-              <View className="shrink">
-                <Text className="text-base italic text-muted">
-                  {body}
+            )}
+            {forwarded && (
+              <View
+                importantForAccessibility="no"
+                className={`flex-row items-center gap-1 ${attachment ? 'px-2 pb-1 pt-1' : 'pb-[2px]'}`}
+              >
+                <Icon icon={ForwardIcon} size={14} color={onBrand ? 'on-primary' : 'muted'} />
+                <Text
+                  className={`text-xs font-semibold italic ${onBrand ? 'text-on-primary' : 'text-muted'}`}
+                >
+                  Forwarded
+                </Text>
+              </View>
+            )}
+            {message.replyTo && !deleted && (
+              <Quote
+                replyTo={message.replyTo}
+                conversationId={message.conversationId}
+                loaded={props.loaded}
+                names={props.names}
+                outgoing={outgoing}
+                onPress={props.onQuotePress}
+              />
+            )}
+            {attachment && (
+              <AttachmentContent
+                message={message}
+                outgoing={outgoing}
+                onLongPress={() => {
+                  haptic('medium');
+                  props.onSelect(message);
+                }}
+              />
+            )}
+            {bigEmoji ? (
+              <>
+                <Text selectable={false} className="text-5xl">
+                  {message.body.trim()}
+                </Text>
+                {meta(false)}
+              </>
+            ) : deleted ? (
+              <View className="flex-row items-center gap-2">
+                <Icon icon={BanIcon} size={14} color="muted" />
+                <View className="shrink">
+                  <Text className="text-base italic text-muted">
+                    {body}
+                    {spacer}
+                  </Text>
+                  {meta(true)}
+                </View>
+              </View>
+            ) : textShown === '' ? (
+              // Media without a caption: the time goes under it.
+              meta(false, 'px-2 pb-1 pt-[2px]')
+            ) : (
+              <View className={attachment ? 'px-2 pb-1 pt-1' : ''}>
+                <Text
+                  selectable={false}
+                  className={`text-base ${onBrand ? 'text-on-primary' : 'text-on-bubble-in'} ${
+                    message.kind === 'unsupported' ? 'italic' : ''
+                  }`}
+                >
+                  {textShown}
                   {spacer}
                 </Text>
-                {meta(true)}
+                {inlineMeta ? meta(true) : meta(false, 'mt-[2px]')}
               </View>
-            </View>
-          ) : textShown === '' ? (
-            // Media without a caption: the time goes under it.
-            meta(false, 'px-2 pb-1 pt-[2px]')
-          ) : (
-            <View className={attachment ? 'px-2 pb-1 pt-1' : ''}>
-              <Text
-                selectable={false}
-                className={`text-base ${onBrand ? 'text-on-primary' : 'text-on-bubble-in'} ${
-                  message.kind === 'unsupported' ? 'italic' : ''
-                }`}
-              >
-                {textShown}
-                {spacer}
-              </Text>
-              {inlineMeta ? meta(true) : meta(false, 'mt-[2px]')}
-            </View>
+            )}
+          </Pressable>
+          {!deleted && (
+            <Reactions
+              message={message}
+              selfUserId={props.selfUserId}
+              onToggle={(emoji, mine) => props.onReact(message, mine ? null : emoji)}
+            />
           )}
+          {burst > 0 && moves && <HeartBurst key={burst} outgoing={outgoing} />}
+        </Animated.View>
+      </SwipeAction>
+      {props.selecting && (
+        // Over the whole row, so taps on files, reactions or the margin select too.
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: props.checked }}
+          accessibilityLabel={label}
+          onPress={onPress}
+          onLongPress={onPress}
+          className="absolute bottom-0 left-0 right-0 top-0 justify-center pl-3"
+        >
+          <CheckMark checked={props.checked} />
         </Pressable>
-        {!deleted && (
-          <Reactions
-            message={message}
-            selfUserId={props.selfUserId}
-            onToggle={(emoji, mine) => props.onReact(message, mine ? null : emoji)}
-          />
-        )}
-        {burst > 0 && moves && <HeartBurst key={burst} outgoing={outgoing} />}
-      </Animated.View>
-    </SwipeAction>
+      )}
+    </View>
   );
 }
 
@@ -1244,8 +1338,10 @@ export function ChatScreen({
   const blocked = useIsBlocked(peerUserId);
   const people = useNames();
   const name = isGroup ? group?.name || 'this group' : contactName(contact);
+  // The single-message sheet (react, reply, edit, info), and the selected messages (Phase 39).
   const [selected, setSelected] = useState<MessageRecord>();
-  const [deleting, setDeleting] = useState<MessageRecord>();
+  const [selection, setSelection] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState<MessageRecord[]>();
   const [replyTo, setReplyTo] = useState<MessageRecord>();
   const [editing, setEditing] = useState<MessageRecord>();
   const [highlight, setHighlight] = useState<string>();
@@ -1384,6 +1480,51 @@ export function ChatScreen({
   const outside = !isGroup && circleState !== undefined && circleState !== 'member';
   const readOnly = blocked || left || outside;
 
+  // Selecting several messages (Phase 39): a long press starts, taps add or remove, and Back, ✕
+  // or unselecting the last one stops. A message deleted meanwhile drops out.
+  const picked = useMemo(() => selectedMessages(selection, loaded), [selection, loaded]);
+  const selecting = picked.length > 0;
+  const checkedIds = useMemo(() => new Set(picked.map((m) => m.messageId)), [picked]);
+  const select = useCallback((message: MessageRecord) => {
+    if (message.kind === 'system') return;
+    setSelection((current) => toggleSelected(current, message.messageId));
+  }, []);
+  useEffect(() => {
+    if (!selecting) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setSelection([]);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [selecting]);
+  // Back from Forward: say what went.
+  useFocusEffect(
+    useCallback(() => {
+      const notice = takeForwardNotice();
+      if (notice) toast(notice);
+    }, []),
+  );
+
+  const one = picked.length === 1 ? picked[0] : undefined;
+  const copyCount = picked.filter(copyable).length;
+  const canForward = selecting && picked.every(forwardable) && !blocked;
+  async function copySelection() {
+    const copied = await copyToClipboard(copyText(picked, people));
+    if (!copied) {
+      toast('Copying needs the latest app build');
+      return;
+    }
+    toast(copyCount === 1 ? 'Copied' : `${copyCount} messages copied`);
+    setSelection([]);
+  }
+  function forwardSelection() {
+    router.push({
+      pathname: '/forward',
+      params: { messageIds: picked.map((m) => m.messageId).join(',') },
+    });
+    setSelection([]);
+  }
+
   const renderItem = useCallback(
     ({ item, index }: { item: TimelineItem; index: number }) =>
       item.type === 'day' ? (
@@ -1406,7 +1547,9 @@ export function ChatScreen({
           // Scrolling back to it later must not replay the entrance.
           fresh={Date.now() - item.message.sortAt < 1_200}
           readOnly={readOnly}
-          onLongPress={setSelected}
+          selecting={selecting}
+          checked={checkedIds.has(item.message.messageId)}
+          onSelect={select}
           onQuotePress={(messageId) => void jumpTo(messageId)}
           onReact={react}
           onReply={(message) => {
@@ -1428,20 +1571,33 @@ export function ChatScreen({
       readOnly,
       jumpTo,
       react,
+      selecting,
+      checkedIds,
+      select,
     ],
   );
 
+  // The single message's sheet ("More" while one is selected): acting on it stops selecting.
   const actions: SheetAction[] = [];
   if (selected && runtime) {
     const message = selected;
     if (canReact(message) && !readOnly) {
-      actions.push({ label: 'Reply', icon: ReplyIcon, onPress: () => setReplyTo(message) });
+      actions.push({
+        label: 'Reply',
+        icon: ReplyIcon,
+        onPress: () => {
+          setSelection([]);
+          setEditing(undefined);
+          setReplyTo(message);
+        },
+      });
     }
     if (runtime.engine.canEdit(message) && !left && !outside) {
       actions.push({
         label: 'Edit',
         icon: PencilIcon,
         onPress: () => {
+          setSelection([]);
           setReplyTo(undefined);
           setEditing(message);
         },
@@ -1451,45 +1607,65 @@ export function ChatScreen({
       actions.push({
         label: 'Message info',
         icon: InfoIcon,
-        onPress: () =>
+        onPress: () => {
+          setSelection([]);
           router.push({
             pathname: '/message-info/[messageId]',
             params: { messageId: message.messageId },
-          }),
+          });
+        },
       });
     }
     actions.push({
       label: 'Delete…',
       icon: Trash2Icon,
       destructive: true,
-      onPress: () => setDeleting(message),
+      onPress: () => setDeleting([message]),
     });
   }
   const mine = selected?.reactions.find((r) => r.userId === selfUserId)?.emoji ?? null;
 
   const deleteActions: SheetAction[] = [];
-  if (deleting && runtime) {
-    const message = deleting;
+  let deleteNote: string | undefined;
+  if (deleting && deleting.length > 0 && runtime) {
+    const many = deleting.length > 1;
+    const ids = deleting.map((m) => m.messageId);
+    const it = many ? 'them' : 'it';
     deleteActions.push({
       label: 'Delete for me',
       detail: isGroup
-        ? 'Removes it from this phone only. The other members keep their copies.'
-        : `Removes it from this phone only. ${message.direction === 'out' ? name : 'The sender'} keeps their copy.`,
+        ? `Removes ${it} from this phone only. The other members keep their copies.`
+        : `Removes ${it} from this phone only. ${name} keeps ${many ? 'their copies' : 'their copy'}.`,
       destructive: true,
-      onPress: () => void runtime.engine.deleteForMe([message.messageId]),
+      onPress: () => {
+        setSelection([]);
+        void runtime.engine.deleteForMe(ids);
+      },
     });
-    if (runtime.engine.canDeleteForEveryone(message) && !left && !outside) {
+    // Every one must be this user's own and inside the window; otherwise say why (Phase 39).
+    const check = deleteForEveryoneCheck(deleting, selfUserId, OP_RULES, Date.now());
+    if (left || outside) {
+      // Nothing can reach the others from here.
+    } else if (check.allowed && deleting.every((m) => runtime.engine.canDeleteForEveryone(m))) {
       deleteActions.push({
         label: 'Delete for everyone',
-        detail:
-          "Asks every copy to be removed. It can't erase screenshots, exports, notifications or copies already saved elsewhere.",
+        detail: `Asks every copy to be removed. It can't erase screenshots, exports, notifications or copies already saved elsewhere.`,
         destructive: true,
         onPress: () => {
-          runtime.engine.deleteForEveryone(message.messageId).catch((error: unknown) => {
-            failed('delete the message for everyone', error);
+          setSelection([]);
+          const done = many
+            ? runtime.engine.deleteManyForEveryone(ids)
+            : runtime.engine.deleteForEveryone(ids[0] ?? '');
+          done.catch((error: unknown) => {
+            failed(
+              many ? 'delete the messages for everyone' : 'delete the message for everyone',
+              error,
+            );
           });
         },
       });
+    } else if (!check.allowed) {
+      deleteNote = check.reason;
     }
   }
 
@@ -1641,41 +1817,109 @@ export function ChatScreen({
           className="min-h-[58px] flex-row items-center gap-1 rounded-2xl bg-surface px-1 py-1"
           style={floating}
         >
-          <IconButton icon={ArrowLeftIcon} label="Back" size={40} onPress={() => router.back()} />
-          {isGroup ? (
-            <GroupIdentity groupId={conversationId} />
+          {selecting ? (
+            // Selection mode (Phase 39): the count and what can be done with the selection.
+            <>
+              <IconButton
+                icon={XIcon}
+                label="Stop selecting"
+                size={40}
+                onPress={() => setSelection([])}
+              />
+              <Text
+                accessibilityLabel={`${picked.length} selected`}
+                accessibilityLiveRegion="polite"
+                className="flex-1 pl-1 text-lg font-bold text-foreground"
+              >
+                {picked.length}
+              </Text>
+              {one && canReact(one) && !readOnly && (
+                <IconButton
+                  icon={ReplyIcon}
+                  label="Reply"
+                  size={40}
+                  onPress={() => {
+                    setSelection([]);
+                    setEditing(undefined);
+                    setReplyTo(one);
+                  }}
+                />
+              )}
+              {copyCount > 0 && (
+                <IconButton
+                  icon={CopyIcon}
+                  label="Copy"
+                  size={40}
+                  onPress={() => void copySelection()}
+                />
+              )}
+              {canForward && (
+                <IconButton
+                  icon={ForwardIcon}
+                  label="Forward"
+                  size={40}
+                  onPress={forwardSelection}
+                />
+              )}
+              <IconButton
+                icon={Trash2Icon}
+                label="Delete"
+                size={40}
+                onPress={() => setDeleting(picked)}
+              />
+              {one && (
+                <IconButton
+                  icon={EllipsisVerticalIcon}
+                  label="More actions"
+                  size={40}
+                  onPress={() => setSelected(one)}
+                />
+              )}
+            </>
           ) : (
-            <PeerIdentity peerUserId={peerUserId} />
+            <>
+              <IconButton
+                icon={ArrowLeftIcon}
+                label="Back"
+                size={40}
+                onPress={() => router.back()}
+              />
+              {isGroup ? (
+                <GroupIdentity groupId={conversationId} />
+              ) : (
+                <PeerIdentity peerUserId={peerUserId} />
+              )}
+              {/* Direct chats only: groups have no call actions (REQ §19.5). */}
+              {callActionsFor(conversation, {
+                blocked,
+                inCircle: circleState === undefined ? undefined : circleState === 'member',
+              }).map((kind) => (
+                <IconButton
+                  key={kind}
+                  icon={kind === 'video' ? VideoIcon : PhoneIcon}
+                  label={kind === 'video' ? 'Video call' : 'Voice call'}
+                  size={40}
+                  disabled={!peerUserId}
+                  feedback="selection"
+                  onPress={() => {
+                    if (!peerUserId) return;
+                    void dial(peerUserId, kind === 'video').then((started) => {
+                      if (started) router.push('/call');
+                      else if (useCalls.getState().notice) {
+                        Alert.alert('Call', useCalls.getState().notice ?? '');
+                      }
+                    });
+                  }}
+                />
+              ))}
+              <IconButton
+                icon={SearchIcon}
+                label="Search this chat"
+                size={40}
+                onPress={() => router.push({ pathname: '/search', params: { conversationId } })}
+              />
+            </>
           )}
-          {/* Direct chats only: groups have no call actions (REQ §19.5). */}
-          {callActionsFor(conversation, {
-            blocked,
-            inCircle: circleState === undefined ? undefined : circleState === 'member',
-          }).map((kind) => (
-            <IconButton
-              key={kind}
-              icon={kind === 'video' ? VideoIcon : PhoneIcon}
-              label={kind === 'video' ? 'Video call' : 'Voice call'}
-              size={40}
-              disabled={!peerUserId}
-              feedback="selection"
-              onPress={() => {
-                if (!peerUserId) return;
-                void dial(peerUserId, kind === 'video').then((started) => {
-                  if (started) router.push('/call');
-                  else if (useCalls.getState().notice) {
-                    Alert.alert('Call', useCalls.getState().notice ?? '');
-                  }
-                });
-              }}
-            />
-          ))}
-          <IconButton
-            icon={SearchIcon}
-            label="Search this chat"
-            size={40}
-            onPress={() => router.push({ pathname: '/search', params: { conversationId } })}
-          />
         </View>
         <OfflineBanner
           peer={peerUserId ? { userId: peerUserId, name, reachable: offlineReachable } : undefined}
@@ -1711,6 +1955,7 @@ export function ChatScreen({
                     onPress={() => {
                       const message = selected;
                       setSelected(undefined);
+                      setSelection([]);
                       react(message, mine === emoji ? null : emoji);
                     }}
                     className={`h-12 w-12 items-center justify-center rounded-full ${
@@ -1729,7 +1974,18 @@ export function ChatScreen({
       <ActionSheet
         visible={deleting !== undefined}
         onClose={() => setDeleting(undefined)}
-        title="Delete this message?"
+        title={
+          deleting && deleting.length > 1
+            ? `Delete ${deleting.length} messages?`
+            : 'Delete this message?'
+        }
+        header={
+          deleteNote ? (
+            <Text className="px-2 pb-2 text-muted" accessibilityLiveRegion="polite">
+              {deleteNote}
+            </Text>
+          ) : undefined
+        }
         actions={deleteActions}
       />
     </View>

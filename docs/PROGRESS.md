@@ -17,6 +17,24 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-11 — Phase 39: Select several messages and forward them — 🔄 partial (code done, checks pass; real-phone check needs a new build)
+Started with 35 and 37 still 🔄 (only their phone checks are open), as the user asked for 38 and 39 together.
+
+**Done (ADR 0043, CHANGES 2026-11-11 "Phase 39"):**
+- Wire: `ContentHeader.forwarded` (E2EE, additive). Engine: `forwardText` (≤ 5 chats), `forwarded` on `sendText`/`sendAttachment`, `deleteManyForEveryone` (one batch, all or nothing), `MessageRecord.forwarded` in every store (phone migration 010).
+- `@pingdost/chat-core` `selection.ts`: selection, copy text, delete-for-everyone check with reasons, forward targets, notices.
+- Phone: long press starts selection; header with count, Reply (one), Copy, Forward, Delete, More (one: the old sheet); full-screen Forward picker; files re-sent from the vault copy; "Forwarded" label. Copy uses `expo-clipboard` 58.0.4 (MIT, native).
+- Web: Select in the hover toolbar, then click-to-select rows, Esc; the same bar, delete dialog with reasons, Forward dialog; files re-sent from the cache in the leader tab.
+- Sim peer polls circle requests every 5 s (was 2 s, which used up the per-IP 300/15 min budget that every local client shares).
+
+**Verification:** `pnpm turbo run lint typecheck test` 59/59; `pnpm --filter @pingdost/server test:int` 28 files, 193 passed (4 skipped as before); `pnpm format:check` clean; `pnpm licenses:check` ok. Chrome with the sim peer: select 3, the delete reason, batch delete for everyone (peer saw both removals), forward the peer's message (marked) and an own one (unmarked) to a chat and a group, a photo forwarded as a new upload, Copy of two lines. Emulator (Phase 35 APK + Metro): selection, Forward of two texts to two chats (one opened on Send), "Forwarded" only on the peer's. Found and fixed there: on a build without the clipboard module the lazy import raised an uncaught error; it now checks `requireOptionalNativeModule` first.
+
+**Remaining:**
+- [ ] A new APK (for Copy), then the phone row of Done when on a real phone: Copy, a photo forward, five targets, delete for everyone.
+
+**Known issues:** the emulator was very slow (a forward to two chats took about two minutes to return); the Expo dev-menu button covers the header's Delete icon on the emulator.
+
+**Next:** Phase 40 (voice-note gestures), or the open phone checks of 34–39 with one new build.
 ## 2026-11-11 — Phase 38: Find people and pick group members — 🔄 partial (code done, checks pass; phone check next)
 Started with Phase 37 still 🔄 (only its two-phone check is open).
 

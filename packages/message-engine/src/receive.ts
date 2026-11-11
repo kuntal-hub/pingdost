@@ -689,6 +689,7 @@ export class Receiver {
       // This user's own messages are read; incoming ones wait for the chat to be opened.
       readAt: own ? now : null,
       reactions: [],
+      ...(header.forwarded ? { forwarded: true } : {}),
     };
     // Edits, deletes or reactions that overtook the message.
     const pending = await core.store.listOps(arrived.messageId);
