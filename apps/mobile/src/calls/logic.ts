@@ -14,20 +14,25 @@ export type CallKind = 'voice' | 'video';
  */
 export function callActionsFor(
   conversation: Pick<ConversationRecord, 'kind'> | undefined,
-  options: { blocked: boolean },
+  options: { blocked: boolean; inCircle?: boolean | undefined },
 ): CallKind[] {
-  if (conversation?.kind !== 'direct' || options.blocked) return [];
+  // Calls only within the circle (Phase 37); unknown before the lists load.
+  if (conversation?.kind !== 'direct' || options.blocked || options.inCircle === false) return [];
   return ['voice', 'video'];
 }
 
-/** The kind of a push (`{"t":"wake"}` or `{"t":"call"}`), however the platform hands it over. */
-export function pushKind(data: unknown, depth = 0): 'wake' | 'call' {
+/**
+ * The kind of a push (`{"t":"wake"}`, `{"t":"call"}` or `{"t":"circle"}`), however the
+ * platform hands it over. Anything else is a wake.
+ */
+export function pushKind(data: unknown, depth = 0): 'wake' | 'call' | 'circle' {
   if (!data || typeof data !== 'object') return 'wake';
   const record = data as Record<string, unknown>;
-  if (record.t === 'call') return 'call';
+  if (record.t === 'call' || record.t === 'circle') return record.t;
   if (typeof record.dataString === 'string') {
     try {
-      if ((JSON.parse(record.dataString) as { t?: unknown }).t === 'call') return 'call';
+      const t = (JSON.parse(record.dataString) as { t?: unknown }).t;
+      if (t === 'call' || t === 'circle') return t;
     } catch {
       // Not JSON: a wake.
     }

@@ -5,7 +5,14 @@ import type { CryptoProvider } from '@pingdost/crypto';
 import { Accepted_Status, PROTOCOL_VERSION, uuidToBytes } from '@pingdost/protocol';
 
 import { cryptoProvider, signedOneTimeKeys } from './devices';
-import { bearer, json, registeredUser, startTestServer, type TestServer } from './helpers';
+import {
+  bearer,
+  json,
+  linkUsers,
+  registeredUser,
+  startTestServer,
+  type TestServer,
+} from './helpers';
 import { deviceSession, envelopePacket, TestSocket, type TestDeviceSession } from './ws';
 
 const METRICS_TOKEN = 'metrics-token-for-tests-0123456789abcdef';
@@ -27,8 +34,12 @@ afterAll(async () => {
   await server.close();
 });
 
+/** Two users in each other's circle (Phase 37). */
 async function pair(): Promise<[TestDeviceSession, TestDeviceSession]> {
-  return [await deviceSession(server, crypto), await deviceSession(server, crypto)];
+  const a = await deviceSession(server, crypto);
+  const b = await deviceSession(server, crypto);
+  await linkUsers(server, a, b);
+  return [a, b];
 }
 
 describe('authentication', () => {

@@ -53,7 +53,11 @@ export function startChat(): () => void {
         }));
         break;
       case 'prefs':
-        useChat.setState({ privacy: message.privacy, blocked: message.blocked });
+        useChat.setState({
+          privacy: message.privacy,
+          blocked: message.blocked,
+          circle: message.circle,
+        });
         break;
       default:
         remote.handle(message);

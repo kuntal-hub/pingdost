@@ -73,6 +73,10 @@ export interface DeliveryDeps {
   isBlocked?(blockerUserId: string, userId: string): Promise<boolean>;
   /** Whether `userId` is a current member of the group (ADR 0016). */
   isGroupMember?(groupId: string, userId: string): Promise<boolean>;
+  /** Whether the two users are in each other's circle (Phase 37). */
+  inCircle?(a: string, b: string): Promise<boolean>;
+  /** Whether the two users are both members of some group (Phase 37). */
+  sharesGroup?(a: string, b: string): Promise<boolean>;
   /** Per-sender budgets for stored envelopes (Phase 27); none in some unit tests. */
   quota?: MailboxQuota;
 }
@@ -93,6 +97,7 @@ export class DeliveryService {
   async prepare(
     sender: { userId: string; deviceId: string },
     packet: TransportPacket,
+    options: { ephemeral?: boolean } = {},
   ): Promise<PreparedEnvelope> {
     const senderDeviceId = sender.deviceId;
     const { settings, clock } = this.d;
@@ -137,6 +142,16 @@ export class DeliveryService {
     const blocked =
       recipientUserId !== sender.userId &&
       ((await this.d.isBlocked?.(recipientUserId, sender.userId)) ?? false);
+    // One-to-one envelopes need a circle link (Phase 37). Co-members of a group also pass:
+    // group receipts, room-key requests and session repair travel one-to-one over Olm, and
+    // their apps drop direct content from outside the circle. Calls need the circle itself.
+    if (!blocked && groupId === undefined && recipientUserId !== sender.userId && this.d.inCircle) {
+      const allowed =
+        (await this.d.inCircle(sender.userId, recipientUserId)) ||
+        (!options.ephemeral &&
+          ((await this.d.sharesGroup?.(sender.userId, recipientUserId)) ?? false));
+      if (!allowed) throw new DeliveryError('NOT_IN_CIRCLE', 'not in the circle');
+    }
     return {
       blocked,
       record: {

@@ -21,12 +21,14 @@ import {
   ShieldIcon,
   SmartphoneIcon,
   Trash2Icon,
+  UsersRoundIcon,
   ZapIcon,
 } from '@/components/icon';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Screen, TabHeader } from '@/components/screen';
 import { Tap } from '@/components/tap';
 import { Text } from '@/components/text';
+import { useIncomingCount } from '@/engine/circle';
 import { describeRelay } from '@/nearby/relay';
 import { useNearbyStatus, useRelay } from '@/nearby/service';
 import { describeNearby } from '@/nearby/status';
@@ -40,6 +42,7 @@ export function SettingsScreen() {
   const { prefs, floating } = useTheme();
   const username = useAuth((state) => state.session?.user.username);
   const me = useAccount((state) => state.me);
+  const requests = useIncomingCount();
   const nearby = describeNearby(useNearbyStatus());
   const relayState = useRelay();
   const relay = describeRelay(relayState.decision, relayState.prefs, relayState.mesh.stored);
@@ -129,6 +132,16 @@ export function SettingsScreen() {
         </ListSection>
 
         <ListSection title="Account">
+          <ListRow
+            icon={UsersRoundIcon}
+            title="Circle"
+            subtitle={
+              requests > 0
+                ? `${requests} request${requests === 1 ? '' : 's'} waiting`
+                : 'Who can message and call you'
+            }
+            onPress={() => router.push('/circle')}
+          />
           <ListRow
             icon={ShieldIcon}
             title="Privacy"

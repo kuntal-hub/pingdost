@@ -18,6 +18,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  UserPlus,
   Users,
   Video,
   type LucideIcon,
@@ -27,7 +28,7 @@ import { Link, NavLink, useNavigate } from 'react-router';
 
 import { contactName, useContact } from '@/chat/contacts';
 import { useConversations, useNames, type ChatListEntry } from '@/chat/hooks';
-import { useChatClient } from '@/chat/store';
+import { useChat, useChatClient } from '@/chat/store';
 import { Avatar } from '@/components/avatar';
 import { Button, IconButton } from '@/components/ui/button';
 import { Chip, EmptyState, SkeletonRows } from '@/components/ui/controls';
@@ -168,6 +169,34 @@ function Row({
   );
 }
 
+/** Circle requests waiting for an answer (Phase 37): opens Circle → Requests. */
+function RequestsRow() {
+  const count = useChat((state) => state.circle?.incoming.length ?? 0);
+  if (count === 0) return null;
+  return (
+    <Link
+      to="/circle?tab=requests"
+      className="pd-card pd-press mx-4 mb-1 flex items-center gap-3 rounded-2xl px-4 py-3 hover:bg-raised"
+    >
+      <span className="flex size-10 items-center justify-center rounded-xl bg-accent/15 text-accent">
+        <UserPlus aria-hidden size={20} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">Circle request{count === 1 ? '' : 's'}</span>
+        <span className="block truncate text-sm text-muted">
+          {count === 1 ? 'Someone wants' : `${count} people want`} to join your circle
+        </span>
+      </span>
+      <span
+        aria-label={`${count} waiting`}
+        className="bg-brand flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-bold text-on-primary"
+      >
+        {count}
+      </span>
+    </Link>
+  );
+}
+
 export function ChatList() {
   const navigate = useNavigate();
   const client = useChatClient();
@@ -226,6 +255,7 @@ export function ChatList() {
         </IconButton>
       </div>
       <SyncBanner />
+      {!archived && <RequestsRow />}
       {!archived && (
         <div
           className="flex gap-2 overflow-x-auto px-4 py-2"

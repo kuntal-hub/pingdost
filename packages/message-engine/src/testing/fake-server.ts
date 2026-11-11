@@ -499,6 +499,7 @@ export interface TestClientOptions {
   receipts?: EngineOptions['receipts'];
   typingIndicators?: EngineOptions['typingIndicators'];
   blocked?: EngineOptions['blocked'];
+  circle?: EngineOptions['circle'];
   /** Publish this many one-time keys (default 5); 0 leaves only the fallback key. */
   oneTimeKeys?: number;
   /** A linked browser instead of a phone (history sync, ADR 0021). */
@@ -577,6 +578,7 @@ export async function createTestClient<S extends EngineStore>(
       ...(options.receipts ? { receipts: options.receipts } : {}),
       ...(options.typingIndicators ? { typingIndicators: options.typingIndicators } : {}),
       ...(options.blocked ? { blocked: options.blocked } : {}),
+      ...(options.circle ? { circle: options.circle } : {}),
       ...(options.historySync ? { historySync: options.historySync } : {}),
       ...(options.now ? { now: options.now } : {}),
       ...(options.log ? { log: options.log } : {}),

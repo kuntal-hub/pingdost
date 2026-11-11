@@ -9,7 +9,7 @@ import type { CryptoProvider } from '@pingdost/crypto';
 import { Accepted_Status, bytesEqual, uuidToBytes } from '@pingdost/protocol';
 
 import { cryptoProvider } from './devices';
-import { bearer, json, startTestServer, type TestServer } from './helpers';
+import { bearer, json, linkUsers, startTestServer, type TestServer } from './helpers';
 import { deviceSession, envelopePacket, TestSocket, type TestDeviceSession } from './ws';
 
 let server: TestServer;
@@ -65,6 +65,7 @@ describe('blocks', () => {
   it('lists, adds and removes blocks idempotently', async () => {
     const alice = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto);
+    await linkUsers(server, alice, bob);
     expect(await blockList(alice)).toEqual([]);
     expect((await block(alice, bob.userId)).statusCode).toBe(204);
     expect((await block(alice, bob.userId)).statusCode).toBe(204);
@@ -84,6 +85,7 @@ describe('blocks', () => {
   it('drops envelopes from a blocked sender, answering them as stored', async () => {
     const alice = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto);
+    await linkUsers(server, alice, bob);
     const aliceSocket = await TestSocket.connect(server, alice);
     const bobSocket = await TestSocket.connect(server, bob);
     expect((await block(alice, bob.userId)).statusCode).toBe(204);
@@ -112,12 +114,15 @@ describe('blocks', () => {
     const reconnected = await TestSocket.connect(server, alice);
     expect(await reconnected.delivered(300)).toEqual([]);
 
-    // Alice can still write to bob; after unblocking, bob's sends arrive again.
+    // The block also removed their circle link (Phase 37): alice cannot write to bob either.
     const reply = envelopePacket(server, alice.deviceId, bob.deviceId);
-    reconnected.sendPacket(reply.packet);
-    expect((await bobSocket.next('deliver')).packet?.packetId).toEqual(reply.packet.packetId);
-    bobSocket.ack([reply.envelopeId]);
+    expect(await reconnected.reply(reconnected.sendPacket(reply.packet))).toMatchObject({
+      case: 'error',
+      value: { code: 'NOT_IN_CIRCLE' },
+    });
+    // After unblocking and linking again, bob's sends arrive again.
     expect((await block(alice, bob.userId, 'DELETE')).statusCode).toBe(204);
+    await linkUsers(server, alice, bob);
     const after = envelopePacket(server, bob.deviceId, alice.deviceId);
     bobSocket.sendPacket(after.packet);
     expect((await reconnected.next('deliver')).packet?.packetId).toEqual(after.packet.packetId);
@@ -129,6 +134,7 @@ describe('blocks', () => {
   it('stops typing and presence both ways; lookups still work', async () => {
     const alice = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto);
+    await linkUsers(server, alice, bob);
     const aliceSocket = await TestSocket.connect(server, alice);
     const bobSocket = await TestSocket.connect(server, bob);
     watch(aliceSocket, bob.userId);
@@ -171,6 +177,8 @@ describe('blocks', () => {
     expect(byId.statusCode).toBe(200);
 
     expect((await block(alice, bob.userId, 'DELETE')).statusCode).toBe(204);
+    // The block removed the circle link (Phase 37): typing needs it again.
+    await linkUsers(server, alice, bob);
     typing(bobSocket, alice);
     expect(await aliceSocket.next('typing')).toMatchObject({
       senderDeviceId: uuidToBytes(bob.deviceId),
@@ -184,6 +192,7 @@ describe('reports', () => {
   it('stores a report with only the messages the reporter attached, with a TTL', async () => {
     const alice = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto);
+    await linkUsers(server, alice, bob);
     const report = (body: unknown, by = alice) =>
       server.app.inject({
         method: 'POST',
@@ -243,6 +252,8 @@ describe('reports', () => {
     const alice = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto);
     const carol = await deviceSession(server, crypto);
+    await linkUsers(server, alice, bob);
+    await linkUsers(server, alice, carol);
     const post = (payload: Record<string, unknown>) =>
       server.app.inject({
         method: 'POST',

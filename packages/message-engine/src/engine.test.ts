@@ -276,7 +276,9 @@ describe('MessageEngine', () => {
     // (a send to the revoked device), then writes while bob has no phone at all.
     server.revoke(bob.deviceId);
     await alice.engine.sendText(conversationId, 'to the old phone');
-    await eventually(async () => (await alice.store.getDirectory(bob.userId))?.devices.length === 0);
+    await eventually(
+      async () => (await alice.store.getDirectory(bob.userId))?.devices.length === 0,
+    );
     const sent = await alice.engine.sendText(conversationId, 'while bob has no phone');
     await new Promise((resolve) => setTimeout(resolve, 200)); // a few retries on the empty list
     const bob2 = await client(server, { sameUserAs: bob });

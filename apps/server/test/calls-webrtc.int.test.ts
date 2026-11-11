@@ -111,6 +111,7 @@ async function pair(relayOnly: boolean) {
   const alice = await SimClient.register(options());
   const bob = await SimClient.register(options());
   clients.push(alice, bob);
+  await alice.linkWith(bob);
   await Promise.all([alice.start(), bob.start()]);
   const quiet = () => undefined;
   const caller = simCalls(alice, { relayOnly, log: quiet });

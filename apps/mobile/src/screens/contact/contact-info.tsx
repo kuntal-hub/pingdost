@@ -9,11 +9,63 @@ import { QrCode } from '@/components/qr-code';
 import { Screen } from '@/components/screen';
 import { Text } from '@/components/text';
 import { useBlocks, useIsBlocked } from '@/engine/blocks';
+import { useCircle, useCircleState } from '@/engine/circle';
 import { contactName } from '@/engine/contacts';
 import { useContact } from '@/engine/hooks';
 import { useSafetyNumber } from '@/engine/safety';
 import { usePalette } from '@/theme/theme-root';
 import { encodeSafetyQr } from '@pingdost/protocol/safety-number';
+
+import { CircleAction, useCircleChange } from '../circle/circle-action';
+
+/** Where this person stands with the circle, and what can be done (Phase 37). */
+function ContactCircle({ userId, name }: { userId: string; name: string }) {
+  const router = useRouter();
+  const state = useCircleState(userId);
+  const since = useCircle((s) => s.members.find((m) => m.userId === userId)?.since);
+  const [busy, run] = useCircleChange();
+  if (state === undefined) return null;
+  return (
+    <View className="gap-3 rounded-lg border border-border bg-surface p-4">
+      <Text accessibilityRole="header" className="font-semibold text-foreground">
+        Circle
+      </Text>
+      {state === 'member' ? (
+        <>
+          <Text className="text-muted">
+            {name} is in your circle{since ? ` since ${new Date(since).toLocaleDateString()}` : ''}.
+            You can message and call each other.
+          </Text>
+          <Button
+            label="Remove from circle"
+            variant="ghost"
+            loading={busy}
+            onPress={() =>
+              Alert.alert(`Remove ${name}?`, 'You can no longer message or call each other.', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Remove',
+                  style: 'destructive',
+                  onPress: () => run('Could not remove', () => useCircle.getState().remove(userId)),
+                },
+              ])
+            }
+          />
+        </>
+      ) : (
+        <>
+          {state === 'none' && (
+            <Text className="text-muted">
+              {name} is not in your circle. Only people in your circle can message or call you.
+            </Text>
+          )}
+          <CircleAction userId={userId} name={name} />
+        </>
+      )}
+      <Button label="Your circle" variant="ghost" onPress={() => router.push('/circle')} />
+    </View>
+  );
+}
 
 /** Profile, verification state, safety number and QR code; block and report. */
 export function ContactInfoScreen({ userId }: { userId: string }) {
@@ -64,6 +116,8 @@ export function ContactInfoScreen({ userId }: { userId: string }) {
           <Text className="text-muted">@{contact.username}</Text>
         )}
       </View>
+
+      <ContactCircle userId={userId} name={name} />
 
       {safety.verified ? (
         <Notice tone="success" message={`Verified. You compared safety numbers with ${name}.`} />

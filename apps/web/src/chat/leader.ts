@@ -21,7 +21,7 @@ import { database, DexieEngineStore, vaultKey } from '@pingdost/web-store';
 
 import type { BusMessage } from './bus';
 import { ENGINE_METHODS, toWireError, type ChatClient } from './client';
-import { useChat } from './store';
+import { useChat, type CircleLists } from './store';
 
 export interface LeaderRuntime {
   client: ChatClient;
@@ -34,6 +34,23 @@ export interface LeaderRuntime {
 async function loadPrefs(): Promise<void> {
   const [me, blocked] = await Promise.all([api.account.me(), api.security.listBlocks()]);
   useChat.setState({ privacy: me.privacy, blocked });
+}
+
+/** The engine setting that keeps the circle for offline starts (Phase 37). */
+const CIRCLE_SETTING = 'app.circle';
+
+/** The circle and requests from the server, cached in the sealed store; offline, the cache. */
+async function loadCircle(store: DexieEngineStore): Promise<void> {
+  try {
+    const [members, requests] = await Promise.all([api.circles.list(), api.circles.requests()]);
+    const circle = { members, incoming: requests.incoming, outgoing: requests.outgoing };
+    useChat.setState({ circle });
+    await store.apply({ settings: { [CIRCLE_SETTING]: JSON.stringify(circle) } });
+  } catch {
+    if (useChat.getState().circle) return;
+    const cached = await store.getSetting(CIRCLE_SETTING).catch(() => undefined);
+    if (typeof cached === 'string') useChat.setState({ circle: JSON.parse(cached) as CircleLists });
+  }
 }
 
 export async function startLeader(
@@ -50,6 +67,7 @@ export async function startLeader(
   const store = new DexieEngineStore(db, await vaultKey(db));
 
   await loadPrefs().catch(() => undefined);
+  await loadCircle(store);
   const transport = new WsTransport({
     url: publicConfig.wsUrl,
     getAccessToken: accessToken,
@@ -76,6 +94,11 @@ export async function startLeader(
     },
     typingIndicators: () => useChat.getState().privacy?.typingIndicators ?? true,
     blocked: (userId) => useChat.getState().blocked.includes(userId),
+    // One-to-one content only from the circle (Phase 37); unknown before the first load.
+    circle: (userId) => {
+      const circle = useChat.getState().circle;
+      return circle ? circle.members.some((m) => m.userId === userId) : undefined;
+    },
     // After pairing, the recent history comes from the phone by itself.
     historySync: { autoStart: true, window: syncWindow() },
     ...(import.meta.env.DEV
@@ -94,8 +117,8 @@ export async function startLeader(
 
   const cleanup: (() => void)[] = [];
   const sharePrefs = () => {
-    const { privacy, blocked } = useChat.getState();
-    post({ type: 'prefs', privacy, blocked });
+    const { privacy, blocked, circle } = useChat.getState();
+    post({ type: 'prefs', privacy, blocked, circle });
   };
   cleanup.push(
     engine.subscribeAll((conversationId: string, event: ConversationEvent) =>
@@ -128,6 +151,9 @@ export async function startLeader(
           break;
         case 'group_changed':
           void engine.syncGroup(event.groupId).catch(() => undefined);
+          break;
+        case 'circle_changed':
+          void loadCircle(store).then(sharePrefs, () => undefined);
           break;
         case 'revoked':
           onRevoked();
@@ -202,7 +228,7 @@ export async function startLeader(
         void engine.historySyncStatus().then((status) => post({ type: 'sync', status }));
         break;
       case 'prefs_changed':
-        void loadPrefs().then(sharePrefs, () => undefined);
+        void Promise.all([loadPrefs(), loadCircle(store)]).then(sharePrefs, () => undefined);
         break;
       default:
         break;

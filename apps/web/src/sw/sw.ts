@@ -41,7 +41,7 @@ self.addEventListener('push', (event) => {
       } catch {
         // Not JSON: treat it as a wake.
       }
-      if (kind !== 'wake' && kind !== 'call') return;
+      if (kind !== 'wake' && kind !== 'call' && kind !== 'circle') return;
       const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       // A visible tab gets the message (or the call invite) over its own connection.
       if (windows.some((client) => client.visibilityState === 'visible')) return;
@@ -60,6 +60,16 @@ self.addEventListener('push', (event) => {
         for (const shown of await self.registration.getNotifications({ tag: CALL_NOTICE_TAG })) {
           shown.close();
         }
+        return;
+      }
+      if (kind === 'circle') {
+        // A circle request or accept (Phase 37); the lists load once PingDost is open.
+        await self.registration.showNotification('PingDost', {
+          body: 'Circle update',
+          tag: 'pingdost-circle',
+          icon: '/icons/icon-192.png',
+          data: { url: '/circle' },
+        });
         return;
       }
       await self.registration.showNotification('PingDost', {

@@ -20,8 +20,14 @@
  * turns this off. It agrees to every request to switch to video (ADR 0037). During a call,
  * chat messages drive its side: `!video` asks you to switch to video, `!voice` switches back,
  * `!share` / `!unshare` mark its (echoed) picture as a shared screen.
+ *
+ * Circles (Phase 37): it accepts every circle request within a few seconds, so open a chat
+ * with it after adding it to your circle. `--dial-user` first asks that user into its circle
+ * and calls once they accept.
  */
 import { parseArgs } from 'node:util';
+
+import { circlesApi } from '@pingdost/api-client';
 
 import { createWasmCryptoProvider } from '@pingdost/crypto';
 
@@ -53,6 +59,20 @@ async function main(): Promise<void> {
   // Online for anyone who watches (the app watches the open chat's peer).
   peer.transport.setPresence(true);
   console.log(`echo peer ready: username ${peer.username} (user ${peer.userId})`);
+  const circles = circlesApi(peer.api);
+  // Accepts every circle request (Phase 37); the server tells online sockets, a poll is simpler.
+  const acceptAll = async () => {
+    try {
+      for (const request of (await circles.requests()).incoming) {
+        await circles.accept(request.userId);
+        console.log(`circle: accepted @${request.username ?? request.userId}`);
+      }
+    } catch (error) {
+      console.log(`circle check failed: ${String(error)}`);
+    }
+  };
+  setInterval(() => void acceptAll(), 2_000).unref();
+  void acceptAll();
   let calls: ReturnType<typeof simCalls> | undefined;
   if (values.calls !== 'false') {
     calls = simCalls(peer, {
@@ -62,6 +82,12 @@ async function main(): Promise<void> {
     console.log(`answers calls${values.relay ? ' (relay forced)' : ''}`);
     const dialUser = values['dial-user'];
     if (dialUser) {
+      // Calls need the circle: ask, then wait for the accept.
+      const linked = async () => (await circles.list()).some((m) => m.userId === dialUser);
+      if ((await circles.request(dialUser)) !== 'linked') {
+        console.log(`asked ${dialUser} into the circle; waiting for them to accept…`);
+        while (!(await linked())) await new Promise((resolve) => setTimeout(resolve, 2_000));
+      }
       setTimeout(() => {
         console.log(`calling ${dialUser}…`);
         void calls?.dial(dialUser, { video: values.video }).catch((error: unknown) => {

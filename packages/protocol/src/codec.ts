@@ -682,6 +682,9 @@ function checkServerFrame(frame: ServerFrame, options: CodecOptions): void {
     case 'primaryTransferRequested':
       checkId(body.value.requestId, 'primary_transfer_requested.request_id');
       break;
+    case 'circleChanged':
+      checkId(body.value.userId, 'circle_changed.user_id');
+      break;
     case 'otkLow':
     case 'revoked':
     case 'pong':

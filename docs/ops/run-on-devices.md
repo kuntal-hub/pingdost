@@ -206,9 +206,16 @@ Mailpit catches every email the server sends, so any address works, even made-up
 2. On the PC, open **http://localhost:8025** (Mailpit), open the newest email, and copy the
    code. On device A, enter it under "Check your email" → **Verify**.
 3. **Device B:** do the same with another username and email (for example `bob`).
-4. **Device A:** Chats → the **+** button (bottom right) → Username: `bob` → **Message**. Type
-   a message and send it. It appears on device B.
-5. Try these too:
+4. **Device A:** Chats → the **+** button (bottom right) → Username: `bob` → **Find** →
+   **Add to circle**. Only people in each other's circle can message or call (Phase 37).
+5. **Device B:** a "Circle request" notification appears (or, with the app open, a **Circle
+   request** row at the top of Chats). Open it → **Accept** (the ✓).
+6. **Device A:** the button turns into **Message**. Type a message and send it. It appears on
+   device B.
+7. Try these too:
+   - **Circle:** Settings → **Circle**: remove the other person; on both devices the chat shows
+     "Add … to your circle" in place of the composer, and the call buttons go. A declined
+     request stays "Requested" for the sender.
    - **Replies, read receipts and typing:** reply from B; watch the ticks and the typing
      indicator on A.
    - **Offline delivery:** swipe PingDost away on B (or turn on airplane mode in mode A), send
@@ -221,8 +228,10 @@ Mailpit catches every email the server sends, so any address works, even made-up
 ```powershell
 pnpm --filter @pingdost/sim-client peer
 ```
-It prints its username. Start a chat with it from the app: it shows online, sends read
-receipts, types, and echoes every message. Messages starting with `!react`, `!edit` or
+It prints its username. Add it to your circle from the app (Chats → **+** → its username →
+**Add to circle**); it accepts within a few seconds. Then **Message** it: it shows online, sends
+read receipts, types, and echoes every message. With `-- --dial-user <your user ID>` it asks to
+join your circle and calls you once you accept. Messages starting with `!react`, `!edit` or
 `!delete` make it react, edit or delete its echo.
 
 ## 6. Stop everything

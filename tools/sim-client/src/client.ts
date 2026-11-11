@@ -8,6 +8,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 
 import {
   authApi,
+  circlesApi,
   createApiClient,
   devicesApi,
   groupsApi,
@@ -118,6 +119,24 @@ export class SimClient {
   /** The current device-bound access token (load tests replay it in their own sockets). */
   get accessToken(): string {
     return this.#tokens.accessToken;
+  }
+
+  /**
+   * Puts `other` in this user's circle through the real API (Phase 37): this one asks, the
+   * other accepts. Users must be linked before they message or call each other one to one,
+   * or one adds the other to a group.
+   */
+  async linkWith(other: SimClient): Promise<void> {
+    if (other.userId === this.userId) return;
+    if ((await circlesApi(this.api).request(other.userId)) === 'linked') return;
+    await circlesApi(other.api).accept(this.userId);
+  }
+
+  /** Links every pair of `clients` (devices of the same user are skipped). */
+  static async linkAll(...clients: SimClient[]): Promise<void> {
+    for (let i = 0; i < clients.length; i++) {
+      for (let j = i + 1; j < clients.length; j++) await clients[i]!.linkWith(clients[j]!);
+    }
   }
 
   /** A new user with a primary device, its one-time keys and fallback key published. */

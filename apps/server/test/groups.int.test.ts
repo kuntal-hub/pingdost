@@ -24,7 +24,7 @@ import { capturingSocket, SimClient, type SimClientOptions } from '@pingdost/sim
 import type { WebSocketFactory, WebSocketLike } from '@pingdost/transport';
 
 import { cryptoProvider } from './devices';
-import { bearer, json, MAILPIT_URL, startTestServer, type TestServer } from './helpers';
+import { bearer, json, linkUsers, MAILPIT_URL, startTestServer, type TestServer } from './helpers';
 import { deviceSession, envelopePacket, TestSocket, type TestDeviceSession } from './ws';
 
 let crypto: CryptoProvider;
@@ -65,6 +65,8 @@ function options(overrides: Partial<SimClientOptions> = {}): SimClientOptions {
 
 async function sim(overrides: Partial<SimClientOptions> = {}): Promise<SimClient> {
   const client = await SimClient.register(options(overrides));
+  // Group members come only from the adder's circle (Phase 37): everyone here is linked.
+  for (const other of clients) await client.linkWith(other);
   clients.push(client);
   await client.start();
   return client;
@@ -159,6 +161,10 @@ describe('groups REST', () => {
     admin = await deviceSession(server, crypto);
     member = await deviceSession(server, crypto);
     outsider = await deviceSession(server, crypto);
+    // Group members come only from the adder's circle (Phase 37).
+    await linkUsers(server, owner, admin);
+    await linkUsers(server, owner, member);
+    await linkUsers(server, admin, outsider);
     groupId = uuidv7();
   });
 

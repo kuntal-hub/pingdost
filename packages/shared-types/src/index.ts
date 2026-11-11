@@ -4,6 +4,7 @@
 export * from './attachments';
 export * from './auth';
 export * from './calls';
+export * from './circles';
 export * from './common';
 export * from './devices';
 export * from './errors';

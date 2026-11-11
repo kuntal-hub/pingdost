@@ -16,6 +16,7 @@ import {
   type ClientMethod,
   type WireError,
 } from './client';
+import type { CircleLists } from './store';
 
 export const CHANNEL = 'pingdost-chat';
 
@@ -36,7 +37,12 @@ export type BusMessage =
   | { type: 'engine'; event: EngineEvent }
   | { type: 'status'; status: TransportStatus }
   | { type: 'presence'; userId: string; online: boolean }
-  | { type: 'prefs'; privacy: PrivacyPrefs | null; blocked: string[] }
+  | {
+      type: 'prefs';
+      privacy: PrivacyPrefs | null;
+      blocked: string[];
+      circle: CircleLists | null;
+    }
   /** The history sync from the phone (ADR 0021). */
   | { type: 'sync'; status: HistorySyncStatus }
   /** An attachment download or upload in the leader tab. */

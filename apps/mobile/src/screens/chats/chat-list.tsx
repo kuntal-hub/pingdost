@@ -24,6 +24,7 @@ import {
   SearchIcon,
   SparklesIcon,
   Trash2Icon,
+  UserPlusIcon,
   UsersRoundIcon,
   VideoIcon,
   type LucideIcon,
@@ -35,6 +36,7 @@ import { StateTick } from '@/components/state-tick';
 import { SwipeAction } from '@/components/swipe-action';
 import { Tap } from '@/components/tap';
 import { Text } from '@/components/text';
+import { useIncomingCount } from '@/engine/circle';
 import { contactName } from '@/engine/contacts';
 import { groupPictureUri, useGroup, useNames } from '@/engine/groups';
 import {
@@ -291,6 +293,38 @@ function Empty({ archived, filter }: { archived: boolean; filter: Filter }) {
   );
 }
 
+/** Circle requests waiting for an answer (Phase 37): opens Circle → Requests. */
+function RequestsRow() {
+  const router = useRouter();
+  const { card } = useTheme();
+  const count = useIncomingCount();
+  if (count === 0) return null;
+  const label = `Circle request${count === 1 ? '' : 's'}`;
+  return (
+    <Tap
+      accessibilityLabel={` ${label.toLowerCase()} waiting. Open`}
+      scaleTo={0.98}
+      feedback="selection"
+      onPress={() => router.push({ pathname: '/circle', params: { tab: 'requests' } })}
+      className="mx-4 min-h-[60px] flex-row items-center gap-3 rounded-xl bg-surface px-4 py-2"
+      style={card}
+    >
+      <View className="h-[38px] w-[38px] items-center justify-center rounded-md bg-accent/15">
+        <Icon icon={UserPlusIcon} size={20} color="accent" />
+      </View>
+      <View className="flex-1">
+        <Text className="font-semibold text-foreground">{label}</Text>
+        <Text className="text-muted">
+          {count === 1 ? 'Someone wants' : `${count} people want`} to join your circle
+        </Text>
+      </View>
+      <View className="h-[24px] min-w-[24px] items-center justify-center rounded-full bg-primary px-2">
+        <Text className="text-xs font-bold text-on-primary">{count}</Text>
+      </View>
+    </Tap>
+  );
+}
+
 /** The chat list, or (with `archived`) the archived chats. */
 export function ChatListScreen({ archived = false }: { archived?: boolean }) {
   const router = useRouter();
@@ -423,6 +457,7 @@ export function ChatListScreen({ archived = false }: { archived?: boolean }) {
           ListHeaderComponent={
             archived ? null : (
               <View className="gap-3 pb-2">
+                <RequestsRow />
                 <PinnedStrip entries={pinned} />
                 {inFolder.length > 0 && (
                   <ChipRow label="Filter chats">

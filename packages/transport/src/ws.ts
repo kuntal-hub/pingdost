@@ -84,7 +84,9 @@ export type WsEvent =
   /** A group's membership changed on the server (ADR 0016): refetch it. */
   | { type: 'group_changed'; groupId: string; version: number }
   /** A new phone asked to replace this account's primary (ADR 0022): show the request. */
-  | { type: 'primary_transfer'; requestId: string; expiresAt: number };
+  | { type: 'primary_transfer'; requestId: string; expiresAt: number }
+  /** This account's circle or circle requests changed (Phase 37): refetch the lists. */
+  | { type: 'circle_changed'; userId: string };
 
 export interface WsTransportOptions {
   /** `ws(s)://<host>/v1/ws`. */
@@ -404,6 +406,9 @@ export class WsTransport implements Transport {
           requestId: bytesToUuid(body.value.requestId),
           expiresAt: Number(body.value.expiresAtMs),
         });
+        break;
+      case 'circleChanged':
+        this.#events.emit({ type: 'circle_changed', userId: bytesToUuid(body.value.userId) });
         break;
       case 'ephemeral':
         if (body.value.packet) this.#ephemeral.emit(body.value.packet);

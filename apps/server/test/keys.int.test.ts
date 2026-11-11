@@ -13,7 +13,14 @@ import {
   signedOneTimeKeys,
   type TestDevice,
 } from './devices';
-import { bearer, json, registeredUser, startTestServer, type TestServer } from './helpers';
+import {
+  bearer,
+  json,
+  linkUsers,
+  registeredUser,
+  startTestServer,
+  type TestServer,
+} from './helpers';
 
 let server: TestServer;
 let crypto: CryptoProvider;
@@ -185,6 +192,7 @@ describe('claims', () => {
       fallbackKey: signedFallbackKey(owner.device),
     });
     const claimer = await userWithDevice();
+    await linkUsers(server, owner, claimer);
 
     const responses = await Promise.all(
       Array.from({ length: 50 }, () => claim(claimer.accessToken, [owner.device.deviceId])),
@@ -216,6 +224,7 @@ describe('claims', () => {
     const owner = await userWithDevice();
     await upload(owner.accessToken, { oneTimeKeys: signedOneTimeKeys(owner.device, 1) });
     const claimer = await userWithDevice();
+    await linkUsers(server, owner, claimer);
     const [claimed] = json<ClaimKeysResponse>(
       await claim(claimer.accessToken, [owner.device.deviceId]),
     ).keys;
@@ -236,6 +245,7 @@ describe('claims', () => {
     const owner = await userWithDevice();
     await upload(owner.accessToken, { oneTimeKeys: signedOneTimeKeys(owner.device, 2) });
     const claimer = await userWithDevice();
+    await linkUsers(server, owner, claimer);
     await server.app.inject({
       method: 'DELETE',
       url: `/v1/devices/${owner.device.deviceId}`,
@@ -257,6 +267,7 @@ describe('claims', () => {
         limited,
       );
       const claimer = await userWithDevice(limited);
+      await linkUsers(limited, owner, claimer);
       for (let i = 0; i < 3; i++) {
         expect(
           (await claim(claimer.accessToken, [owner.device.deviceId], limited)).statusCode,

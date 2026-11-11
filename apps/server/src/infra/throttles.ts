@@ -2,6 +2,8 @@
  * Per-account and per-email budgets (in-memory `WindowCounter`s), on top of the per-IP
  * route limits in `rate-limits.ts` (ADR 0007, ADR 0008).
  */
+import { CIRCLE_REQUESTS_PER_DAY } from '@pingdost/shared-types';
+
 const MINUTE_MS = 60_000;
 const HOUR_MS = 3_600_000;
 
@@ -23,6 +25,8 @@ export interface ThrottleSettings {
   keyClaims: Budget;
   /** Phone replacement attempts per account: requests, codes and replacements (ADR 0022). */
   phoneReplacements: Budget;
+  /** New circle requests per account (Phase 37). */
+  circleRequests: Budget;
   /**
    * Envelopes one account may leave in the mailbox for one recipient device (the offline
    * path; online deliveries are not counted). Phase 27: bounds never-delivered queues.
@@ -41,6 +45,7 @@ export const DEFAULT_THROTTLES: ThrottleSettings = {
   usernameLookups: { limit: 30, windowMs: 15 * MINUTE_MS },
   keyClaims: { limit: 500, windowMs: HOUR_MS },
   phoneReplacements: { limit: 10, windowMs: HOUR_MS },
+  circleRequests: { limit: CIRCLE_REQUESTS_PER_DAY, windowMs: DAY_MS },
   // Generous for people (messages, receipts, edits and group fan-out to offline devices);
   // one account can then hold at most about 14 × 32 MiB in the 14-day mailbox.
   storedPerRecipientDevice: { limit: 5_000, windowMs: DAY_MS },

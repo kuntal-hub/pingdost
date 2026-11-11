@@ -39,6 +39,7 @@ import { createNearbyIdentity, MessageEngine } from '@pingdost/message-engine';
 import { TransportRouter, WsTransport, type TransportStatus } from '@pingdost/transport';
 
 import { isBlocked, useBlocks } from './blocks';
+import { inCircle, useCircle } from './circle';
 import { SqliteEngineStore } from './sqlite-store';
 
 /** How long the socket stays open after the app leaves the foreground. */
@@ -170,6 +171,8 @@ async function boot(): Promise<ChatRuntime> {
     },
     typingIndicators: () => useAccount.getState().privacy?.typingIndicators ?? true,
     blocked: isBlocked,
+    // One-to-one content only from the circle (Phase 37); the only check over nearby and mesh.
+    circle: inCircle,
     historySync: { files: vaultSyncFiles(repo) },
     ...(__DEV__
       ? {
@@ -188,6 +191,10 @@ async function boot(): Promise<ChatRuntime> {
     transport.reconnectNow();
     transport.setPresence(true);
     void refreshPhoneRequests().catch(() => undefined);
+    void useCircle
+      .getState()
+      .load()
+      .catch(() => undefined);
     // Permissions or Bluetooth may have changed meanwhile; the foreground service starts only
     // from here.
     void startNearby().catch(() => undefined);
@@ -235,6 +242,13 @@ async function boot(): Promise<ChatRuntime> {
         case 'group_changed':
           // Membership changed on the server: apply its removals now (ADR 0016).
           void engine.syncGroup(event.groupId).catch(() => undefined);
+          break;
+        case 'circle_changed':
+          // A request, an accept, a removal (Phase 37): refetch the lists.
+          void useCircle
+            .getState()
+            .load()
+            .catch(() => undefined);
           break;
         case 'primary_transfer':
           // A new phone wants this account (ADR 0022): ask the user here.
@@ -285,11 +299,19 @@ async function boot(): Promise<ChatRuntime> {
     .getState()
     .loadCached()
     .catch(() => undefined);
+  await useCircle
+    .getState()
+    .loadCached()
+    .catch(() => undefined);
   void useAccount
     .getState()
     .load()
     .catch(() => undefined);
   void useBlocks
+    .getState()
+    .load()
+    .catch(() => undefined);
+  void useCircle
     .getState()
     .load()
     .catch(() => undefined);

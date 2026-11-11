@@ -15,7 +15,13 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 import type { Logger } from 'pino';
 
-import { PUSH_CALL, PUSH_WAKE, type PushPayload, type PushProvider } from '@pingdost/shared-types';
+import {
+  PUSH_CALL,
+  PUSH_CIRCLE,
+  PUSH_WAKE,
+  type PushPayload,
+  type PushProvider,
+} from '@pingdost/shared-types';
 
 import type { PushNotifier, PushSender } from './notifier';
 import type { PushTokens } from './repo';
@@ -57,11 +63,15 @@ interface DeviceState {
 const PRUNE_AT = 10_000;
 const MAX_BACKOFF_MS = 30_000;
 const CALL_THROTTLE_MS = 15_000;
+/** At most one circle push per device in this window (Phase 37); the app fetches the lists. */
+const CIRCLE_THROTTLE_MS = 60_000;
 
 export class PushService implements PushNotifier {
   readonly #devices = new Map<string, DeviceState>();
   /** Device ID → when its last call push went out. */
   readonly #rings = new Map<string, number>();
+  /** Device ID → when its last circle push went out. */
+  readonly #circles = new Map<string, number>();
   readonly #inflight = new Set<Promise<void>>();
   readonly #abort = new AbortController();
 
@@ -113,12 +123,27 @@ export class PushService implements PushNotifier {
     );
   }
 
+  circle(deviceId: string): void {
+    if (this.#abort.signal.aborted) return;
+    const now = this.o.clock.now();
+    const last = this.#circles.get(deviceId);
+    if (last !== undefined && now - last < CIRCLE_THROTTLE_MS) return;
+    this.#circles.set(deviceId, now);
+    if (this.#circles.size >= PRUNE_AT) {
+      for (const [id, at] of this.#circles) {
+        if (now - at >= CIRCLE_THROTTLE_MS) this.#circles.delete(id);
+      }
+    }
+    this.#track(this.#deliver(deviceId, PUSH_CIRCLE));
+  }
+
   /** Cancels deferred wakes and retries, then waits for sends in flight. */
   async close(): Promise<void> {
     this.#abort.abort();
     for (const state of this.#devices.values()) clearTimeout(state.deferred);
     this.#devices.clear();
     this.#rings.clear();
+    this.#circles.clear();
     await Promise.allSettled([...this.#inflight]);
     await Promise.allSettled(
       Object.values(this.o.senders).map((sender) => sender.close?.() ?? Promise.resolve()),

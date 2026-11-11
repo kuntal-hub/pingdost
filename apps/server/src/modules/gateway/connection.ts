@@ -40,6 +40,7 @@ import type { Clock } from '../../infra/clock';
 import { AppError } from '../../infra/errors';
 import type { Metrics } from '../../infra/metrics';
 import type { AuthCollections } from '../auth/repo';
+import type { CircleService } from '../circles/service';
 import type { AccessTokens } from '../auth/tokens';
 import type { EnvelopeRecord } from '../delivery/record';
 import {
@@ -50,6 +51,7 @@ import {
 } from '../delivery/service';
 import type { MailboxSettings } from '../delivery/settings';
 import type { DeviceCollections } from '../device/repo';
+import type { GroupService } from '../groups/service';
 import type { OneTimeKeyDoc } from '../keys/repo';
 import type { PushNotifier } from '../push/notifier';
 import type { BlockService } from '../security/blocks';
@@ -124,6 +126,9 @@ export interface GatewayDeps {
   registry: ConnectionRegistry<Connection>;
   presence: PresenceHub<Connection>;
   blocks: Pick<BlockService, 'eitherBlocked'>;
+  /** Circles (Phase 37): warmed at connect; typing goes only to the circle or a shared group. */
+  circles?: Pick<CircleService, 'inCircle' | 'warm'>;
+  groups?: Pick<GroupService, 'isMember'>;
 }
 
 type ServerFrameInit = MessageInitShape<typeof ServerFrameSchema>;
@@ -215,6 +220,15 @@ export class Connection implements PresencePeer {
         case: 'groupChanged',
         value: { groupId: uuidToBytes(groupId), version: BigInt(version) },
       },
+    });
+  }
+
+  /** This account's circle or circle requests changed (Phase 37); the client refetches. */
+  notifyCircleChanged(otherUserId: string): void {
+    if (this.#state !== 'open') return;
+    this.#send({
+      requestId: 0,
+      body: { case: 'circleChanged', value: { userId: uuidToBytes(otherUserId) } },
     });
   }
 
@@ -431,6 +445,10 @@ export class Connection implements PresencePeer {
     void this.checkKeys().catch((error: unknown) =>
       this.#log.warn({ err: error }, 'one-time key check failed'),
     );
+    // Sends are checked against the circle with no Mongo read per message (ADR 0030).
+    void this.d.circles
+      ?.warm(this.#userId)
+      .catch((error: unknown) => this.#log.warn({ err: error }, 'circle load failed'));
   }
 
   async #onSend(requestId: number, packet: TransportPacket): Promise<void> {
@@ -526,6 +544,7 @@ export class Connection implements PresencePeer {
       if (!ownDevice && (await this.d.blocks.eitherBlocked(this.#userId, recipient.userId))) {
         continue;
       }
+      if (!ownDevice && !(await this.#mayType(recipient.userId, typing.groupId))) continue;
       recipient.#sendIfRoom({
         requestId: 0,
         body: {
@@ -539,6 +558,20 @@ export class Connection implements PresencePeer {
         },
       });
     }
+  }
+
+  /** Typing reaches the circle, and co-members inside their shared group (Phase 37). */
+  async #mayType(userId: string, groupId: Uint8Array | undefined): Promise<boolean> {
+    const { circles, groups } = this.d;
+    if (!circles || (await circles.inCircle(this.#userId, userId))) return true;
+    if (!groupId || !groups) return false;
+    let id: string;
+    try {
+      id = bytesToUuid(groupId);
+    } catch {
+      return false;
+    }
+    return (await groups.isMember(id, this.#userId)) && (await groups.isMember(id, userId));
   }
 
   /**
@@ -555,7 +588,10 @@ export class Connection implements PresencePeer {
       return;
     }
     try {
-      const { record, blocked } = await this.d.delivery.prepare(this.#sender, packet);
+      // Call signalling: only within the circle, never to a co-member alone (Phase 37).
+      const { record, blocked } = await this.d.delivery.prepare(this.#sender, packet, {
+        ephemeral: true,
+      });
       // Blocked: answered as if the device were offline.
       const recipient = blocked ? undefined : this.d.registry.get(record.recipientDeviceId);
       const sent = recipient?.open

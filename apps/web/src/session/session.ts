@@ -11,6 +11,7 @@ import {
   attachmentsApi,
   authApi,
   callsApi,
+  circlesApi,
   createApiClient,
   devicesApi,
   groupsApi,
@@ -85,6 +86,7 @@ export const api = {
   pairing: pairingApi(client),
   groups: groupsApi(client),
   security: securityApi(client),
+  circles: circlesApi(client),
   push: pushApi(client),
   recovery: recoveryApi(client),
 };

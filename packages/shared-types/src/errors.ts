@@ -79,6 +79,11 @@ export const ErrorCodeSchema = z.enum([
   // Blocks and reports (Phase 11)
   /** The account already blocks `MAX_BLOCKS` users. */
   'BLOCK_LIMIT_REACHED',
+  // Circles (Phase 37)
+  /** The other user is not in this account's circle (messages, calls, keys, group adds). */
+  'NOT_IN_CIRCLE',
+  /** The circle is full, or too many requests are waiting. */
+  'CIRCLE_LIMIT_REACHED',
 ]);
 
 export type ErrorCode = z.infer<typeof ErrorCodeSchema>;
@@ -143,6 +148,8 @@ export const ERROR_STATUS: Readonly<Record<ErrorCode, number>> = {
   TRANSFER_EXPIRED: 410,
   TRANSFER_ALREADY_USED: 409,
   BLOCK_LIMIT_REACHED: 409,
+  NOT_IN_CIRCLE: 403,
+  CIRCLE_LIMIT_REACHED: 409,
 };
 
 /** Codes for which the same request may succeed later (after any `retryAfterSeconds`). */

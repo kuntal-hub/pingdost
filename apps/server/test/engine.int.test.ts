@@ -143,6 +143,8 @@ function options(overrides: Partial<SimClientOptions> = {}): SimClientOptions {
 
 async function sim(overrides: Partial<SimClientOptions> = {}): Promise<SimClient> {
   const client = await SimClient.register(options(overrides));
+  // Everyone here may message everyone (Phase 37: one-to-one needs the circle).
+  for (const other of clients) await client.linkWith(other);
   clients.push(client);
   return client;
 }

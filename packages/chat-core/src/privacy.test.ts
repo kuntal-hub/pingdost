@@ -25,6 +25,8 @@ describe('privacy explainer wording (REQ §1, §5.4; ARCHITECTURE A10)', () => {
       'relay',
       'push',
       'screenshots',
+      'who is in whose circle',
+      '30 days',
     ]) {
       expect(text).toContain(fact);
     }

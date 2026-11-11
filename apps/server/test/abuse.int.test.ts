@@ -13,7 +13,7 @@ import type { CryptoProvider } from '@pingdost/crypto';
 import { Accepted_Status } from '@pingdost/protocol';
 
 import { cryptoProvider } from './devices';
-import { startTestServer, type TestServer } from './helpers';
+import { linkUsers, startTestServer, type TestServer } from './helpers';
 import { deviceSession, envelopePacket, TestSocket } from './ws';
 
 let crypto: CryptoProvider;
@@ -40,6 +40,8 @@ describe('never-delivered queues (per-sender mailbox budget)', () => {
     const alice = await deviceSession(server, crypto);
     const dave = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto); // offline throughout the first part
+    await linkUsers(server, alice, bob);
+    await linkUsers(server, dave, bob);
     const aliceSocket = await TestSocket.connect(server, alice);
 
     for (let i = 0; i < 3; i++) {
@@ -97,6 +99,7 @@ describe('never-delivered queues (per-sender mailbox budget)', () => {
   it('bounds the ciphertext bytes one account leaves in the mailbox', async () => {
     const erin = await deviceSession(server, crypto);
     const carol = await deviceSession(server, crypto); // offline
+    await linkUsers(server, erin, carol);
     const socket = await TestSocket.connect(server, erin);
     const big = () =>
       envelopePacket(server, erin.deviceId, carol.deviceId, {

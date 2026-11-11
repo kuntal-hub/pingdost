@@ -4,6 +4,17 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-11 — Phases 36 and 37 built: decisions taken while building (ADR 0040, 0041)
+1. **Emoji data:** `emojibase-data` 18.0.0 (MIT) for both pickers, loaded on first use; emoji newer than the device's font are hidden; recents and skin tone stay on the device.
+   - *Affects:* 36 (done, phone check open).
+2. **No Enter-to-send on a phone's hardware keyboard:** Android cannot tell it from the soft keyboard's Enter, which stays a new line. Every send jumps to the newest message.
+   - *Affects:* 36.
+3. **Group co-members outside each other's circle may still exchange one-to-one envelopes through the server**, refined from "1:1 envelopes refused outside the circle": group receipts, room-key requests and session repair travel one to one over Olm. Their apps drop direct content from outside the circle; calls, key claims for strangers, typing outside the group and group adds still need the circle.
+   - *Affects:* 37 (done, two-phone check open).
+4. **Additive wire and API changes:** `ServerFrame.circle_changed`; `ClaimKeysResponse.refusedDeviceIds`; push payload `{"t":"circle"}` (APNs alert "Circle update").
+   - *Affects:* 37; 29 (iOS) handles the new push the same way as Android once built.
+5. **Request details:** declining is silent (the sender sees "Requested" until the 30-day expiry); a request to someone who blocked the sender is stored as declined; a blocker must unblock before asking. Limits: 20 new requests a day, 100 pending, 1,000 per circle.
+   - *Affects:* 37.
 ### 2026-11-10 — The user's UI/UX list: account screens, chat look and composer, Circles, people search, selection and forwarding, voice-note gestures
 The user's 22-item list is in `prompts/UI_modifications.txt`; item numbers below refer to it. Planned as Phases 34–40; nothing is built yet.
 1. **Circles: consent before contact (item 8).** People can message, call or add to a group only those in their circle; getting in takes a request the other side accepts. A deviation from REQ §8.1 and §8.2 (anyone could start a conversation with any username), and a change to ARCHITECTURE A2 ("the server keeps no contact list") and A4.

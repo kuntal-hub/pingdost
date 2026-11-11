@@ -820,6 +820,16 @@
         }
       },
       "binary": "ahkKEAGS8aAAAHAAgAAAAAAAAGEQqNfXwZwz"
+    },
+    {
+      "name": "server-frame/circle-changed",
+      "type": "pingdost.v1.ServerFrame",
+      "json": {
+        "circleChanged": {
+          "userId": "AZLxoAAAcACAAAAAAAAAsQ=="
+        }
+      },
+      "binary": "chIKEAGS8aAAAHAAgAAAAAAAALE="
     }
   ]
 }

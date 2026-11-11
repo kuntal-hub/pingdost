@@ -36,3 +36,4 @@
 
 ## Handoff notes
 -
+- 2026-11-11: built (ADR 0041). Open: final full test run, format check, retention-audit run, and the two-phone check. See PROGRESS.

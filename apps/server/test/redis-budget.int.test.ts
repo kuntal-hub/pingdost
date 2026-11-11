@@ -11,7 +11,7 @@ import type { CryptoProvider } from '@pingdost/crypto';
 import { Accepted_Status } from '@pingdost/protocol';
 
 import { cryptoProvider } from './devices';
-import { startTestServer, type TestServer } from './helpers';
+import { linkUsers, startTestServer, type TestServer } from './helpers';
 import { deviceSession, envelopePacket, TestSocket, type TestDeviceSession } from './ws';
 import { Metrics } from '../src/infra/metrics';
 import { MailboxMigrator } from '../src/modules/delivery/jobs';
@@ -117,6 +117,7 @@ describe('Redis commands per operation', () => {
   it('offline message staged in Redis: store, fetch, ack', async () => {
     const alice = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto);
+    await linkUsers(server, alice, bob);
     const socket = await quietSocket(alice);
 
     measured.storeOne = await commands(() => sendStored(socket, alice, bob));
@@ -145,6 +146,7 @@ describe('Redis commands per operation', () => {
   it('migrated message: migration, then fetch and ack from Mongo', async () => {
     const alice = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto);
+    await linkUsers(server, alice, bob);
     const socket = await quietSocket(alice);
     await sendStored(socket, alice, bob);
     socket.close();
@@ -177,6 +179,7 @@ describe('Redis commands per operation', () => {
   it('costs nothing on the online path, and little when idle', async () => {
     const alice = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto);
+    await linkUsers(server, alice, bob);
     const aliceSocket = await quietSocket(alice);
     const bobSocket = await quietSocket(bob);
 

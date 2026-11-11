@@ -91,6 +91,10 @@ const router = createBrowserRouter([
         ...page(() => import('@/shell/settings-page').then((m) => m.SettingsPage)),
       },
       {
+        path: 'circle',
+        ...page(() => import('@/features/circle/circle-page').then((m) => m.CirclePage)),
+      },
+      {
         path: 'appearance',
         ...page(() =>
           import('@/features/appearance/appearance-page').then((m) => m.AppearancePage),

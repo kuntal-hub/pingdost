@@ -213,6 +213,8 @@ export class EphemeralChannel {
     const owner = await core.ownerOf(senderDeviceId);
     if (owner.status !== 'ok') return undefined;
     if (owner.userId !== core.self.userId && core.isBlocked(owner.userId)) return undefined;
+    // Calls come only from the circle (Phase 37); this user's own devices always pass.
+    if (core.outsideCircle(owner.userId)) return undefined;
     const sender = {
       deviceId: senderDeviceId,
       userId: owner.userId,

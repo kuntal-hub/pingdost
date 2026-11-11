@@ -19,6 +19,8 @@ import { useNotificationPrefs } from './prefs';
 export const MESSAGES_CHANNEL = 'messages';
 /** Missed calls (ADR 0029). Ringing uses the native `incoming_calls` channel (modules/pingdost-calls). */
 export const MISSED_CALLS_CHANNEL = 'missed_calls';
+/** Circle requests and accepts (Phase 37). */
+export const CIRCLE_CHANNEL = 'circle';
 /** Phase 12's placeholder for calls, replaced by the native channels: removed. */
 const OLD_CALLS_CHANNEL = 'calls';
 
@@ -63,6 +65,12 @@ export function ensureChannels(): Promise<void> {
     await Notifications.setNotificationChannelAsync(MISSED_CALLS_CHANNEL, {
       name: 'Missed calls',
       description: 'Calls you did not answer',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
+    });
+    await Notifications.setNotificationChannelAsync(CIRCLE_CHANNEL, {
+      name: 'Circle requests',
+      description: 'Someone asks to join your circle, or accepts your request',
       importance: Notifications.AndroidImportance.DEFAULT,
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
     });

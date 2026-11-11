@@ -2,7 +2,7 @@
 // (REQ §19.5). Calls need the Internet: offline, or with a blocked contact, they are disabled.
 import { Phone, Video } from 'lucide-react';
 
-import { useChat } from '@/chat/store';
+import { useChat, useCircleState } from '@/chat/store';
 import { isLive } from '@pingdost/call-engine';
 
 import { dial, useCalls } from './runtime';
@@ -11,14 +11,19 @@ export function CallButtons({ peerUserId }: { peerUserId: string }) {
   const online = useChat((state) => state.status === 'online');
   const blocked = useChat((state) => state.blocked.includes(peerUserId));
   const inCall = useCalls((state) => state.call !== null && isLive(state.call.state));
-  const disabled = !online || blocked || inCall;
+  // Calls only within the circle (Phase 37).
+  const circleState = useCircleState(peerUserId);
+  const outside = circleState !== undefined && circleState !== 'member';
+  const disabled = !online || blocked || inCall || outside;
   const title = blocked
     ? 'You blocked this contact'
-    : !online
-      ? 'Calls need an Internet connection'
-      : inCall
-        ? 'You are in a call'
-        : undefined;
+    : outside
+      ? 'Only people in your circle can call each other'
+      : !online
+        ? 'Calls need an Internet connection'
+        : inCall
+          ? 'You are in a call'
+          : undefined;
   return (
     <>
       <button

@@ -76,6 +76,7 @@ describe('the web client stack (Dexie store) with a phone', () => {
   it('pairs, then sends and receives 1:1 and in a group; own messages sync both ways', async () => {
     const phone = await SimClient.register(options());
     const friend = await SimClient.register(options());
+    await phone.linkWith(friend);
     const db = new PingdostDb(`web-int-${Date.now()}`);
     const browser = await SimClient.linkedDevice(
       options({ store: new DexieEngineStore(db, await vaultKey(db)) }),

@@ -23,6 +23,10 @@ export const PRIVACY_EXPLAINER: readonly PrivacySection[] = [
     body: 'Your account (username, verified email, a password hash if you use a password), your settings, and your devices with their public keys. To deliver messages it also sees which account and device sends to which, when, and how large each message is. Sign-in and device events are kept for 90 days with a hashed IP address. Private keys never leave your devices.',
   },
   {
+    title: 'Your circle',
+    body: 'Only people in your circle can message you, call you or add you to a group. To enforce that, our server keeps the list of who is in whose circle until either of you removes the other or deletes the account, and keeps circle requests for at most 30 days. A request shows the other person only your public profile.',
+  },
+  {
     title: 'Without a backup, history cannot come back',
     body: 'If you lose every device and have no backup, your messages are gone: we never had them, so we cannot restore them. Make a backup in Settings → Backup and keep the recovery phrase safe.',
   },

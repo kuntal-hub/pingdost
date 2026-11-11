@@ -66,5 +66,10 @@ export type ClaimKeysRequest = z.infer<typeof ClaimKeysRequestSchema>;
 /** One key per device: a one-time key, or the fallback key when none remain. */
 export const ClaimKeysResponseSchema = z.object({
   keys: z.array(z.object({ deviceId: IdSchema, key: SignedKeySchema, fallback: z.boolean() })),
+  /**
+   * Devices whose owner is outside the caller's circle and shares no group with them (Phase 37):
+   * no key, and no sending to them. A claim naming only such devices fails with NOT_IN_CIRCLE.
+   */
+  refusedDeviceIds: z.array(IdSchema).optional(),
 });
 export type ClaimKeysResponse = z.infer<typeof ClaimKeysResponseSchema>;

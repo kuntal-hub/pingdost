@@ -17,6 +17,13 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-11 — Phase 37: Circles — 🔄 partial (code done; checks and two-phone test next)
+**Done (ADR 0041, CHANGES 2026-11-11):** server module `circles` (REST `/v1/circle*`, in-memory cache, `CircleChanged` frame, `{"t":"circle"}` push); enforcement on envelopes, calls, key claims (`refusedDeviceIds`), typing, presence and group adds; blocks sever links; account deletion and `retention-audit` cover both collections; engine `circle` option (nearby/mesh drop) and refused-claim handling; phone (Circle screen, Requests row, contact card, locked composer, new chat "Add to circle", circle push); web (Circle page, Settings link, Requests row, locked composer, new chat); `SimClient.linkWith/linkAll`; peer accepts requests and `--dial-user` asks first; privacy policy and explainer; run-on-devices.md.
+**Verification:** `circles.int.test.ts` 13/13; full `test:int` before the last fixes: every other suite passed (27 files); engine 138 + 3 new; mobile 154; web 25; chat-core 42. Emulator + sim peer: locked composer, request → accept → chat, remove, incoming request → accept → call rings. Chrome: Circle page, add from new chat, locked composer.
+**Remaining:**
+- [ ] Re-run `pnpm turbo run lint typecheck test` and `pnpm --filter @pingdost/server test:int` (a full run was started at the end of the session; its result was not read), `pnpm format:check`, `pnpm --filter @pingdost/server retention-audit`.
+- [ ] Two-phone check in the phase file (needs the Phase 35 APK; no new native code).
+**State:** server (tsx watch), web dev server, Metro (watch, emulator URL), emulator and sim peer `sim_eaf245b769` may still be running; Docker infra up.
 ## 2026-11-11 — Phase 36: Chat composer: emoji picker, keyboard, scrolling — 🔄 partial (code done; real-phone check next)
 Started with Phases 34–35 still 🔄 (only their phone checks are open), as the user asked for 36 and 37 together.
 

@@ -70,6 +70,7 @@ import { Tap } from '@/components/tap';
 import { Text, TextInput } from '@/components/text';
 import { Wallpaper } from '@/components/wallpaper';
 import { useBlocks, useIsBlocked } from '@/engine/blocks';
+import { useCircleState } from '@/engine/circle';
 import { contactName } from '@/engine/contacts';
 import { groupPictureUri, useGroup, useNames } from '@/engine/groups';
 import {
@@ -122,6 +123,7 @@ import {
 import { AttachmentContent } from './attachment-bubble';
 import { EmojiPanel } from './emoji-panel';
 import { VoiceRecorder, type VoiceNote } from './voice-recorder';
+import { CircleAction } from '../circle/circle-action';
 
 /** Longest message; far inside one envelope even in 4-byte UTF-8. */
 const MAX_TEXT = 4_000;
@@ -162,6 +164,16 @@ function PeerIdentity({ peerUserId }: { peerUserId: string | undefined }) {
   const runtime = useChatRuntime();
   const [verified, setVerified] = useState(false);
   const name = contactName(contact);
+  const circle = useCircleState(peerUserId);
+  // The circle state when it stops them talking (Phase 37), else online and nearby.
+  const circleNote =
+    circle === 'none'
+      ? 'Not in your circle'
+      : circle === 'requested'
+        ? 'Circle request sent'
+        : circle === 'incoming'
+          ? 'Wants to join your circle'
+          : undefined;
 
   useFocusEffect(
     useCallback(() => {
@@ -173,7 +185,7 @@ function PeerIdentity({ peerUserId }: { peerUserId: string | undefined }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${name}${verified ? ', verified' : ''}${online ? ', online' : ''}${nearby ? ', nearby over Bluetooth' : ''}. Contact info`}
+      accessibilityLabel={`${name}${verified ? ', verified' : ''}${circleNote ? `, ${circleNote.toLowerCase()}` : ''}${online ? ', online' : ''}${nearby ? ', nearby over Bluetooth' : ''}. Contact info`}
       disabled={!peerUserId}
       onPress={() =>
         peerUserId && router.push({ pathname: '/contact/[userId]', params: { userId: peerUserId } })
@@ -188,12 +200,18 @@ function PeerIdentity({ peerUserId }: { peerUserId: string | undefined }) {
           </Text>
           {verified && <Icon icon={BadgeCheckIcon} size={15} color="accent" />}
         </View>
-        {(online || nearby) && (
-          <Text numberOfLines={1} className="text-xs font-semibold text-success">
-            {[online ? 'online' : null, nearby ? 'nearby · Bluetooth' : null]
-              .filter(Boolean)
-              .join(' · ')}
+        {circleNote ? (
+          <Text numberOfLines={1} className="text-xs font-semibold text-muted">
+            {circleNote}
           </Text>
+        ) : (
+          (online || nearby) && (
+            <Text numberOfLines={1} className="text-xs font-semibold text-success">
+              {[online ? 'online' : null, nearby ? 'nearby · Bluetooth' : null]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          )
         )}
       </View>
     </Pressable>
@@ -1170,6 +1188,21 @@ function BlockedNotice({ peerUserId, name }: { peerUserId: string; name: string 
   );
 }
 
+/** In place of the composer with someone outside the circle (Phase 37): the history stays. */
+function OutsideCircleNotice({ peerUserId, name }: { peerUserId: string; name: string }) {
+  const state = useCircleState(peerUserId);
+  return (
+    <View className="px-3 pb-2 pt-1">
+      <View className="gap-3 rounded-xl bg-surface p-4">
+        {state === 'none' && (
+          <Text className="text-center text-muted">Add {name} to your circle to message them.</Text>
+        )}
+        <CircleAction userId={peerUserId} name={name} />
+      </View>
+    </View>
+  );
+}
+
 /** Whether a neighbor continues the same sender's run of messages. */
 function continuesRun(me: MessageRecord, other: TimelineItem | undefined): boolean {
   if (other?.type !== 'message' || other.message.kind === 'system') return false;
@@ -1346,7 +1379,10 @@ export function ChatScreen({
   );
 
   const left = isGroup && group?.left === true;
-  const readOnly = blocked || left;
+  // One to one only within the circle (Phase 37); unknown until the lists load.
+  const circleState = useCircleState(peerUserId);
+  const outside = !isGroup && circleState !== undefined && circleState !== 'member';
+  const readOnly = blocked || left || outside;
 
   const renderItem = useCallback(
     ({ item, index }: { item: TimelineItem; index: number }) =>
@@ -1398,10 +1434,10 @@ export function ChatScreen({
   const actions: SheetAction[] = [];
   if (selected && runtime) {
     const message = selected;
-    if (canReact(message) && !blocked && !left) {
+    if (canReact(message) && !readOnly) {
       actions.push({ label: 'Reply', icon: ReplyIcon, onPress: () => setReplyTo(message) });
     }
-    if (runtime.engine.canEdit(message) && !left) {
+    if (runtime.engine.canEdit(message) && !left && !outside) {
       actions.push({
         label: 'Edit',
         icon: PencilIcon,
@@ -1442,7 +1478,7 @@ export function ChatScreen({
       destructive: true,
       onPress: () => void runtime.engine.deleteForMe([message.messageId]),
     });
-    if (runtime.engine.canDeleteForEveryone(message) && !left) {
+    if (runtime.engine.canDeleteForEveryone(message) && !left && !outside) {
       deleteActions.push({
         label: 'Delete for everyone',
         detail:
@@ -1571,6 +1607,11 @@ export function ChatScreen({
             <BlockedNotice peerUserId={peerUserId} name={name} />
             <BottomSpace />
           </>
+        ) : outside && peerUserId ? (
+          <>
+            <OutsideCircleNotice peerUserId={peerUserId} name={name} />
+            <BottomSpace />
+          </>
         ) : (
           <Composer
             conversationId={conversationId}
@@ -1607,7 +1648,10 @@ export function ChatScreen({
             <PeerIdentity peerUserId={peerUserId} />
           )}
           {/* Direct chats only: groups have no call actions (REQ §19.5). */}
-          {callActionsFor(conversation, { blocked }).map((kind) => (
+          {callActionsFor(conversation, {
+            blocked,
+            inCircle: circleState === undefined ? undefined : circleState === 'member',
+          }).map((kind) => (
             <IconButton
               key={kind}
               icon={kind === 'video' ? VideoIcon : PhoneIcon}
@@ -1643,7 +1687,7 @@ export function ChatScreen({
         onClose={() => setSelected(undefined)}
         {...(selected ? { title: previewText(selected, people) } : {})}
         header={
-          selected && canReact(selected) && !blocked && !left ? (
+          selected && canReact(selected) && !readOnly ? (
             <View className="flex-row justify-around px-1 pb-2">
               {quickReactions.map((emoji, index) => (
                 <Animated.View

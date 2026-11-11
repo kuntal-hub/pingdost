@@ -10,6 +10,8 @@ export const SETTING_KEYS = {
   privacy: 'privacy',
   /** The users this account blocked (`{ userId, ids }`), cached for offline use. */
   blocks: 'blocks',
+  /** The circle and its requests (`{ userId, members, incoming, outgoing }`), for offline use. */
+  circle: 'circle',
   /** `NotificationPrefs` (Settings → Notifications); local to this phone. */
   notifications: 'notifications',
   /** `AttachmentPrefs` (Settings → Storage): automatic downloads; local to this phone. */

@@ -99,6 +99,7 @@ describe('account deletion', () => {
     const browser = await SimClient.linkedDevice(options(), alice);
     clients.push(browser);
     await bob.start();
+    await SimClient.linkAll(alice, bob, carol);
 
     // A group alice owns; bob blocked her, she blocked carol.
     const groupId = uuidv7();
@@ -152,6 +153,7 @@ describe('account deletion', () => {
         $or: [{ blockerUserId: alice.userId }, { blockedUserId: alice.userId }],
       }),
     ).toBe(0);
+    expect(await db.collection('circle_links').countDocuments({ users: alice.userId })).toBe(0);
     // Other people's blocks stay.
     expect(await db.collection('blocks').countDocuments({ blockerUserId: bob.userId })).toBe(1);
     expect(await db.collection('email_otps').countDocuments({ email: emailOf(alice) })).toBe(0);

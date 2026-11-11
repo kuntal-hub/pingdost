@@ -29,17 +29,19 @@
 | Security events: sign-ins, device changes, failed logins, with a **hashed** IP address | Protecting accounts, abuse prevention | **90 days** |
 | Groups: members and roles (not messages or names, which are encrypted) | Routing group messages to members only | While the group exists |
 | Blocks | Not delivering messages from people you blocked | Until you unblock |
+| Your circle: who is in whose circle, and since when | Only people in your circle can message you, call you or add you to a group; the server refuses everyone else | Until either of you removes the other, blocks the other, or deletes the account |
+| Circle requests: who asked whom, when, and whether it was declined | Showing and answering requests | Until accepted, withdrawn or declined and expired; at most **30 days** |
 | Abuse reports you send, with only the messages you chose to attach | Handling abuse | **90 days** |
 | Push tokens (Firebase on Android, Apple Push Notification service on iPhone, Web Push in browsers) | Waking your device when something arrives | Until replaced or the device is removed |
 
 **Metadata our server can see while delivering:** which account and device sends to which device, when, how large each item is, whether a call invite went to an offline device (kept in memory for 15 seconds), your IP address while connected (not stored in logs; hashed in security events), and whether you are online (shared with contacts only if you allow it, and never stored).
 
-**We do not store:** message text, decrypted attachments, conversation lists, a searchable history, read or delivery receipts, typing indicators, call recordings, call content or a permanent call log.
+**We do not store:** message text, decrypted attachments, conversation lists (your circle is a list of people, not of conversations), a searchable history, read or delivery receipts, typing indicators, call recordings, call content or a permanent call log.
 
 ## 3. Deletion
 - When your device confirms it received a message or file, the server deletes its copy. Undelivered items are deleted after 14 days.
 - Deleting a message "for everyone" asks your contacts' apps to delete it. It cannot erase screenshots, exports, notifications already shown, backups people made, or copies on devices you do not control.
-- You can delete your account in the Android app: Settings → Delete account, confirmed with a code we email you. It happens at once: your account, username, profile and profile picture, devices and their keys, group memberships, blocks, sessions, and messages still waiting for you on the server are deleted, and your phone and linked browsers erase their PingDost data. Messages you already sent stay with the people who received them. A security record that the account was deleted is kept for 90 days, and abuse reports for their own limit. Copies of the account database in our nightly backups disappear within 7 days (section 4). Without the app, ask us at **[email]**.
+- You can delete your account in the Android app: Settings → Delete account, confirmed with a code we email you. It happens at once: your account, username, profile and profile picture, devices and their keys, group memberships, blocks, your circle and circle requests (both ways), sessions, and messages still waiting for you on the server are deleted, and your phone and linked browsers erase their PingDost data. Messages you already sent stay with the people who received them. A security record that the account was deleted is kept for 90 days, and abuse reports for their own limit. Copies of the account database in our nightly backups disappear within 7 days (section 4). Without the app, ask us at **[email]**.
 
 ## 4. Copies outside the database, and backups
 - We back up the account database nightly and keep each backup for 7 days. Backups **exclude** waiting messages, attachment records and email codes. Security events and abuse reports can stay in a backup for up to 7 days after their 90-day limit.
@@ -69,7 +71,7 @@ Calls are end-to-end encrypted (WebRTC). When a direct connection is not possibl
 We do not sell data, show ads, or use analytics.
 
 ## 8. Your choices and rights
-You can: see and revoke linked devices; turn off read receipts, last seen and typing indicators; turn Nearby and relaying on or off; block people; export a backup; ask for your account data or its deletion at **[email]**. **[Add the rights that apply in your jurisdiction (e.g. India's DPDP Act 2023, the EU GDPR) and how to complain to the regulator.]**
+You can: see and revoke linked devices; turn off read receipts, last seen and typing indicators; turn Nearby and relaying on or off; accept, decline or withdraw circle requests and remove people from your circle; block people; export a backup; ask for your account data or its deletion at **[email]**. **[Add the rights that apply in your jurisdiction (e.g. India's DPDP Act 2023, the EU GDPR) and how to complain to the regulator.]**
 
 ## 9. Children
 PingDost is not meant for children under **[13/16/18, per the law where you offer it]**.

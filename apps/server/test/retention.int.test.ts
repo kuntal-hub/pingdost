@@ -56,7 +56,7 @@ describe('retention audit', () => {
     expect(failing(report)).toEqual([]);
     expect(report.ok).toBe(true);
     expect(report.checks.find((check) => check.name === 'ttl indexes present')).toMatchObject({
-      checked: 9,
+      checked: 10,
       violations: 0,
     });
   });
@@ -86,6 +86,20 @@ describe('retention audit', () => {
     const file = join(root, 'ab', '0192aaaa-0000-7000-8000-0000000000ab');
     await writeFile(file, 'ciphertext');
     await utimes(file, new Date(now - DAY), new Date(now - DAY));
+    // Circles (Phase 37): a request kept past 30 days, and a link naming a deleted account.
+    await db.collection('circle_requests').insertOne({
+      _id: 'req-old',
+      from: 'a',
+      to: 'b',
+      createdAt: old(40 * DAY),
+      expiresAt: new Date(now + DAY),
+      declined: false,
+    } as never);
+    await db.collection('circle_links').insertOne({
+      _id: 'gone-1:gone-2',
+      users: ['gone-1', 'gone-2'],
+      since: old(DAY),
+    } as never);
     // A mailbox key that never expires.
     await server.redis.client().set(`${server.mailbox.redisKeyPrefix}env:forever`, 'x');
 
@@ -94,6 +108,9 @@ describe('retention audit', () => {
     expect(failing(report).sort()).toEqual(
       [
         'attachments: past expiresAt',
+        'circle_links: naming a deleted account',
+        'circle_requests: expiry beyond creation + 30 days',
+        'circle_requests: older than 30 days',
         'email_otps: past expiresAt',
         'pending_envelopes: expiry beyond creation + retention',
         'redis: envelope and lock keys expire within stage + grace',
@@ -103,7 +120,7 @@ describe('retention audit', () => {
     );
     const otp = report.checks.find((check) => check.name === 'email_otps: past expiresAt');
     expect(otp?.worstOverdueSeconds).toBeGreaterThanOrEqual(86_400 - 1);
-    expect(JSON.stringify(report)).not.toMatch(/SECRET-PAYLOAD|otp-old|ciphertext"|forever/);
+    expect(JSON.stringify(report)).not.toMatch(/SECRET-PAYLOAD|otp-old|ciphertext"|forever|gone-1/);
 
     await server.redis.client().del(`${server.mailbox.redisKeyPrefix}env:forever`);
   });

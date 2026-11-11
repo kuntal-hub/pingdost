@@ -8,6 +8,8 @@ export { authApi } from './auth';
 export type { AuthApi } from './auth';
 export { callsApi } from './calls';
 export type { CallsApi } from './calls';
+export { circlesApi } from './circles';
+export type { CirclesApi } from './circles';
 export { createApiClient } from './client';
 export type { ApiClient, ApiClientOptions, HttpMethod, RequestOptions } from './client';
 export { ApiError } from './errors';

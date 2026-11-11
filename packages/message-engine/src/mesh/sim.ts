@@ -40,6 +40,8 @@ export interface SimPhoneOptions {
   persistence?: MemoryMeshPersistence;
   policy?: Partial<MeshPolicy>;
   blocked?: (userId: string) => boolean;
+  /** This phone's circle (Phase 37); undefined: never loaded, nothing dropped. */
+  circle?: (userId: string) => boolean | undefined;
 }
 
 /** One step of a mobility schedule, `at` milliseconds after it starts. */
@@ -95,6 +97,7 @@ export class MeshSim {
     this.server.apiDown = false; // registering needs the server
     const client = await createTestClient(this.server, this.crypto, {
       ...(options.blocked ? { blocked: options.blocked } : {}),
+      ...(options.circle ? { circle: options.circle } : {}),
       ...(process.env.ENGINE_LOG
         ? { log: (level, message, fields) => console.log(name, level, message, fields ?? '') }
         : {}),

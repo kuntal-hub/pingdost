@@ -3,13 +3,15 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 
 import { contactName, rememberContact, type Contact } from '@/chat/contacts';
-import { useChatClient } from '@/chat/store';
+import { circleStateOf, useChat, useChatClient } from '@/chat/store';
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/ui/button';
 import { Alert, Card, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { api, useSession } from '@/session/session';
 import { GROUP_NAME_MAX } from '@pingdost/message-engine';
+
+import { CircleAction } from '../circle/circle-action';
 
 async function lookUp(username: string, self: string | undefined): Promise<Contact> {
   const clean = username.trim().replace(/^@/, '').toLowerCase();
@@ -38,14 +40,22 @@ export function NewChatPage() {
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [found, setFound] = useState<Contact>();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!client) return;
     setBusy(true);
     setError(undefined);
+    setFound(undefined);
     try {
       const contact = await lookUp(username, self);
+      // Only the circle can be messaged (Phase 37): anyone else is asked in first.
+      const state = circleStateOf(useChat.getState().circle, contact.userId);
+      if (state !== undefined && state !== 'member') {
+        setFound(contact);
+        return;
+      }
       const conversation = await client.openDirectConversation(contact.userId);
       void navigate(`/chat/${conversation.conversationId}`);
     } catch (caught) {
@@ -75,6 +85,18 @@ export function NewChatPage() {
             {busy ? 'Looking up…' : 'Start chat'}
           </Button>
         </form>
+        {found && (
+          <div className="flex flex-col items-center gap-3 rounded-xl bg-background p-4">
+            <Avatar url={found.avatarUrl} name={contactName(found)} size={64} />
+            <p className="font-semibold">{contactName(found)}</p>
+            <p className="text-center text-sm text-muted">
+              Only people in your circle can message each other.
+            </p>
+            <div className="w-full">
+              <CircleAction userId={found.userId} name={contactName(found)} />
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

@@ -53,6 +53,8 @@ type Effect = () => void | Promise<void>;
 
 /** What group members may send over Megolm; everything else comes over Olm or not at all. */
 const GROUP_BODIES = new Set<string>(['text', 'attachmentManifest', 'reaction', 'edit', 'delete']);
+/** What a person writes one to one (`undefined`: a body from a newer version). */
+const DIRECT_CONTENT = new Set<string | undefined>([...GROUP_BODIES, undefined]);
 
 /** A key request from one device for one session is answered at most this often. */
 const KEY_ANSWER_INTERVAL_MS = 60_000;
@@ -524,6 +526,9 @@ export class Receiver {
     if (await core.store.hasSeen(checked.messageId)) return [];
     batch.seen!.push({ id: checked.messageId, seenAt: now });
     if (core.isBlocked(checked.senderUserId)) return [];
+    // Circles (Phase 37): direct content from outside the circle is dropped without a receipt.
+    // Receipts, session repair and key changes still pass (group co-members send them).
+    if (!group && DIRECT_CONTENT.has(kind) && core.outsideCircle(checked.senderUserId)) return [];
     if (group) {
       // Over Megolm: only members' messages, edits, deletes and reactions count.
       if (!isMember(group, checked.senderUserId)) return [];

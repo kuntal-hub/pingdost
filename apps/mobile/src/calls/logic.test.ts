@@ -60,6 +60,9 @@ describe('push kind', () => {
     expect(pushKind({ t: 'wake' })).toBe('wake');
     expect(pushKind({ dataString: 'not json' })).toBe('wake');
     expect(pushKind(undefined)).toBe('wake');
+    expect(pushKind({ t: 'circle' })).toBe('circle');
+    expect(pushKind({ data: { dataString: '{"t":"circle"}' } })).toBe('circle');
+    expect(pushKind({ t: 'other' })).toBe('wake');
   });
 });
 

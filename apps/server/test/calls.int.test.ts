@@ -18,7 +18,14 @@ import { PacketFlag, PacketKind } from '@pingdost/protocol';
 import type { TurnCredentialsResponse } from '@pingdost/shared-types';
 
 import { cryptoProvider } from './devices';
-import { bearer, json, registeredUser, startTestServer, type TestServer } from './helpers';
+import {
+  bearer,
+  json,
+  linkUsers,
+  registeredUser,
+  startTestServer,
+  type TestServer,
+} from './helpers';
 import { deviceSession, envelopePacket, TestSocket, type TestDeviceSession } from './ws';
 import { systemClock } from '../src/infra/clock';
 import { FcmSender } from '../src/modules/push/fcm';
@@ -198,6 +205,8 @@ describe('call pushes', () => {
     const alice = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto);
     const carol = await deviceSession(server, crypto);
+    await linkUsers(server, alice, bob);
+    await linkUsers(server, alice, carol);
     await putToken(bob, 'token-call-bob');
     await putToken(carol, 'token-call-carol');
     const socket = await TestSocket.connect(server, alice);
@@ -232,6 +241,7 @@ describe('call pushes', () => {
   it('does not ring for a sender the callee blocked', async () => {
     const alice = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto);
+    await linkUsers(server, alice, bob);
     await putToken(bob, 'token-call-blocker');
     const blocked = await server.app.inject({
       method: 'PUT',

@@ -10,10 +10,13 @@ import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
 import { Text } from '@/components/text';
 import { TextField } from '@/components/text-field';
+import { useCircleState } from '@/engine/circle';
 import { contactName, saveProfile, type Contact } from '@/engine/contacts';
 import { useChatRuntime } from '@/engine/hooks';
 import { ApiError } from '@pingdost/api-client';
 import { UsernameSchema } from '@pingdost/shared-types';
+
+import { CircleAction } from '../circle/circle-action';
 
 function lookupError(error: unknown): string {
   if (error instanceof ApiError) {
@@ -22,6 +25,35 @@ function lookupError(error: unknown): string {
     if (error.kind !== 'http') return 'You seem to be offline. Connect and try again.';
   }
   return 'The lookup did not work. Try again.';
+}
+
+/**
+ * Message someone in the circle; ask anyone else in first (Phase 37: until Phase 38's people
+ * search replaces this exact-username flow).
+ */
+function FoundActions({
+  userId,
+  name,
+  busy,
+  onMessage,
+}: {
+  userId: string;
+  name: string;
+  busy: boolean;
+  onMessage: () => Promise<void>;
+}) {
+  const state = useCircleState(userId);
+  if (state === 'member' || state === undefined) {
+    return <Button label="Message" loading={busy} onPress={() => void onMessage()} />;
+  }
+  return (
+    <View className="w-full gap-2">
+      <Text className="text-center text-muted">
+        Only people in your circle can message each other.
+      </Text>
+      <CircleAction userId={userId} name={name} />
+    </View>
+  );
 }
 
 /** Find someone by their exact username (no search or suggestions), then start the chat. */
@@ -108,7 +140,12 @@ export function NewChatScreen() {
               <Text className="text-muted">@{found.username}</Text>
             )}
           </View>
-          <Button label="Message" loading={busy} onPress={() => void start()} />
+          <FoundActions
+            userId={found.userId}
+            name={contactName(found)}
+            busy={busy}
+            onMessage={start}
+          />
         </View>
       )}
       {!runtime && <Notice message="Chats are starting. One moment…" />}

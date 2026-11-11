@@ -38,7 +38,11 @@ const PROVIDER_TOKEN_MAX_AGE_MS = 50 * 60_000;
 const SESSION_IDLE_MS = 10 * 60_000;
 
 /** The visible text of the constant alerts. */
-export const APNS_ALERT_TEXT = { wake: 'New message', call: 'Incoming call' } as const;
+export const APNS_ALERT_TEXT = {
+  wake: 'New message',
+  call: 'Incoming call',
+  circle: 'Circle update',
+} as const;
 
 export interface ApnsSenderOptions {
   keyId: string;

@@ -4,7 +4,8 @@
  * - every device is revoked (its live socket is told, so the apps wipe themselves; keys,
  *   sessions and push tokens go with it) and its mailbox is emptied;
  * - the account leaves its groups (an owner hands over, as when leaving);
- * - blocks both ways, pending pairing and phone-transfer requests, email codes, sessions,
+ * - blocks and circle links and requests both ways (Phase 37), pending pairing and
+ *   phone-transfer requests, email codes, sessions,
  *   device records, and last the account record itself.
  * The account record goes last, so a failure part-way can be retried with a new code.
  * Not removed here: envelopes this account already sent to other people (they are theirs,
@@ -18,6 +19,7 @@ import type { Clock } from '../../infra/clock';
 import { AppError } from '../../infra/errors';
 import type { AuthCollections } from '../auth/repo';
 import type { AuthService } from '../auth/service';
+import type { CircleService } from '../circles/service';
 import type { DeliveryService } from '../delivery/service';
 import type { PrimaryTransferDoc } from '../device/primary-transfer';
 import type { DeviceCollections } from '../device/repo';
@@ -34,6 +36,7 @@ export interface AccountDeletionDeps {
   deviceService: Pick<DeviceService, 'revokeDevice'>;
   groups: Pick<GroupService, 'list' | 'removeMember'>;
   blocks: Pick<BlockService, 'removeUser'>;
+  circles: Pick<CircleService, 'removeUser'>;
   delivery: Pick<DeliveryService, 'purgeDevice'>;
   pairingRequests: Collection<PairingDoc>;
   primaryTransfers: Collection<PrimaryTransferDoc>;
@@ -71,6 +74,8 @@ export class AccountDeletion {
       });
     }
     await this.d.blocks.removeUser(userId);
+    // Its circle links and requests, both ways (Phase 37).
+    await this.d.circles.removeUser(userId);
     await this.d.pairingRequests.deleteMany({ userId });
     await this.d.primaryTransfers.deleteMany({ userId });
     await this.d.auth.otps.deleteMany({ email: user.email });

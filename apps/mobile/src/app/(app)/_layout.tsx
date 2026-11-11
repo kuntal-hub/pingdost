@@ -82,6 +82,7 @@ function Screens() {
       <Stack.Screen name="search" options={{ title: 'Search' }} />
       <Stack.Screen name="archived" options={{ title: 'Archived chats' }} />
       <Stack.Screen name="contact/[userId]" options={{ title: 'Contact info' }} />
+      <Stack.Screen name="circle" options={{ title: 'Circle' }} />
       <Stack.Screen name="report/[userId]" options={{ title: 'Report' }} />
       <Stack.Screen name="scan/[userId]" options={{ title: 'Scan safety code' }} />
       <Stack.Screen

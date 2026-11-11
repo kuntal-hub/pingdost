@@ -12,7 +12,14 @@ import { Accepted_Status } from '@pingdost/protocol';
 
 import { cryptoProvider } from './devices';
 import { apnsKeyPair, startFakeApns, type FakeApns } from './fake-apns';
-import { bearer, json, registeredUser, startTestServer, type TestServer } from './helpers';
+import {
+  bearer,
+  json,
+  linkUsers,
+  registeredUser,
+  startTestServer,
+  type TestServer,
+} from './helpers';
 import { deviceSession, envelopePacket, TestSocket, type TestDeviceSession } from './ws';
 import { systemClock } from '../src/infra/clock';
 import { ApnsSender } from '../src/modules/push/apns';
@@ -156,6 +163,7 @@ describe('push tokens', () => {
   it('moves a token to the device that registered it last', async () => {
     const old = await deviceSession(server, crypto);
     const reinstalled = await deviceSession(server, crypto);
+    await linkUsers(server, old, reinstalled);
     await putToken(old, 'shared-token');
     await putToken(reinstalled, 'shared-token');
     expect(await tokens().countDocuments({ _id: old.deviceId })).toBe(0);
@@ -181,6 +189,7 @@ describe('push wakes', () => {
   it('wakes an offline recipient with a content-free FCM message', async () => {
     const alice = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto);
+    await linkUsers(server, alice, bob);
     await putToken(bob, 'token-bob');
     const socket = await TestSocket.connect(server, alice);
     const before = fcmBodies.length;
@@ -219,6 +228,8 @@ describe('push wakes', () => {
     const alice = await deviceSession(server, crypto);
     const silent = await deviceSession(server, crypto);
     const gone = await deviceSession(server, crypto);
+    await linkUsers(server, alice, silent);
+    await linkUsers(server, alice, gone);
     deadTokens.add('token-dead');
     await putToken(gone, 'token-dead');
     const socket = await TestSocket.connect(server, alice);
@@ -249,6 +260,7 @@ describe('APNs (iPhone, ADR 0032)', () => {
   it('stores both tokens and the environment, and moves a VoIP token to its new device', async () => {
     const old = await deviceSession(server, crypto);
     const fresh = await deviceSession(server, crypto);
+    await linkUsers(server, old, fresh);
     const put = await putApns(old, {
       token: hex('1'),
       voipToken: hex('2'),
@@ -272,6 +284,7 @@ describe('APNs (iPhone, ADR 0032)', () => {
   it('wakes an offline iPhone with the constant alert, nothing else', async () => {
     const alice = await deviceSession(server, crypto);
     const bob = await deviceSession(server, crypto);
+    await linkUsers(server, alice, bob);
     await putApns(bob, { token: hex('4'), voipToken: hex('5'), environment: 'sandbox' });
     const socket = await TestSocket.connect(server, alice);
     const before = apns.calls.length;
@@ -308,6 +321,7 @@ describe('APNs (iPhone, ADR 0032)', () => {
   it('deletes a token APNs reports as unregistered', async () => {
     const alice = await deviceSession(server, crypto);
     const gone = await deviceSession(server, crypto);
+    await linkUsers(server, alice, gone);
     await putApns(gone, { token: hex('6'), environment: 'production' });
     apns.reply = (call) =>
       call.path.endsWith(hex('6')) ? { status: 410, reason: 'Unregistered' } : { status: 200 };

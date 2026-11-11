@@ -24,7 +24,7 @@ import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { contactName, useContact } from '@/chat/contacts';
 import { useConversation, useGroup, useNames, usePresence } from '@/chat/hooks';
 import { prefsChanged } from '@/chat/start';
-import { useChat, useChatClient } from '@/chat/store';
+import { useChat, useChatClient, useCircleState } from '@/chat/store';
 import { Avatar } from '@/components/avatar';
 import { Button, IconButton } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/controls';
@@ -56,6 +56,7 @@ import { groupName, groupPictureUri } from './format';
 import { AttachmentView } from '../attachments/attachment-view';
 import { SendFileDialog } from '../attachments/send-file-dialog';
 import { CallButtons } from '../calls/call-buttons';
+import { CircleAction } from '../circle/circle-action';
 
 const MAX_TEXT = 4_000;
 const START_INDEX = 1_000_000;
@@ -430,6 +431,9 @@ export function ChatView() {
   const peer = useContact(peerUserId);
   const blocked = peerUserId !== undefined && blockedIds.includes(peerUserId);
   const left = isGroup && group?.left === true;
+  // One to one only within the circle (Phase 37); unknown until the lists load.
+  const circleState = useCircleState(peerUserId);
+  const outside = !isGroup && circleState !== undefined && circleState !== 'member';
   const [replyTo, setReplyTo] = useState<MessageRecord>();
   const [editing, setEditing] = useState<MessageRecord>();
   const [deleting, setDeleting] = useState<MessageRecord>();
@@ -710,7 +714,7 @@ export function ChatView() {
                   last={!continuesRun(item.message, items[index - firstItemIndex + 1])}
                   // Scrolling back to it later must not replay the entrance.
                   fresh={Date.now() - item.message.sortAt < 1_200}
-                  readOnly={blocked || left}
+                  readOnly={blocked || left || outside}
                   actions={actions}
                   attachment={
                     item.message.attachment ? <AttachmentView message={item.message} /> : undefined
@@ -782,6 +786,13 @@ export function ChatView() {
           >
             Unblock
           </Button>
+        </div>
+      ) : outside && peerUserId ? (
+        <div className="m-3 flex flex-col gap-3 rounded-xl bg-surface p-4">
+          {circleState === 'none' && (
+            <p className="text-center text-muted">Add {name} to your circle to message them.</p>
+          )}
+          <CircleAction userId={peerUserId} name={name} />
         </div>
       ) : (
         <Composer

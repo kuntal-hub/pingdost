@@ -35,6 +35,11 @@ export interface KeyServiceDeps {
   claimBudget: Budget;
   /** Called with the devices whose keys were just claimed (the gateway's low-key notice). */
   onClaimed?: (deviceIds: string[]) => void;
+  /**
+   * Whether `userId` may start a session with `ownerUserId`'s devices (Phase 37): in each
+   * other's circle, or co-members of a group.
+   */
+  mayClaim?: (userId: string, ownerUserId: string) => Promise<boolean>;
 }
 
 function isSigned(kind: 'one_time' | 'fallback', device: DeviceDoc, key: SignedKey): boolean {
@@ -168,9 +173,24 @@ export class KeyService {
         throw new AppError('RATE_LIMITED', { retryAfterSeconds: budget.retryAfterSeconds });
       }
     }
-    const devices = await this.d.devices.devices
+    const found = await this.d.devices.devices
       .find({ _id: { $in: unique }, status: 'active' })
       .toArray();
+    // A stranger cannot open a session, so cannot send the first message (Phase 37). Their
+    // devices are named as refused; a claim for strangers only is refused as a whole.
+    const refused = new Set<string>();
+    if (this.d.mayClaim) {
+      for (const owner of new Set(found.map((device) => device.userId))) {
+        if (owner !== auth.userId && !(await this.d.mayClaim(auth.userId, owner))) {
+          refused.add(owner);
+        }
+      }
+    }
+    const devices = found.filter((device) => !refused.has(device.userId));
+    const refusedDeviceIds = found
+      .filter((device) => refused.has(device.userId))
+      .map((device) => device._id);
+    if (devices.length === 0 && refusedDeviceIds.length > 0) throw new AppError('NOT_IN_CIRCLE');
     const keys = await Promise.all(
       devices.map(async (device) => {
         const claimed = await this.d.oneTimeKeys.findOneAndDelete(
@@ -192,6 +212,6 @@ export class KeyService {
     );
     const claimed = keys.filter((key) => key !== undefined);
     this.d.onClaimed?.(claimed.map((key) => key.deviceId));
-    return { keys: claimed };
+    return refusedDeviceIds.length > 0 ? { keys: claimed, refusedDeviceIds } : { keys: claimed };
   }
 }

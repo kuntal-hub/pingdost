@@ -48,6 +48,8 @@ export interface GroupServiceDeps {
   maxMembers: number;
   /** After a change: the group's new version and every user to tell (before and after). */
   onChanged?: (groupId: string, version: number, userIds: string[]) => void;
+  /** Whether two users are in each other's circle (Phase 37): only they may add each other. */
+  inCircle?: (a: string, b: string) => Promise<boolean>;
 }
 
 /** Cached member sets kept at once; beyond this the cache starts over. */
@@ -72,6 +74,8 @@ export function toGroup(doc: GroupDoc): Group {
 export class GroupService {
   readonly #groups: Collection<GroupDoc>;
   readonly #members = new Map<string, ReadonlySet<string>>();
+  /** Sorted user pair → whether they share a group; cleared on every change. */
+  readonly #shared = new Map<string, boolean>();
 
   constructor(private readonly d: GroupServiceDeps) {
     this.#groups = d.db.collection<GroupDoc>('groups');
@@ -84,6 +88,7 @@ export class GroupService {
     }
     if (others.length + 1 > this.d.maxMembers) throw new AppError('GROUP_FULL');
     await this.#requireUsers(others);
+    await this.#requireCircle(callerId, others);
     const now = new Date(this.d.clock.now());
     const doc: GroupDoc = {
       _id: groupId,
@@ -135,6 +140,7 @@ export class GroupService {
         throw new AppError('GROUP_FULL');
       }
       await this.#requireUsers(added);
+      await this.#requireCircle(callerId, added);
       return [
         ...doc.members,
         ...added.map((userId) => ({
@@ -204,6 +210,22 @@ export class GroupService {
   }
 
   /**
+   * Whether the two users are both members of some group (Phase 37): such co-members may
+   * exchange one-to-one envelopes (group receipts, room-key requests, session repair) and
+   * claim each other's keys. Cached per pair and cleared on every group change.
+   */
+  async sharesGroup(a: string, b: string): Promise<boolean> {
+    const key = a < b ? `${a}:${b}` : `${b}:${a}`;
+    const cached = this.#shared.get(key);
+    if (cached !== undefined) return cached;
+    const shared =
+      (await this.#groups.countDocuments({ 'members.userId': { $all: [a, b] } }, { limit: 1 })) > 0;
+    if (this.#shared.size >= MAX_CACHED) this.#shared.clear();
+    this.#shared.set(key, shared);
+    return shared;
+  }
+
+  /**
    * Applies `change` to the current document; `undefined` means nothing changed. Retried when
    * another change won the race. An empty member list deletes the group.
    */
@@ -245,8 +267,19 @@ export class GroupService {
     }
   }
 
+  /** Group members come only from the adder's circle (CHANGES 2026-11-10, item 10). */
+  async #requireCircle(callerId: string, userIds: string[]): Promise<void> {
+    if (!this.d.inCircle) return;
+    for (const userId of userIds) {
+      if (!(await this.d.inCircle(callerId, userId))) {
+        throw new AppError('NOT_IN_CIRCLE', { detail: 'Only people in your circle can be added.' });
+      }
+    }
+  }
+
   #changed(doc: GroupDoc, before: string[]): void {
     this.#members.delete(doc._id);
+    this.#shared.clear();
     const users = new Set([...before, ...doc.members.map((m) => m.userId)]);
     this.d.onChanged?.(doc._id, doc.version, [...users]);
   }

@@ -11,6 +11,8 @@ import { join } from 'node:path';
 
 import type { Db } from 'mongodb';
 
+import { CIRCLE_REQUEST_TTL_DAYS } from '@pingdost/shared-types';
+
 import type { RedisHandle } from '../infra/redis';
 
 export interface RetentionLimits {
@@ -69,6 +71,7 @@ const TTL_COLLECTIONS: [collection: string, field: string][] = [
   ['device_challenges', 'expiresAt'],
   ['security_events', 'expiresAt'],
   ['abuse_reports', 'expiresAt'],
+  ['circle_requests', 'expiresAt'],
   ['users', 'pendingExpiresAt'],
 ];
 
@@ -178,6 +181,39 @@ export async function auditRetention(deps: RetentionDeps): Promise<RetentionRepo
     { expiresAt: { $lt: at(now - limits.attachmentJanitorMs - slack) } },
     'expiresAt',
   );
+
+  // 5b. Circles (Phase 37): requests live at most 30 days; links only while both accounts do.
+  const requestLifeMs = CIRCLE_REQUEST_TTL_DAYS * 86_400_000;
+  await mongoCheck(
+    'circle_requests: older than 30 days',
+    'circle_requests',
+    { createdAt: { $lt: at(now - requestLifeMs - slack) } },
+    'createdAt',
+    requestLifeMs,
+  );
+  const requests = deps.db.collection('circle_requests');
+  checks.push({
+    name: 'circle_requests: expiry beyond creation + 30 days',
+    checked: await requests.estimatedDocumentCount(),
+    violations: await requests.countDocuments({
+      $expr: { $gt: ['$expiresAt', { $add: ['$createdAt', requestLifeMs + slack] }] },
+    }),
+  });
+  const links = deps.db.collection('circle_links');
+  const orphaned = await links
+    .aggregate<{ count: number }>([
+      { $unwind: '$users' },
+      { $lookup: { from: 'users', localField: 'users', foreignField: '_id', as: 'user' } },
+      { $match: { user: { $size: 0 } } },
+      { $group: { _id: '$_id' } },
+      { $count: 'count' },
+    ])
+    .next();
+  checks.push({
+    name: 'circle_links: naming a deleted account',
+    checked: await links.estimatedDocumentCount(),
+    violations: orphaned?.count ?? 0,
+  });
 
   // 6. Staged attachment files: none without a record past the orphan window, none older
   //    than the retention.

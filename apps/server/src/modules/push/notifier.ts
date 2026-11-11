@@ -15,9 +15,15 @@ export interface PushNotifier {
    * push, at most one per device per call-push window. The caller keeps re-sending the invite.
    */
   ring(deviceId: string): void;
+  /** A circle request arrived or was accepted (Phase 37): a content-free `circle` push. */
+  circle(deviceId: string): void;
 }
 
-export const noopPushNotifier: PushNotifier = { wake: () => undefined, ring: () => undefined };
+export const noopPushNotifier: PushNotifier = {
+  wake: () => undefined,
+  ring: () => undefined,
+  circle: () => undefined,
+};
 
 export type SendOutcome =
   | { result: 'sent' }

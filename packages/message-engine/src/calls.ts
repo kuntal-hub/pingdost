@@ -4,7 +4,8 @@
  * never stored there. An invite carries the RING flag, so an offline callee device gets a
  * content-free `call` push and picks up the caller's next copy of it.
  *
- * - Only direct contacts (not this user's own devices, not blocked users) are accepted.
+ * - Only direct contacts (not this user's own devices, not blocked users, and from Phase 37
+ *   only people in the circle) are accepted.
  * - Every signal names the caller's and the callee's device; one whose pair is not the
  *   envelope's sender and this device is dropped, so it cannot be replayed into another call.
  * - The call history is a sealed engine setting on this device only (no server record).
@@ -58,7 +59,7 @@ export class CallSignals {
   /** Encrypts one signal for one device of the contact `userId` and relays it. Never throws. */
   async send(userId: string, deviceId: string, signal: CallSignalData): Promise<SendResult> {
     const { core } = this;
-    if (userId === core.self.userId || core.isBlocked(userId)) {
+    if (userId === core.self.userId || core.isBlocked(userId) || core.outsideCircle(userId)) {
       return { ok: false, code: 'NOT_ALLOWED', retryable: false };
     }
     const self = core.self.deviceId;

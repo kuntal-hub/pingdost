@@ -25,6 +25,8 @@ export interface SecurityRoutesOptions {
   limits: RouteLimits;
   /** After a block or unblock between two users (presence). */
   onBlocksChanged?: (blockerUserId: string, blockedUserId: string) => void;
+  /** Before `onBlocksChanged` for a new block: the circle link and requests go (Phase 37). */
+  onBlocked?: (blockerUserId: string, blockedUserId: string) => Promise<void>;
 }
 
 export const securityRoutes: FastifyPluginCallback<SecurityRoutesOptions> = (
@@ -60,6 +62,7 @@ export const securityRoutes: FastifyPluginCallback<SecurityRoutesOptions> = (
         throw new AppError('NOT_FOUND');
       }
       await blocks.block(userId, blocked);
+      await options.onBlocked?.(userId, blocked);
       options.onBlocksChanged?.(userId, blocked);
       return reply.code(204).send();
     },

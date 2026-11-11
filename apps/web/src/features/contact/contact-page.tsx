@@ -2,18 +2,20 @@
 // contact's phone scans it to verify you), marking them verified after comparing, and blocking.
 import { ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 
 import { contactName, useContact } from '@/chat/contacts';
 import { useSafetyNumber } from '@/chat/hooks';
 import { prefsChanged } from '@/chat/start';
-import { useChat, useChatClient } from '@/chat/store';
+import { useChat, useChatClient, useCircleState } from '@/chat/store';
 import { Avatar } from '@/components/avatar';
 import { QrCode } from '@/components/qr-code';
 import { Button } from '@/components/ui/button';
 import { Alert, Card, CardTitle } from '@/components/ui/card';
 import { api } from '@/session/session';
 import { encodeSafetyQr } from '@pingdost/protocol/safety-number';
+
+import { CircleAction } from '../circle/circle-action';
 
 export function ContactPage() {
   const { userId = '' } = useParams();
@@ -61,6 +63,8 @@ export function ContactPage() {
           Message
         </Button>
       </Card>
+
+      <ContactCircle userId={userId} name={name} />
 
       <Card className="flex flex-col gap-3">
         <CardTitle className="flex items-center gap-2">
@@ -132,5 +136,34 @@ export function ContactPage() {
         </Button>
       </Card>
     </div>
+  );
+}
+
+/** Where this person stands with the circle (Phase 37). */
+function ContactCircle({ userId, name }: { userId: string; name: string }) {
+  const state = useCircleState(userId);
+  if (state === undefined) return null;
+  return (
+    <Card className="flex flex-col gap-3">
+      <CardTitle>Circle</CardTitle>
+      {state === 'member' ? (
+        <p className="text-muted">
+          {name} is in your circle. You can message and call each other. Remove them in{' '}
+          <Link to="/circle" className="text-accent underline">
+            Circle
+          </Link>
+          .
+        </p>
+      ) : (
+        <>
+          {state === 'none' && (
+            <p className="text-muted">
+              {name} is not in your circle. Only people in your circle can message or call you.
+            </p>
+          )}
+          <CircleAction userId={userId} name={name} />
+        </>
+      )}
+    </Card>
   );
 }

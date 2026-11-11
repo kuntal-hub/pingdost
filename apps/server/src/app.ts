@@ -84,6 +84,8 @@ import { pushTokenIndexes, PushTokens } from './modules/push/repo';
 import { pushRoutes } from './modules/push/routes';
 import { PushService } from './modules/push/service';
 import { blockIndexes, BlockService } from './modules/security/blocks';
+import { circleRoutes } from './modules/circles/routes';
+import { circleIndexes, CircleService } from './modules/circles/service';
 import { securityEventIndexes, SecurityEvents } from './modules/security/events';
 import { reportIndexes, ReportService } from './modules/security/reports';
 import { securityRoutes } from './modules/security/routes';
@@ -122,6 +124,7 @@ export const INDEXES: readonly IndexSetup[] = [
   pendingEnvelopeIndexes,
   securityEventIndexes,
   blockIndexes,
+  circleIndexes,
   reportIndexes,
   pushTokenIndexes,
   groupIndexes,
@@ -267,6 +270,8 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     oneTimeKeys: otks,
     clock,
     claimBudget: throttles.keyClaims,
+    mayClaim: async (userId, owner) =>
+      (await circles.inCircle(userId, owner)) || groups.sharesGroup(userId, owner),
     onClaimed: (deviceIds) => {
       for (const deviceId of deviceIds) {
         void registry
@@ -277,11 +282,37 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     },
   });
   const blocks = new BlockService(db, clock);
+  // A content-free `circle` push to the user's devices that are not connected (Phase 37).
+  const pushCircle = (userId: string): void => {
+    void devices.devices
+      .find({ userId, status: 'active' }, { projection: { _id: 1 } })
+      .toArray()
+      .then((owned) => {
+        for (const device of owned) {
+          if (!registry.get(device._id)) wakes.circle(device._id);
+        }
+      })
+      .catch((error: unknown) => deps.logger.warn({ err: error }, 'circle push failed'));
+  };
+  const circles = new CircleService({
+    db,
+    users: collections.users,
+    clock,
+    requestBudget: throttles.circleRequests,
+    isBlocked: (blocker, userId) => blocks.isBlocked(blocker, userId),
+    onChanged: (userId, other) => {
+      for (const connection of registry.forUser(userId)) connection.notifyCircleChanged(other);
+      void presence.blocksChanged(userId, other).catch(() => undefined);
+    },
+    onRequested: (to) => pushCircle(to),
+    onAccepted: (requester) => pushCircle(requester),
+  });
   const groups = new GroupService({
     db,
     users: collections.users,
     clock,
     maxMembers: config.GROUP_MAX_MEMBERS,
+    inCircle: (a, b) => circles.inCircle(a, b),
     onChanged: (groupId, version, userIds) => {
       for (const userId of userIds) {
         for (const connection of registry.forUser(userId)) {
@@ -317,13 +348,16 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     },
     isBlocked: (blockerUserId, userId) => blocks.isBlocked(blockerUserId, userId),
     isGroupMember: (groupId, userId) => groups.isMember(groupId, userId),
+    inCircle: (a, b) => circles.inCircle(a, b),
+    sharesGroup: (a, b) => groups.sharesGroup(a, b),
     quota: new MailboxQuota(throttles, clock),
   });
   const presence = new PresenceHub<Connection>({
     sharesPresence: async (userId) =>
       (await collections.users.findOne({ _id: userId }, { projection: { privacy: 1 } }))?.privacy
         .lastSeen ?? false,
-    blocked: (a, b) => blocks.eitherBlocked(a, b),
+    // Hidden both ways: a block, or no circle link (Phase 37).
+    blocked: async (a, b) => (await blocks.eitherBlocked(a, b)) || !(await circles.inCircle(a, b)),
     now: () => clock.now(),
   });
   const authenticate = createAuthGuard(tokens, collections, clock, (deviceId) =>
@@ -340,6 +374,7 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     deviceService,
     groups,
     blocks,
+    circles,
     delivery,
     pairingRequests: pairingRequests(db),
     primaryTransfers: primaryTransfers(db),
@@ -404,8 +439,10 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     users: collections.users,
     authenticate,
     limits,
+    onBlocked: (a, b) => circles.sever(a, b),
     onBlocksChanged: (a, b) => void presence.blocksChanged(a, b).catch(() => undefined),
   });
+  await app.register(circleRoutes, { circles, authenticate, limits });
   await app.register(pushRoutes, { tokens: pushTokens, authenticate, limits });
   await app.register(groupRoutes, { groups, authenticate, limits });
   await app.register(callRoutes, {
@@ -451,6 +488,8 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
       registry,
       presence,
       blocks,
+      circles,
+      groups,
     },
   });
   await app.register(metricsRoutes, { metrics, token: config.METRICS_TOKEN, limits });

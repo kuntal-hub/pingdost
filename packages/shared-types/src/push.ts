@@ -51,6 +51,8 @@ export type PushTokenRequest = z.infer<typeof PushTokenRequestSchema>;
  * when the invite arrives. No caller, no SDP. Nothing else may be added. (On iOS the APNs
  * request adds a constant `aps` dictionary around it so iOS shows "New message"; ADR 0032.)
  */
-export type PushPayload = { t: 'wake' } | { t: 'call' };
+export type PushPayload = { t: 'wake' } | { t: 'call' } | { t: 'circle' };
 export const PUSH_WAKE: PushPayload = Object.freeze({ t: 'wake' });
 export const PUSH_CALL: PushPayload = Object.freeze({ t: 'call' });
+/** A circle request arrived or was accepted (Phase 37): the app fetches the lists itself. */
+export const PUSH_CIRCLE: PushPayload = Object.freeze({ t: 'circle' });

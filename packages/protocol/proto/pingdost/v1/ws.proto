@@ -41,6 +41,7 @@ message ServerFrame {
     Pong pong = 11;
     GroupChanged group_changed = 12;
     PrimaryTransferRequested primary_transfer_requested = 13;
+    CircleChanged circle_changed = 14;
   }
 }
 
@@ -57,6 +58,14 @@ message GroupChanged {
 message PrimaryTransferRequested {
   bytes request_id = 1;
   int64 expires_at_ms = 2;
+}
+
+// This account's circle or its circle requests changed (Phase 37, ADR 0041): a request came,
+// was accepted, declined, withdrawn or expired, or a link was removed. Clients refetch the
+// lists. Sent to the account's online devices; a decline reaches only the decliner's own.
+message CircleChanged {
+  // The other person.
+  bytes user_id = 1;
 }
 
 // The first frame on a connection.

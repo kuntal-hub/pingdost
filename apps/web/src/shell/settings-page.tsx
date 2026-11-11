@@ -2,7 +2,7 @@
 // notifications, history from the phone, storage (the attachment cache), what this browser is,
 // how its storage compares to the phone's, keyboard shortcuts, and "Unlink this browser",
 // which revokes it and deletes its PingDost data.
-import { ChevronRight, Palette } from 'lucide-react';
+import { ChevronRight, Palette, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -50,6 +50,7 @@ export const SHORTCUTS: { keys: string; action: string }[] = [
 export function SettingsPage() {
   const device = useSession((state) => state.device);
   const privacy = useChat((state) => state.privacy);
+  const requests = useChat((state) => state.circle?.incoming.length ?? 0);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -83,6 +84,23 @@ export function SettingsPage() {
         <span className="flex-1">
           <span className="block font-display text-xl font-extrabold">Appearance</span>
           <span className="block text-sm">Colors, wallpaper, bubbles, fonts and more</span>
+        </span>
+        <ChevronRight aria-hidden size={22} />
+      </Link>
+      <Link
+        to="/circle"
+        className="pd-card pd-press flex items-center gap-4 rounded-2xl p-4 hover:bg-raised"
+      >
+        <span className="flex size-12 items-center justify-center rounded-xl bg-accent/15 text-accent">
+          <Users aria-hidden size={24} />
+        </span>
+        <span className="flex-1">
+          <span className="block font-display text-xl font-extrabold">Circle</span>
+          <span className="block text-sm text-muted">
+            {requests > 0
+              ? `${requests} request${requests === 1 ? '' : 's'} waiting`
+              : 'Who can message and call you'}
+          </span>
         </span>
         <ChevronRight aria-hidden size={22} />
       </Link>

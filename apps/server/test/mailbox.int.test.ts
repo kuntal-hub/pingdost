@@ -12,7 +12,7 @@ import type { CryptoProvider } from '@pingdost/crypto';
 import { Accepted_Status } from '@pingdost/protocol';
 
 import { cryptoProvider } from './devices';
-import { startTestServer, type TestServer } from './helpers';
+import { linkUsers, startTestServer, type TestServer } from './helpers';
 import { deviceSession, envelopePacket, TestSocket, type TestDeviceSession } from './ws';
 import { Metrics } from '../src/infra/metrics';
 import { MailboxMigrator, MailboxReaper } from '../src/modules/delivery/jobs';
@@ -124,6 +124,7 @@ async function gone(envelopeId: string, recipient: string, target = server) {
 async function senderAndOfflineRecipient(target = server) {
   const alice = await deviceSession(target, crypto);
   const bob = await deviceSession(target, crypto);
+  await linkUsers(target, alice, bob);
   return { alice, bob, socket: await TestSocket.connect(target, alice) };
 }
 
@@ -411,6 +412,7 @@ describe('mailbox without Redis (REQ §19.2, scenario 8)', () => {
     try {
       const alice = await deviceSession(nothing, crypto);
       const bob = await deviceSession(nothing, crypto);
+      await linkUsers(nothing, alice, bob);
       const socket = await TestSocket.connect(nothing, alice);
       const { packet } = envelopePacket(nothing, alice.deviceId, bob.deviceId);
       expect(await socket.reply(socket.sendPacket(packet), 10_000)).toMatchObject({

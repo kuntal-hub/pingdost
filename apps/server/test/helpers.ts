@@ -228,3 +228,28 @@ export async function registeredUser(
 export function bearer(accessToken: string): { authorization: string } {
   return { authorization: `Bearer ${accessToken}` };
 }
+
+/**
+ * Puts two users in each other's circle through the API (Phase 37): `a` asks, `b` accepts.
+ * One-to-one envelopes, key claims, calls, typing and group adds need it.
+ */
+export async function linkUsers(
+  server: TestServer,
+  a: { userId: string; accessToken: string },
+  b: { userId: string; accessToken: string },
+): Promise<void> {
+  const asked = await server.app.inject({
+    method: 'POST',
+    url: '/v1/circle/requests',
+    headers: bearer(a.accessToken),
+    payload: { userId: b.userId },
+  });
+  if (asked.statusCode !== 200) throw new Error(`circle request failed: ${asked.body}`);
+  if (json<{ status: string }>(asked).status === 'linked') return;
+  const accepted = await server.app.inject({
+    method: 'POST',
+    url: `/v1/circle/requests/${a.userId}/accept`,
+    headers: bearer(b.accessToken),
+  });
+  if (accepted.statusCode !== 204) throw new Error(`circle accept failed: ${accepted.body}`);
+}

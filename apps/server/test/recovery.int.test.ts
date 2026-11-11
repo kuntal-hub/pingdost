@@ -352,6 +352,7 @@ describe('path (b): restore from a backup with an email code', () => {
     const alice = await SimClient.register(options());
     const bob = await SimClient.register(options());
     clients.push(alice, bob);
+    await alice.linkWith(bob);
     await alice.start();
     await bob.start();
     const { conversationId } = await alice.engine.openDirectConversation(bob.userId);
@@ -501,6 +502,7 @@ describe('path (c): start fresh', () => {
     const alice = await SimClient.register(options());
     const carol = await SimClient.register(options());
     clients.push(alice, carol);
+    await alice.linkWith(carol);
     await alice.start();
     await carol.start();
     const { conversationId } = await alice.engine.openDirectConversation(carol.userId);

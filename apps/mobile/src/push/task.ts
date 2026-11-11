@@ -7,6 +7,7 @@ import * as TaskManager from 'expo-task-manager';
 import { pushKind } from '@/calls/logic';
 import { handleCallWake } from '@/calls/wake';
 
+import { handleCircleWake } from './circle';
 import { handleWake } from './wake';
 
 export const PUSH_WAKE_TASK = 'pingdost-push-wake';
@@ -16,9 +17,12 @@ TaskManager.defineTask<Notifications.NotificationTaskPayload>(PUSH_WAKE_TASK, as
   if (!data || 'actionIdentifier' in data) {
     return Notifications.BackgroundNotificationTaskResult.NoData;
   }
-  // Our server sends only `{"t":"wake"}` (fetch the mailbox) or `{"t":"call"}` (an E2EE call
-  // invite is waiting, ADR 0029); neither carries anything else.
-  if (pushKind(data) === 'call') await handleCallWake();
+  // Our server sends only `{"t":"wake"}` (fetch the mailbox), `{"t":"call"}` (an E2EE call
+  // invite is waiting, ADR 0029) or `{"t":"circle"}` (a circle request or accept, Phase 37);
+  // none carries anything else.
+  const kind = pushKind(data);
+  if (kind === 'call') await handleCallWake();
+  else if (kind === 'circle') await handleCircleWake();
   else await handleWake();
   return Notifications.BackgroundNotificationTaskResult.NewData;
 });

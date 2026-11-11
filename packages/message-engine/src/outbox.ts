@@ -171,10 +171,16 @@ export class Outbox {
     }
     if (ready.length === 0 || this.#stopped) return;
     // Nearby or the mesh means no Internet: no key claim, the cached fallback key instead.
-    const keys = await this.#claimKeys(ready.filter((item) => !offline(routes.get(item.id))));
+    const { keys, refused } = await this.#claimKeys(
+      ready.filter((item) => !offline(routes.get(item.id))),
+    );
     await pool(ready, core.settings.maxInflight, async (item) => {
       if (this.#stopped) return;
       try {
+        if (refused.has(item.recipientDeviceId)) {
+          await this.#refused(item);
+          return;
+        }
         await this.#send(item, keys, routes.get(item.id) ?? 'internet');
       } catch (error) {
         core.log('error', 'outbox item failed', { error: String(error) });
@@ -694,8 +700,13 @@ export class Outbox {
     return directory?.devices.find((d) => d.deviceId === item.recipientDeviceId);
   }
 
-  /** One signature-checked key per device that has no session yet (one claim call per 100). */
-  async #claimKeys(items: DeviceItem[]): Promise<Map<string, string>> {
+  /**
+   * One signature-checked key per device that has no session yet (one claim call per 100).
+   * `refused`: devices of people outside this user's circle (Phase 37); nothing goes to them.
+   */
+  async #claimKeys(
+    items: DeviceItem[],
+  ): Promise<{ keys: Map<string, string>; refused: Set<string> }> {
     const { core } = this;
     const needed = new Map<string, DirectoryDeviceRecord>();
     for (const item of items) {
@@ -707,12 +718,13 @@ export class Outbox {
       needed.set(device.deviceId, device);
     }
     const keys = new Map<string, string>();
+    const refused = new Set<string>();
     const ids = [...needed.keys()];
     for (let start = 0; start < ids.length; start += MAX_CLAIM_DEVICES) {
+      const chunk = ids.slice(start, start + MAX_CLAIM_DEVICES);
       try {
-        const { keys: claimed } = await core.options.api.claim(
-          ids.slice(start, start + MAX_CLAIM_DEVICES),
-        );
+        const { keys: claimed, refusedDeviceIds } = await core.options.api.claim(chunk);
+        for (const id of refusedDeviceIds ?? []) refused.add(id);
         for (const entry of claimed) {
           const device = needed.get(entry.deviceId);
           if (!device) continue;
@@ -723,10 +735,24 @@ export class Outbox {
           }
         }
       } catch (error) {
-        core.log('warn', 'key claim failed', { code: errorCode(error) ?? 'network' });
+        const code = errorCode(error);
+        if (code === 'NOT_IN_CIRCLE') for (const id of chunk) refused.add(id);
+        else core.log('warn', 'key claim failed', { code: code ?? 'network' });
       }
     }
-    return keys;
+    return { keys, refused };
+  }
+
+  /** The server will not take it (outside the circle): failed, and not tried again. */
+  async #refused(item: DeviceItem): Promise<void> {
+    const { core } = this;
+    await core.mutex.run(async () => {
+      const stored = await core.store.getOutboxItem(item.id);
+      if (stored?.type !== 'device') return;
+      const batch: WriteBatch = { deleteOutbox: [item.id] };
+      await this.#moveDelivery(batch, stored, 'failed', core.now());
+      await core.commit(batch);
+    });
   }
 
   async #send(item: DeviceItem, keys: Map<string, string>, route: Route): Promise<void> {

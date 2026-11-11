@@ -173,6 +173,13 @@ export interface EngineOptions {
    * drops the rest) is dropped unread, without a receipt. Typing from them is ignored.
    */
   blocked?: (userId: string) => boolean;
+  /**
+   * Whether `userId` is in this user's circle (Phase 37, ADR 0041); `undefined` while the list
+   * has never been loaded on this device (then nothing is dropped: the server checks too).
+   * One-to-one content from outside the circle is dropped unread, without a receipt; it is the
+   * only check on nearby and mesh routes, where no server is involved.
+   */
+  circle?: (userId: string) => boolean | undefined;
   /** History sync with this user's other devices (ADR 0021). */
   historySync?: HistorySyncOptions;
   log?: EngineLogger;
@@ -311,6 +318,11 @@ export class EngineCore {
 
   isBlocked(userId: string): boolean {
     return userId !== this.self.userId && (this.options.blocked?.(userId) ?? false);
+  }
+
+  /** Outside the circle: a known list that does not hold `userId` (Phase 37). */
+  outsideCircle(userId: string): boolean {
+    return userId !== this.self.userId && this.options.circle?.(userId) === false;
   }
 
   subscribe(conversationId: string, listener: (event: ConversationEvent) => void): () => void {

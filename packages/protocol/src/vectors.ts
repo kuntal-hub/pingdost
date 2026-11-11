@@ -576,6 +576,11 @@ export function createVectors(): ProtocolVectors {
         value: { requestId: GROUP, expiresAtMs: BigInt(NOW_MS + 600_000) },
       }),
     ),
+    vector(
+      'server-frame/circle-changed',
+      ServerFrameSchema,
+      serverFrame({ case: 'circleChanged', value: { userId: USER_B } }),
+    ),
   ];
 
   return { protocolVersion: PROTOCOL_VERSION, nowMs: NOW_MS, vectors };
