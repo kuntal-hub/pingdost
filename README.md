@@ -2,6 +2,7 @@
 
 **PingDost** ([pingdost.com](https://pingdost.com)) is a privacy-first, offline-capable messenger:
 
+
 - end-to-end encrypted 1:1 and group chat, plus encrypted attachments;
 - local-first history, where your phone is the primary device;
 - nearby messaging over Bluetooth, with opt-in multi-hop mesh relay;
