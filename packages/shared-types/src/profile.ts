@@ -20,6 +20,11 @@ export const PrivacyPrefsSchema = z.object({
   deliveryReceipts: z.boolean(),
   typingIndicators: z.boolean(),
   lastSeen: z.boolean(),
+  /** People search (Phase 38) may find this account by username or name prefix. Exact
+   *  usernames always work. */
+  findByName: z.boolean().default(true),
+  /** People search may find this account by its whole email address (never shown). */
+  findByEmail: z.boolean().default(true),
 });
 export type PrivacyPrefs = z.infer<typeof PrivacyPrefsSchema>;
 

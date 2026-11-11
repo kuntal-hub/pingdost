@@ -1,52 +1,63 @@
-import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+// Picks group members (Phase 38, ADR 0042): only people in the circle (Phase 37: the server
+// refuses anyone else), matched on this phone on every keystroke by name and username. A whole
+// email address goes through the server search and keeps only circle members. Several at once;
+// people already in the group show as members and cannot be picked.
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { api } from '@/api';
 import { Avatar } from '@/components/avatar';
-import { Button } from '@/components/button';
 import { CheckMark } from '@/components/controls';
-import { Text } from '@/components/text';
-import { TextField } from '@/components/text-field';
-import { contactName, saveProfile } from '@/engine/contacts';
-import { useChatRuntime, useContact, useConversations } from '@/engine/hooks';
-import { ApiError } from '@pingdost/api-client';
-import { UsernameSchema } from '@pingdost/shared-types';
+import { Icon, SearchIcon, XIcon } from '@/components/icon';
+import { Tap } from '@/components/tap';
+import { Text, TextInput } from '@/components/text';
+import { useCircle } from '@/engine/circle';
+import { personName } from '@/engine/circle-logic';
+import { isWholeEmail, matchesPerson, togglePicked } from '@pingdost/chat-core';
+import type { CirclePerson } from '@pingdost/shared-types';
 
 function Person({
-  userId,
+  person,
   selected,
+  member,
   onToggle,
 }: {
-  userId: string;
+  person: CirclePerson;
   selected: boolean;
+  /** Already in the group. */
+  member: boolean;
   onToggle: () => void;
 }) {
-  const contact = useContact(userId);
-  const name = contactName(contact);
+  const name = personName(person);
   return (
     <Pressable
       accessibilityRole="checkbox"
-      accessibilityState={{ checked: selected }}
-      accessibilityLabel={name}
+      accessibilityState={{ checked: selected || member, disabled: member }}
+      accessibilityLabel={member ? `${name}, already in the group` : name}
+      disabled={member}
       onPress={onToggle}
-      className="min-h-[60px] flex-row items-center gap-3 rounded-xl px-3 py-2 active:bg-raised"
+      className={`min-h-[60px] flex-row items-center gap-3 px-4 py-2 active:bg-raised ${
+        member ? 'opacity-60' : ''
+      }`}
     >
-      <Avatar url={contact?.avatarUrl} name={name} size={40} />
+      <Avatar url={person.avatarUrl} name={name} size={40} />
       <View className="flex-1">
-        <Text className="text-base font-bold text-foreground">{name}</Text>
-        {contact?.displayName && contact.username && (
-          <Text className="text-muted">@{contact.username}</Text>
-        )}
+        <Text numberOfLines={1} className="text-base font-bold text-foreground">
+          {name}
+        </Text>
+        <Text numberOfLines={1} className="text-muted">
+          {member
+            ? 'Already in the group'
+            : person.displayName && person.username
+              ? `@${person.username}`
+              : ''}
+        </Text>
       </View>
-      <CheckMark checked={selected} />
+      <CheckMark checked={selected || member} />
     </Pressable>
   );
 }
 
-/**
- * Picks people for a group: those this user already chats with, plus anyone added by exact
- * username (PingDost has no people search). `exclude`: current members.
- */
 export function MemberPicker({
   selected,
   onChange,
@@ -54,91 +65,103 @@ export function MemberPicker({
 }: {
   selected: string[];
   onChange: (userIds: string[]) => void;
+  /** Current members: shown, not pickable. */
   exclude?: string[];
 }) {
-  const runtime = useChatRuntime();
-  const { entries } = useConversations();
-  const [extra, setExtra] = useState<string[]>([]);
-  const [username, setUsername] = useState('');
-  const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState(false);
+  const members = useCircle((state) => state.members);
+  const [query, setQuery] = useState('');
+  const [byEmail, setByEmail] = useState<CirclePerson[]>([]);
 
-  const known = entries
-    .filter((e) => e.conversation.kind === 'direct')
-    .map((e) => e.conversation.peerUserId);
-  const people = [...new Set([...extra, ...known])].filter(
-    (id) => id !== runtime?.userId && !exclude.includes(id),
-  );
+  useEffect(() => {
+    void useCircle
+      .getState()
+      .load()
+      .catch(() => undefined);
+  }, []);
 
-  function toggle(userId: string) {
-    onChange(
-      selected.includes(userId) ? selected.filter((id) => id !== userId) : [...selected, userId],
-    );
-  }
+  // A whole email: the server finds the address; only circle members can be added.
+  useEffect(() => {
+    setByEmail([]);
+    if (!isWholeEmail(query)) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      api.account
+        .searchUsers(query.trim(), controller.signal)
+        .then((results) => setByEmail(results.filter((r) => r.circle === 'member')))
+        .catch(() => undefined);
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
 
-  async function add() {
-    setError(undefined);
-    const parsed = UsernameSchema.safeParse(username.replace(/^@/, ''));
-    if (!parsed.success) {
-      setError('Usernames are 3–20 letters, digits, _ or .');
-      return;
-    }
-    setBusy(true);
-    try {
-      const profile = await api.account.lookupUsername(parsed.data);
-      if (profile.userId === runtime?.userId) {
-        setError("That's you.");
-      } else if (exclude.includes(profile.userId)) {
-        setError('They are already in the group.');
-      } else {
-        await saveProfile(profile);
-        setExtra((current) => [profile.userId, ...current.filter((id) => id !== profile.userId)]);
-        if (!selected.includes(profile.userId)) onChange([...selected, profile.userId]);
-        setUsername('');
-      }
-    } catch (caught) {
-      setError(
-        caught instanceof ApiError && caught.code === 'NOT_FOUND'
-          ? 'No one has that username. Check the spelling.'
-          : 'The lookup did not work. Try again.',
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
+  const shown = useMemo(() => {
+    const local = members.filter((member) => matchesPerson(member, query));
+    const seen = new Set(local.map((m) => m.userId));
+    return [...local, ...byEmail.filter((p) => !seen.has(p.userId))];
+  }, [members, query, byEmail]);
+  const picked = selected
+    .map((id) => members.find((m) => m.userId === id) ?? byEmail.find((p) => p.userId === id))
+    .filter((p): p is CirclePerson => p !== undefined);
+
+  const toggle = (userId: string) => onChange(togglePicked(selected, userId));
 
   return (
     <View className="gap-3">
-      <View className="flex-row items-end gap-2">
-        <View className="flex-1">
-          <TextField
-            label="Add by username"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="off"
-            returnKeyType="search"
-            onSubmitEditing={() => void add()}
-            {...(error ? { error } : {})}
-          />
-        </View>
-        <View className={error ? 'mb-6' : ''}>
-          <Button label="Add" variant="secondary" loading={busy} onPress={() => void add()} />
-        </View>
+      {picked.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerClassName="gap-2"
+          accessibilityLabel={`${picked.length} picked`}
+        >
+          {picked.map((person) => (
+            <Tap
+              key={person.userId}
+              accessibilityLabel={`Remove ${personName(person)}`}
+              feedback="selection"
+              onPress={() => toggle(person.userId)}
+              className="min-h-[40px] flex-row items-center gap-2 rounded-full bg-accent/15 pl-1 pr-3"
+            >
+              <Avatar url={person.avatarUrl} name={personName(person)} size={30} />
+              <Text numberOfLines={1} className="max-w-[140px] font-semibold text-foreground">
+                {personName(person)}
+              </Text>
+              <Icon icon={XIcon} size={16} color="accent" />
+            </Tap>
+          ))}
+        </ScrollView>
+      )}
+      <View className="h-[48px] flex-row items-center gap-2 rounded-xl bg-surface px-4">
+        <Icon icon={SearchIcon} size={18} color="muted" />
+        <TextInput
+          accessibilityLabel="Search your circle"
+          placeholder="Search your circle, or a whole email"
+          value={query}
+          onChangeText={setQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="off"
+          className="flex-1 text-base text-foreground"
+        />
       </View>
-      {people.length === 0 ? (
+      {members.length === 0 ? (
         <Text className="text-muted">
-          People you chat with appear here. Add others by their exact username.
+          Only people in your circle can be added to a group. Add people to your circle from the +
+          on the Chats tab.
         </Text>
+      ) : shown.length === 0 ? (
+        <Text className="text-muted">No one in your circle matches “{query}”.</Text>
       ) : (
         <View className="overflow-hidden rounded-lg border border-border bg-surface">
-          {people.map((userId) => (
+          {shown.map((person) => (
             <Person
-              key={userId}
-              userId={userId}
-              selected={selected.includes(userId)}
-              onToggle={() => toggle(userId)}
+              key={person.userId}
+              person={person}
+              member={exclude.includes(person.userId)}
+              selected={selected.includes(person.userId)}
+              onToggle={() => toggle(person.userId)}
             />
           ))}
         </View>

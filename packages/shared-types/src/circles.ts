@@ -57,3 +57,25 @@ export const SendCircleRequestResponseSchema = z.object({
   status: z.enum(['requested', 'linked']),
 });
 export type SendCircleRequestResponse = z.infer<typeof SendCircleRequestResponseSchema>;
+
+/** How a person relates to the caller's circle (Phase 38 search results). */
+export const CircleStateSchema = z.enum(['member', 'requested', 'incoming', 'none']);
+export type CircleState = z.infer<typeof CircleStateSchema>;
+
+/** People search (Phase 38, ADR 0042): from this many characters. */
+export const USER_SEARCH_MIN = 2;
+/** At most this many results. */
+export const USER_SEARCH_LIMIT = 10;
+
+// GET /v1/users/search?q=
+export const UserSearchQuerySchema = z.object({
+  q: z.string().trim().min(USER_SEARCH_MIN).max(254),
+});
+/** Never an email: a match by email shows only the public profile. */
+export const UserSearchResultSchema = CirclePersonSchema.extend({
+  username: UsernameSchema,
+  circle: CircleStateSchema,
+});
+export type UserSearchResult = z.infer<typeof UserSearchResultSchema>;
+export const UserSearchResponseSchema = z.object({ results: z.array(UserSearchResultSchema) });
+export type UserSearchResponse = z.infer<typeof UserSearchResponseSchema>;

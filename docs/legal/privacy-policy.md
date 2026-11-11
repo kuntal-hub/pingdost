@@ -20,7 +20,7 @@
 
 | Data | Why | How long |
 |---|---|---|
-| Account: username, email address, password hash (if you use a password), Google account ID (if you sign in with Google), display name, privacy settings, profile picture link | To run your account | Until you delete your account |
+| Account: username, email address, password hash (if you use a password), Google account ID (if you sign in with Google), display name (and a lower-case copy of its words for people search), privacy settings, profile picture link | To run your account; people search | Until you delete your account |
 | Devices: device ID, type (Android/web), name, public keys, linked/revoked state | So others can encrypt to your devices, and you can manage them | While your account exists; a removed device is kept as "revoked" (so it cannot come back) and its one-time keys are deleted |
 | Sessions (sign-in tokens, stored hashed) | Keeping you signed in | 30 days after last use |
 | Encrypted messages waiting for an offline device | Delivery | Until the device confirms delivery; at most **14 days** from sending |
@@ -71,7 +71,7 @@ Calls are end-to-end encrypted (WebRTC). When a direct connection is not possibl
 We do not sell data, show ads, or use analytics.
 
 ## 8. Your choices and rights
-You can: see and revoke linked devices; turn off read receipts, last seen and typing indicators; turn Nearby and relaying on or off; accept, decline or withdraw circle requests and remove people from your circle; block people; export a backup; ask for your account data or its deletion at **[email]**. **[Add the rights that apply in your jurisdiction (e.g. India's DPDP Act 2023, the EU GDPR) and how to complain to the regulator.]**
+You can: see and revoke linked devices; turn off read receipts, last seen and typing indicators; turn Nearby and relaying on or off; accept, decline or withdraw circle requests and remove people from your circle; turn off being found by name or by email (Settings → Privacy; your exact username always works, and your email is never shown to anyone); block people; export a backup; ask for your account data or its deletion at **[email]**. **[Add the rights that apply in your jurisdiction (e.g. India's DPDP Act 2023, the EU GDPR) and how to complain to the regulator.]**
 
 ## 9. Children
 PingDost is not meant for children under **[13/16/18, per the law where you offer it]**.

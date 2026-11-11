@@ -27,6 +27,8 @@ export interface ThrottleSettings {
   phoneReplacements: Budget;
   /** New circle requests per account (Phase 37). */
   circleRequests: Budget;
+  /** People searches per account (Phase 38): debounced typing, a few Mongo reads each. */
+  peopleSearches: Budget;
   /**
    * Envelopes one account may leave in the mailbox for one recipient device (the offline
    * path; online deliveries are not counted). Phase 27: bounds never-delivered queues.
@@ -46,6 +48,7 @@ export const DEFAULT_THROTTLES: ThrottleSettings = {
   keyClaims: { limit: 500, windowMs: HOUR_MS },
   phoneReplacements: { limit: 10, windowMs: HOUR_MS },
   circleRequests: { limit: CIRCLE_REQUESTS_PER_DAY, windowMs: DAY_MS },
+  peopleSearches: { limit: 60, windowMs: MINUTE_MS },
   // Generous for people (messages, receipts, edits and group fan-out to offline devices);
   // one account can then hold at most about 14 × 32 MiB in the 14-day mailbox.
   storedPerRecipientDevice: { limit: 5_000, windowMs: DAY_MS },

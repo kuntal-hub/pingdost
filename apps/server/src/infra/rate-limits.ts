@@ -43,6 +43,7 @@ export const DEFAULT_ROUTE_LIMITS = {
   blocksList: { max: 120, timeWindow: 15 * MINUTE },
   blocksChange: { max: 60, timeWindow: 15 * MINUTE },
   circleRead: { max: 300, timeWindow: 15 * MINUTE },
+  userSearch: { max: 600, timeWindow: 15 * MINUTE },
   circleChange: { max: 120, timeWindow: 15 * MINUTE },
   reports: { max: 10, timeWindow: HOUR },
   pushToken: { max: 30, timeWindow: 15 * MINUTE },

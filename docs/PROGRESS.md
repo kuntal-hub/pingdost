@@ -17,6 +17,15 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-11 — Phase 38: Find people and pick group members — 🔄 partial (code done, checks pass; phone check next)
+Started with Phase 37 still 🔄 (only its two-phone check is open).
+
+**Done (ADR 0042):** `GET /v1/users/search?q=` (username and folded name-word prefixes from 2 characters, whole email only, 10 results with circle state, never an email, blocked/unverified/deleted excluded, `findByName` / `findByEmail` privacy settings, 60 searches/min per account); `users.searchWords` with index and start-up back-fill; phone and web new chat (circle members matched on the device at once, server results after 300 ms, stale answers dropped; Message / Add / Requested / Accept); circle-only multi-select member pickers with chips and "Already in the group"; group description on create; the two toggles in Privacy (phone) and Settings (web).
+
+**Verification:** `users-search.int.test.ts` 9/9; full `test:int` 28 files pass after updating `profile.int.test.ts` for the two new privacy fields; lint/typecheck/test for server, mobile, web, chat-core, shared-types, api-client pass. Chrome: part of a username, whole email vs a fragment, group with a description from the circle-only picker, current member not pickable.
+
+**Remaining:**
+- [ ] The phone row of Done when (Phase 35's APK is enough), incl. a group with three picked members (the test account had one circle member).
 ## 2026-11-11 — Phase 37: Circles — 🔄 partial (code done, all checks pass; two-phone test next)
 **Done (ADR 0041, CHANGES 2026-11-11):** server module `circles` (REST `/v1/circle*`, in-memory cache, `CircleChanged` frame, `{"t":"circle"}` push); enforcement on envelopes, calls, key claims (`refusedDeviceIds`), typing, presence and group adds; blocks sever links; account deletion and `retention-audit` cover both collections; engine `circle` option (nearby/mesh drop) and refused-claim handling; phone (Circle screen, Requests row, contact card, locked composer, new chat "Add to circle", circle push); web (Circle page, Settings link, Requests row, locked composer, new chat); `SimClient.linkWith/linkAll`; peer accepts requests and `--dial-user` asks first; privacy policy and explainer; run-on-devices.md.
 **Verification:** `pnpm turbo run lint typecheck test` 59/59; `pnpm --filter @pingdost/server test:int` 27 files, 184 passed (4 skipped: 100 MB spike, coturn/S3 halves), incl. `circles.int.test.ts` 13/13 and `redis-budget.int.test.ts`; `pnpm format:check` clean; `retention-audit` on the dev DB `ok: true` with the circle checks. `mailbox.int.test.ts` 2–4 failed once under load (a leftover envelope from test 1 came due within the 2 s stage); their assertions now check their own envelope. Emulator + sim peer: locked composer, request → accept → chat, remove, incoming request → accept → call rings. Chrome: Circle page, add from new chat, locked composer.

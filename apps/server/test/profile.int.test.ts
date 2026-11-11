@@ -52,6 +52,8 @@ describe('PATCH /v1/me', () => {
       deliveryReceipts: true,
       typingIndicators: true,
       lastSeen: true,
+      findByName: true,
+      findByEmail: true,
     });
     expect(
       json<MeResponse>(await patchMe(accessToken, { displayName: null })).displayName,

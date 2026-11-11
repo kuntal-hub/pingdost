@@ -30,6 +30,17 @@ const options: { key: keyof PrivacyPrefs; title: string; subtitle: string }[] = 
     subtitle: 'Let people see when you are typing.',
   },
   { key: 'lastSeen', title: 'Last seen', subtitle: 'Let people see when you were last online.' },
+  {
+    key: 'findByName',
+    title: 'Find me by name',
+    subtitle:
+      'People can find you by the start of your name or username. Your exact username always works.',
+  },
+  {
+    key: 'findByEmail',
+    title: 'Find me by email',
+    subtitle: 'People who type your whole email address can find you. It is never shown to them.',
+  },
 ];
 
 export function PrivacyScreen() {

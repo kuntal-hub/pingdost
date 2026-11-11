@@ -36,6 +36,17 @@ const PRIVACY: { key: keyof PrivacyPrefs; label: string; description: string }[]
     label: 'Online status',
     description: 'Contacts you chat with see when you are online.',
   },
+  {
+    key: 'findByName',
+    label: 'Find me by name',
+    description:
+      'People can find you by the start of your name or username. Your exact username always works.',
+  },
+  {
+    key: 'findByEmail',
+    label: 'Find me by email',
+    description: 'People who type your whole email address can find you. It is never shown.',
+  },
 ];
 
 export const SHORTCUTS: { keys: string; action: string }[] = [

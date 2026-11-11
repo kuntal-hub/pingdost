@@ -1,152 +1,225 @@
+// New chat (Phase 38, ADR 0042): one field finds people by the start of their username or name,
+// or by their whole email address. Circle members who match show at once (matched on this
+// phone), then the server's results. Each row has one action: Message, Add to circle,
+// Requested, or Accept.
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 
 import { api } from '@/api';
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
+import { EmptyState } from '@/components/feedback';
+import { Icon, SearchIcon, UserPlusIcon } from '@/components/icon';
 import { ListRow, ListSection } from '@/components/list-row';
 import { Notice } from '@/components/notice';
 import { Screen } from '@/components/screen';
-import { Text } from '@/components/text';
-import { TextField } from '@/components/text-field';
-import { useCircleState } from '@/engine/circle';
-import { contactName, saveProfile, type Contact } from '@/engine/contacts';
+import { Text, TextInput } from '@/components/text';
+import { circleStateOf, useCircle, type CircleState } from '@/engine/circle';
+import { personName } from '@/engine/circle-logic';
+import { saveProfile } from '@/engine/contacts';
 import { useChatRuntime } from '@/engine/hooks';
+import { usePalette } from '@/theme/theme-root';
 import { ApiError } from '@pingdost/api-client';
-import { UsernameSchema } from '@pingdost/shared-types';
+import { matchesPerson, mergePeople, searchable } from '@pingdost/chat-core';
+import type { CirclePerson } from '@pingdost/shared-types';
 
-import { CircleAction } from '../circle/circle-action';
+import { useCircleChange } from '../circle/circle-action';
 
-function lookupError(error: unknown): string {
+/** How long typing must pause before the server is asked. */
+const DEBOUNCE_MS = 300;
+
+interface Found extends CirclePerson {
+  /** The server's view; the phone's own lists win once loaded. */
+  circle: CircleState;
+}
+
+function searchError(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.code === 'NOT_FOUND') return 'No one has that username. Check the spelling.';
-    if (error.code === 'RATE_LIMITED') return 'Too many lookups for now. Try again later.';
-    if (error.kind !== 'http') return 'You seem to be offline. Connect and try again.';
+    if (error.code === 'RATE_LIMITED') return 'Too many searches for now. Wait a moment.';
+    if (error.kind !== 'http') return 'You seem to be offline. Circle members still show.';
   }
-  return 'The lookup did not work. Try again.';
+  return 'The search did not work. Try again.';
 }
 
-/**
- * Message someone in the circle; ask anyone else in first (Phase 37: until Phase 38's people
- * search replaces this exact-username flow).
- */
-function FoundActions({
-  userId,
-  name,
-  busy,
-  onMessage,
-}: {
-  userId: string;
-  name: string;
-  busy: boolean;
-  onMessage: () => Promise<void>;
-}) {
-  const state = useCircleState(userId);
-  if (state === 'member' || state === undefined) {
-    return <Button label="Message" loading={busy} onPress={() => void onMessage()} />;
-  }
-  return (
-    <View className="w-full gap-2">
-      <Text className="text-center text-muted">
-        Only people in your circle can message each other.
-      </Text>
-      <CircleAction userId={userId} name={name} />
-    </View>
-  );
-}
-
-/** Find someone by their exact username (no search or suggestions), then start the chat. */
-export function NewChatScreen() {
+function ResultRow({ person, self }: { person: Found; self: string | undefined }) {
   const router = useRouter();
   const runtime = useChatRuntime();
-  const [username, setUsername] = useState('');
-  const [error, setError] = useState<string>();
-  const [found, setFound] = useState<Contact>();
-  const [busy, setBusy] = useState(false);
+  const local = useCircle((state) => circleStateOf(state, person.userId));
+  const state = local ?? person.circle;
+  const [busy, run] = useCircleChange();
+  const [opening, setOpening] = useState(false);
+  const circle = useCircle.getState();
+  const name = personName(person);
+  const handle = person.username ? `@${person.username}` : undefined;
 
-  async function find() {
-    setError(undefined);
-    setFound(undefined);
-    const parsed = UsernameSchema.safeParse(username.replace(/^@/, ''));
-    if (!parsed.success) {
-      setError('Usernames are 3–20 letters, digits, _ or .');
-      return;
-    }
-    setBusy(true);
+  async function message() {
+    if (!runtime) return;
+    setOpening(true);
     try {
-      const profile = await api.account.lookupUsername(parsed.data);
-      if (profile.userId === runtime?.userId)
-        setError("That's you. Enter someone else's username.");
-      else setFound(await saveProfile(profile));
-    } catch (caught) {
-      setError(lookupError(caught));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function start() {
-    if (!found || !runtime) return;
-    setBusy(true);
-    try {
-      const conversation = await runtime.engine.openDirectConversation(found.userId);
+      if (person.username) {
+        await saveProfile({
+          userId: person.userId,
+          username: person.username,
+          displayName: person.displayName,
+          avatarUrl: person.avatarUrl,
+        });
+      }
+      const conversation = await runtime.engine.openDirectConversation(person.userId);
       router.replace({
         pathname: '/chat/[conversationId]',
         params: { conversationId: conversation.conversationId },
       });
     } catch {
-      setError('The chat could not be opened. Try again.');
-      setBusy(false);
+      setOpening(false);
     }
   }
+
+  if (person.userId === self) return null;
+  return (
+    <View className="flex-row items-center gap-3 px-4 py-3">
+      <Avatar url={person.avatarUrl} name={name} size={44} />
+      <View className="flex-1">
+        <Text numberOfLines={1} className="text-base font-semibold text-foreground">
+          {name}
+        </Text>
+        {person.displayName && handle && (
+          <Text numberOfLines={1} className="text-muted">
+            {handle}
+          </Text>
+        )}
+      </View>
+      {state === 'member' ? (
+        <Button label="Message" loading={opening} onPress={() => void message()} />
+      ) : state === 'incoming' ? (
+        <Button
+          label="Accept"
+          loading={busy}
+          onPress={() => run('Could not accept', () => circle.accept(person.userId))}
+        />
+      ) : state === 'requested' ? (
+        <Button
+          label="Requested"
+          variant="ghost"
+          loading={busy}
+          accessibilityHint="Withdraws the request"
+          onPress={() => run('Could not withdraw', () => circle.withdraw(person.userId))}
+        />
+      ) : (
+        <Button
+          label="Add"
+          icon={UserPlusIcon}
+          variant="secondary"
+          loading={busy}
+          accessibilityHint={`Asks ${name} to join your circle`}
+          onPress={() => run('Could not send the request', () => circle.request(person.userId))}
+        />
+      )}
+    </View>
+  );
+}
+
+export function NewChatScreen() {
+  const router = useRouter();
+  const runtime = useChatRuntime();
+  const palette = usePalette();
+  const members = useCircle((state) => state.members);
+  const [query, setQuery] = useState('');
+  const [remote, setRemote] = useState<Found[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string>();
+  const latest = useRef(0);
+
+  // Circle members match on the phone at once; nothing leaves it.
+  const local = useMemo<Found[]>(
+    () =>
+      query.trim() === ''
+        ? []
+        : members
+            .filter((member) => matchesPerson(member, query))
+            .map((member) => ({ ...member, circle: 'member' as const })),
+    [members, query],
+  );
+
+  // The server's results after a pause in typing; an older answer never replaces a newer one.
+  useEffect(() => {
+    setError(undefined);
+    if (!searchable(query)) {
+      setRemote([]);
+      setSearching(false);
+      return;
+    }
+    const ticket = ++latest.current;
+    const controller = new AbortController();
+    setSearching(true);
+    const timer = setTimeout(() => {
+      api.account
+        .searchUsers(query.trim(), controller.signal)
+        .then((results) => {
+          if (ticket === latest.current) setRemote(results);
+        })
+        .catch((caught: unknown) => {
+          if (ticket === latest.current && !controller.signal.aborted)
+            setError(searchError(caught));
+        })
+        .finally(() => {
+          if (ticket === latest.current) setSearching(false);
+        });
+    }, DEBOUNCE_MS);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
+
+  const shown = mergePeople(local, remote);
 
   return (
     <Screen offlineBanner>
       <ListSection>
         <ListRow
           title="New group"
-          subtitle="Chat with several people at once"
+          subtitle="Chat with several people from your circle"
           onPress={() => router.push('/new-group')}
         />
       </ListSection>
-      <TextField
-        label="Username"
-        value={username}
-        onChangeText={(text) => {
-          setUsername(text);
-          setFound(undefined);
-        }}
-        autoCapitalize="none"
-        autoCorrect={false}
-        autoComplete="off"
-        returnKeyType="search"
-        onSubmitEditing={() => void find()}
-        hint="The exact username, e.g. asha_k. PingDost has no people search."
-        {...(error ? { error } : {})}
-      />
-      <Button
-        label="Find"
-        variant="secondary"
-        loading={busy && !found}
-        onPress={() => void find()}
-      />
-      {found && (
-        <View className="items-center gap-3 rounded-lg border border-border bg-surface p-5">
-          <Avatar url={found.avatarUrl} name={contactName(found)} size={72} />
-          <View className="items-center gap-1">
-            <Text className="text-lg font-semibold text-foreground">{contactName(found)}</Text>
-            {found.displayName && found.username && (
-              <Text className="text-muted">@{found.username}</Text>
-            )}
-          </View>
-          <FoundActions
-            userId={found.userId}
-            name={contactName(found)}
-            busy={busy}
-            onMessage={start}
+      <View className="h-[52px] flex-row items-center gap-2 rounded-xl bg-surface px-4">
+        <Icon icon={SearchIcon} size={20} color="muted" />
+        <TextInput
+          accessibilityLabel="Find people"
+          placeholder="Name, @username or email"
+          value={query}
+          onChangeText={setQuery}
+          autoFocus
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="off"
+          returnKeyType="search"
+          className="flex-1 text-base text-foreground"
+        />
+        {searching && <ActivityIndicator color={palette.accent} />}
+      </View>
+      {error && <Notice tone="error" message={error} />}
+      {query.trim() === '' ? (
+        <Text className="text-muted">
+          Type the start of a name or username, or someone's whole email address. Emails are never
+          shown, and a part of one finds nothing.
+        </Text>
+      ) : shown.length > 0 ? (
+        <ListSection>
+          {shown.map((person) => (
+            <ResultRow key={person.userId} person={person} self={runtime?.userId} />
+          ))}
+        </ListSection>
+      ) : (
+        !searching &&
+        searchable(query) && (
+          <EmptyState
+            icon={SearchIcon}
+            title="No one found"
+            message="Check the spelling, or ask them for their username. Some people turn off being found by name or email."
           />
-        </View>
+        )
       )}
       {!runtime && <Notice message="Chats are starting. One moment…" />}
     </Screen>

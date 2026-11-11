@@ -31,7 +31,9 @@ export function AddMembersScreen({ groupId }: { groupId: string }) {
       setError(
         caught instanceof ApiError && caught.code === 'GROUP_FULL'
           ? 'The group is full.'
-          : 'They could not be added. Try again.',
+          : caught instanceof ApiError && caught.code === 'NOT_IN_CIRCLE'
+            ? 'Only people in your circle can be added.'
+            : 'They could not be added. Try again.',
       );
       setBusy(false);
     }
@@ -49,7 +51,7 @@ export function AddMembersScreen({ groupId }: { groupId: string }) {
       />
       {error && <Notice tone="error" message={error} />}
       <Button
-        label={selected.length > 1 ? `Add ${selected.length} people` : 'Add'}
+        label={selected.length > 0 ? `Add (${selected.length})` : 'Add'}
         disabled={selected.length === 0}
         loading={busy}
         onPress={() => void add()}

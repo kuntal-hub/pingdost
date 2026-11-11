@@ -94,6 +94,25 @@ export class BlockService {
     return (await this.#blockedBy(blockerUserId)).has(userId);
   }
 
+  /** Of `others`, those `userId` blocked or who blocked `userId` (one query; people search). */
+  async blockedBetween(userId: string, others: readonly string[]): Promise<Set<string>> {
+    if (others.length === 0) return new Set();
+    const docs = await this.#blocks
+      .find(
+        {
+          $or: [
+            { blockerUserId: userId, blockedUserId: { $in: [...others] } },
+            { blockedUserId: userId, blockerUserId: { $in: [...others] } },
+          ],
+        },
+        { projection: { blockerUserId: 1, blockedUserId: 1 } },
+      )
+      .toArray();
+    return new Set(
+      docs.map((doc) => (doc.blockerUserId === userId ? doc.blockedUserId : doc.blockerUserId)),
+    );
+  }
+
   /** Whether either user blocked the other (presence, typing). */
   async eitherBlocked(a: string, b: string): Promise<boolean> {
     return (await this.isBlocked(a, b)) || (await this.isBlocked(b, a));

@@ -11,13 +11,14 @@ import { TextField } from '@/components/text-field';
 import { GroupPictureError, groupPictureUri, pickGroupPicture } from '@/engine/groups';
 import { useChatRuntime } from '@/engine/hooks';
 import { ApiError } from '@pingdost/api-client';
-import { GROUP_NAME_MAX } from '@pingdost/message-engine';
+import { GROUP_DESCRIPTION_MAX, GROUP_NAME_MAX } from '@pingdost/message-engine';
 
 import { MemberPicker } from './member-picker';
 
 function createError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === 'GROUP_FULL') return 'That is more people than a group can have.';
+    if (error.code === 'NOT_IN_CIRCLE') return 'Only people in your circle can be added.';
     if (error.kind !== 'http') return 'You seem to be offline. Connect and try again.';
   }
   return 'The group could not be created. Try again.';
@@ -28,6 +29,7 @@ export function NewGroupScreen() {
   const router = useRouter();
   const runtime = useChatRuntime();
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [picture, setPicture] = useState<Uint8Array | null>(null);
   const [members, setMembers] = useState<string[]>([]);
   const [error, setError] = useState<string>();
@@ -57,6 +59,7 @@ export function NewGroupScreen() {
     try {
       const conversation = await runtime.engine.createGroup({
         name,
+        ...(description.trim() ? { description: description.trim() } : {}),
         avatar: picture,
         memberUserIds: members,
       });
@@ -91,16 +94,27 @@ export function NewGroupScreen() {
           />
         </View>
       </View>
+      <TextField
+        label="Description (optional)"
+        value={description}
+        onChangeText={setDescription}
+        maxLength={GROUP_DESCRIPTION_MAX}
+        multiline
+      />
       <Text className="text-muted">
-        The name and picture are end-to-end encrypted: only members see them. The server knows only
-        who is in the group, to deliver messages.
+        The name, description and picture are end-to-end encrypted: only members see them. The
+        server knows only who is in the group, to deliver messages.
       </Text>
       <Text accessibilityRole="header" className="font-semibold text-foreground">
         Members{members.length > 0 ? ` (${members.length})` : ''}
       </Text>
       <MemberPicker selected={members} onChange={setMembers} />
       {error && <Notice tone="error" message={error} />}
-      <Button label="Create group" loading={busy} onPress={() => void create()} />
+      <Button
+        label={members.length > 0 ? `Create group (${members.length + 1})` : 'Create group'}
+        loading={busy}
+        onPress={() => void create()}
+      />
     </Screen>
   );
 }

@@ -21,6 +21,8 @@ export interface UserDoc {
   authProviders: AuthProvider[];
   status: UserStatus;
   displayName: string | null;
+  /** The display name's words, case- and accent-folded, for people search (Phase 38). */
+  searchWords?: string[];
   avatarUrl: string | null;
   privacy: PrivacyPrefs;
   /** Public Ed25519 account identity key (ADR 0003), set by the first primary device. */
@@ -76,6 +78,8 @@ export const DEFAULT_PRIVACY: PrivacyPrefs = {
   deliveryReceipts: true,
   typingIndicators: true,
   lastSeen: true,
+  findByName: true,
+  findByEmail: true,
 };
 
 export interface AuthCollections {

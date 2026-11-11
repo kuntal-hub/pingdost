@@ -9,6 +9,7 @@ import {
   RegisterDeviceResponseSchema,
   UserKeysResponseSchema,
   UserLookupResponseSchema,
+  UserSearchResponseSchema,
   type AvatarUploadSignature,
   type ClaimKeysResponse,
   type DeleteAccountRequest,
@@ -22,6 +23,7 @@ import {
   type UploadKeysRequest,
   type UserKeysResponse,
   type UserLookupResponse,
+  type UserSearchResult,
 } from '@pingdost/shared-types';
 
 import type { ApiClient } from './client';
@@ -33,6 +35,11 @@ export interface AccountApi {
   lookupUsername(username: string): Promise<UserLookupResponse>;
   /** The profile behind a user ID (e.g. of someone who started a chat). */
   profile(userId: string): Promise<UserLookupResponse>;
+  /**
+   * People search (Phase 38): name and username prefixes from 2 characters, or a whole email.
+   * At most 10 results with their circle state, never an email.
+   */
+  searchUsers(q: string, signal?: AbortSignal): Promise<UserSearchResult[]>;
   signAvatarUpload(): Promise<AvatarUploadSignature>;
   /** Emails a code that confirms deleting the account (ADR 0036). */
   sendDeletionCode(): Promise<void>;
@@ -51,6 +58,16 @@ export function accountApi(client: ApiClient): AccountApi {
         path: `/v1/users/by-username/${encodeURIComponent(username)}`,
         response: UserLookupResponseSchema,
       }),
+    searchUsers: async (q, signal) =>
+      (
+        await client.request({
+          method: 'GET',
+          path: '/v1/users/search',
+          query: { q },
+          response: UserSearchResponseSchema,
+          ...(signal ? { signal } : {}),
+        })
+      ).results,
     profile: (userId) =>
       client.request({
         method: 'GET',

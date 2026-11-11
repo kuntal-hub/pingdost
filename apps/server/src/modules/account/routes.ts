@@ -12,6 +12,8 @@ import {
   MeResponseSchema,
   UpdateMeRequestSchema,
   UserLookupResponseSchema,
+  UserSearchQuerySchema,
+  UserSearchResponseSchema,
   IdSchema,
   UsernameSchema,
   type MeResponse,
@@ -20,6 +22,7 @@ import {
 
 import { isOwnAvatarUrl, signAvatarUpload, type CloudinarySettings } from './cloudinary';
 import type { AccountDeletion } from './deletion';
+import { searchWordsOf, type UserSearch } from './search';
 import type { Clock } from '../../infra/clock';
 import { WindowCounter } from '../../infra/counters';
 import { AppError } from '../../infra/errors';
@@ -41,6 +44,8 @@ export interface AccountRoutesOptions {
   onPrivacyChanged?: (userId: string) => void;
   /** Account deletion (ADR 0036). */
   deletion: AccountDeletion;
+  /** People search (Phase 38). */
+  search: UserSearch;
 }
 
 export function toMe(user: UserDoc): MeResponse {
@@ -80,7 +85,10 @@ export const accountRoutes: FastifyPluginCallback<AccountRoutesOptions> = (
 
   function changes(userId: string, input: UpdateMeRequest): Record<string, unknown> {
     const set: Record<string, unknown> = {};
-    if (input.displayName !== undefined) set.displayName = input.displayName;
+    if (input.displayName !== undefined) {
+      set.displayName = input.displayName;
+      set.searchWords = searchWordsOf(input.displayName);
+    }
     if (input.avatarUrl !== undefined) {
       const ours =
         input.avatarUrl === null ||
@@ -156,6 +164,19 @@ export const accountRoutes: FastifyPluginCallback<AccountRoutesOptions> = (
         avatarUrl: user.avatarUrl,
       };
     },
+  );
+
+  // People search (Phase 38, ADR 0042): name and username prefixes, whole emails only.
+  app.get(
+    '/v1/users/search',
+    {
+      config: { rateLimit: limits.userSearch },
+      preHandler: authenticate,
+      schema: { querystring: UserSearchQuerySchema, response: { 200: UserSearchResponseSchema } },
+    },
+    async (request) => ({
+      results: await options.search.search(authOf(request).userId, request.query.q),
+    }),
   );
 
   // The profile behind a user ID, e.g. of someone who started a chat (ADR 0012). IDs are

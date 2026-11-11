@@ -22,6 +22,7 @@ import {
   type CirclePerson,
   type CircleRequest,
   type CircleRequestsResponse,
+  type CircleState,
 } from '@pingdost/shared-types';
 
 import type { Clock } from '../../infra/clock';
@@ -103,6 +104,34 @@ export class CircleService {
   /** Loads the user's circle into the cache (on connect), so sends need no Mongo read. */
   async warm(userId: string): Promise<void> {
     await this.#circleOf(userId);
+  }
+
+  /** Where each of `others` stands with `userId`'s circle (people search, Phase 38). */
+  async statesFor(userId: string, others: readonly string[]): Promise<Map<string, CircleState>> {
+    const circle = await this.#circleOf(userId);
+    const now = new Date(this.d.clock.now());
+    const ids = others.flatMap((other) => [`${userId}:${other}`, `${other}:${userId}`]);
+    const requests =
+      ids.length === 0
+        ? []
+        : await this.#requests
+            .find(
+              { _id: { $in: ids }, expiresAt: { $gt: now } },
+              { projection: { declined: 1, from: 1 } },
+            )
+            .toArray();
+    const states = new Map<string, CircleState>();
+    for (const other of others) {
+      if (circle.has(other)) {
+        states.set(other, 'member');
+        continue;
+      }
+      const asked = requests.some((r) => r._id === `${userId}:${other}`);
+      // A declined request still shows as "requested" to its sender, and not to the decliner.
+      const incoming = requests.some((r) => r._id === `${other}:${userId}` && !r.declined);
+      states.set(other, asked ? 'requested' : incoming ? 'incoming' : 'none');
+    }
+    return states;
   }
 
   async list(userId: string): Promise<CircleMember[]> {

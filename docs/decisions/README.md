@@ -68,7 +68,7 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ Â
 | Keyboard handling, live username check, message times and big emoji | 34, 35 | No (done: 0039) |
 | Emoji panel data, keyboard space, new-message pill | 36 | No (done: 0040) |
 | Circles: consent before contact (server-held links, enforcement points) | 37 | Yes: server-held (CHANGES 2026-11-10); done: 0041 |
-| People search (prefix and exact email, opt-outs) | 38 | No |
+| People search (prefix and exact email, opt-outs) | 38 | Yes: prefix + exact email (CHANGES 2026-11-10); done: 0042 |
 | APNs route, iOS message wake, CallKit | 29 | No (done: 0032) |
 | iOS nearby link layer, Androidâ†”iOS connect rule, MultipeerConnectivity / Wi-Fi Aware | 30 | No (done: 0033) |
 | Project license | 01 | **Yes** (done: 0001) |

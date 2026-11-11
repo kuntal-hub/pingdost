@@ -29,6 +29,7 @@ import { TtlCache } from './infra/ttl-cache';
 import { destroyAvatar } from './modules/account/cloudinary';
 import { AccountDeletion } from './modules/account/deletion';
 import { accountRoutes } from './modules/account/routes';
+import { UserSearch, userSearchIndexes } from './modules/account/search';
 import { createAttachmentService } from './modules/attachments';
 import { attachmentRoutes } from './modules/attachments/routes';
 import { attachmentIndexes, type AttachmentSettings } from './modules/attachments/service';
@@ -125,6 +126,7 @@ export const INDEXES: readonly IndexSetup[] = [
   securityEventIndexes,
   blockIndexes,
   circleIndexes,
+  userSearchIndexes,
   reportIndexes,
   pushTokenIndexes,
   groupIndexes,
@@ -394,6 +396,13 @@ export async function buildApp(config: ServerConfig, deps: AppDeps): Promise<Fas
     cloudinary: config.cloudinary,
     onPrivacyChanged: (userId) => presence.invalidate(userId),
     deletion,
+    search: new UserSearch({
+      users: collections.users,
+      blocks,
+      circles,
+      clock,
+      budget: throttles.peopleSearches,
+    }),
   });
   await app.register(deviceRoutes, { service: deviceService, authenticate, limits });
   const pairing = new PairingService({
