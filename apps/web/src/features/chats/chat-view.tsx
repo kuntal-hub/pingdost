@@ -14,6 +14,7 @@ import {
   Reply,
   Search,
   SendHorizontal,
+  Smile,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
@@ -31,7 +32,16 @@ import { Dialog } from '@/components/ui/menu';
 import { cn } from '@/lib/cn';
 import { api, useSession } from '@/session/session';
 import { syncLabel, useHistorySync } from '@/sync/sync-status';
-import { previewText, type TimelineItem } from '@pingdost/chat-core';
+import {
+  isAtEnd,
+  newestMark,
+  previewText,
+  unseenCount,
+  unseenLabel,
+  type SeenMark,
+  type TimelineItem,
+} from '@pingdost/chat-core';
+import { insertAt } from '@pingdost/chat-core/emoji';
 import { DEFAULT_LIMITS } from '@pingdost/config/public';
 import {
   canDeleteForEveryone,
@@ -41,6 +51,7 @@ import {
 } from '@pingdost/message-engine';
 
 import { Bubble, type BubbleActions } from './bubble';
+import { EmojiPanel } from './emoji-panel';
 import { groupName, groupPictureUri } from './format';
 import { AttachmentView } from '../attachments/attachment-view';
 import { SendFileDialog } from '../attachments/send-file-dialog';
@@ -140,6 +151,7 @@ function Composer({
   lastOwn,
   onEdit,
   onDone,
+  onSent,
 }: {
   conversationId: string;
   replyTo: MessageRecord | undefined;
@@ -148,14 +160,43 @@ function Composer({
   lastOwn: MessageRecord | undefined;
   onEdit: (message: MessageRecord) => void;
   onDone: () => void;
+  /** A message went out: the chat jumps to the newest message (Phase 36). */
+  onSent: () => void;
 }) {
   const client = useChatClient();
   const [text, setText] = useState('');
   const [error, setError] = useState<string>();
   const [picked, setPicked] = useState<File>();
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const filePicker = useRef<HTMLInputElement>(null);
+  // Where an emoji goes: the field's selection when it was last left.
+  const selection = useRef({ start: 0, end: 0 });
   const trimmed = text.trim();
+
+  function changeText(next: string) {
+    setText(next);
+    if (client && !editing) {
+      void client.setTyping(conversationId, next.trim() !== '').catch(() => undefined);
+    }
+  }
+
+  function insertEmoji(emoji: string) {
+    const next = insertAt(text, selection.current, emoji);
+    if (next.text.length > MAX_TEXT) return;
+    changeText(next.text);
+    selection.current = { start: next.caret, end: next.caret };
+    requestAnimationFrame(() => input.current?.setSelectionRange(next.caret, next.caret));
+  }
+
+  function closeEmoji() {
+    setEmojiOpen(false);
+    const { start, end } = selection.current;
+    requestAnimationFrame(() => {
+      input.current?.focus();
+      input.current?.setSelectionRange(start, end);
+    });
+  }
 
   useEffect(() => {
     if (editing) setText(editing.body);
@@ -178,6 +219,8 @@ function Composer({
     client
       .sendText(conversationId, trimmed, replyTo ? { replyTo: replyTo.messageId } : {})
       .catch(() => setError('The message could not be saved. Try again.'));
+    selection.current = { start: 0, end: 0 };
+    onSent();
     done();
   }
 
@@ -236,7 +279,8 @@ function Composer({
           {error}
         </p>
       )}
-      <div className="flex items-end gap-2">
+      <div className="relative flex items-end gap-2">
+        {emojiOpen && <EmojiPanel onPick={insertEmoji} onClose={closeEmoji} />}
         <input
           ref={filePicker}
           type="file"
@@ -263,18 +307,25 @@ function Composer({
             rows={1}
             maxLength={MAX_TEXT}
             value={text}
-            onChange={(event) => {
-              setText(event.target.value);
-              if (client && !editing) {
-                void client
-                  .setTyping(conversationId, event.target.value.trim() !== '')
-                  .catch(() => undefined);
-              }
+            onChange={(event) => changeText(event.target.value)}
+            onSelect={(event) => {
+              const { selectionStart, selectionEnd } = event.currentTarget;
+              selection.current = { start: selectionStart, end: selectionEnd };
             }}
             onBlur={() => void client?.setTyping(conversationId, false).catch(() => undefined)}
             onKeyDown={keyDown}
             className="max-h-40 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-base text-foreground field-sizing-content placeholder:text-muted focus:outline-none"
           />
+          <IconButton
+            data-emoji-toggle
+            aria-label="Emoji"
+            aria-expanded={emojiOpen}
+            title="Emoji"
+            onClick={() => (emojiOpen ? closeEmoji() : setEmojiOpen(true))}
+            className={cn(emojiOpen && 'text-accent')}
+          >
+            <Smile size={20} />
+          </IconButton>
         </div>
         <IconButton
           tone="brand"
@@ -423,13 +474,18 @@ export function ChatView() {
   // taller without a scroll event, so it does not count as having scrolled away (the list's
   // own "at bottom" flipped before the new row could be followed).
   const atEnd = useRef(true);
+  // Reading older messages, and what was newest when the reader left the end (Phase 36).
+  const [reading, setReading] = useState(false);
+  const [seen, setSeen] = useState<SeenMark>();
   useEffect(() => {
     atEnd.current = true;
+    setReading(false);
   }, [conversationId]);
   const onScroll = useCallback(() => {
     const element = scroller.current;
-    if (element)
-      atEnd.current = element.scrollHeight - element.scrollTop - element.clientHeight < 40;
+    if (!element) return;
+    atEnd.current = isAtEnd(element.scrollTop, element.clientHeight, element.scrollHeight, 40);
+    setReading(!atEnd.current);
   }, []);
   const watchScroller = useCallback(
     (element: HTMLElement | Window | null) => {
@@ -500,6 +556,18 @@ export function ChatView() {
 
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  useEffect(() => {
+    if (!reading) setSeen(undefined);
+    else setSeen((current) => current ?? newestMark(itemsRef.current));
+  }, [reading]);
+  const unseen = reading ? unseenCount(items, seen) : 0;
+  // Sending, or the pill: to the newest message, even from older ones.
+  const jumpToEnd = useCallback(() => {
+    atEnd.current = true;
+    setSeen(newestMark(itemsRef.current));
+    toEnd();
+    requestAnimationFrame(toEnd);
+  }, [toEnd]);
   const jumpTo = useCallback(
     async (messageId: string) => {
       if (!(await loadUntil(messageId))) return;
@@ -653,10 +721,22 @@ export function ChatView() {
             className="h-full"
           />
         )}
-        {!atBottom && items.length > 0 && (
+        <div aria-live="polite" className="absolute inset-x-0 bottom-3 z-10 flex justify-center">
+          {unseen > 0 && (
+            <button
+              type="button"
+              onClick={jumpToEnd}
+              className="pd-pop pd-floating bg-brand flex h-10 items-center gap-2 rounded-full px-4 font-bold text-on-primary focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <ArrowDown aria-hidden size={18} strokeWidth={2.6} />
+              {unseenLabel(unseen)}
+            </button>
+          )}
+        </div>
+        {!atBottom && unseen === 0 && items.length > 0 && (
           <IconButton
             aria-label="Jump to the latest message"
-            onClick={toEnd}
+            onClick={jumpToEnd}
             className="pd-pop pd-floating absolute right-4 bottom-3 z-10"
           >
             <ArrowDown size={20} />
@@ -715,6 +795,7 @@ export function ChatView() {
             setReplyTo(undefined);
             setEditing(undefined);
           }}
+          onSent={jumpToEnd}
         />
       )}
       <Dialog

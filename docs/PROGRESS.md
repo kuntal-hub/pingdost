@@ -17,6 +17,21 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-11 — Phase 36: Chat composer: emoji picker, keyboard, scrolling — 🔄 partial (code done; real-phone check next)
+Started with Phases 34–35 still 🔄 (only their phone checks are open), as the user asked for 36 and 37 together.
+
+**Done (ADR 0040):**
+- Emoji panel on phone and web from one data set (`emojibase-data` 18.0.0, MIT; helpers in `@pingdost/chat-core/emoji`): categories, search, skin tone, recents on the device only, emoji newer than the font hidden, insert and backspace at the caret.
+- Phone: the composer sits on the keyboard (`BottomSpace` replaces `KeyboardAvoidingView`); the panel takes the keyboard's place at its height; Back closes it.
+- Jump to the newest message on every send; a "N new messages" pill while reading older ones (phone and web, live region).
+
+**Verification:**
+- `pnpm turbo run lint typecheck test` for mobile, web, chat-core, shared-types pass (mobile `chunk-store.test.ts` timed out once under load and passes alone); `pnpm licenses:check` ok.
+- Chrome with the sim peer: panel, search + Enter, tone, recents, Escape, send while scrolled up, the pill.
+- Pixel 8 emulator: composer on the keyboard with no gap, panel ↔ keyboard at the same height, insert at the caret. The emulator had a build from 11-01 (`ExpoScreenCapture` missing, then a crash in `UniffiPlayerRoot`'s finalizer on reload); the Phase 35 APK was installed with `adb install -r`. New local account `pd_emu_p36` (password only in the session scratchpad).
+
+**Remaining:**
+- [ ] Both phones: the phone row of the phase file's "Done when" (no new build needed beyond Phase 35's APK).
 ## 2026-11-10 — Phases 34 and 35: sign-in and sign-up polish; chat look — 🔄 partial (code done; real-phone check next)
 The user's UI/UX list (`prompts/UI_modifications.txt`) was planned as Phases 34–40 (CHANGES 2026-11-10). The user chose server-held Circles (37), prefix + exact-email search (38) and the name "Circle". This session built 34 and 35 (ADR 0039).
 

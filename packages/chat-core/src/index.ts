@@ -3,4 +3,5 @@
 // privacy explainer (Phase 27).
 export * from './labels';
 export * from './privacy';
+export * from './scroll';
 export * from './timeline';

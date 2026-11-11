@@ -66,6 +66,7 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ Â
 | In-call voice â†” video, screen sharing, background and picture-in-picture | 32 | No (done: 0037) |
 | Camera filters and effects, face tracking | 33 | No (done: 0038) |
 | Keyboard handling, live username check, message times and big emoji | 34, 35 | No (done: 0039) |
+| Emoji panel data, keyboard space, new-message pill | 36 | No (done: 0040) |
 | Circles: consent before contact (server-held links, enforcement points) | 37 | No (user chose server-held, CHANGES 2026-11-10) |
 | People search (prefix and exact email, opt-outs) | 38 | No |
 | APNs route, iOS message wake, CallKit | 29 | No (done: 0032) |

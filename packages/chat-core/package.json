@@ -5,7 +5,8 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./emoji": "./src/emoji.ts"
   },
   "scripts": {
     "lint": "eslint .",
@@ -14,9 +15,11 @@
   },
   "dependencies": {
     "@pingdost/message-engine": "workspace:*",
-    "@pingdost/shared-types": "workspace:*"
+    "@pingdost/shared-types": "workspace:*",
+    "emojibase-data": "18.0.0"
   },
   "devDependencies": {
+    "emojibase": "18.0.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

@@ -23,6 +23,7 @@ import ClockIcon from 'lucide-react-native/icons/clock';
 import CloudUploadIcon from 'lucide-react-native/icons/cloud-upload';
 import CopyIcon from 'lucide-react-native/icons/copy';
 import DatabaseIcon from 'lucide-react-native/icons/database';
+import DeleteIcon from 'lucide-react-native/icons/delete';
 import DownloadIcon from 'lucide-react-native/icons/download';
 import EyeIcon from 'lucide-react-native/icons/eye';
 import EyeOffIcon from 'lucide-react-native/icons/eye-off';
@@ -36,7 +37,9 @@ import HourglassIcon from 'lucide-react-native/icons/hourglass';
 import ImageIcon from 'lucide-react-native/icons/image';
 import InfoIcon from 'lucide-react-native/icons/info';
 import KeyRoundIcon from 'lucide-react-native/icons/key-round';
+import KeyboardIcon from 'lucide-react-native/icons/keyboard';
 import LaptopIcon from 'lucide-react-native/icons/laptop';
+import LightbulbIcon from 'lucide-react-native/icons/lightbulb';
 import LinkIcon from 'lucide-react-native/icons/link';
 import LockIcon from 'lucide-react-native/icons/lock';
 import LogOutIcon from 'lucide-react-native/icons/log-out';
@@ -51,6 +54,7 @@ import MoonIcon from 'lucide-react-native/icons/moon';
 import MusicIcon from 'lucide-react-native/icons/music';
 import PaletteIcon from 'lucide-react-native/icons/palette';
 import PauseIcon from 'lucide-react-native/icons/pause';
+import PawPrintIcon from 'lucide-react-native/icons/paw-print';
 import PencilIcon from 'lucide-react-native/icons/pencil';
 import PhoneIcon from 'lucide-react-native/icons/phone';
 import PhoneIncomingIcon from 'lucide-react-native/icons/phone-incoming';
@@ -59,6 +63,8 @@ import PhoneOffIcon from 'lucide-react-native/icons/phone-off';
 import PhoneOutgoingIcon from 'lucide-react-native/icons/phone-outgoing';
 import PinIcon from 'lucide-react-native/icons/pin';
 import PinOffIcon from 'lucide-react-native/icons/pin-off';
+import PizzaIcon from 'lucide-react-native/icons/pizza';
+import PlaneIcon from 'lucide-react-native/icons/plane';
 import PlayIcon from 'lucide-react-native/icons/play';
 import PlusIcon from 'lucide-react-native/icons/plus';
 import QrCodeIcon from 'lucide-react-native/icons/qr-code';
@@ -72,10 +78,12 @@ import ScreenShareOffIcon from 'lucide-react-native/icons/screen-share-off';
 import SearchIcon from 'lucide-react-native/icons/search';
 import SendIcon from 'lucide-react-native/icons/send';
 import SettingsIcon from 'lucide-react-native/icons/settings';
+import ShapesIcon from 'lucide-react-native/icons/shapes';
 import ShareIcon from 'lucide-react-native/icons/share-2';
 import ShieldIcon from 'lucide-react-native/icons/shield';
 import ShieldCheckIcon from 'lucide-react-native/icons/shield-check';
 import SmartphoneIcon from 'lucide-react-native/icons/smartphone';
+import SmileIcon from 'lucide-react-native/icons/smile';
 import SparklesIcon from 'lucide-react-native/icons/sparkles';
 import SquareIcon from 'lucide-react-native/icons/square';
 import SquareCheckIcon from 'lucide-react-native/icons/square-check';
@@ -87,6 +95,7 @@ import UserRoundIcon from 'lucide-react-native/icons/user-round';
 import UsersRoundIcon from 'lucide-react-native/icons/users-round';
 import VideoIcon from 'lucide-react-native/icons/video';
 import VideoOffIcon from 'lucide-react-native/icons/video-off';
+import VolleyballIcon from 'lucide-react-native/icons/volleyball';
 import Volume2Icon from 'lucide-react-native/icons/volume-2';
 import WifiOffIcon from 'lucide-react-native/icons/wifi-off';
 import XIcon from 'lucide-react-native/icons/x';
@@ -184,6 +193,15 @@ export {
   VideoOffIcon,
   Volume2Icon,
   WifiOffIcon,
+  VolleyballIcon,
+  LightbulbIcon,
+  DeleteIcon,
+  ShapesIcon,
+  PizzaIcon,
+  PlaneIcon,
+  SmileIcon,
+  PawPrintIcon,
+  KeyboardIcon,
   XIcon,
   ZapIcon,
 };

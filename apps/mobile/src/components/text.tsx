@@ -1,7 +1,7 @@
 // Every piece of text in the app goes through these (ADR 0035). React Native has no inherited
 // font, so `Text` applies the user's font and text size here. Screens keep writing the usual
 // classes: `text-lg font-semibold`. `font-display` is the headline face.
-import { createContext, useContext, type ComponentProps } from 'react';
+import { createContext, useContext, type ComponentProps, type ComponentPropsWithRef } from 'react';
 import { Text as NativeText, TextInput as NativeInput, type TextStyle } from 'react-native';
 
 import { useAppearance } from '@/theme/appearance';
@@ -107,7 +107,11 @@ export function Text({ className, style, children, ...props }: ComponentProps<ty
   return <InsideText.Provider value={true}>{node}</InsideText.Provider>;
 }
 
-export function TextInput({ className, style, ...props }: ComponentProps<typeof NativeInput>) {
+export function TextInput({
+  className,
+  style,
+  ...props
+}: ComponentPropsWithRef<typeof NativeInput>) {
   const palette = usePalette();
   const { font, scale, ready } = useFontSettings();
   const parsed = parse(className, false);

@@ -1,8 +1,29 @@
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Text as NativeText, Pressable, View } from 'react-native';
-import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
+import {
+  AccessibilityInfo,
+  Alert,
+  BackHandler,
+  Text as NativeText,
+  type TextInput as NativeTextInput,
+  Pressable,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import {
+  KeyboardController,
+  KeyboardEvents,
+  useKeyboardHandler,
+} from 'react-native-keyboard-controller';
+import Animated, {
+  FadeInDown,
+  FadeOutDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { pick, PickError, usePendingSend, type PickSource } from '@/attachments/pick';
@@ -24,6 +45,7 @@ import {
   Icon,
   ImageIcon,
   InfoIcon,
+  KeyboardIcon,
   LockIcon,
   MicIcon,
   PencilIcon,
@@ -33,6 +55,7 @@ import {
   SearchIcon,
   SendIcon,
   ShieldCheckIcon,
+  SmileIcon,
   Trash2Icon,
   VideoIcon,
   XIcon,
@@ -78,6 +101,8 @@ import { useAppearance } from '@/theme/appearance';
 import { CSS_EASE_OUT, CSS_POP, haptic, useMotion } from '@/theme/motion';
 import { useTheme } from '@/theme/theme-root';
 import { formatSize } from '@pingdost/attachments';
+import { isAtEnd, newestMark, unseenCount, unseenLabel, type SeenMark } from '@pingdost/chat-core';
+import { deleteBefore, insertAt } from '@pingdost/chat-core/emoji';
 import {
   canReact,
   MessageActionError,
@@ -95,6 +120,7 @@ import {
 } from '@pingdost/ui-tokens';
 
 import { AttachmentContent } from './attachment-bubble';
+import { EmojiPanel } from './emoji-panel';
 import { VoiceRecorder, type VoiceNote } from './voice-recorder';
 
 /** Longest message; far inside one envelope even in 4-byte UTF-8. */
@@ -725,32 +751,179 @@ function SendButton({
   );
 }
 
+/** The keyboard's height frame by frame (from the screen's bottom edge: it includes the
+ * navigation bar, since the app draws edge to edge). */
+function useKeyboardHeight(): SharedValue<number> {
+  const height = useSharedValue(0);
+  useKeyboardHandler(
+    {
+      onMove: (event) => {
+        'worklet';
+        height.value = event.height;
+      },
+      onInteractive: (event) => {
+        'worklet';
+        height.value = event.height;
+      },
+      onEnd: (event) => {
+        'worklet';
+        height.value = event.height;
+      },
+    },
+    [],
+  );
+  return height;
+}
+
+/**
+ * The space under the composer (Phase 36): the keyboard's height while it is up, the emoji
+ * panel's while that is open (`reserve`), else the navigation bar's. One measure, so the
+ * composer sits right on the keyboard, with no second inset added on top of it.
+ */
+function BottomSpace({
+  reserve,
+  children,
+}: {
+  reserve?: SharedValue<number>;
+  children?: React.ReactNode;
+}) {
+  const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardHeight();
+  const rest = Math.max(insets.bottom, 4);
+  const style = useAnimatedStyle(() => ({
+    height: Math.max(rest, keyboard.value, reserve?.value ?? 0),
+  }));
+  return <Animated.View style={style}>{children}</Animated.View>;
+}
+
+/** The last keyboard height seen this session: the emoji panel takes its place at that size. */
+let lastKeyboardHeight = 0;
+
+function panelHeight(windowHeight: number, bottomInset: number): number {
+  if (lastKeyboardHeight > 120) return lastKeyboardHeight;
+  return Math.round(Math.min(Math.max(windowHeight * 0.36, 260), 380)) + bottomInset;
+}
+
+type Panel = 'none' | 'emoji' | 'search';
+
 function Composer({
   conversationId,
   replyTo,
   editing,
   names,
   onDone,
+  onSent,
+  onKeyboardShown,
 }: {
   conversationId: string;
   replyTo: MessageRecord | undefined;
   editing: MessageRecord | undefined;
   names: (message: MessageRecord) => string;
   onDone: () => void;
+  /** A message went out: the chat jumps to the newest message. */
+  onSent: () => void;
+  /** The keyboard or the emoji panel came up. */
+  onKeyboardShown: () => void;
 }) {
   const runtime = useChatRuntime();
   const router = useRouter();
   const { palette, floating } = useTheme();
-  const { fades } = useMotion();
+  const { fades, moves } = useMotion();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const [text, setText] = useState('');
   const [attaching, setAttaching] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [panel, setPanelState] = useState<Panel>('none');
+  const panelRef = useRef<Panel>('none');
+  const reserve = useSharedValue(0);
+  const input = useRef<ComponentRef<typeof NativeTextInput>>(null);
+  const selection = useRef({ start: 0, end: 0 });
   const trimmed = text.trim();
+
+  function setPanel(next: Panel) {
+    panelRef.current = next;
+    setPanelState(next);
+  }
 
   useEffect(() => {
     if (editing) setText(editing.body);
   }, [editing]);
+
+  // Once the keyboard is up, the space kept for the panel is no longer needed.
+  useEffect(() => {
+    const shown = KeyboardEvents.addListener('keyboardDidShow', (event) => {
+      if (event.height > 120) lastKeyboardHeight = event.height;
+      if (panelRef.current !== 'emoji') reserve.value = 0;
+      onKeyboardShown();
+    });
+    return () => shown.remove();
+  }, [reserve, onKeyboardShown]);
+
+  // Back closes the search, then the panel.
+  useEffect(() => {
+    if (panel === 'none') return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (panelRef.current === 'search') openEmoji();
+      else closePanel();
+      return true;
+    });
+    return () => subscription.remove();
+  });
+
+  function openEmoji() {
+    const height = panelHeight(windowHeight, insets.bottom);
+    // With the keyboard up the panel takes its place at once; from nothing it slides up.
+    reserve.value =
+      KeyboardController.isVisible() || !moves ? height : withTiming(height, { duration: 220 });
+    setPanel('emoji');
+    void KeyboardController.dismiss({ keepFocus: true });
+    setTimeout(onKeyboardShown, 260);
+  }
+
+  function openKeyboard() {
+    // The panel's space stays until the keyboard is up, so nothing jumps.
+    setPanel('none');
+    // The field kept its focus while the panel was open, and focusing a focused field does not
+    // bring the keyboard back (seen on Android 15): let go of it first.
+    const field = input.current;
+    field?.blur();
+    requestAnimationFrame(() => field?.focus());
+    setTimeout(() => {
+      if (panelRef.current === 'none' && !KeyboardController.isVisible()) {
+        reserve.value = moves ? withTiming(0, { duration: 200 }) : 0;
+      }
+    }, 700);
+  }
+
+  function closePanel() {
+    setPanel('none');
+    reserve.value = moves ? withTiming(0, { duration: 200 }) : 0;
+  }
+
+  function insertEmoji(emoji: string) {
+    const next = insertAt(text, selection.current, emoji);
+    if (next.text.length > MAX_TEXT) return;
+    changeText(next.text);
+    moveCaret(next.caret);
+  }
+
+  function backspace() {
+    const next = deleteBefore(text, selection.current);
+    changeText(next.text);
+    moveCaret(next.caret);
+  }
+
+  function moveCaret(caret: number) {
+    selection.current = { start: caret, end: caret };
+    // After the new text reached the native field.
+    requestAnimationFrame(() => input.current?.setSelection(caret, caret));
+  }
+
+  function changeText(next: string) {
+    setText(next);
+    if (runtime && !editing) void runtime.engine.setTyping(conversationId, next.trim() !== '');
+  }
 
   async function attach(source: PickSource) {
     try {
@@ -772,6 +945,7 @@ function Composer({
   function sendVoice(note: VoiceNote) {
     const reply = replyTo?.messageId;
     onDone();
+    onSent();
     void (async () => {
       try {
         const draft = await makeDraft({
@@ -802,6 +976,7 @@ function Composer({
   function send() {
     if (!runtime || trimmed === '') return;
     setText('');
+    selection.current = { start: 0, end: 0 };
     onDone();
     void runtime.engine.setTyping(conversationId, false);
     if (editing) {
@@ -812,6 +987,8 @@ function Composer({
       }
       return;
     }
+    // Shown at once, even when reading older messages (Phase 36).
+    onSent();
     void runtime.engine.sendText(conversationId, trimmed, {
       ...(replyTo ? { replyTo: replyTo.messageId } : {}),
     });
@@ -819,102 +996,144 @@ function Composer({
 
   const context = editing ?? replyTo;
   return (
-    <View className="px-3 pt-1" style={{ paddingBottom: Math.max(insets.bottom, 10) }}>
-      {context && (
-        <Animated.View
-          {...(fades ? { entering: CONTEXT_IN, exiting: CONTEXT_OUT } : {})}
-          className="mb-2 flex-row items-center gap-3 rounded-xl border-l-4 border-accent bg-surface py-2 pl-3 pr-1"
-        >
-          <Icon icon={editing ? PencilIcon : ReplyIcon} size={18} color="accent" />
-          <View className="flex-1">
-            <Text className="font-bold text-accent">
-              {editing ? 'Editing message' : `Replying to ${names(context)}`}
-            </Text>
-            <Text numberOfLines={editing ? 2 : 1} className="text-muted">
-              {editing
-                ? 'Shown as “edited” on every device. The earlier text is not kept.'
-                : previewText(context)}
-            </Text>
-          </View>
-          <IconButton
-            icon={XIcon}
-            label={editing ? 'Cancel editing' : 'Cancel reply'}
-            size={40}
-            onPress={() => {
-              if (editing) setText('');
-              onDone();
-            }}
-          />
-        </Animated.View>
-      )}
-      {recording ? (
-        <VoiceRecorder onSend={sendVoice} onClose={() => setRecording(false)} />
-      ) : (
-        <View className="flex-row items-end gap-2">
-          <View
-            className="min-h-[52px] flex-1 flex-row items-end rounded-2xl bg-surface pl-1 pr-3"
-            style={{ ...floating, backgroundColor: palette.surface }}
+    <View>
+      <View className="px-3 pb-[6px] pt-1">
+        {context && (
+          <Animated.View
+            {...(fades ? { entering: CONTEXT_IN, exiting: CONTEXT_OUT } : {})}
+            className="mb-2 flex-row items-center gap-3 rounded-xl border-l-4 border-accent bg-surface py-2 pl-3 pr-1"
           >
-            {!editing && (
+            <Icon icon={editing ? PencilIcon : ReplyIcon} size={18} color="accent" />
+            <View className="flex-1">
+              <Text className="font-bold text-accent">
+                {editing ? 'Editing message' : `Replying to ${names(context)}`}
+              </Text>
+              <Text numberOfLines={editing ? 2 : 1} className="text-muted">
+                {editing
+                  ? 'Shown as “edited” on every device. The earlier text is not kept.'
+                  : previewText(context)}
+              </Text>
+            </View>
+            <IconButton
+              icon={XIcon}
+              label={editing ? 'Cancel editing' : 'Cancel reply'}
+              size={40}
+              onPress={() => {
+                if (editing) setText('');
+                onDone();
+              }}
+            />
+          </Animated.View>
+        )}
+        {recording ? (
+          <VoiceRecorder onSend={sendVoice} onClose={() => setRecording(false)} />
+        ) : (
+          <View className="flex-row items-end gap-2">
+            <View
+              className="min-h-[52px] flex-1 flex-row items-end rounded-2xl bg-surface pl-1 pr-1"
+              style={{ ...floating, backgroundColor: palette.surface }}
+            >
+              {!editing && (
+                <View className="h-[48px] justify-center">
+                  <IconButton
+                    icon={PlusIcon}
+                    label="Attach a photo, video or file"
+                    variant="soft"
+                    size={40}
+                    feedback="selection"
+                    disabled={!runtime}
+                    onPress={() => setAttaching(true)}
+                  />
+                </View>
+              )}
+              <TextInput
+                ref={input}
+                accessibilityLabel={editing ? 'Edited message' : 'Message'}
+                placeholder="Message"
+                value={text}
+                maxLength={MAX_TEXT}
+                multiline
+                autoFocus={editing !== undefined}
+                onChangeText={changeText}
+                onSelectionChange={({ nativeEvent }) => {
+                  selection.current = nativeEvent.selection;
+                }}
+                // A tap on the field while the emoji panel is open brings the keyboard back.
+                onPressIn={() => panelRef.current !== 'none' && openKeyboard()}
+                onBlur={() => runtime && void runtime.engine.setTyping(conversationId, false)}
+                className={`max-h-[140px] min-h-[48px] flex-1 py-3 text-base text-foreground ${editing ? 'pl-4' : 'pl-2'}`}
+              />
               <View className="h-[48px] justify-center">
                 <IconButton
-                  icon={PlusIcon}
-                  label="Attach a photo, video or file"
-                  variant="soft"
+                  icon={panel === 'none' ? SmileIcon : KeyboardIcon}
+                  label={panel === 'none' ? 'Emoji' : 'Keyboard'}
                   size={40}
                   feedback="selection"
-                  disabled={!runtime}
-                  onPress={() => setAttaching(true)}
+                  onPress={() => (panel === 'none' ? openEmoji() : openKeyboard())}
                 />
               </View>
-            )}
-            <TextInput
-              accessibilityLabel={editing ? 'Edited message' : 'Message'}
-              placeholder="Message"
-              value={text}
-              maxLength={MAX_TEXT}
-              multiline
-              autoFocus={editing !== undefined}
-              onChangeText={(next) => {
-                setText(next);
-                if (runtime && !editing)
-                  void runtime.engine.setTyping(conversationId, next.trim() !== '');
+            </View>
+            <SendButton
+              mode={editing ? 'save' : trimmed === '' ? 'voice' : 'send'}
+              disabled={!runtime || (editing !== undefined && trimmed === '')}
+              onPress={() => {
+                if (trimmed === '' && !editing) {
+                  if (panelRef.current !== 'none') closePanel();
+                  setRecording(true);
+                } else send();
               }}
-              onBlur={() => runtime && void runtime.engine.setTyping(conversationId, false)}
-              className={`max-h-[140px] min-h-[48px] flex-1 py-3 text-base text-foreground ${editing ? 'pl-4' : 'pl-2'}`}
             />
           </View>
-          <SendButton
-            mode={editing ? 'save' : trimmed === '' ? 'voice' : 'send'}
-            disabled={!runtime || (editing !== undefined && trimmed === '')}
-            onPress={() => {
-              if (trimmed === '' && !editing) setRecording(true);
-              else send();
-            }}
-          />
-        </View>
+        )}
+        <ActionSheet
+          visible={attaching}
+          onClose={() => setAttaching(false)}
+          title="Send a file"
+          layout="tiles"
+          actions={PICK_ACTIONS.map(({ source, label, detail, icon }) => ({
+            label,
+            detail,
+            icon,
+            onPress: () => void attach(source),
+          }))}
+        />
+      </View>
+      {panel === 'search' && (
+        <EmojiPanel
+          height={0}
+          bottomInset={0}
+          searching
+          onSearchingChange={(searching) => (searching ? setPanel('search') : openEmoji())}
+          onPick={insertEmoji}
+          onBackspace={backspace}
+        />
       )}
-      <ActionSheet
-        visible={attaching}
-        onClose={() => setAttaching(false)}
-        title="Send a file"
-        layout="tiles"
-        actions={PICK_ACTIONS.map(({ source, label, detail, icon }) => ({
-          label,
-          detail,
-          icon,
-          onPress: () => void attach(source),
-        }))}
-      />
+      <BottomSpace reserve={reserve}>
+        {panel === 'emoji' && (
+          <View className="absolute left-0 right-0 top-0">
+            <EmojiPanel
+              height={panelHeight(windowHeight, insets.bottom)}
+              bottomInset={insets.bottom}
+              searching={false}
+              onSearchingChange={(searching) => {
+                if (!searching) return;
+                // The search words need the keyboard; the strip sits on it.
+                setPanel('search');
+              }}
+              onPick={insertEmoji}
+              onBackspace={backspace}
+            />
+          </View>
+        )}
+      </BottomSpace>
     </View>
   );
 }
 
 /** In place of the composer once this user left (or was removed from) a group. */
 function LeftGroupNotice() {
-  const insets = useSafeAreaInsets();
   return (
-    <View className="px-3 pt-1" style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
+    <View className="px-3 pb-2 pt-1">
       <View className="rounded-xl bg-surface px-4 py-3">
         <Text className="text-center text-muted">
           You&apos;re no longer a member of this group. You can read what is here, but you
@@ -926,10 +1145,9 @@ function LeftGroupNotice() {
 }
 
 function BlockedNotice({ peerUserId, name }: { peerUserId: string; name: string }) {
-  const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
   return (
-    <View className="px-3 pt-1" style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
+    <View className="px-3 pb-2 pt-1">
       <View className="gap-2 rounded-xl bg-surface p-4">
         <Text className="text-center text-muted">
           You blocked {name}. You can&apos;t message each other until you unblock them.
@@ -1000,6 +1218,9 @@ export function ChatScreen({
   const [highlight, setHighlight] = useState<string>();
   const [headerHeight, setHeaderHeight] = useState(insets.top + 72);
   const [awayFromEnd, setAwayFromEnd] = useState(false);
+  // Reading the newest message, and what was newest when the reader scrolled away (Phase 36).
+  const [atEnd, setAtEnd] = useState(true);
+  const [seen, setSeen] = useState<SeenMark>();
   const selfUserId = runtime?.userId ?? '';
 
   const names = useCallback(
@@ -1053,6 +1274,36 @@ export function ChatScreen({
 
   const itemsRef = useRef(items);
   itemsRef.current = items;
+
+  useEffect(() => {
+    if (atEnd) setSeen(undefined);
+    else setSeen((current) => current ?? newestMark(itemsRef.current));
+  }, [atEnd]);
+  const unseen = atEnd ? 0 : unseenCount(items, seen);
+  const announced = useRef(0);
+  useEffect(() => {
+    if (unseen > announced.current) AccessibilityInfo.announceForAccessibility(unseenLabel(unseen));
+    announced.current = unseen;
+  }, [unseen]);
+
+  // Sending jumps to the newest message: now, and again once the sent one is in the list.
+  const pendingJump = useRef(false);
+  const jumpToEnd = useCallback(() => {
+    pendingJump.current = true;
+    setSeen(newestMark(itemsRef.current));
+    void list.current?.scrollToEnd({ animated: true });
+  }, []);
+  useEffect(() => {
+    if (!pendingJump.current) return;
+    pendingJump.current = false;
+    requestAnimationFrame(() => void list.current?.scrollToEnd({ animated: true }));
+  }, [items.length]);
+  // The keyboard or the emoji panel took space: keep the newest message in view.
+  const atEndRef = useRef(atEnd);
+  atEndRef.current = atEnd;
+  const keepEndInView = useCallback(() => {
+    if (atEndRef.current) void list.current?.scrollToEnd({ animated: true });
+  }, []);
   const jumpTo = useCallback(
     async (messageId: string) => {
       if (!(await loadUntil(messageId))) return;
@@ -1209,7 +1460,7 @@ export function ChatScreen({
   return (
     <View className="flex-1 bg-background">
       <Wallpaper />
-      <KeyboardAvoidingView behavior="padding" className="flex-1">
+      <View className="flex-1">
         <View className="flex-1">
           <FlashList
             ref={list}
@@ -1225,8 +1476,17 @@ export function ChatScreen({
             onStartReachedThreshold={0.3}
             onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => {
               const fromEnd = contentSize.height - contentOffset.y - layoutMeasurement.height;
-              // Sets only when it flips, so scrolling does not re-render the screen.
+              // Set only when they flip, so scrolling does not re-render the screen. "At the
+              // end" is where the list itself scrolls new messages into view (20%).
               setAwayFromEnd(fromEnd > 480);
+              setAtEnd(
+                isAtEnd(
+                  contentOffset.y,
+                  layoutMeasurement.height,
+                  contentSize.height,
+                  layoutMeasurement.height * 0.2,
+                ),
+              );
             }}
             contentContainerStyle={{ paddingTop: headerHeight + 8, paddingBottom: 8 }}
             ListEmptyComponent={
@@ -1241,9 +1501,10 @@ export function ChatScreen({
               />
             }
           />
-          {awayFromEnd && (
+          {unseen > 0 ? (
             <Animated.View
-              className="absolute bottom-3 right-3"
+              className="absolute bottom-3 self-center"
+              accessibilityLiveRegion="polite"
               style={
                 moves
                   ? {
@@ -1254,14 +1515,40 @@ export function ChatScreen({
                   : undefined
               }
             >
-              <IconButton
-                icon={ArrowDownIcon}
-                label="Jump to the latest message"
-                variant="surface"
+              <Tap
+                accessibilityLabel={`${unseenLabel(unseen)}. Show them`}
                 feedback="selection"
-                onPress={() => void list.current?.scrollToEnd({ animated: true })}
-              />
+                onPress={jumpToEnd}
+                className="h-[40px] flex-row items-center gap-2 rounded-full px-4"
+                style={{ backgroundImage: brandGradient(palette), ...floating }}
+              >
+                <Icon icon={ArrowDownIcon} size={18} color="on-primary" strokeWidth={2.6} />
+                <Text className="font-bold text-on-primary">{unseenLabel(unseen)}</Text>
+              </Tap>
             </Animated.View>
+          ) : (
+            awayFromEnd && (
+              <Animated.View
+                className="absolute bottom-3 right-3"
+                style={
+                  moves
+                    ? {
+                        animationName: DOWN_IN,
+                        animationDuration: 200,
+                        animationTimingFunction: CSS_POP,
+                      }
+                    : undefined
+                }
+              >
+                <IconButton
+                  icon={ArrowDownIcon}
+                  label="Jump to the latest message"
+                  variant="surface"
+                  feedback="selection"
+                  onPress={jumpToEnd}
+                />
+              </Animated.View>
+            )
           )}
         </View>
         {typing && !blocked && (
@@ -1275,9 +1562,15 @@ export function ChatScreen({
           </View>
         )}
         {left ? (
-          <LeftGroupNotice />
+          <>
+            <LeftGroupNotice />
+            <BottomSpace />
+          </>
         ) : blocked && peerUserId ? (
-          <BlockedNotice peerUserId={peerUserId} name={name} />
+          <>
+            <BlockedNotice peerUserId={peerUserId} name={name} />
+            <BottomSpace />
+          </>
         ) : (
           <Composer
             conversationId={conversationId}
@@ -1288,9 +1581,11 @@ export function ChatScreen({
               setReplyTo(undefined);
               setEditing(undefined);
             }}
+            onSent={jumpToEnd}
+            onKeyboardShown={keepEndInView}
           />
         )}
-      </KeyboardAvoidingView>
+      </View>
 
       <StatusBarBand />
 

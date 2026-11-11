@@ -13,6 +13,7 @@ import { clearBackupDir } from '@/backup/io';
 import { resetCryptoContext } from '@/crypto/bootstrap';
 import { SECRET_ITEMS, SECURE_STORE_OPTIONS } from '@/crypto/secrets';
 import { DATABASE_NAME } from '@/db/open';
+import { deleteEmojiPrefs } from '@/emoji/store';
 
 import { runWipe } from './wipe-steps';
 
@@ -28,6 +29,7 @@ export function wipeThisPhone(): Promise<void> {
     deleteFiles: () => {
       wipeAttachmentFiles();
       clearBackupDir();
+      deleteEmojiPrefs();
       return Promise.resolve();
     },
     deleteSecrets: async () => {

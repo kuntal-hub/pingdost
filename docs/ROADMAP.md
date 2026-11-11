@@ -41,7 +41,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 33 | [Calls D: camera filters and effects](phases/phase-33-calls-effects.md) | 32 | 🔄 |
 | 34 | [Sign-in and sign-up polish](phases/phase-34-auth-polish.md) | 07, 31 | 🔄 |
 | 35 | [Chat look: titles, new-chat button, message times, bubbles, deleted messages, big emoji](phases/phase-35-chat-look.md) | 11, 17, 31 | 🔄 |
-| 36 | [Chat composer: emoji picker, keyboard, scrolling](phases/phase-36-chat-composer.md) | 34, 35 | ⬜ |
+| 36 | [Chat composer: emoji picker, keyboard, scrolling](phases/phase-36-chat-composer.md) | 34, 35 | 🔄 |
 | 37 | [Circles: nobody can contact you without your consent](phases/phase-37-circles.md) | 13, 17, 26 | ⬜ |
 | 38 | [Find people and pick group members](phases/phase-38-people-search.md) | 37 | ⬜ |
 | 39 | [Select several messages and forward them](phases/phase-39-select-forward.md) | 35, 37 | ⬜ |
