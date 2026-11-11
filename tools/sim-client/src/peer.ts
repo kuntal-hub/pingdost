@@ -28,7 +28,6 @@
 import { parseArgs } from 'node:util';
 
 import { circlesApi } from '@pingdost/api-client';
-
 import { createWasmCryptoProvider } from '@pingdost/crypto';
 
 import { simCalls } from './calls';

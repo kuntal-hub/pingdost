@@ -41,6 +41,8 @@ import { authRoutes } from './modules/auth/routes';
 import { AuthService } from './modules/auth/service';
 import { AccessTokens } from './modules/auth/tokens';
 import { callRoutes } from './modules/calls/routes';
+import { circleRoutes } from './modules/circles/routes';
+import { circleIndexes, CircleService } from './modules/circles/service';
 import {
   MongoMailbox,
   pendingEnvelopeIndexes,
@@ -84,8 +86,6 @@ import { pushTokenIndexes, PushTokens } from './modules/push/repo';
 import { pushRoutes } from './modules/push/routes';
 import { PushService } from './modules/push/service';
 import { blockIndexes, BlockService } from './modules/security/blocks';
-import { circleRoutes } from './modules/circles/routes';
-import { circleIndexes, CircleService } from './modules/circles/service';
 import { securityEventIndexes, SecurityEvents } from './modules/security/events';
 import { reportIndexes, ReportService } from './modules/security/reports';
 import { securityRoutes } from './modules/security/routes';

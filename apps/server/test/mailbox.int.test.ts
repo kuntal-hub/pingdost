@@ -167,7 +167,10 @@ describe('mailbox (REQ §19.2)', () => {
     const { envelopeId } = await sendStored(socket, alice, bob);
     const createdAt = Number((await inRedis(envelopeId, bob.deviceId)).mbx);
 
-    expect((await jobs().migrator.runOnce()).migrated).toBe(0);
+    // Not due yet: it stays in Redis (another test's envelope may be due by now).
+    await jobs().migrator.runOnce();
+    expect((await inRedis(envelopeId, bob.deviceId)).env).toBe(true);
+    expect(await pending().countDocuments({ _id: envelopeId })).toBe(0);
     server.clock.advance(STAGE_MS + 1);
 
     const redisAtVerify: boolean[] = [];
@@ -199,11 +202,17 @@ describe('mailbox (REQ §19.2)', () => {
     server.clock.advance(STAGE_MS + 1);
 
     const down = mongoWith({ insert: () => Promise.reject(new Error('mongo unavailable')) });
-    expect(await jobs(down).migrator.runOnce()).toMatchObject({ migrated: 0, failed: 1 });
+    // Other tests' envelopes may be due too: none migrates, this one among the failures.
+    const failedRun = await jobs(down).migrator.runOnce();
+    expect(failedRun.migrated).toBe(0);
+    expect(failedRun.failed).toBeGreaterThanOrEqual(1);
     expect((await inRedis(envelopeId, bob.deviceId)).env).toBe(true);
     expect(await pending().countDocuments({ _id: envelopeId })).toBe(0);
 
-    expect(await jobs().migrator.runOnce()).toMatchObject({ migrated: 1, failed: 0 });
+    const retried = await jobs().migrator.runOnce();
+    expect(retried.failed).toBe(0);
+    expect(retried.migrated).toBeGreaterThanOrEqual(1);
+    expect(await pending().countDocuments({ _id: envelopeId })).toBe(1);
     const { socket: bobSocket, delivered } = await fetchAs(bob);
     expect(delivered).toEqual([envelopeId]);
     socket.close();
@@ -218,7 +227,8 @@ describe('mailbox (REQ §19.2)', () => {
     const fetched = await fetchAs(bob);
     expect(fetched.delivered).toEqual([first.envelopeId]);
     server.clock.advance(STAGE_MS + 1);
-    expect((await jobs().migrator.runOnce()).migrated).toBe(1);
+    expect((await jobs().migrator.runOnce()).migrated).toBeGreaterThanOrEqual(1);
+    expect(await pending().countDocuments({ _id: first.envelopeId })).toBe(1);
     fetched.socket.ack([first.envelopeId]);
     await new Promise((resolve) => setTimeout(resolve, 200));
     await gone(first.envelopeId, bob.deviceId);
@@ -237,7 +247,7 @@ describe('mailbox (REQ §19.2)', () => {
       },
       has: () => Promise.resolve(true),
     });
-    expect((await jobs(racing).migrator.runOnce()).migrated).toBe(1);
+    expect((await jobs(racing).migrator.runOnce()).migrated).toBeGreaterThanOrEqual(1);
     await gone(second.envelopeId, bob.deviceId);
 
     // Nothing is delivered again.

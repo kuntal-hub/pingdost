@@ -40,8 +40,8 @@ import type { Clock } from '../../infra/clock';
 import { AppError } from '../../infra/errors';
 import type { Metrics } from '../../infra/metrics';
 import type { AuthCollections } from '../auth/repo';
-import type { CircleService } from '../circles/service';
 import type { AccessTokens } from '../auth/tokens';
+import type { CircleService } from '../circles/service';
 import type { EnvelopeRecord } from '../delivery/record';
 import {
   DeliveryError,
