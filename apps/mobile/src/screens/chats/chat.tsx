@@ -143,7 +143,7 @@ import {
 import { AttachmentContent } from './attachment-bubble';
 import { EmojiPanel } from './emoji-panel';
 import { takeForwardNotice } from './forward';
-import { VoiceRecorder, type VoiceNote } from './voice-recorder';
+import { MicHold, useVoiceNote, VoiceBar, VoiceHint, type VoiceNote } from './voice-recorder';
 import { CircleAction } from '../circle/circle-action';
 
 /** Longest message; far inside one envelope even in 4-byte UTF-8. */
@@ -803,10 +803,13 @@ const CONTEXT_OUT = FadeOutDown.duration(140);
 /** The round button at the end of the composer: microphone, or send once there is text. */
 function SendButton({
   mode,
+  label,
   disabled,
   onPress,
 }: {
   mode: 'voice' | 'send' | 'save';
+  /** Instead of the mode's own label. */
+  label?: string;
   disabled: boolean;
   onPress: () => void;
 }) {
@@ -822,7 +825,9 @@ function SendButton({
     : {};
   return (
     <Tap
-      accessibilityLabel={voice ? 'Record a voice message' : mode === 'save' ? 'Save' : 'Send'}
+      accessibilityLabel={
+        label ?? (voice ? 'Record a voice message' : mode === 'save' ? 'Save' : 'Send')
+      }
       accessibilityState={{ disabled }}
       disabled={disabled}
       feedback={voice ? 'selection' : 'light'}
@@ -945,13 +950,17 @@ function Composer({
   const { height: windowHeight } = useWindowDimensions();
   const [text, setText] = useState('');
   const [attaching, setAttaching] = useState(false);
-  const [recording, setRecording] = useState(false);
   const [panel, setPanelState] = useState<Panel>('none');
   const panelRef = useRef<Panel>('none');
   const reserve = useSharedValue(0);
   const input = useRef<ComponentRef<typeof NativeTextInput>>(null);
   const selection = useRef({ start: 0, end: 0 });
   const trimmed = text.trim();
+  // Voice notes (Phase 40): the bar covers the field while recording, locked or in review; the
+  // field stays mounted underneath, so a keyboard that was up stays up while the finger holds.
+  const voice = useVoiceNote(sendVoice);
+  const voiceShown = voice.phase !== 'idle' || voice.binning;
+  const voiceDone = voice.phase === 'locked' || voice.phase === 'review';
 
   function setPanel(next: Panel) {
     panelRef.current = next;
@@ -961,6 +970,13 @@ function Composer({
   useEffect(() => {
     if (editing) setText(editing.body);
   }, [editing]);
+
+  // Once locked the finger is free: the keyboard or the emoji panel only takes room.
+  useEffect(() => {
+    if (!voiceDone) return;
+    if (panelRef.current !== 'none') closePanel();
+    if (KeyboardController.isVisible()) void KeyboardController.dismiss();
+  }, [voiceDone]);
 
   // Once the keyboard is up, the space kept for the panel is no longer needed.
   useEffect(() => {
@@ -1137,66 +1153,82 @@ function Composer({
             />
           </Animated.View>
         )}
-        {recording ? (
-          <VoiceRecorder onSend={sendVoice} onClose={() => setRecording(false)} />
-        ) : (
-          <View className="flex-row items-end gap-2">
-            <View
-              className="min-h-[52px] flex-1 flex-row items-end rounded-2xl bg-surface pl-1 pr-1"
-              style={{ ...floating, backgroundColor: palette.surface }}
-            >
-              {!editing && (
-                <View className="h-[48px] justify-center">
-                  <IconButton
-                    icon={PlusIcon}
-                    label="Attach a photo, video or file"
-                    variant="soft"
-                    size={40}
-                    feedback="selection"
-                    disabled={!runtime}
-                    onPress={() => setAttaching(true)}
-                  />
-                </View>
-              )}
-              <TextInput
-                ref={input}
-                accessibilityLabel={editing ? 'Edited message' : 'Message'}
-                placeholder="Message"
-                value={text}
-                maxLength={MAX_TEXT}
-                multiline
-                autoFocus={editing !== undefined}
-                onChangeText={changeText}
-                onSelectionChange={({ nativeEvent }) => {
-                  selection.current = nativeEvent.selection;
-                }}
-                // A tap on the field while the emoji panel is open brings the keyboard back.
-                onPressIn={() => panelRef.current !== 'none' && openKeyboard()}
-                onBlur={() => runtime && void runtime.engine.setTyping(conversationId, false)}
-                className={`max-h-[140px] min-h-[48px] flex-1 py-3 text-base text-foreground ${editing ? 'pl-4' : 'pl-2'}`}
-              />
+        <View className="flex-row items-end gap-2">
+          <View
+            className="min-h-[52px] flex-1 flex-row items-end rounded-2xl bg-surface pl-1 pr-1"
+            importantForAccessibility={voiceShown ? 'no-hide-descendants' : 'auto'}
+            style={{
+              ...floating,
+              backgroundColor: palette.surface,
+              ...(voiceShown ? { opacity: 0, pointerEvents: 'none' as const } : {}),
+            }}
+          >
+            {!editing && (
               <View className="h-[48px] justify-center">
                 <IconButton
-                  icon={panel === 'none' ? SmileIcon : KeyboardIcon}
-                  label={panel === 'none' ? 'Emoji' : 'Keyboard'}
+                  icon={PlusIcon}
+                  label="Attach a photo, video or file"
+                  variant="soft"
                   size={40}
                   feedback="selection"
-                  onPress={() => (panel === 'none' ? openEmoji() : openKeyboard())}
+                  disabled={!runtime}
+                  onPress={() => setAttaching(true)}
                 />
               </View>
+            )}
+            <TextInput
+              ref={input}
+              accessibilityLabel={editing ? 'Edited message' : 'Message'}
+              placeholder="Message"
+              value={text}
+              maxLength={MAX_TEXT}
+              multiline
+              autoFocus={editing !== undefined}
+              onChangeText={changeText}
+              onSelectionChange={({ nativeEvent }) => {
+                selection.current = nativeEvent.selection;
+              }}
+              // A tap on the field while the emoji panel is open brings the keyboard back.
+              onPressIn={() => panelRef.current !== 'none' && openKeyboard()}
+              onBlur={() => runtime && void runtime.engine.setTyping(conversationId, false)}
+              className={`max-h-[140px] min-h-[48px] flex-1 py-3 text-base text-foreground ${editing ? 'pl-4' : 'pl-2'}`}
+            />
+            <View className="h-[48px] justify-center">
+              <IconButton
+                icon={panel === 'none' ? SmileIcon : KeyboardIcon}
+                label={panel === 'none' ? 'Emoji' : 'Keyboard'}
+                size={40}
+                feedback="selection"
+                onPress={() => (panel === 'none' ? openEmoji() : openKeyboard())}
+              />
             </View>
+          </View>
+          {voiceShown && <VoiceBar voice={voice} />}
+          <MicHold
+            voice={voice}
+            enabled={!voiceDone && !editing && trimmed === '' && !voice.screenReader && !!runtime}
+          >
             <SendButton
-              mode={editing ? 'save' : trimmed === '' ? 'voice' : 'send'}
-              disabled={!runtime || (editing !== undefined && trimmed === '')}
+              mode={voiceDone ? 'send' : editing ? 'save' : trimmed === '' ? 'voice' : 'send'}
+              {...(voiceDone ? { label: 'Send voice message' } : {})}
+              disabled={
+                !runtime ||
+                (editing !== undefined && trimmed === '') ||
+                (voice.phase === 'review' && !voice.review)
+              }
               onPress={() => {
-                if (trimmed === '' && !editing) {
+                if (voiceDone) voice.dispatch({ type: 'send' });
+                else if (trimmed === '' && !editing) {
+                  // Holding records; only a screen reader's tap starts a hands-free recording.
+                  if (!voice.screenReader) return;
                   if (panelRef.current !== 'none') closePanel();
-                  setRecording(true);
+                  voice.dispatch({ type: 'tap' });
                 } else send();
               }}
             />
-          </View>
-        )}
+          </MicHold>
+          {voice.hint && <VoiceHint text={voice.hint} />}
+        </View>
         <ActionSheet
           visible={attaching}
           onClose={() => setAttaching(false)}

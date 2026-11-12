@@ -4,6 +4,13 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-12 — Phase 40 built: decisions taken while building (ADR 0044)
+1. **Locked recordings can also be sent directly** (Delete, Stop, and Send on the round button), as in other messengers. Stop opens review as planned.
+2. **The screen-reader flow is now the locked state:** a tap starts a hands-free recording with Delete, Stop (review) and Send. Phase 15's version had only Send or Cancel.
+3. **Leaving the chat** (not only the app) counts as an interruption. Recording during a call is refused with a hint, since the call holds the microphone.
+4. **No wire, server or native change:** the current dev build runs it. The sim peer now opens received files and voice notes and replies with what it got (a dev tool).
+   - *Affects:* 40 (done, phone check open).
+
 ### 2026-11-11 — Phase 39 built: decisions taken while building (ADR 0043)
 1. **A forwarded file is a new attachment** sent from the forwarding device's own encrypted copy (new key, new upload per chat), since the server copy may already be gone (ADR 0017). A file that device never downloaded (or removed) is skipped, and the notice says so.
    - *Affects:* 39 (done, phone check open).

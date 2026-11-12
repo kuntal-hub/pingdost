@@ -17,6 +17,46 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-12 — Phase 40: Voice notes: hold to record, slide to cancel, lock, review — 🔄 partial (code done, emulator checks pass; real-phone feel check open)
+Started with 36 still 🔄 (only its phone check is open), with the user's go-ahead.
+
+**Done (ADR 0044, CHANGES 2026-11-12 "Phase 40"):**
+- `apps/mobile/src/attachments/voice-gesture.ts`: the gesture as a pure machine (idle → holding → locked → review), plus worklet-safe `slideOutcome`/`slideOffset`. 19 unit tests.
+- `screens/chats/voice-recorder.tsx` rewritten:
+  - `useVoiceNote`: effects run through one serial microphone queue, one "take" per recording. Interruptions come from AppState, chat blur and calls. The permission is checked up front. The microphone is released as soon as recording stops.
+  - `MicHold`: a pan with `minDistance: 0`; the button follows the finger, with a lock rail above it.
+  - `VoiceBar`: the recording, locked, review and bin rows.
+  - The review has play/pause, a waveform scrubber with a thumb, and Send/Delete.
+- Screen readers keep tap to start (hands-free, the locked state).
+- Composer (`chat.tsx`): the voice bar covers the field, which stays mounted, so the keyboard does not jump under the finger. The round button morphs to Send while locked or in review.
+- Sim peer: downloads and decrypts every file or voice note it receives, checks the size and the MP4 header, and replies with the duration and waveform bars (new workspace dependency `@pingdost/attachments`).
+
+**Verification:**
+- `pnpm turbo run lint typecheck test` 59/59 (mobile: 28 files / 174 tests); `pnpm format:check` clean. While the emulator, Metro, the server and the peer were running, `@pingdost/backup` timed out twice (Argon2id, 5 s limit). It passed alone, and in the full run once the emulator was stopped.
+- Emulator with the sim peer, driven by adb swipes:
+  - First hold → the permission dialog, then the hint.
+  - Hold → send ("3.1 s, 15 bars, playable MP4 audio").
+  - Slide left → bin and discard. Slide up → lock → Stop → review → Play → tap-to-seek → Send ("7.0 s, 51 bars, playable").
+  - Delete works when locked and in review. A 0.3 s tap is dropped with the hint.
+  - Home while locked → review; Home while holding → dropped.
+  - TalkBack tap-to-start → Send and Delete work.
+  - `dumpsys audio`: every start has a stop.
+- Found and fixed on the emulator:
+  - an update-depth loop in the recording row (effect on polled status);
+  - the review's gesture-handler detector blocking the Play/Delete buttons beside it, so the scrubber now uses RN responder props;
+  - Fast Refresh/StrictMode cleanup leaving `gone` set;
+  - Reanimated dependency-array warnings;
+  - a silent drop when a hold ended before the recorder started ("Too short" hint now).
+
+**Remaining:**
+- [ ] Real phone (no new build needed; Phase 40 adds no native code): the feel of hold, slide, lock and haptics, and how long the recorder takes to start. On the emulator the first hold after opening the app captured 1.1 s of a 3.5 s hold.
+
+**Known issues:**
+- Phase 37 (seen while setting up): after the peer accepted the circle request, the requester's New chat row kept "Requested" until the app restarted. The server log shows no circle reload after the accept, though the socket was connected. Check this during 37's open two-phone check.
+- `adb input text` with no field focused triggers React Native dev shortcuts (`i` opens the inspector).
+
+**Next:** the open phone checks of 34–40 with one new build, or the next phase the user picks.
+
 ## 2026-11-11 — Phase 39: Select several messages and forward them — 🔄 partial (code done, checks pass; real-phone check needs a new build)
 Started with 35 and 37 still 🔄 (only their phone checks are open), as the user asked for 38 and 39 together.
 

@@ -24,11 +24,16 @@
  * Circles (Phase 37): it accepts every circle request within a few seconds, so open a chat
  * with it after adding it to your circle. `--dial-user` first asks that user into its circle
  * and calls once they accept.
+ *
+ * Files and voice notes (Phase 40): it downloads and decrypts each one, checks its size and that
+ * audio is a real MP4 file, logs the duration and waveform, and replies with what it got.
  */
 import { parseArgs } from 'node:util';
 
-import { circlesApi } from '@pingdost/api-client';
+import { attachmentsApi, circlesApi } from '@pingdost/api-client';
+import { decryptStream } from '@pingdost/attachments';
 import { createWasmCryptoProvider } from '@pingdost/crypto';
+import { attachmentDecryptInput, type MessageRecord } from '@pingdost/message-engine';
 
 import { simCalls } from './calls';
 import { SimClient } from './client';
@@ -99,6 +104,52 @@ async function main(): Promise<void> {
   }
 
   const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  /** Fetches, decrypts and checks a file from the user, then replies with what arrived. */
+  async function openFile(conversationId: string, message: MessageRecord): Promise<void> {
+    const info = message.attachment;
+    if (!info) return;
+    const bars = info.waveform ? Buffer.from(info.waveform, 'base64').length : 0;
+    const seconds = info.durationMs ? `${(info.durationMs / 1_000).toFixed(1)} s` : 'no duration';
+    console.log(
+      `← file ${info.mimeType}, ${info.plaintextSize} bytes, ${seconds}, waveform ${bars} bars`,
+    );
+    let verdict: string;
+    try {
+      const files = attachmentsApi(peer.api);
+      const { url } = await files.downloadUrl(info.attachmentId);
+      const staged = new Uint8Array(await (await fetch(url)).arrayBuffer());
+      const pieces: Uint8Array[] = [];
+      const source = (async function* () {
+        await Promise.resolve();
+        yield staged;
+      })();
+      for await (const piece of decryptStream(crypto, attachmentDecryptInput(info), source)) {
+        pieces.push(piece);
+      }
+      await files.ack(info.attachmentId);
+      const plain = Buffer.concat(pieces);
+      // An MP4 file (AAC voice notes from Android) starts with a box whose type is "ftyp".
+      const mp4 = plain.subarray(4, 8).toString('latin1') === 'ftyp';
+      verdict =
+        plain.length !== info.plaintextSize
+          ? `size mismatch (${plain.length} bytes)`
+          : info.mimeType.startsWith('audio/')
+            ? mp4
+              ? 'playable MP4 audio'
+              : 'audio, but not MP4'
+            : 'opened';
+    } catch (error) {
+      verdict = `could not open it: ${String(error)}`;
+    }
+    console.log(`  ${verdict}`);
+    await peer.engine.markRead(conversationId);
+    const what = info.durationMs ? `a ${seconds} voice note with ${bars} waveform bars` : 'a file';
+    await peer.engine.sendText(conversationId, `echo: got ${what}, ${verdict}`, {
+      replyTo: message.messageId,
+    });
+  }
+
   const answered = new Set<string>();
   const watched = new Set<string>();
   peer.engine.onConversationListChanged(() => {
@@ -126,13 +177,13 @@ async function main(): Promise<void> {
           console.log(`  edited by them: ${latest.body}`);
         }
         for (const message of latest ? [latest] : []) {
-          if (
-            message.direction !== 'in' ||
-            message.kind !== 'text' ||
-            answered.has(message.messageId)
-          ) {
+          if (message.direction !== 'in' || answered.has(message.messageId)) continue;
+          if (message.kind === 'attachment') {
+            answered.add(message.messageId);
+            await openFile(conversationId, message);
             continue;
           }
+          if (message.kind !== 'text') continue;
           answered.add(message.messageId);
           console.log(`← ${message.body}`);
           await peer.engine.markRead(conversationId);

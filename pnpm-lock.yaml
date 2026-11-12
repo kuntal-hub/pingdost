@@ -896,6 +896,9 @@ importers:
       '@pingdost/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@pingdost/attachments':
+        specifier: workspace:*
+        version: link:../../packages/attachments
       '@pingdost/backup':
         specifier: workspace:*
         version: link:../../packages/backup

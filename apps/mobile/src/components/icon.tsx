@@ -17,7 +17,9 @@ import CaseSensitiveIcon from 'lucide-react-native/icons/case-sensitive';
 import CheckIcon from 'lucide-react-native/icons/check';
 import CheckCheckIcon from 'lucide-react-native/icons/check-check';
 import ChevronDownIcon from 'lucide-react-native/icons/chevron-down';
+import ChevronLeftIcon from 'lucide-react-native/icons/chevron-left';
 import ChevronRightIcon from 'lucide-react-native/icons/chevron-right';
+import ChevronUpIcon from 'lucide-react-native/icons/chevron-up';
 import CircleAlertIcon from 'lucide-react-native/icons/circle-alert';
 import ClockIcon from 'lucide-react-native/icons/clock';
 import CloudUploadIcon from 'lucide-react-native/icons/cloud-upload';
@@ -123,7 +125,9 @@ export {
   CheckCheckIcon,
   CheckIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronUpIcon,
   CircleAlertIcon,
   ClockIcon,
   CloudUploadIcon,
