@@ -53,6 +53,8 @@ export interface ApiClient {
   request<T = void>(options: RequestOptions<T>): Promise<T>;
   /** `GET /healthz`. */
   health(signal?: AbortSignal): Promise<HealthResponse>;
+  /** The base URL this client reaches the API at, without a trailing slash. */
+  readonly baseUrl?: string;
 }
 
 const RETRY_STATUSES = new Set([502, 503, 504]);
@@ -219,6 +221,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
   return {
     request,
+    baseUrl: options.baseUrl.replace(/\/+$/, ''),
     health: (signal) =>
       request({
         method: 'GET',

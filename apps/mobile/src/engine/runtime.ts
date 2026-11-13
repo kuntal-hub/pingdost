@@ -27,6 +27,7 @@ import { publicConfig } from '@/config';
 import { getCryptoContext } from '@/crypto/bootstrap';
 import { getOrCreateSecret, SECRET_ITEMS, SECURE_STORE_OPTIONS } from '@/crypto/secrets';
 import { readSetting, SETTING_KEYS, writeSetting } from '@/db/settings';
+import { syncSql } from '@/db/sync-sql';
 import { startMeshFiles } from '@/nearby/files';
 import { createNearby, disposeNearby, startNearby } from '@/nearby/service';
 import { installNotifier } from '@/push/notifications';
@@ -140,7 +141,10 @@ async function boot(): Promise<ChatRuntime> {
     getAccessToken: () => authStore.getState().accessToken(),
     refreshToken: () => authStore.getState().refresh(),
   });
-  const store = new SqliteEngineStore(db);
+  // The engine and the attachment rows run on the sync calls (`db/sync-sql.ts`): a send or a
+  // receive is dozens of small statements, and the async calls cost a native round trip each.
+  const fastDb = syncSql(db);
+  const store = new SqliteEngineStore(fastDb);
   // The Internet first; nearby reaches contacts' phones in range (null without the module).
   const nearby = createNearby(
     createNearbyIdentity({
@@ -153,7 +157,7 @@ async function boot(): Promise<ChatRuntime> {
     db,
   );
   const router = new TransportRouter(nearby ? [transport, nearby] : [transport]);
-  const repo = new AttachmentRepo(db, (work) => store.exclusive(work));
+  const repo = new AttachmentRepo(fastDb, (work) => store.exclusive(work));
   const engine = new MessageEngine({
     self: { userId, deviceId, ...(accountIdentityKey ? { accountIdentityKey } : {}) },
     crypto: context.provider,

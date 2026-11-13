@@ -5,6 +5,7 @@
 // FTS5 index that migration 003's triggers keep in step with `messages` (ADR 0014). Groups
 // and their Megolm sessions are migration 004's tables (ADR 0016); attachment manifests are
 // migration 005's JSON column (ADR 0017), and their captions are indexed since 006 (ADR 0018).
+// The runtime hands it expo-sqlite's sync calls through `db/sync-sql.ts` (ADR 0045).
 import {
   ftsQuery,
   type ConversationRecord,

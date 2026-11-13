@@ -1012,6 +1012,25 @@ export class MessageEngine {
 
   // Contacts and keys
 
+  /**
+   * Refreshes these users' cached device lists that are past half their age limit, so the next
+   * send to them does not first wait for the lookups (a fan-out refetches lists older than
+   * `directoryMaxAgeMs`). Call it when a chat opens; failures are left to the send.
+   */
+  async warmDirectories(userIds: readonly string[]): Promise<void> {
+    const core = this.#core;
+    const maxAgeMs = core.settings.directoryMaxAgeMs / 2;
+    const users = [...new Set(userIds)];
+    // A few at a time: a large group must not fire a burst of lookups.
+    for (let start = 0; start < users.length; start += 8) {
+      await Promise.all(
+        users
+          .slice(start, start + 8)
+          .map((userId) => core.directoryFor(userId, maxAgeMs).catch(() => undefined)),
+      );
+    }
+  }
+
   /** Fetches and verifies a user's devices now (new devices get new messages from now on). */
   async refreshDevices(userId: string): Promise<DirectoryRecord | undefined> {
     const lookup = await this.#core.refreshDirectory(userId);

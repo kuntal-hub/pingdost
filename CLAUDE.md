@@ -203,6 +203,11 @@ Summarize ROADMAP and the top PROGRESS entry in a few lines.
   - Keyboard (ADR 0039): `react-native-keyboard-controller` with `KeyboardProvider` at the root; `Screen` is a `KeyboardAwareScrollView`. Do not add React Native's `KeyboardAvoidingView` to new screens.
   - Voice notes (Phase 40, ADR 0044): the hold/slide/lock/review rules are the pure machine `src/attachments/voice-gesture.ts` (unit-tested); `screens/chats/voice-recorder.tsx` runs its effects (one serial queue for the microphone). The sim peer opens each file or voice note it receives and replies with what it got (duration, waveform bars, "playable MP4 audio"). Holds can be driven over adb: `input swipe x y x y 1500` (hold), `x y x-300 y 2500` (cancel), `x y x y-400 2000` (lock; px on the 420 dpi emulator). A gesture-handler v3 `GestureDetector` next to `Pressable`s in one row blocked their touches there, so the review scrubber uses RN responder props: check taps whenever a new detector sits beside buttons.
   - On Android (Fabric), a nested `<Text>`'s colour `transparent` counts as unset and draws in the default colour: use `#FFFFFF01` for invisible text (the message-time spacer in `chat.tsx`).
+  - Speed (ADR 0045):
+    - The engine store and attachment rows run on expo-sqlite's sync calls (`src/db/sync-sql.ts`); each async call costs native round trips.
+    - Chats' newest pages are cached in memory (`engine/hooks.ts`: prefetched from the chat list, kept current by events), so a chat opens with its messages.
+    - Bubbles are `memo`: keep the props passed from `renderItem` stable.
+  - Attachment URLs: `@pingdost/api-client` moves the server's signed `/v1/attachments/…` URLs to the client's own base URL (`rebaseSignedUrl`), so the dev `PUBLIC_API_URL=http://localhost:3000` works from phones.
 - Test conventions:
   - unit tests are `src/**/*.test.ts`, and each package with tests has a `vitest.config.ts` using `defineProject` (copy `packages/config/vitest.config.ts`);
   - integration tests are `*.int.test.ts`, with a `vitest.int.config.ts` and the script `"test:int": "vitest run --config vitest.int.config.ts"`;

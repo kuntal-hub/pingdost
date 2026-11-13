@@ -290,6 +290,27 @@ describe('MessageEngine', () => {
     );
   });
 
+  it('refreshes device lists ahead of a send, only once they are getting old', async () => {
+    const server = new FakeServer();
+    const alice = await client(server, { settings: { directoryMaxAgeMs: 600_000 } });
+    const bob = await client(server);
+    await alice.engine.warmDirectories([bob.userId, alice.userId, bob.userId]);
+    const first = await alice.store.getDirectory(bob.userId);
+    expect(first?.devices.map((d) => d.deviceId)).toEqual([bob.deviceId]);
+    expect(await alice.store.getDirectory(alice.userId)).toBeDefined();
+    // Still fresh: not fetched again (with the server down, nothing fails or changes).
+    server.apiDown = true;
+    await alice.engine.warmDirectories([bob.userId]);
+    expect((await alice.store.getDirectory(bob.userId))?.fetchedAt).toBe(first?.fetchedAt);
+    // Past half the age limit: fetched again.
+    server.apiDown = false;
+    await alice.store.apply({ directory: [{ ...first!, fetchedAt: Date.now() - 400_000 }] });
+    await alice.engine.warmDirectories([bob.userId]);
+    expect((await alice.store.getDirectory(bob.userId))?.fetchedAt).toBeGreaterThan(
+      Date.now() - 5_000,
+    );
+  });
+
   it('repairs a broken session and resends what was lost', async () => {
     const server = new FakeServer();
     const alice = await client(server);

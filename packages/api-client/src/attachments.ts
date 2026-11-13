@@ -24,34 +24,63 @@ export interface AttachmentsApi {
   ack(attachmentId: string): Promise<void>;
 }
 
+/** The API's own signed routes (the `fs` store); an object store's URLs look different. */
+const API_SIGNED_ROUTE = /^[a-z][a-z\d+.-]*:\/\/[^/?#]+(\/v1\/attachments\/[^#]*)$/i;
+
+/**
+ * A signed URL on the API's own attachment routes, moved to the address this client reaches
+ * the API at. The server names itself with `PUBLIC_API_URL`, which only one kind of client can
+ * share in development: a phone on the LAN, an emulator (`10.0.2.2`) and `adb reverse`
+ * (`127.0.0.1`) each reach the same server under another address, and `localhost` from a
+ * phone is the phone itself. The signature covers the path and query only, so it still holds.
+ * Object-store URLs (`s3`) are left as they are.
+ */
+export function rebaseSignedUrl(url: string, baseUrl: string | undefined): string {
+  if (!baseUrl) return url;
+  const route = API_SIGNED_ROUTE.exec(url)?.[1];
+  return route ? `${baseUrl.replace(/\/+$/, '')}${route}` : url;
+}
+
 export function attachmentsApi(client: ApiClient): AttachmentsApi {
   const path = (id: string, rest = '') => `/v1/attachments/${encodeURIComponent(id)}${rest}`;
+  const rebase = (url: string) => rebaseSignedUrl(url, client.baseUrl);
+  const withUploadUrls = <T extends { uploadUrls: { index: number; url: string }[] }>(
+    body: T,
+  ): T => ({ ...body, uploadUrls: body.uploadUrls.map((u) => ({ ...u, url: rebase(u.url) })) });
   return {
-    create: (body) =>
-      client.request({
-        method: 'POST',
-        path: '/v1/attachments',
-        body,
-        response: CreateAttachmentResponseSchema,
-      }),
-    status: (id) =>
-      client.request({
-        method: 'GET',
-        path: path(id, '/status'),
-        response: AttachmentStatusResponseSchema,
-      }),
-    complete: (id) =>
-      client.request({
-        method: 'POST',
-        path: path(id, '/complete'),
-        response: AttachmentStatusResponseSchema,
-      }),
-    downloadUrl: (id) =>
-      client.request({
+    create: async (body) =>
+      withUploadUrls(
+        await client.request({
+          method: 'POST',
+          path: '/v1/attachments',
+          body,
+          response: CreateAttachmentResponseSchema,
+        }),
+      ),
+    status: async (id) =>
+      withUploadUrls(
+        await client.request({
+          method: 'GET',
+          path: path(id, '/status'),
+          response: AttachmentStatusResponseSchema,
+        }),
+      ),
+    complete: async (id) =>
+      withUploadUrls(
+        await client.request({
+          method: 'POST',
+          path: path(id, '/complete'),
+          response: AttachmentStatusResponseSchema,
+        }),
+      ),
+    downloadUrl: async (id) => {
+      const link = await client.request({
         method: 'POST',
         path: path(id, '/download-url'),
         response: DownloadUrlResponseSchema,
-      }),
+      });
+      return { ...link, url: rebase(link.url) };
+    },
     ack: (id) => client.request({ method: 'POST', path: path(id, '/ack') }),
   };
 }

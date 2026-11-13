@@ -17,6 +17,37 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-13 — Fixes: chat opening, send speed, files and voice notes never sent — ✅ code done (phone timings open)
+Not a phase: the user's three reports from two phones (EAS dev builds). ADR 0045 has the causes and the evidence.
+
+**Done:**
+- **Files and voice notes never sent:**
+  - Cause: the server signs part and download URLs with `PUBLIC_API_URL`, which is `http://localhost:3000` in the dev `.env`, so phones uploaded to themselves.
+  - Fix: `rebaseSignedUrl` in `@pingdost/api-client` moves `/v1/attachments/…` URLs to the client's own base URL.
+- **Speed:**
+  - The engine store and attachment rows now use expo-sqlite's sync calls (`apps/mobile/src/db/sync-sql.ts`).
+  - Chats' newest pages are cached in memory: prefetched from the list, unread first; loaded on row press-in; kept current by events.
+  - No empty-state flash before the store is read (`ready`).
+  - Bubbles are memoized.
+  - `engine.warmDirectories` runs when a chat opens and every 2 min.
+  - A direct fan-out looks up both device lists in parallel.
+
+**Verification:**
+- `pnpm turbo run typecheck lint test` for mobile (29 files / 195 tests), message-engine (143 + 1 new), api-client (17); web, server and sim-client typecheck.
+- Integration: `attachments.int.test.ts` 7/7, including the new "client on another address" test (the server signs with an unreachable `localhost` port). `engine.int.test.ts` and `web.int.test.ts` 11/11.
+- Emulator, with the API at `10.0.2.2` and the server still on `PUBLIC_API_URL=localhost`:
+  - a voice note uploaded and was delivered, and the sim peer verified it;
+  - text reached read and the echo came back;
+  - chats opened onto their history.
+
+**Remaining (user, two phones; no new build needed, JS only):**
+- [ ] Update `apps/mobile/.env` to the PC's current LAN IP (the server listened on `192.168.1.31` today; the file says `192.168.1.5`), then restart Metro with `--clear`.
+- [ ] Check that a chat opens at once, send→read is quick with both chats open, and a voice note and a file arrive.
+
+**Known issues:** Phase 40's real-phone feel check is still open; the Phase 37 "Requested" row is unchanged.
+
+**Next:** the open phone checks, or the next phase the user picks.
+
 ## 2026-11-12 — Phase 40: Voice notes: hold to record, slide to cancel, lock, review — 🔄 partial (code done, emulator checks pass; real-phone feel check open)
 Started with 36 still 🔄 (only its phone check is open), with the user's go-ahead.
 

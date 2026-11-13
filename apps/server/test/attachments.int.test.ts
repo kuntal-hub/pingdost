@@ -17,6 +17,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { attachmentsApi, createApiClient, type AttachmentsApi } from '@pingdost/api-client';
 import {
   decryptStream,
+  downloadCiphertext,
   encryptStream,
   uploadAttachment,
   type EncryptedAttachment,
@@ -386,6 +387,77 @@ function stagingSuite(kind: 'fs' | 's3') {
     }, 60_000);
   });
 }
+
+// `PUBLIC_API_URL` names an address the client cannot reach: in development a phone reaches the
+// server at the PC's LAN IP, and `localhost` from a phone is the phone itself. The signed URLs
+// still work, moved to the address the client uses (`rebaseSignedUrl`).
+describe('attachment staging from a client on another address (fs)', () => {
+  let server: TestServer;
+  let root = '';
+  let base = '';
+  let alice: TestDeviceSession;
+  let bob: TestDeviceSession;
+  const api = (session: TestDeviceSession): AttachmentsApi =>
+    attachmentsApi(
+      createApiClient({ baseUrl: base, getAccessToken: () => session.accessToken, retries: 0 }),
+    );
+
+  beforeAll(async () => {
+    root = await mkdtemp(join(tmpdir(), 'pingdost-attachments-'));
+    const port = await freePort();
+    const nobody = await freePort(); // nothing listens there
+    base = `http://127.0.0.1:${port}`;
+    server = await startTestServer({
+      env: { PUBLIC_API_URL: `http://localhost:${nobody}`, ATTACHMENT_FS_ROOT: root },
+    });
+    await server.app.listen({ host: '127.0.0.1', port });
+    alice = await deviceSession(server, crypto);
+    bob = await deviceSession(server, crypto);
+  }, 60_000);
+
+  afterAll(async () => {
+    await server.close();
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('uploads and downloads through the signed URLs', async () => {
+    const plaintext = Buffer.alloc(2 * 1_048_576 + 5, 3);
+    const { ciphertext, encrypted } = await encrypt(plaintext);
+    const attachmentId = uuidv7();
+    const status = await uploadAttachment({
+      api: api(alice),
+      attachmentId,
+      ciphertextSize: ciphertext.length,
+      ciphertextSha256: encrypted.ciphertextSha256,
+      recipientDeviceIds: [bob.deviceId],
+      readRange: (start, end) => Promise.resolve(ciphertext.subarray(start, end)),
+      attempts: 1,
+    });
+    expect(status.status).toBe('ready');
+
+    const { url } = await api(bob).downloadUrl(attachmentId);
+    expect(url.startsWith(`${base}/v1/attachments/${attachmentId}/blob?`)).toBe(true);
+    const saved: Uint8Array[] = [];
+    await downloadCiphertext({
+      api: api(bob),
+      attachmentId,
+      ciphertextSize: ciphertext.length,
+      savedBytes: 0,
+      write: (chunk) => {
+        saved.push(chunk);
+        return Promise.resolve();
+      },
+      reset: () => {
+        saved.length = 0;
+        return Promise.resolve();
+      },
+      attempts: 1,
+    });
+    const downloaded = Buffer.concat(saved);
+    expect(downloaded.equals(ciphertext)).toBe(true);
+    expect((await decrypt(encrypted, downloaded)).equals(plaintext)).toBe(true);
+  });
+});
 
 stagingSuite('fs');
 if (s3Up) stagingSuite('s3');

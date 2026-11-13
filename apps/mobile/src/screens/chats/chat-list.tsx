@@ -40,6 +40,7 @@ import { useIncomingCount } from '@/engine/circle';
 import { contactName } from '@/engine/contacts';
 import { groupPictureUri, useGroup, useNames } from '@/engine/groups';
 import {
+  prefetchConversation,
   useChatRuntime,
   useContact,
   useConversations,
@@ -143,6 +144,7 @@ interface RowActions {
 
 function ChatRow({ entry, actions }: { entry: ChatListEntry; actions: RowActions }) {
   const router = useRouter();
+  const runtime = useChatRuntime();
   const { prefs } = useTheme();
   const readReceipts = useReadReceipts();
   const names = useNames();
@@ -174,6 +176,10 @@ function ChatRow({ entry, actions }: { entry: ChatListEntry; actions: RowActions
         accessibilityRole="button"
         accessibilityLabel={`${name}${isGroup ? ', group' : ''}${pinned ? ', pinned' : ''}${muted ? ', muted' : ''}. ${text}${unread ? `. ${unread} unread` : ''}`}
         accessibilityHint="Long press for chat options"
+        // The chat's messages are read into memory as the finger lands, before it opens.
+        onPressIn={() => {
+          if (runtime) void prefetchConversation(runtime, conversation.conversationId);
+        }}
         onPress={() =>
           router.push({
             pathname: '/chat/[conversationId]',

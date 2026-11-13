@@ -288,8 +288,14 @@ export class Outbox {
     // copies later, from what stays of this item (ADR 0024).
     const pending: string[] = [];
     let gone = 0;
-    for (const userId of item.recipientUserIds) {
-      const lookup = await core.directoryFor(userId, core.settings.directoryMaxAgeMs);
+    // The peer's and this user's lists at once: stale ones are two server round trips.
+    const lookups = await Promise.all(
+      item.recipientUserIds.map((userId) =>
+        core.directoryFor(userId, core.settings.directoryMaxAgeMs),
+      ),
+    );
+    for (const [index, userId] of item.recipientUserIds.entries()) {
+      const lookup = lookups[index]!;
       if (lookup.status === 'unavailable') {
         pending.push(userId);
         continue;

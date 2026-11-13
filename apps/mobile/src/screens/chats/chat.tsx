@@ -1,7 +1,7 @@
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { requireOptionalNativeModule } from 'expo';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import {
   AccessibilityInfo,
   Alert,
@@ -542,7 +542,21 @@ function SystemNotice({
   );
 }
 
-function Bubble(props: BubbleProps) {
+/**
+ * Bubbles re-render only when their own props change: a new message or a state tick then
+ * redraws one bubble, not every one on screen. `loaded` changes with every message, so it
+ * counts only through the message this one quotes.
+ */
+function sameBubble(before: BubbleProps, after: BubbleProps): boolean {
+  for (const key of Object.keys(after) as (keyof BubbleProps)[]) {
+    if (key === 'loaded') continue;
+    if (!Object.is(before[key], after[key])) return false;
+  }
+  const quoted = after.message.replyTo;
+  return !quoted || before.loaded.get(quoted) === after.loaded.get(quoted);
+}
+
+const Bubble = memo(function Bubble(props: BubbleProps) {
   const { message, online, readReceipts, isGroup, people, highlighted, first, last } = props;
   const runtime = useChatRuntime();
   const { palette, dark, prefs, card } = useTheme();
@@ -795,7 +809,7 @@ function Bubble(props: BubbleProps) {
       )}
     </View>
   );
-}
+}, sameBubble);
 
 const CONTEXT_IN = FadeInDown.duration(180);
 const CONTEXT_OUT = FadeOutDown.duration(140);
@@ -1360,7 +1374,7 @@ export function ChatScreen({
   const { moves } = useMotion();
   const insets = useSafeAreaInsets();
   const [conversation, setConversation] = useState<ConversationRecord>();
-  const { items, loaded, loadOlder, loadUntil, typing } = useConversation(conversationId);
+  const { items, loaded, loadOlder, loadUntil, typing, ready } = useConversation(conversationId);
   const focused = useRef(false);
   const list = useRef<FlashListRef<TimelineItem>>(null);
   const isGroup = conversation?.kind === 'group';
@@ -1412,6 +1426,21 @@ export function ChatScreen({
       live = false;
     };
   }, [runtime, peerUserId, status]);
+
+  // The recipients' device lists, fresh before the first send instead of fetched by it.
+  const online = status === 'online';
+  const memberIds = isGroup ? group?.members.map((m) => m.userId).join(',') : peerUserId;
+  useEffect(() => {
+    if (!runtime || !online || !memberIds) return;
+    const warm = () =>
+      void runtime.engine
+        .warmDirectories([...memberIds.split(','), runtime.userId])
+        .catch(() => undefined);
+    warm();
+    // Kept fresh while the chat stays open (lists count as stale after 5 minutes).
+    const timer = setInterval(warm, 120_000);
+    return () => clearInterval(timer);
+  }, [runtime, online, memberIds]);
 
   useFocusEffect(
     useCallback(() => {
@@ -1505,6 +1534,12 @@ export function ChatScreen({
     },
     [runtime],
   );
+  // Stable, so the memoized bubbles do not redraw when the screen does.
+  const quotePress = useCallback((messageId: string) => void jumpTo(messageId), [jumpTo]);
+  const reply = useCallback((message: MessageRecord) => {
+    setEditing(undefined);
+    setReplyTo(message);
+  }, []);
 
   const left = isGroup && group?.left === true;
   // One to one only within the circle (Phase 37); unknown until the lists load.
@@ -1582,12 +1617,9 @@ export function ChatScreen({
           selecting={selecting}
           checked={checkedIds.has(item.message.messageId)}
           onSelect={select}
-          onQuotePress={(messageId) => void jumpTo(messageId)}
+          onQuotePress={quotePress}
           onReact={react}
-          onReply={(message) => {
-            setEditing(undefined);
-            setReplyTo(message);
-          }}
+          onReply={reply}
         />
       ),
     [
@@ -1601,8 +1633,9 @@ export function ChatScreen({
       names,
       highlight,
       readOnly,
-      jumpTo,
+      quotePress,
       react,
+      reply,
       selecting,
       checkedIds,
       select,
@@ -1733,16 +1766,19 @@ export function ChatScreen({
               );
             }}
             contentContainerStyle={{ paddingTop: headerHeight + 8, paddingBottom: 8 }}
+            // Only once the store was read: an unread chat must not flash "Just you two".
             ListEmptyComponent={
-              <EmptyState
-                icon={LockIcon}
-                title="Just you two"
-                message={
-                  isGroup
-                    ? `Messages in ${name} are end-to-end encrypted for its members. No one else, not even PingDost, can read them.`
-                    : `Messages with ${name} are end-to-end encrypted. No one else, not even PingDost, can read them.`
-                }
-              />
+              ready ? (
+                <EmptyState
+                  icon={LockIcon}
+                  title="Just you two"
+                  message={
+                    isGroup
+                      ? `Messages in ${name} are end-to-end encrypted for its members. No one else, not even PingDost, can read them.`
+                      : `Messages with ${name} are end-to-end encrypted. No one else, not even PingDost, can read them.`
+                  }
+                />
+              ) : null
             }
           />
           {unseen > 0 ? (
