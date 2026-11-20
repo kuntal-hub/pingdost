@@ -7,7 +7,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { uuidv7 } from '@pingdost/protocol';
 
-import { CallError, CallManager, type CallSettings, type CallSnapshot } from './manager';
+import {
+  CallError,
+  CallManager,
+  offersRelay,
+  type CallSettings,
+  type CallSnapshot,
+} from './manager';
 import { CallMediaError, FakeRtcNetwork, FakeSignalingHub, type FakePlatform } from './testing';
 
 const FAST: CallSettings = {
@@ -304,6 +310,38 @@ describe('CallManager', () => {
     await until(() => bob.manager.call!.remoteMuted && bob.manager.call!.remoteCameraOff);
     alice.manager.setMuted(false);
     await until(() => !bob.manager.call!.remoteMuted);
+  });
+
+  it('says "no route" when a call never connects and no relay was offered', async () => {
+    const { network, alice, bob } = setup();
+    // A dev server with no TURN: only STUN, or nothing at all.
+    alice.platform.iceServerList = [{ urls: 'stun:stun.test:3478' }];
+    bob.platform.iceServerList = [];
+    network.blocked = true;
+    await alice.manager.dial('bob', { video: true });
+    await until(() => state(bob) === 'incoming');
+    await bob.manager.accept();
+    await until(() => alice.ended.length === 1 && bob.ended.length === 1, 2_000);
+    expect([alice.ended[0]!.error, bob.ended[0]!.error]).toContain('no_route');
+    expect([alice.ended[0]!.error, bob.ended[0]!.error]).not.toContain('connection');
+  });
+
+  it('fails at once when relay is forced but the server offers none', async () => {
+    const hub = new FakeSignalingHub();
+    const network = new FakeRtcNetwork();
+    const alice = device(hub, network, 'alice', { relayOnly: () => true });
+    device(hub, network, 'bob');
+    alice.platform.iceServerList = [{ urls: ['stun:stun.test:3478'] }];
+    await alice.manager.dial('bob', { video: false });
+    expect(alice.ended[0]).toMatchObject({ outcome: 'failed', error: 'no_relay' });
+    expect(alice.platform.peers).toHaveLength(0);
+  });
+
+  it('tells a relay (turn:, turns:) from STUN', () => {
+    expect(offersRelay([])).toBe(false);
+    expect(offersRelay([{ urls: 'stun:a:3478' }])).toBe(false);
+    expect(offersRelay([{ urls: ['stun:a', 'turns:a:5349?transport=tcp'] }])).toBe(true);
+    expect(offersRelay([{ urls: 'TURN:a:3478' }])).toBe(true);
   });
 
   it('passes "Force relay" to the platform; a relay-only network connects only such peers', async () => {

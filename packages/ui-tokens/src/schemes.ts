@@ -22,7 +22,14 @@ export const colorNames = [
   'warning',
   'danger',
   'on-danger',
+  // The "read" double tick: on the background (chat list, a big emoji's time), and on the brand
+  // fill of an outgoing bubble. It must not look like the gray "delivered" tick (index.test.ts).
+  'read',
+  'on-primary-read',
 ] as const;
+
+/** The "delivered" tick on the brand fill: `on-primary` at this opacity. */
+export const DELIVERED_TICK_ALPHA = 0.55;
 
 export type ColorName = (typeof colorNames)[number];
 export type Palette = Record<ColorName, string>;
@@ -38,6 +45,12 @@ interface Seed {
   accent: string;
   secondary: string;
   onSecondary: string;
+  /**
+   * The "read" tick on the brand fill: a color, so it never reads as a darker "delivered" tick.
+   * A blue on light fills, a bright cyan on dark ones; mid-tone fills need a deep color of
+   * another hue for 3:1 contrast.
+   */
+  onPrimaryRead: string;
 }
 
 export interface ColorSchemeDefinition {
@@ -62,6 +75,7 @@ export const colorSchemes = [
       accent: '#4A2FD6',
       secondary: '#5B34EA',
       onSecondary: '#FFFFFF',
+      onPrimaryRead: '#1D4ED8',
     },
     dark: {
       tint: [255, 14],
@@ -71,6 +85,7 @@ export const colorSchemes = [
       accent: '#C8F53B',
       secondary: '#A78BFA',
       onSecondary: '#140B33',
+      onPrimaryRead: '#1D4ED8',
     },
   },
   {
@@ -85,6 +100,7 @@ export const colorSchemes = [
       accent: '#6D28D9',
       secondary: '#F59E0B',
       onSecondary: '#231500',
+      onPrimaryRead: '#7DF9FF',
     },
     dark: {
       tint: [270, 22],
@@ -94,6 +110,7 @@ export const colorSchemes = [
       accent: '#C4B5FD',
       secondary: '#FBBF24',
       onSecondary: '#231500',
+      onPrimaryRead: '#14532D',
     },
   },
   {
@@ -108,6 +125,7 @@ export const colorSchemes = [
       accent: '#BE1267',
       secondary: '#0B8FD6',
       onSecondary: '#001C2B',
+      onPrimaryRead: '#1E40AF',
     },
     dark: {
       tint: [335, 20],
@@ -117,6 +135,7 @@ export const colorSchemes = [
       accent: '#FF8CC6',
       secondary: '#5CC8FF',
       onSecondary: '#00212E',
+      onPrimaryRead: '#1E40AF',
     },
   },
   {
@@ -131,6 +150,7 @@ export const colorSchemes = [
       accent: '#A8430A',
       secondary: '#0F766E',
       onSecondary: '#FFFFFF',
+      onPrimaryRead: '#1E40AF',
     },
     dark: {
       tint: [32, 18],
@@ -140,6 +160,7 @@ export const colorSchemes = [
       accent: '#FFC43D',
       secondary: '#2DD4BF',
       onSecondary: '#03211D',
+      onPrimaryRead: '#1E40AF',
     },
   },
   {
@@ -154,6 +175,7 @@ export const colorSchemes = [
       accent: '#0B62B0',
       secondary: '#E8503F',
       onSecondary: '#200503',
+      onPrimaryRead: '#4C1D95',
     },
     dark: {
       tint: [205, 25],
@@ -163,6 +185,7 @@ export const colorSchemes = [
       accent: '#4FD8E6',
       secondary: '#FF8A7A',
       onSecondary: '#2A0A06',
+      onPrimaryRead: '#4C1D95',
     },
   },
   {
@@ -177,6 +200,7 @@ export const colorSchemes = [
       accent: '#3F6F18',
       secondary: '#C2356B',
       onSecondary: '#FFFFFF',
+      onPrimaryRead: '#1D4ED8',
     },
     dark: {
       tint: [90, 12],
@@ -186,6 +210,7 @@ export const colorSchemes = [
       accent: '#BCE06F',
       secondary: '#F08BB0',
       onSecondary: '#2A0813',
+      onPrimaryRead: '#1D4ED8',
     },
   },
   {
@@ -200,6 +225,7 @@ export const colorSchemes = [
       accent: '#BE123C',
       secondary: '#E0A800',
       onSecondary: '#211A00',
+      onPrimaryRead: '#7DF9FF',
     },
     dark: {
       tint: [350, 18],
@@ -209,6 +235,7 @@ export const colorSchemes = [
       accent: '#FF8197',
       secondary: '#FACC15',
       onSecondary: '#211A00',
+      onPrimaryRead: '#1E3A8A',
     },
   },
   {
@@ -223,6 +250,7 @@ export const colorSchemes = [
       accent: '#3F37C9',
       secondary: '#0E7490',
       onSecondary: '#FFFFFF',
+      onPrimaryRead: '#7DF9FF',
     },
     dark: {
       tint: [235, 28],
@@ -232,6 +260,7 @@ export const colorSchemes = [
       accent: '#A5B4FC',
       secondary: '#22D3EE',
       onSecondary: '#04202A',
+      onPrimaryRead: '#14532D',
     },
   },
   {
@@ -246,6 +275,7 @@ export const colorSchemes = [
       accent: '#BF360C',
       secondary: '#6D3BD6',
       onSecondary: '#FFFFFF',
+      onPrimaryRead: '#1E40AF',
     },
     dark: {
       tint: [15, 18],
@@ -255,6 +285,7 @@ export const colorSchemes = [
       accent: '#FFA58C',
       secondary: '#B79BFF',
       onSecondary: '#160A33',
+      onPrimaryRead: '#1E40AF',
     },
   },
   {
@@ -269,6 +300,7 @@ export const colorSchemes = [
       accent: '#111111',
       secondary: '#555555',
       onSecondary: '#FFFFFF',
+      onPrimaryRead: '#7DF9FF',
     },
     dark: {
       tint: [0, 0],
@@ -278,6 +310,7 @@ export const colorSchemes = [
       accent: '#F5F5F5',
       secondary: '#A3A3A3',
       onSecondary: '#0A0A0A',
+      onPrimaryRead: '#1D4ED8',
     },
   },
 ] as const satisfies readonly ColorSchemeDefinition[];
@@ -298,6 +331,7 @@ export function resolvePalette(scheme: SchemeId, dark: boolean, pureBlack = fals
     accent: seed.accent,
     secondary: seed.secondary,
     'on-secondary': seed.onSecondary,
+    'on-primary-read': seed.onPrimaryRead,
   };
   if (!dark) {
     const foreground = hsl(h, Math.min(s, 30), 9);
@@ -315,6 +349,7 @@ export function resolvePalette(scheme: SchemeId, dark: boolean, pureBlack = fals
       warning: '#8F5600',
       danger: '#C01C1C',
       'on-danger': '#FFFFFF',
+      read: '#0A63D8',
     };
   }
   const foreground = hsl(h, Math.min(s, 20), 96);
@@ -333,6 +368,7 @@ export function resolvePalette(scheme: SchemeId, dark: boolean, pureBlack = fals
     warning: '#FACC15',
     danger: '#FF6B6B',
     'on-danger': '#2A0505',
+    read: '#38BDF8',
   };
 }
 

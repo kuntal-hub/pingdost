@@ -10,21 +10,30 @@ function dayKey(ms: number): string {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
+// Formatters are made once: `toLocale…String` builds a new one on every call, which costs about
+// 1 ms on a phone (Hermes), twice per message bubble (ADR 0047).
+let formats:
+  { time: Intl.DateTimeFormat; day: Intl.DateTimeFormat; dayYear: Intl.DateTimeFormat } | undefined;
+
+function formatters() {
+  formats ??= {
+    time: new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }),
+    day: new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long' }),
+    dayYear: new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' }),
+  };
+  return formats;
+}
+
 /** "Today", "Yesterday", or the date in the device's locale. */
 export function dayLabel(ms: number, now = Date.now()): string {
   if (dayKey(ms) === dayKey(now)) return 'Today';
   if (dayKey(ms) === dayKey(now - 86_400_000)) return 'Yesterday';
-  const date = new Date(ms);
-  const sameYear = date.getFullYear() === new Date(now).getFullYear();
-  return date.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'long',
-    ...(sameYear ? {} : { year: 'numeric' }),
-  });
+  const sameYear = new Date(ms).getFullYear() === new Date(now).getFullYear();
+  return (sameYear ? formatters().day : formatters().dayYear).format(ms);
 }
 
 export function timeLabel(ms: number): string {
-  return new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return formatters().time.format(ms);
 }
 
 /** Messages (any order, duplicates allowed) → the sorted timeline with day separators. */

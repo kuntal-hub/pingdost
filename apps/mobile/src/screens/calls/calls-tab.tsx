@@ -118,8 +118,8 @@ function Settings() {
         <View className="flex-1 gap-1">
           <Text className="text-base font-bold text-foreground">Force relay (TURN)</Text>
           <Text className="text-sm text-muted">
-            Testing: send every call through the relay server, as on a network that blocks direct
-            calls.
+            For testing: every call goes through the relay (TURN) server instead of straight between
+            the devices, as on a network that blocks direct calls. Calls fail if no relay is set up.
           </Text>
         </View>
         <Toggle

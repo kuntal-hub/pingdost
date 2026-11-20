@@ -1,7 +1,7 @@
 // @pingdost/call-engine: one-to-one WebRTC calls (REQ §12, ADR 0028), shared by the web and
 // Android apps: the call state machine and the `CallManager` over E2EE ephemeral signaling.
 // Platforms supply the peer connection and media (`CallPlatform`).
-export { CallError, CallManager, DEFAULT_CALL_SETTINGS } from './manager';
+export { CallError, CallManager, DEFAULT_CALL_SETTINGS, offersRelay } from './manager';
 export type {
   CallErrorReason,
   CallManagerOptions,

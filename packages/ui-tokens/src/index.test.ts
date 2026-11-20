@@ -3,13 +3,16 @@ import { describe, expect, it } from 'vitest';
 import {
   avatarColors,
   bubbleCorners,
+  colorDistance,
   colorNames,
   colorSchemes,
   colorVariables,
   contrast,
   defaultAppearance,
+  DELIVERED_TICK_ALPHA,
   hsl,
   isDark,
+  mix,
   normalizeAppearance,
   radiusVariables,
   resolvePalette,
@@ -29,6 +32,8 @@ const AA = 4.5;
 const AAA = 7;
 /** WCAG's minimum for large text and icons. */
 const UI = 3;
+/** CIE76 ΔE at which two icon colors read as different colors, not shades. */
+const DIFFERENT_AT_A_GLANCE = 30;
 
 function everyPalette(): { label: string; palette: Palette; dark: boolean }[] {
   return schemeIds.flatMap((id) => [
@@ -54,6 +59,16 @@ describe('color helpers', () => {
   it('computes WCAG contrast', () => {
     expect(contrast('#000000', '#FFFFFF')).toBeCloseTo(21);
     expect(contrast('#777777', '#777777')).toBeCloseTo(1);
+  });
+
+  it('mixes a color over another and measures how different colors look', () => {
+    expect(mix('#000000', '#FFFFFF', 0.5)).toBe('#808080');
+    expect(mix('#FF0000', '#0000FF', 1)).toBe('#FF0000');
+    expect(colorDistance('#123456', '#123456')).toBe(0);
+    expect(colorDistance('#000000', '#FFFFFF')).toBeCloseTo(100, 0);
+    // Two grays a shade apart (the old ticks) are close; a blue and a gray are far apart.
+    expect(colorDistance('#555555', '#333333')).toBeLessThan(DIFFERENT_AT_A_GLANCE);
+    expect(colorDistance('#1D4ED8', '#555555')).toBeGreaterThan(DIFFERENT_AT_A_GLANCE);
   });
 });
 
@@ -101,9 +116,30 @@ describe('color schemes', () => {
       ['danger', 'background', AA],
       ['danger', 'surface', AA],
       ['on-danger', 'danger', AA],
+      ['read', 'background', UI],
+      ['read', 'surface', UI],
+      ['read', 'raised', UI],
+      ['on-primary-read', 'primary', UI],
+      ['on-primary-read', 'primary-end', UI],
     ] as const)('%s on %s', (text, background, minimum) => {
       expect(contrast(p[text], p[background])).toBeGreaterThanOrEqual(minimum);
     });
+  });
+
+  // The user reported "delivered" (light gray) and "read" (dark gray) ticks as too alike. Read
+  // must be another color, not another shade.
+  it('keeps the read tick a different color from the delivered tick', () => {
+    const DIFFERENT = DIFFERENT_AT_A_GLANCE;
+    for (const { palette: p, label } of everyPalette()) {
+      for (const fill of [p.primary, p['primary-end']]) {
+        const delivered = mix(p['on-primary'], fill, DELIVERED_TICK_ALPHA);
+        expect(
+          colorDistance(p['on-primary-read'], delivered),
+          `${label} bubble ${fill}`,
+        ).toBeGreaterThanOrEqual(DIFFERENT);
+      }
+      expect(colorDistance(p.read, p.muted), `${label} list`).toBeGreaterThanOrEqual(DIFFERENT);
+    }
   });
 
   it('keeps group sender names readable on incoming bubbles', () => {

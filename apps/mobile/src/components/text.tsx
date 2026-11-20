@@ -1,7 +1,13 @@
 // Every piece of text in the app goes through these (ADR 0035). React Native has no inherited
 // font, so `Text` applies the user's font and text size here. Screens keep writing the usual
 // classes: `text-lg font-semibold`. `font-display` is the headline face.
-import { createContext, useContext, type ComponentProps, type ComponentPropsWithRef } from 'react';
+import {
+  createContext,
+  useContext,
+  useMemo,
+  type ComponentProps,
+  type ComponentPropsWithRef,
+} from 'react';
 import { Text as NativeText, TextInput as NativeInput, type TextStyle } from 'react-native';
 
 import { useAppearance } from '@/theme/appearance';
@@ -9,10 +15,10 @@ import { fontFamily, useLoadedFonts, type FontWeight } from '@/theme/fonts';
 import { usePalette } from '@/theme/theme-root';
 import { textScales, typeScale, type FontId } from '@pingdost/ui-tokens';
 
-const SIZE = /(?:^|\s)text-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl)(?=\s|$)/;
+const SIZE = /(?:^|\s)text-(2xs|xs|sm|base|lg|xl|2xl|3xl|4xl|5xl)(?=\s|$)/;
 const WEIGHT = /(?:^|\s)font-(normal|medium|semibold|bold|extrabold|black|display)(?=\s|$)/;
 const COLOR =
-  /(?:^|\s)text-(?!xs(\s|$)|sm(\s|$)|base(\s|$)|lg(\s|$)|xl(\s|$)|\dxl(\s|$)|center|left|right|justify)/;
+  /(?:^|\s)text-(?!xs(\s|$)|2xs(\s|$)|sm(\s|$)|base(\s|$)|lg(\s|$)|xl(\s|$)|\dxl(\s|$)|center|left|right|justify)/;
 
 const WEIGHTS: Record<string, FontWeight> = {
   normal: 400,
@@ -90,6 +96,30 @@ function useFontSettings() {
   const scale = useAppearance((state) => textScales[state.prefs.textSize]);
   const ready = useLoadedFonts((state) => state.loaded.includes(font));
   return { font, scale, ready };
+}
+
+/**
+ * The font style `Text` gives these size and weight classes (with the user's font and text
+ * size), for text a list draws many times: chat bubbles draw React Native's `Text` with it once
+ * per screen instead of `Text`'s per-text work. Colors are the caller's.
+ */
+export function useTextStyles<K extends string>(classes: Record<K, string>): Record<K, TextStyle> {
+  const { font, scale, ready } = useFontSettings();
+  // `classes` is usually a literal (a new object each render): its content is what counts.
+  const key = JSON.stringify(classes);
+  return useMemo(() => {
+    const styles = {} as Record<K, TextStyle>;
+    for (const [name, className] of Object.entries(JSON.parse(key) as Record<K, string>) as [
+      K,
+      string,
+    ][]) {
+      styles[name] = fontStyle(parse(className, false), font, ready, scale, {
+        nested: false,
+        input: false,
+      });
+    }
+    return styles;
+  }, [key, font, ready, scale]);
 }
 
 export function Text({ className, style, children, ...props }: ComponentProps<typeof NativeText>) {

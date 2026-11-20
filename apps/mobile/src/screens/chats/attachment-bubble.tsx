@@ -4,7 +4,8 @@
 // short-lived temporary copy; handing it to another app says that it leaves PingDost.
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+// Not useRouter(): it redraws its user whenever a navigation starts or ends (ADR 0047).
+import { router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
@@ -391,7 +392,6 @@ export function AttachmentContent({
   outgoing: boolean;
   onLongPress: () => void;
 }) {
-  const router = useRouter();
   const info = message.attachment;
   const rows = useAttachmentRows(message);
   const thumbnail = useThumbnail(message, rows.thumbnail);

@@ -1,5 +1,6 @@
 import { FlashList } from '@shopify/flash-list';
-import { useRouter } from 'expo-router';
+// Not useRouter(): it redraws its user whenever a navigation starts or ends (ADR 0047).
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -36,11 +37,12 @@ import { StateTick } from '@/components/state-tick';
 import { SwipeAction } from '@/components/swipe-action';
 import { Tap } from '@/components/tap';
 import { Text } from '@/components/text';
+import { ensureThread } from '@/engine/chat-store';
 import { useIncomingCount } from '@/engine/circle';
 import { contactName } from '@/engine/contacts';
 import { groupPictureUri, useGroup, useNames } from '@/engine/groups';
 import {
-  prefetchConversation,
+  openTiming,
   useChatRuntime,
   useContact,
   useConversations,
@@ -143,7 +145,6 @@ interface RowActions {
 }
 
 function ChatRow({ entry, actions }: { entry: ChatListEntry; actions: RowActions }) {
-  const router = useRouter();
   const runtime = useChatRuntime();
   const { prefs } = useTheme();
   const readReceipts = useReadReceipts();
@@ -176,16 +177,18 @@ function ChatRow({ entry, actions }: { entry: ChatListEntry; actions: RowActions
         accessibilityRole="button"
         accessibilityLabel={`${name}${isGroup ? ', group' : ''}${pinned ? ', pinned' : ''}${muted ? ', muted' : ''}. ${text}${unread ? `. ${unread} unread` : ''}`}
         accessibilityHint="Long press for chat options"
-        // The chat's messages are read into memory as the finger lands, before it opens.
+        // Every chat is in memory already; one the app has not read yet is read as the finger
+        // lands, before it opens.
         onPressIn={() => {
-          if (runtime) void prefetchConversation(runtime, conversation.conversationId);
+          if (runtime) void ensureThread(runtime, conversation.conversationId);
         }}
-        onPress={() =>
+        onPress={() => {
+          openTiming.press(conversation.conversationId);
           router.push({
             pathname: '/chat/[conversationId]',
             params: { conversationId: conversation.conversationId },
-          })
-        }
+          });
+        }}
         onLongPress={() => actions.onLongPress(entry, name)}
         className={`mx-3 flex-row items-center gap-3 rounded-xl bg-background px-2 active:bg-raised ${
           compact ? 'py-2' : 'py-3'
@@ -244,7 +247,6 @@ function PinnedStrip({ entries }: { entries: ChatListEntry[] }) {
 }
 
 function PinnedChat({ entry }: { entry: ChatListEntry }) {
-  const router = useRouter();
   const { conversation } = entry;
   const { name, picture } = useChatIdentity(conversation);
   const unread = conversation.unreadCount > 0;
@@ -301,7 +303,6 @@ function Empty({ archived, filter }: { archived: boolean; filter: Filter }) {
 
 /** Circle requests waiting for an answer (Phase 37): opens Circle → Requests. */
 function RequestsRow() {
-  const router = useRouter();
   const { card } = useTheme();
   const count = useIncomingCount();
   if (count === 0) return null;
@@ -333,7 +334,6 @@ function RequestsRow() {
 
 /** The chat list, or (with `archived`) the archived chats. */
 export function ChatListScreen({ archived = false }: { archived?: boolean }) {
-  const router = useRouter();
   const runtime = useChatRuntime();
   const tabInset = useTabBarInset({ newButton: !archived });
   const { entries, loading } = useConversations();

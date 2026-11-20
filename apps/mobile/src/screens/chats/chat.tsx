@@ -1,18 +1,23 @@
-import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { requireOptionalNativeModule } from 'expo';
-import { useFocusEffect, useRouter } from 'expo-router';
+// The imperative router: useRouter() redraws its user whenever a navigation starts or ends
+// (expo-router's routing-queue context), which redrew every chat row and bubble on each tap.
+import { router, useFocusEffect } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import {
   AccessibilityInfo,
   Alert,
   BackHandler,
+  FlatList,
   Platform,
   Text as NativeText,
   type TextInput as NativeTextInput,
   Pressable,
+  StyleSheet,
   ToastAndroid,
   useWindowDimensions,
   View,
+  type TextStyle,
+  type ViewStyle,
 } from 'react-native';
 import {
   KeyboardController,
@@ -74,17 +79,19 @@ import { StatusBarBand } from '@/components/screen';
 import { StateTick } from '@/components/state-tick';
 import { SwipeAction } from '@/components/swipe-action';
 import { Tap } from '@/components/tap';
-import { Text, TextInput } from '@/components/text';
+import { Text, TextInput, useTextStyles } from '@/components/text';
 import { Wallpaper } from '@/components/wallpaper';
 import { useBlocks, useIsBlocked } from '@/engine/blocks';
 import { useCircleState } from '@/engine/circle';
 import { contactName } from '@/engine/contacts';
 import { groupPictureUri, useGroup, useNames } from '@/engine/groups';
 import {
+  openTiming,
   useChatRuntime,
   useConnectionStatus,
   useContact,
   useConversation,
+  useConversationRecord,
   usePresence,
   useQuoted,
   useReadReceipts,
@@ -102,10 +109,9 @@ import {
   type Names,
 } from '@/engine/labels';
 import { watchPresence } from '@/engine/runtime';
-import { timeLabel, type TimelineItem } from '@/engine/timeline';
+import { buildTimeline, timeLabel, type TimelineItem } from '@/engine/timeline';
 import { useNearbyPeer } from '@/nearby/service';
 import { dismissChatNotification } from '@/push/notifications';
-import { useAppearance } from '@/theme/appearance';
 import { CSS_EASE_OUT, CSS_POP, haptic, useMotion } from '@/theme/motion';
 import { useTheme } from '@/theme/theme-root';
 import { formatSize } from '@pingdost/attachments';
@@ -114,7 +120,6 @@ import {
   copyText,
   deleteForEveryoneCheck,
   forwardable,
-  isAtEnd,
   newestMark,
   selectedMessages,
   toggleSelected,
@@ -128,7 +133,6 @@ import {
   canReact,
   MessageActionError,
   summarizeReactions,
-  type ConversationRecord,
   type MessageRecord,
 } from '@pingdost/message-engine';
 import {
@@ -136,8 +140,8 @@ import {
   bubbleCorners,
   quickReactions,
   senderColor,
-  textScales,
-  typeScale,
+  spacing,
+  withAlpha,
 } from '@pingdost/ui-tokens';
 
 import { AttachmentContent } from './attachment-bubble';
@@ -203,7 +207,6 @@ function failed(action: string, error: unknown): void {
 
 /** The identity part of the header: tap for contact info. */
 function PeerIdentity({ peerUserId }: { peerUserId: string | undefined }) {
-  const router = useRouter();
   const contact = useContact(peerUserId);
   const online = usePresence(peerUserId);
   const nearby = useNearbyPeer(peerUserId);
@@ -265,7 +268,6 @@ function PeerIdentity({ peerUserId }: { peerUserId: string | undefined }) {
 }
 
 function GroupIdentity({ groupId }: { groupId: string }) {
-  const router = useRouter();
   const group = useGroup(groupId);
   const name = group?.name || 'Group';
   const subtitle = !group
@@ -439,20 +441,74 @@ const TICK_ROOM = '\u{00A0}'.repeat(6);
 const INVISIBLE = '#FFFFFF01';
 
 /**
+ * What every bubble in a chat draws with, made once per screen. Bubbles use these plain styles
+ * and React Native's own `Text` instead of class names and `@/components/text`, whose work per
+ * view and text was most of a bubble's cost, and a chat opens with a screenful of bubbles
+ * (ADR 0047). The fonts are still the user's (`useTextStyles`).
+ */
+interface BubbleLook {
+  bodyIn: TextStyle;
+  bodyOut: TextStyle;
+  metaIn: TextStyle;
+  metaOut: TextStyle;
+  spacer: TextStyle;
+  checked: ViewStyle;
+}
+
+function useBubbleLook(): BubbleLook {
+  const { palette } = useTheme();
+  // The time is one step under the app's smallest text, so it stays out of the message's way.
+  const fonts = useTextStyles({ body: 'text-base', meta: 'text-2xs' });
+  return useMemo(
+    () => ({
+      bodyIn: { ...fonts.body, color: palette['on-bubble-in'] },
+      bodyOut: { ...fonts.body, color: palette['on-primary'] },
+      metaIn: { ...fonts.meta, color: palette.muted },
+      metaOut: { ...fonts.meta, color: withAlpha(palette['on-primary'], 0.8) },
+      // Not 'transparent': on Android (Fabric) a nested span's colour 0 counts as unset and the
+      // text shows in the default colour. Alpha 1/255 is invisible and non-zero.
+      spacer: { fontSize: fonts.meta.fontSize, color: INVISIBLE },
+      checked: { backgroundColor: withAlpha(palette.accent, 0.15) },
+    }),
+    [fonts, palette],
+  );
+}
+
+const bubbleLayout = StyleSheet.create({
+  // At most 80% of the screen wide (Phase 35); the margin is outside that.
+  column: { maxWidth: '80%', gap: spacing[1] },
+  columnCompact: { maxWidth: '80%', gap: 2 },
+  out: { alignSelf: 'flex-end', marginHorizontal: spacing[3] },
+  in: { alignSelf: 'flex-start', marginHorizontal: spacing[3] },
+  // While selecting, incoming bubbles make room for the check mark.
+  inSelecting: { alignSelf: 'flex-start', marginLeft: spacing[12], marginRight: spacing[3] },
+  // A little room between messages, more where the sender changes.
+  runStart: { marginTop: spacing[2.5] },
+  runNext: { marginTop: spacing[1] },
+  textPadding: { paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
+  mediaPadding: { padding: spacing[1] },
+  caption: { paddingHorizontal: spacing[2], paddingVertical: spacing[1] },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: spacing[1],
+  },
+  metaOverlay: { position: 'absolute', bottom: 0, right: 0 },
+  metaUnder: { marginTop: 2 },
+  metaUnderMedia: { paddingHorizontal: spacing[2], paddingBottom: spacing[1], paddingTop: 2 },
+  italic: { fontStyle: 'italic' },
+});
+
+/**
  * Invisible text at the end of a message, as wide as its time and tick (Phase 35). If it fits on
  * the last line, the time drawn over it sits beside the text; if not, it wraps to a line of its
  * own and the time sits under the text. No measuring needed. The leading normal space is the
  * only place it may break.
  */
-function MetaSpacer({ text, tick }: { text: string; tick: boolean }) {
-  const scale = useAppearance((state) => textScales[state.prefs.textSize]);
+function MetaSpacer({ text, tick, look }: { text: string; tick: boolean; look: BubbleLook }) {
   return (
-    <NativeText
-      accessible={false}
-      // Not 'transparent': on Android (Fabric) a nested span's colour 0 counts as unset and the
-      // text shows in the default colour. Alpha 1/255 is invisible and non-zero.
-      style={{ fontSize: Math.round(typeScale.xs[0] * scale), color: INVISIBLE }}
-    >
+    <NativeText accessible={false} style={look.spacer}>
       {` \u{00A0}\u{00A0}${text.replace(/ /g, '\u{00A0}')}${tick ? TICK_ROOM : ''}`}
     </NativeText>
   );
@@ -464,23 +520,23 @@ function MessageMeta({
   status,
   onBrand,
   overlay,
-  className = '',
+  look,
+  style,
 }: {
   text: string;
   status: ReturnType<typeof stateLabel> | undefined;
   onBrand: boolean;
   /** Drawn over the spacer at the end of the last line. */
   overlay: boolean;
-  className?: string;
+  look: BubbleLook;
+  style?: ViewStyle | undefined;
 }) {
   return (
     <View
       importantForAccessibility="no-hide-descendants"
-      className={`flex-row items-center justify-end gap-1 ${
-        overlay ? 'absolute bottom-0 right-0' : ''
-      } ${className}`}
+      style={[bubbleLayout.metaRow, overlay && bubbleLayout.metaOverlay, style]}
     >
-      <Text className={`text-xs ${onBrand ? 'text-on-primary/80' : 'text-muted'}`}>{text}</Text>
+      <NativeText style={onBrand ? look.metaOut : look.metaIn}>{text}</NativeText>
       {status && <StateTick icon={status.icon} size={14} onBrand={onBrand} />}
     </View>
   );
@@ -494,6 +550,7 @@ interface BubbleProps {
   isGroup: boolean;
   people: Names;
   selfUserId: string;
+  look: BubbleLook;
   loaded: ReadonlyMap<string, MessageRecord>;
   names: (message: MessageRecord) => string;
   highlighted: boolean;
@@ -519,7 +576,6 @@ function SystemNotice({
   isGroup,
   people,
 }: Pick<BubbleProps, 'message' | 'isGroup' | 'people'>) {
-  const router = useRouter();
   // Group events and "moved to a new phone" are just told; a changed safety number links to
   // that person.
   const safety = isSafetyNumberChange(message);
@@ -545,11 +601,15 @@ function SystemNotice({
 /**
  * Bubbles re-render only when their own props change: a new message or a state tick then
  * redraws one bubble, not every one on screen. `loaded` changes with every message, so it
- * counts only through the message this one quotes.
+ * counts only through the message this one quotes. Names count only where a bubble shows them
+ * (groups, notices, quotes): they arrive a moment after a chat opens.
  */
 function sameBubble(before: BubbleProps, after: BubbleProps): boolean {
+  const showsPeople = after.isGroup || after.message.kind === 'system';
   for (const key of Object.keys(after) as (keyof BubbleProps)[]) {
     if (key === 'loaded') continue;
+    if (key === 'people' && !showsPeople) continue;
+    if (key === 'names' && !after.message.replyTo) continue;
     if (!Object.is(before[key], after[key])) return false;
   }
   const quoted = after.message.replyTo;
@@ -563,6 +623,9 @@ const Bubble = memo(function Bubble(props: BubbleProps) {
   const { moves } = useMotion();
   const lastTap = useRef(0);
   const [burst, setBurst] = useState(0);
+  // Only a message that just arrived animates in; the others are plain views, which cost less
+  // to draw. Fixed per bubble, so a redraw never swaps the view (and remounts what is in it).
+  const [animateIn] = useState(() => props.fresh && moves);
 
   if (message.kind === 'system') {
     return <SystemNotice message={message} isGroup={isGroup} people={people} />;
@@ -604,16 +667,20 @@ const Bubble = memo(function Bubble(props: BubbleProps) {
   const textShown = attachment ? message.body : body;
   // Beside the last line of text when it fits; under media, a big emoji or right-to-left text.
   const inlineMeta = !bigEmoji && textShown !== '' && !startsRightToLeft(textShown);
-  const meta = (overlay: boolean, className?: string) => (
+  const { look } = props;
+  const meta = (overlay: boolean, style?: ViewStyle) => (
     <MessageMeta
       text={metaText}
       status={status}
       onBrand={onBrand}
       overlay={overlay}
-      {...(className ? { className } : {})}
+      look={look}
+      style={style}
     />
   );
-  const spacer = inlineMeta ? <MetaSpacer text={metaText} tick={status !== undefined} /> : null;
+  const spacer = inlineMeta ? (
+    <MetaSpacer text={metaText} tick={status !== undefined} look={look} />
+  ) : null;
 
   const corners = bubbleCorners(prefs.bubble, { outgoing, first, last });
 
@@ -643,156 +710,164 @@ const Bubble = memo(function Bubble(props: BubbleProps) {
   const forwarded = message.forwarded === true && !deleted;
   const label = `${forwarded ? 'Forwarded. ' : ''}${sender}: ${body}. ${timeLabel(message.sortAt)}`;
 
+  const content = (
+    <>
+      <Pressable
+        accessibilityRole="text"
+        accessibilityLabel={`${label}${edited ? ', edited' : ''}${status ? `. ${status.long}` : ''}`}
+        accessibilityHint={
+          retry ? 'Double tap to send it again' : 'Swipe right to reply. Long press to select it'
+        }
+        delayLongPress={320}
+        onLongPress={() => {
+          haptic('medium');
+          props.onSelect(message);
+        }}
+        onPress={onPress}
+        style={
+          bigEmoji
+            ? undefined
+            : [
+                attachment ? bubbleLayout.mediaPadding : bubbleLayout.textPadding,
+                {
+                  borderTopLeftRadius: corners.topLeft,
+                  borderTopRightRadius: corners.topRight,
+                  borderBottomLeftRadius: corners.bottomLeft,
+                  borderBottomRightRadius: corners.bottomRight,
+                  ...(deleted
+                    ? { borderWidth: 1, borderStyle: 'dashed', borderColor: palette.border }
+                    : outgoing
+                      ? {
+                          backgroundImage: brandGradient(palette),
+                          ...(prefs.look === 'sticker' ? card : {}),
+                        }
+                      : {
+                          backgroundColor: palette['bubble-in'],
+                          ...(prefs.look === 'soft' ? { boxShadow: card.boxShadow } : card),
+                        }),
+                  ...(highlighted ? { borderWidth: 2, borderColor: palette.accent } : {}),
+                },
+              ]
+        }
+      >
+        {isGroup && !outgoing && first && (
+          <Text
+            numberOfLines={1}
+            importantForAccessibility="no"
+            className={`font-bold ${attachment ? 'px-2 pb-1' : ''}`}
+            style={{ color: senderColor(message.senderUserId, dark) }}
+          >
+            {sender}
+          </Text>
+        )}
+        {forwarded && (
+          <View
+            importantForAccessibility="no"
+            className={`flex-row items-center gap-1 ${attachment ? 'px-2 pb-1 pt-1' : 'pb-[2px]'}`}
+          >
+            <Icon icon={ForwardIcon} size={14} color={onBrand ? 'on-primary' : 'muted'} />
+            <Text
+              className={`text-xs font-semibold italic ${onBrand ? 'text-on-primary' : 'text-muted'}`}
+            >
+              Forwarded
+            </Text>
+          </View>
+        )}
+        {message.replyTo && !deleted && (
+          <Quote
+            replyTo={message.replyTo}
+            conversationId={message.conversationId}
+            loaded={props.loaded}
+            names={props.names}
+            outgoing={outgoing}
+            onPress={props.onQuotePress}
+          />
+        )}
+        {attachment && (
+          <AttachmentContent
+            message={message}
+            outgoing={outgoing}
+            onLongPress={() => {
+              haptic('medium');
+              props.onSelect(message);
+            }}
+          />
+        )}
+        {bigEmoji ? (
+          <>
+            <Text selectable={false} className="text-5xl">
+              {message.body.trim()}
+            </Text>
+            {meta(false)}
+          </>
+        ) : deleted ? (
+          <View className="flex-row items-center gap-2">
+            <Icon icon={BanIcon} size={14} color="muted" />
+            <View className="shrink">
+              <Text className="text-base italic text-muted">
+                {body}
+                {spacer}
+              </Text>
+              {meta(true)}
+            </View>
+          </View>
+        ) : textShown === '' ? (
+          // Media without a caption: the time goes under it.
+          meta(false, bubbleLayout.metaUnderMedia)
+        ) : (
+          <View style={attachment ? bubbleLayout.caption : undefined}>
+            <NativeText
+              selectable={false}
+              style={[
+                onBrand ? look.bodyOut : look.bodyIn,
+                message.kind === 'unsupported' && bubbleLayout.italic,
+              ]}
+            >
+              {textShown}
+              {spacer}
+            </NativeText>
+            {inlineMeta ? meta(true) : meta(false, bubbleLayout.metaUnder)}
+          </View>
+        )}
+      </Pressable>
+      {!deleted && (
+        <Reactions
+          message={message}
+          selfUserId={props.selfUserId}
+          onToggle={(emoji, mine) => props.onReact(message, mine ? null : emoji)}
+        />
+      )}
+      {burst > 0 && moves && <HeartBurst key={burst} outgoing={outgoing} />}
+    </>
+  );
+  const column = [
+    prefs.density === 'compact' ? bubbleLayout.columnCompact : bubbleLayout.column,
+    outgoing ? bubbleLayout.out : props.selecting ? bubbleLayout.inSelecting : bubbleLayout.in,
+    first ? bubbleLayout.runStart : bubbleLayout.runNext,
+  ];
+
   return (
-    <View className={props.checked ? 'bg-accent/15' : ''}>
+    <View style={props.checked ? look.checked : undefined}>
       <SwipeAction
         enabled={reactable && !props.selecting}
         {...(reactable
           ? { left: { icon: ReplyIcon, onCommit: () => props.onReply(message) } }
           : {})}
       >
-        <Animated.View
-          // At most 80% of the screen wide (Phase 35); the margin is outside that. While
-          // selecting, incoming bubbles make room for the check mark.
-          className={`${prefs.density === 'compact' ? 'gap-[2px]' : 'gap-1'} ${
-            props.selecting && !outgoing ? 'ml-12 mr-3' : 'mx-3'
-          } max-w-[80%] ${outgoing ? 'self-end' : 'self-start'} ${first ? 'mt-2' : 'mt-[2px]'}`}
-          style={
-            props.fresh && moves
-              ? {
-                  animationName: BUBBLE_IN,
-                  animationDuration: 260,
-                  animationTimingFunction: CSS_POP,
-                }
-              : undefined
-          }
-        >
-          <Pressable
-            accessibilityRole="text"
-            accessibilityLabel={`${label}${edited ? ', edited' : ''}${status ? `. ${status.long}` : ''}`}
-            accessibilityHint={
-              retry
-                ? 'Double tap to send it again'
-                : 'Swipe right to reply. Long press to select it'
-            }
-            delayLongPress={320}
-            onLongPress={() => {
-              haptic('medium');
-              props.onSelect(message);
+        {animateIn ? (
+          <Animated.View
+            style={{
+              ...StyleSheet.flatten(column),
+              animationName: BUBBLE_IN,
+              animationDuration: 260,
+              animationTimingFunction: CSS_POP,
             }}
-            onPress={onPress}
-            className={bigEmoji ? '' : attachment ? 'p-1' : 'px-3 py-2'}
-            style={
-              bigEmoji
-                ? undefined
-                : {
-                    borderTopLeftRadius: corners.topLeft,
-                    borderTopRightRadius: corners.topRight,
-                    borderBottomLeftRadius: corners.bottomLeft,
-                    borderBottomRightRadius: corners.bottomRight,
-                    ...(deleted
-                      ? { borderWidth: 1, borderStyle: 'dashed', borderColor: palette.border }
-                      : outgoing
-                        ? {
-                            backgroundImage: brandGradient(palette),
-                            ...(prefs.look === 'sticker' ? card : {}),
-                          }
-                        : {
-                            backgroundColor: palette['bubble-in'],
-                            ...(prefs.look === 'soft' ? { boxShadow: card.boxShadow } : card),
-                          }),
-                    ...(highlighted ? { borderWidth: 2, borderColor: palette.accent } : {}),
-                  }
-            }
           >
-            {isGroup && !outgoing && first && (
-              <Text
-                numberOfLines={1}
-                importantForAccessibility="no"
-                className={`font-bold ${attachment ? 'px-2 pb-1' : ''}`}
-                style={{ color: senderColor(message.senderUserId, dark) }}
-              >
-                {sender}
-              </Text>
-            )}
-            {forwarded && (
-              <View
-                importantForAccessibility="no"
-                className={`flex-row items-center gap-1 ${attachment ? 'px-2 pb-1 pt-1' : 'pb-[2px]'}`}
-              >
-                <Icon icon={ForwardIcon} size={14} color={onBrand ? 'on-primary' : 'muted'} />
-                <Text
-                  className={`text-xs font-semibold italic ${onBrand ? 'text-on-primary' : 'text-muted'}`}
-                >
-                  Forwarded
-                </Text>
-              </View>
-            )}
-            {message.replyTo && !deleted && (
-              <Quote
-                replyTo={message.replyTo}
-                conversationId={message.conversationId}
-                loaded={props.loaded}
-                names={props.names}
-                outgoing={outgoing}
-                onPress={props.onQuotePress}
-              />
-            )}
-            {attachment && (
-              <AttachmentContent
-                message={message}
-                outgoing={outgoing}
-                onLongPress={() => {
-                  haptic('medium');
-                  props.onSelect(message);
-                }}
-              />
-            )}
-            {bigEmoji ? (
-              <>
-                <Text selectable={false} className="text-5xl">
-                  {message.body.trim()}
-                </Text>
-                {meta(false)}
-              </>
-            ) : deleted ? (
-              <View className="flex-row items-center gap-2">
-                <Icon icon={BanIcon} size={14} color="muted" />
-                <View className="shrink">
-                  <Text className="text-base italic text-muted">
-                    {body}
-                    {spacer}
-                  </Text>
-                  {meta(true)}
-                </View>
-              </View>
-            ) : textShown === '' ? (
-              // Media without a caption: the time goes under it.
-              meta(false, 'px-2 pb-1 pt-[2px]')
-            ) : (
-              <View className={attachment ? 'px-2 pb-1 pt-1' : ''}>
-                <Text
-                  selectable={false}
-                  className={`text-base ${onBrand ? 'text-on-primary' : 'text-on-bubble-in'} ${
-                    message.kind === 'unsupported' ? 'italic' : ''
-                  }`}
-                >
-                  {textShown}
-                  {spacer}
-                </Text>
-                {inlineMeta ? meta(true) : meta(false, 'mt-[2px]')}
-              </View>
-            )}
-          </Pressable>
-          {!deleted && (
-            <Reactions
-              message={message}
-              selfUserId={props.selfUserId}
-              onToggle={(emoji, mine) => props.onReact(message, mine ? null : emoji)}
-            />
-          )}
-          {burst > 0 && moves && <HeartBurst key={burst} outgoing={outgoing} />}
-        </Animated.View>
+            {content}
+          </Animated.View>
+        ) : (
+          <View style={column}>{content}</View>
+        )}
       </SwipeAction>
       {props.selecting && (
         // Over the whole row, so taps on files, reactions or the margin select too.
@@ -937,7 +1012,7 @@ function panelHeight(windowHeight: number, bottomInset: number): number {
 
 type Panel = 'none' | 'emoji' | 'search';
 
-function Composer({
+function ComposerView({
   conversationId,
   replyTo,
   editing,
@@ -957,7 +1032,6 @@ function Composer({
   onKeyboardShown: () => void;
 }) {
   const runtime = useChatRuntime();
-  const router = useRouter();
   const { palette, floating } = useTheme();
   const { fades, moves } = useMotion();
   const insets = useSafeAreaInsets();
@@ -1288,6 +1362,9 @@ function Composer({
   );
 }
 
+/** Redraws only when its own props change, not with every change on the chat screen. */
+const Composer = memo(ComposerView);
+
 /** In place of the composer once this user left (or was removed from) a group. */
 function LeftGroupNotice() {
   return (
@@ -1353,12 +1430,35 @@ function continuesRun(me: MessageRecord, other: TimelineItem | undefined): boole
   );
 }
 
+/** Timeline items (messages and day labels) in a chat's first frame: a screenful of the newest. */
+const FIRST_ITEMS = 14;
+/** Within this of the newest message, a new one scrolls into view. */
+const AUTOSCROLL_PX = 160;
+/** The floating header below the status bar: 6 px above its 58 px bar. */
+const HEADER_BAR = 64;
+/** Room between the newest message and the composer. */
+const LIST_END_SPACE = spacing[4];
+const keyOf = (item: TimelineItem) => item.key;
+
 const DOWN_IN = {
   from: { transform: [{ scale: 0.6 }], opacity: 0 },
   to: { transform: [{ scale: 1 }], opacity: 1 },
 };
 
-export function ChatScreen({
+/**
+ * Runs `effect` whenever the screen comes into focus. A component of its own because
+ * `useFocusEffect` redraws whatever calls it once navigation settles after the push: in the
+ * chat itself, that drew the whole screen a second time before its first frame (ADR 0047).
+ */
+function FocusEffect({ effect }: { effect: () => void | (() => void) }) {
+  useFocusEffect(effect);
+  return null;
+}
+
+/** Memoized: the route renders again with the same params as navigation settles. */
+export const ChatScreen = memo(ChatScreenView);
+
+function ChatScreenView({
   conversationId,
   focusMessageId,
 }: {
@@ -1366,17 +1466,22 @@ export function ChatScreen({
   /** A search result to scroll to. */
   focusMessageId?: string | undefined;
 }) {
-  const router = useRouter();
   const runtime = useChatRuntime();
   const status = useConnectionStatus();
   const readReceipts = useReadReceipts();
   const { floating, palette } = useTheme();
   const { moves } = useMotion();
   const insets = useSafeAreaInsets();
-  const [conversation, setConversation] = useState<ConversationRecord>();
-  const { items, loaded, loadOlder, loadUntil, typing, ready } = useConversation(conversationId);
+  const look = useBubbleLook();
+  // Both from memory (ADR 0047): the header and the messages are there on the first frame.
+  const conversation = useConversationRecord(conversationId);
+  const { messages, loaded, loadOlder, loadUntil, typing, ready } = useConversation(conversationId);
+  // Oldest first (day labels, the unseen count), and newest first for the inverted list.
+  const timeline = useMemo(() => buildTimeline(messages), [messages]);
+  const items = useMemo(() => [...timeline].reverse(), [timeline]);
+  if (__DEV__) openTiming.mark(conversationId, 'render', `items=${items.length}`);
   const focused = useRef(false);
-  const list = useRef<FlashListRef<TimelineItem>>(null);
+  const list = useRef<FlatList<TimelineItem>>(null);
   const isGroup = conversation?.kind === 'group';
   const peerUserId = isGroup ? undefined : conversation?.peerUserId;
   const contact = useContact(peerUserId);
@@ -1391,7 +1496,9 @@ export function ChatScreen({
   const [replyTo, setReplyTo] = useState<MessageRecord>();
   const [editing, setEditing] = useState<MessageRecord>();
   const [highlight, setHighlight] = useState<string>();
-  const [headerHeight, setHeaderHeight] = useState(insets.top + 72);
+  // What the header measures without a banner (its padding + the 58 px bar), so measuring it
+  // does not draw the whole screen a second time before its first frame.
+  const [headerHeight, setHeaderHeight] = useState(() => Math.round(insets.top + HEADER_BAR));
   const [awayFromEnd, setAwayFromEnd] = useState(false);
   // Reading the newest message, and what was newest when the reader scrolled away (Phase 36).
   const [atEnd, setAtEnd] = useState(true);
@@ -1407,11 +1514,6 @@ export function ChatScreen({
           : name,
     [selfUserId, name, isGroup, people],
   );
-
-  useEffect(() => {
-    if (!runtime) return;
-    void runtime.engine.getConversation(conversationId).then(setConversation);
-  }, [runtime, conversationId]);
 
   // Whether a message could start offline (cached keys), for the offline banner (ADR 0024).
   const [offlineReachable, setOfflineReachable] = useState<boolean | null>(null);
@@ -1442,34 +1544,44 @@ export function ChatScreen({
     return () => clearInterval(timer);
   }, [runtime, online, memberIds]);
 
-  useFocusEffect(
-    useCallback(() => {
-      focused.current = true;
-      if (peerUserId) watchPresence([peerUserId]);
-      return () => {
-        focused.current = false;
-        watchPresence([]);
-        if (runtime) void runtime.engine.setTyping(conversationId, false);
-      };
-    }, [runtime, conversationId, peerUserId]),
-  );
-
   // Reading the conversation clears its unread count (and sends read receipts if on) and its
-  // notification.
-  useEffect(() => {
-    if (!focused.current || !runtime) return;
+  // notification: when the chat comes into view, and for each new message while it is.
+  const markSeen = useCallback(() => {
+    if (!runtime) return;
     void runtime.engine.markRead(conversationId);
     dismissChatNotification(conversationId);
-  }, [runtime, conversationId, items.length]);
+  }, [runtime, conversationId]);
 
+  // On focus (drawn by `FocusEffect`, below).
+  const onFocusSeen = useCallback(() => {
+    focused.current = true;
+    // A chat opened from memory has its messages from the first frame, so the message count
+    // below never changes on opening: focus is what marks it read.
+    markSeen();
+    if (peerUserId) watchPresence([peerUserId]);
+    return () => {
+      focused.current = false;
+      watchPresence([]);
+      if (runtime) void runtime.engine.setTyping(conversationId, false);
+    };
+  }, [runtime, conversationId, peerUserId, markSeen]);
+
+  // A message arriving while the chat is in view is read at once.
+  useEffect(() => {
+    if (focused.current) markSeen();
+  }, [markSeen, items.length]);
+
+  // What the list shows, newest first (indices for scrolling to a message refer to it).
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  const timelineRef = useRef(timeline);
+  timelineRef.current = timeline;
 
   useEffect(() => {
     if (atEnd) setSeen(undefined);
-    else setSeen((current) => current ?? newestMark(itemsRef.current));
+    else setSeen((current) => current ?? newestMark(timelineRef.current));
   }, [atEnd]);
-  const unseen = atEnd ? 0 : unseenCount(items, seen);
+  const unseen = atEnd ? 0 : unseenCount(timeline, seen);
   const announced = useRef(0);
   useEffect(() => {
     if (unseen > announced.current) AccessibilityInfo.announceForAccessibility(unseenLabel(unseen));
@@ -1478,22 +1590,38 @@ export function ChatScreen({
 
   // Sending jumps to the newest message: now, and again once the sent one is in the list.
   const pendingJump = useRef(false);
+  // The list is inverted: offset 0 is the newest message.
+  const scrollToNewest = useCallback(() => {
+    list.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
   const jumpToEnd = useCallback(() => {
     pendingJump.current = true;
-    setSeen(newestMark(itemsRef.current));
-    void list.current?.scrollToEnd({ animated: true });
-  }, []);
+    setSeen(newestMark(timelineRef.current));
+    scrollToNewest();
+  }, [scrollToNewest]);
   useEffect(() => {
     if (!pendingJump.current) return;
     pendingJump.current = false;
-    requestAnimationFrame(() => void list.current?.scrollToEnd({ animated: true }));
-  }, [items.length]);
+    requestAnimationFrame(scrollToNewest);
+  }, [items.length, scrollToNewest]);
   // The keyboard or the emoji panel took space: keep the newest message in view.
   const atEndRef = useRef(atEnd);
   atEndRef.current = atEnd;
   const keepEndInView = useCallback(() => {
-    if (atEndRef.current) void list.current?.scrollToEnd({ animated: true });
-  }, []);
+    if (atEndRef.current) scrollToNewest();
+  }, [scrollToNewest]);
+  // A message not drawn yet: scroll near it (by the average height), then to it.
+  const indexRetries = useRef(0);
+  const scrollToIndexFailed = useCallback(
+    ({ index, averageItemLength }: { index: number; averageItemLength: number }) => {
+      list.current?.scrollToOffset({ offset: averageItemLength * index, animated: false });
+      if (indexRetries.current++ > 3) return;
+      setTimeout(() => {
+        list.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      }, 120);
+    },
+    [],
+  );
   const jumpTo = useCallback(
     async (messageId: string) => {
       if (!(await loadUntil(messageId))) return;
@@ -1501,7 +1629,8 @@ export function ChatScreen({
       await new Promise((resolve) => setTimeout(resolve, 50));
       const index = itemsRef.current.findIndex((item) => item.key === messageId);
       if (index < 0) return;
-      void list.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      indexRetries.current = 0;
+      list.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
       setHighlight(messageId);
       setTimeout(
         () => setHighlight((current) => (current === messageId ? undefined : current)),
@@ -1519,12 +1648,10 @@ export function ChatScreen({
     void jumpTo(focusMessageId);
   }, [focusMessageId, items.length, jumpTo]);
   // A result picked in this chat's own search, on coming back.
-  useFocusEffect(
-    useCallback(() => {
-      const target = takeJump(conversationId);
-      if (target) void jumpTo(target);
-    }, [conversationId, jumpTo]),
-  );
+  const onFocusJump = useCallback(() => {
+    const target = takeJump(conversationId);
+    if (target) void jumpTo(target);
+  }, [conversationId, jumpTo]);
 
   const react = useCallback(
     (message: MessageRecord, emoji: string | null) => {
@@ -1539,6 +1666,11 @@ export function ChatScreen({
   const reply = useCallback((message: MessageRecord) => {
     setEditing(undefined);
     setReplyTo(message);
+  }, []);
+  // Stable, so the composer does not redraw with the screen.
+  const doneComposing = useCallback(() => {
+    setReplyTo(undefined);
+    setEditing(undefined);
   }, []);
 
   const left = isGroup && group?.left === true;
@@ -1565,12 +1697,10 @@ export function ChatScreen({
     return () => subscription.remove();
   }, [selecting]);
   // Back from Forward: say what went.
-  useFocusEffect(
-    useCallback(() => {
-      const notice = takeForwardNotice();
-      if (notice) toast(notice);
-    }, []),
-  );
+  const onFocusForwarded = useCallback(() => {
+    const notice = takeForwardNotice();
+    if (notice) toast(notice);
+  }, []);
 
   const one = picked.length === 1 ? picked[0] : undefined;
   const copyCount = picked.filter(copyable).length;
@@ -1606,11 +1736,13 @@ export function ChatScreen({
           isGroup={isGroup}
           people={people}
           selfUserId={selfUserId}
+          look={look}
           loaded={loaded}
           names={names}
           highlighted={highlight === item.message.messageId}
-          first={!continuesRun(item.message, items[index - 1])}
-          last={!continuesRun(item.message, items[index + 1])}
+          // Newest first: the message above is the next item, the one below the previous.
+          first={!continuesRun(item.message, items[index + 1])}
+          last={!continuesRun(item.message, items[index - 1])}
           // Scrolling back to it later must not replay the entrance.
           fresh={Date.now() - item.message.sortAt < 1_200}
           readOnly={readOnly}
@@ -1629,6 +1761,7 @@ export function ChatScreen({
       isGroup,
       people,
       selfUserId,
+      look,
       loaded,
       names,
       highlight,
@@ -1739,48 +1872,56 @@ export function ChatScreen({
       <Wallpaper />
       <View className="flex-1">
         <View className="flex-1">
-          <FlashList
+          {/* Inverted, as chats are: it starts at the newest message, and its first frame
+              already holds the newest screenful, drawn with the screen itself (ADR 0047). */}
+          <FlatList
             ref={list}
+            inverted
             data={items}
-            keyExtractor={(item) => item.key}
-            getItemType={(item) => item.type}
+            keyExtractor={keyOf}
             renderItem={renderItem}
+            initialNumToRender={FIRST_ITEMS}
+            maxToRenderPerBatch={8}
+            windowSize={9}
+            // New messages come into view at the end; a reader further up keeps their place.
             maintainVisibleContentPosition={{
-              startRenderingFromBottom: true,
-              autoscrollToBottomThreshold: 0.2,
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: AUTOSCROLL_PX,
             }}
-            onStartReached={() => void loadOlder()}
-            onStartReachedThreshold={0.3}
-            onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => {
-              const fromEnd = contentSize.height - contentOffset.y - layoutMeasurement.height;
+            onEndReached={() => void loadOlder()}
+            onEndReachedThreshold={0.5}
+            onScrollToIndexFailed={scrollToIndexFailed}
+            onLayout={() => {
+              openTiming.mark(conversationId, 'list drawn', `items=${items.length}`);
+              openTiming.done(conversationId);
+            }}
+            scrollEventThrottle={32}
+            onScroll={({ nativeEvent: { contentOffset, layoutMeasurement } }) => {
               // Set only when they flip, so scrolling does not re-render the screen. "At the
-              // end" is where the list itself scrolls new messages into view (20%).
-              setAwayFromEnd(fromEnd > 480);
-              setAtEnd(
-                isAtEnd(
-                  contentOffset.y,
-                  layoutMeasurement.height,
-                  contentSize.height,
-                  layoutMeasurement.height * 0.2,
-                ),
-              );
+              // end" is where the list itself scrolls new messages into view.
+              setAwayFromEnd(contentOffset.y > 480);
+              setAtEnd(contentOffset.y <= Math.max(AUTOSCROLL_PX, layoutMeasurement.height * 0.2));
             }}
-            contentContainerStyle={{ paddingTop: headerHeight + 8, paddingBottom: 8 }}
-            // Only once the store was read: an unread chat must not flash "Just you two".
-            ListEmptyComponent={
-              ready ? (
-                <EmptyState
-                  icon={LockIcon}
-                  title="Just you two"
-                  message={
-                    isGroup
-                      ? `Messages in ${name} are end-to-end encrypted for its members. No one else, not even PingDost, can read them.`
-                      : `Messages with ${name} are end-to-end encrypted. No one else, not even PingDost, can read them.`
-                  }
-                />
-              ) : null
-            }
+            // Inverted: the top padding is drawn at the bottom, the bottom one under the header.
+            contentContainerStyle={{ paddingTop: LIST_END_SPACE, paddingBottom: headerHeight + 8 }}
           />
+          {/* Only once the store was read: an unread chat must not flash "Just you two". */}
+          {ready && items.length === 0 && (
+            <View
+              className="absolute bottom-0 left-0 right-0 justify-center"
+              style={{ top: headerHeight }}
+            >
+              <EmptyState
+                icon={LockIcon}
+                title="Just you two"
+                message={
+                  isGroup
+                    ? `Messages in ${name} are end-to-end encrypted for its members. No one else, not even PingDost, can read them.`
+                    : `Messages with ${name} are end-to-end encrypted. No one else, not even PingDost, can read them.`
+                }
+              />
+            </View>
+          )}
           {unseen > 0 ? (
             <Animated.View
               className="absolute bottom-3 self-center"
@@ -1862,10 +2003,7 @@ export function ChatScreen({
             replyTo={replyTo}
             editing={editing}
             names={names}
-            onDone={() => {
-              setReplyTo(undefined);
-              setEditing(undefined);
-            }}
+            onDone={doneComposing}
             onSent={jumpToEnd}
             onKeyboardShown={keepEndInView}
           />
@@ -1873,13 +2011,16 @@ export function ChatScreen({
       </View>
 
       <StatusBarBand />
+      <FocusEffect effect={onFocusSeen} />
+      <FocusEffect effect={onFocusJump} />
+      <FocusEffect effect={onFocusForwarded} />
 
       {/* Floats over the messages, which scroll under it. */}
       <View
         className="absolute left-3 right-3 top-0 gap-2"
         pointerEvents="box-none"
         style={{ paddingTop: insets.top + 6 }}
-        onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
+        onLayout={(event) => setHeaderHeight(Math.round(event.nativeEvent.layout.height))}
       >
         <View
           className="min-h-[58px] flex-row items-center gap-1 rounded-2xl bg-surface px-1 py-1"

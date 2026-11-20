@@ -97,7 +97,7 @@ function Preview() {
           <Text className="text-base text-on-primary">picking a wallpaper now</Text>
           <View className="flex-row items-center justify-end gap-1">
             <Text className="text-xs text-on-primary/80">14:02</Text>
-            <Icon icon={CheckCheckIcon} size={14} color="on-primary" />
+            <Icon icon={CheckCheckIcon} size={14} color="on-primary-read" strokeWidth={3} />
           </View>
         </View>
       </View>

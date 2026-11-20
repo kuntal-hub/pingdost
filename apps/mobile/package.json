@@ -5,8 +5,8 @@
   "license": "AGPL-3.0-or-later",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start --dev-client",
-    "android": "expo run:android",
+    "start": "node ../../scripts/adb-reverse.mjs && expo start --dev-client",
+    "android": "node ../../scripts/adb-reverse.mjs && expo run:android",
     "android:release": "expo run:android --variant release",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

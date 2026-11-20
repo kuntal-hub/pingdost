@@ -34,6 +34,7 @@ import {
   type CallPlatform,
   type CallSignaling,
   type IceCandidate,
+  type IceServer,
   type PeerConnectionState,
   type ScreenSurface,
 } from './types';
@@ -71,8 +72,27 @@ export const DEFAULT_CALL_SETTINGS: CallSettings = {
   videoRequestTimeoutMs: 30_000,
 };
 
+/**
+ * Why a call failed. `no_route`: it never connected and no relay (TURN) server was offered,
+ * so only a direct path could work and there was none (e.g. a phone that is itself the hotspot
+ * the other device uses). `no_relay`: "Force relay" is on but the server offers no relay.
+ */
 export type CallErrorReason =
-  'media_denied' | 'media_unavailable' | 'no_devices' | 'unreachable' | 'connection' | 'signaling';
+  | 'media_denied'
+  | 'media_unavailable'
+  | 'no_devices'
+  | 'unreachable'
+  | 'connection'
+  | 'no_route'
+  | 'no_relay'
+  | 'signaling';
+
+/** The servers include a relay (TURN), not only STUN. */
+export function offersRelay(iceServers: readonly IceServer[]): boolean {
+  return iceServers.some((server) =>
+    (Array.isArray(server.urls) ? server.urls : [server.urls]).some((url) => /^turns?:/i.test(url)),
+  );
+}
 
 export interface CallSnapshot {
   callId: string;
@@ -150,6 +170,8 @@ interface Target {
 interface Active {
   snap: CallSnapshot;
   everConnected: boolean;
+  /** The server offered a relay (TURN) for this call. */
+  relayOffered: boolean;
   peer: CallPeer | null;
   /** Caller: the callee's devices (one after the answer). Callee: the caller's device. */
   targets: Map<string, Target>;
@@ -965,7 +987,7 @@ export class CallManager {
         break;
       case 'failed':
         if (active.snap.state === 'connecting') {
-          this.#fail(active, 'connection');
+          this.#fail(active, this.#neverConnected(active));
           return;
         }
         if (this.#apply(active, { type: 'disconnected' })) {
@@ -1217,6 +1239,7 @@ export class CallManager {
         canVideo: false,
       },
       everConnected: false,
+      relayOffered: false,
       peer: null,
       targets: new Map(),
       offer: null,
@@ -1238,6 +1261,13 @@ export class CallManager {
     active: Active,
     iceServers: Awaited<ReturnType<CallPlatform['iceServers']>>,
   ): Promise<CallPeer | undefined> {
+    active.relayOffered = offersRelay(iceServers);
+    // Relay-only without a relay can never connect: say so now, not after the timeout.
+    if (active.snap.relayOnly && !active.relayOffered) {
+      this.#log('relay forced but none offered');
+      this.#fail(active, 'no_relay');
+      return undefined;
+    }
     let peer: CallPeer;
     try {
       peer = await this.#o.platform.createPeer(
@@ -1288,7 +1318,7 @@ export class CallManager {
   #startConnectTimer(active: Active): void {
     this.#clear(active, 'connectTimer');
     active.connectTimer = this.#after(active, this.#settings.connectTimeoutMs, () => {
-      if (active.snap.state === 'connecting') this.#fail(active, 'connection');
+      if (active.snap.state === 'connecting') this.#fail(active, this.#neverConnected(active));
     });
   }
 
@@ -1297,6 +1327,11 @@ export class CallManager {
     active.reconnectTimer = this.#after(active, this.#settings.reconnectTimeoutMs, () => {
       if (active.snap.state === 'reconnecting') this.#fail(active, 'connection');
     });
+  }
+
+  /** Why a call that never connected failed: without a relay, only a direct path could work. */
+  #neverConnected(active: Active): CallErrorReason {
+    return active.relayOffered ? 'connection' : 'no_route';
   }
 
   /** Ends the call as failed and tells the other side. */

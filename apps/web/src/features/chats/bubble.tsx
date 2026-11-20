@@ -259,7 +259,20 @@ export function Bubble({
             )}
           >
             {stateWords && <span>· {stateWords}</span>}
-            <StatusIcon aria-hidden size={14} strokeWidth={2.75} />
+            {/* "Read" has its own color, so it never looks like a darker "delivered"; the other
+                ticks are faded on the bubble (ui-tokens DELIVERED_TICK_ALPHA) or gray. */}
+            <StatusIcon
+              aria-hidden
+              size={14}
+              strokeWidth={status.icon === 'read' ? 3 : 2.5}
+              className={cn(
+                status.icon === 'read' && (onBrand ? 'text-on-primary-read' : 'text-read'),
+                status.icon !== 'read' &&
+                  status.tone !== 'danger' &&
+                  onBrand &&
+                  'text-on-primary/55',
+              )}
+            />
           </span>
         ))}
     </span>

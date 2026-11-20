@@ -30,6 +30,8 @@
   --color-warning: rgb(var(--pd-warning));
   --color-danger: rgb(var(--pd-danger));
   --color-on-danger: rgb(var(--pd-on-danger));
+  --color-read: rgb(var(--pd-read));
+  --color-on-primary-read: rgb(var(--pd-on-primary-read));
   --radius-sm: var(--pd-radius-sm);
   --radius-md: var(--pd-radius-md);
   --radius-lg: var(--pd-radius-lg);

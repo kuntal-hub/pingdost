@@ -1,24 +1,16 @@
-import type { ReactNode } from 'react';
-import { View } from 'react-native';
-import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
-import Animated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { Animated, PanResponder, View } from 'react-native';
 
 import { haptic, useMotion } from '@/theme/motion';
-import type { ColorName } from '@pingdost/ui-tokens';
+import { spacing, type ColorName } from '@pingdost/ui-tokens';
 
 import { Icon, type LucideIcon } from './icon';
 
 /** How far to drag before letting go commits. */
 const COMMIT = 72;
 const MAX = 110;
+/** A drag this far sideways (and mostly sideways) is a swipe, not a scroll or a tap. */
+const START = 16;
 
 export interface SwipeSide {
   icon: LucideIcon;
@@ -35,64 +27,111 @@ interface SwipeActionProps {
   enabled?: boolean;
 }
 
+/** The action's icon behind the row, growing in as the row is dragged toward the line. */
+function SwipeHint({
+  side,
+  x,
+  align,
+}: {
+  side: SwipeSide;
+  x: Animated.Value;
+  align: 'left' | 'right';
+}) {
+  const progress =
+    align === 'left'
+      ? x.interpolate({ inputRange: [8, COMMIT], outputRange: [0, 1], extrapolate: 'clamp' })
+      : x.interpolate({ inputRange: [-COMMIT, -8], outputRange: [1, 0], extrapolate: 'clamp' });
+  const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.1] });
+  return (
+    <Animated.View
+      importantForAccessibility="no"
+      style={{
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        ...(align === 'left' ? { left: spacing[5] } : { right: spacing[5] }),
+        opacity: progress,
+        transform: [{ scale }],
+      }}
+    >
+      <View className="h-10 w-10 items-center justify-center rounded-full bg-accent/20">
+        <Icon icon={side.icon} size={20} color={side.color ?? 'accent'} />
+      </View>
+    </Animated.View>
+  );
+}
+
 /**
  * Drag a row sideways to reveal an action, past the line to commit it. The row always springs
- * back. Declaring the horizontal axis keeps the list's vertical scroll free. Screen readers
- * reach the same actions from the long-press sheet.
+ * back. Only a mostly sideways drag starts it, so the list's vertical scroll stays free. Screen
+ * readers reach the same actions from the long-press sheet.
+ *
+ * A chat mounts dozens of these at once and most are never swiped, so it is a plain touch
+ * responder: no native gesture handler or animated style per row, and the action's icon exists
+ * only during a swipe. Per-row gesture handlers were most of a message bubble's cost when a chat
+ * opened (ADR 0046).
  */
 export function SwipeAction({ children, left, right, enabled = true }: SwipeActionProps) {
   const { moves } = useMotion();
-  const x = useSharedValue(0);
-  const canLeft = left !== undefined;
-  const canRight = right !== undefined;
+  const [x] = useState(() => new Animated.Value(0));
+  const [swiping, setSwiping] = useState(false);
+  // The handlers below are made once; they read the current props from here.
+  const current = useRef({ left, right, enabled });
+  current.current = { left, right, enabled };
 
-  const commit = (side: SwipeSide | undefined) => {
-    haptic('light');
-    side?.onCommit();
-  };
-
-  const pan = usePanGesture({
-    enabled: enabled && (canLeft || canRight),
-    activeOffsetX: [-16, 16],
-    failOffsetY: [-12, 12],
-    onUpdate: (event) => {
-      'worklet';
-      const next = event.translationX;
-      if ((next > 0 && !canLeft) || (next < 0 && !canRight)) {
-        x.set(0);
-        return;
+  const responder = useMemo(() => {
+    let at = 0;
+    let armed = false;
+    const wants = (dx: number, dy: number) => {
+      const { left: l, right: r, enabled: on } = current.current;
+      if (!on || Math.abs(dx) < START || Math.abs(dx) < Math.abs(dy) * 2) return false;
+      return dx > 0 ? l !== undefined : r !== undefined;
+    };
+    const finish = (velocity: number) => {
+      const { left: l, right: r } = current.current;
+      const side = at >= COMMIT ? l : at <= -COMMIT ? r : undefined;
+      if (side) {
+        haptic('light');
+        side.onCommit();
       }
-      // The further past the line, the less it follows.
-      const magnitude = Math.abs(next);
-      const eased = magnitude <= COMMIT ? magnitude : COMMIT + (magnitude - COMMIT) * 0.35;
-      x.set(Math.sign(next) * Math.min(eased, MAX));
-    },
-    onDeactivate: (event) => {
-      'worklet';
-      const at = x.get();
-      if (at >= COMMIT) scheduleOnRN(commit, left);
-      else if (at <= -COMMIT) scheduleOnRN(commit, right);
-      x.set(withSpring(0, { duration: 320, dampingRatio: 0.8, velocity: event.velocityX }));
-    },
-  });
-
-  // A tick as the row crosses the line, in either direction.
-  useAnimatedReaction(
-    () => Math.abs(x.get()) >= COMMIT,
-    (armed, wasArmed) => {
-      if (wasArmed !== null && armed !== wasArmed) scheduleOnRN(haptic, 'selection');
-    },
-  );
-
-  const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
-  const leftStyle = useAnimatedStyle(() => {
-    const progress = interpolate(x.get(), [8, COMMIT], [0, 1], Extrapolation.CLAMP);
-    return { opacity: progress, transform: [{ scale: 0.6 + progress * 0.5 }] };
-  });
-  const rightStyle = useAnimatedStyle(() => {
-    const progress = interpolate(x.get(), [-COMMIT, -8], [1, 0], Extrapolation.CLAMP);
-    return { opacity: progress, transform: [{ scale: 0.6 + progress * 0.5 }] };
-  });
+      at = 0;
+      armed = false;
+      Animated.spring(x, {
+        toValue: 0,
+        velocity,
+        stiffness: 260,
+        damping: 26,
+        useNativeDriver: false,
+      }).start(() => setSwiping(false));
+    };
+    return PanResponder.create({
+      // Capture: the bubble's own press handler holds the touch until it turns into a swipe.
+      onMoveShouldSetPanResponderCapture: (_event, g) => wants(g.dx, g.dy),
+      onMoveShouldSetPanResponder: (_event, g) => wants(g.dx, g.dy),
+      onPanResponderGrant: () => setSwiping(true),
+      onPanResponderMove: (_event, g) => {
+        const { left: l, right: r } = current.current;
+        const next = (g.dx > 0 && !l) || (g.dx < 0 && !r) ? 0 : g.dx;
+        // The further past the line, the less it follows.
+        const magnitude = Math.abs(next);
+        const eased = magnitude <= COMMIT ? magnitude : COMMIT + (magnitude - COMMIT) * 0.35;
+        at = Math.sign(next) * Math.min(eased, MAX);
+        x.setValue(at);
+        // A tick as the row crosses the line, in either direction.
+        const past = Math.abs(at) >= COMMIT;
+        if (past !== armed) {
+          armed = past;
+          haptic('selection');
+        }
+      },
+      onPanResponderRelease: (_event, g) => finish(g.vx),
+      onPanResponderTerminate: () => finish(0),
+      onPanResponderTerminationRequest: () => false,
+      // Android: the list does not scroll while a row is being swiped.
+      onShouldBlockNativeResponder: () => true,
+    });
+  }, [x]);
 
   // The tree stays the same when a row loses its actions (a message deleted for everyone while
   // on screen), so its content is updated in place rather than mounted again.
@@ -100,31 +139,14 @@ export function SwipeAction({ children, left, right, enabled = true }: SwipeActi
 
   return (
     <View>
-      {left && (
-        <Animated.View
-          className="absolute bottom-0 left-5 top-0 justify-center"
-          style={leftStyle}
-          importantForAccessibility="no"
-        >
-          <View className="h-10 w-10 items-center justify-center rounded-full bg-accent/20">
-            <Icon icon={left.icon} size={20} color={left.color ?? 'accent'} />
-          </View>
-        </Animated.View>
-      )}
-      {right && (
-        <Animated.View
-          className="absolute bottom-0 right-5 top-0 justify-center"
-          style={rightStyle}
-          importantForAccessibility="no"
-        >
-          <View className="h-10 w-10 items-center justify-center rounded-full bg-accent/20">
-            <Icon icon={right.icon} size={20} color={right.color ?? 'accent'} />
-          </View>
-        </Animated.View>
-      )}
-      <GestureDetector gesture={pan}>
-        <Animated.View style={rowStyle}>{children}</Animated.View>
-      </GestureDetector>
+      {swiping && left && <SwipeHint side={left} x={x} align="left" />}
+      {swiping && right && <SwipeHint side={right} x={x} align="right" />}
+      <Animated.View
+        style={swiping ? { transform: [{ translateX: x }] } : undefined}
+        {...responder.panHandlers}
+      >
+        {children}
+      </Animated.View>
     </View>
   );
 }

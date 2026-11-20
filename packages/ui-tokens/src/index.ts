@@ -36,6 +36,8 @@ export const motion = { press: 120, small: 180, base: 240, large: 320 } as const
 
 /** Text sizes `[size, line height]` in density-independent pixels, before the user's scale. */
 export const typeScale = {
+  // Message times in chat bubbles only.
+  '2xs': [11, 14],
   xs: [12, 16],
   sm: [14, 20],
   base: [16, 22],

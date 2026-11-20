@@ -17,6 +17,80 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-20 — Fixes: chats from an in-memory store, faster chat drawing, calls set up by themselves — ✅ code done (user checks open)
+Not a phase: the user's retest of ADR 0046. ADR 0047 has the causes, measurements and decisions.
+
+**Done:**
+- **Chat store** (`engine/chat-store.ts`, Zustand, as the user asked for a Redux-like store): every chat's list row and newest 50 messages are read once as the app opens; engine events keep them current. The chat list, chat and Forward render from it. Replaces 0046's page cache and its re-read after opening (`warmChats`, `page-merge.ts` gone; pure `thread.ts` + tests).
+- **Chat screen:** an inverted `FlatList` (the user's suggestion). Its first frame holds the newest screenful (14 items). The FlashList patch and the "newest 8 first" staging are removed (`patches/` and `patchedDependencies` gone; the lockfile matches HEAD again).
+- **Bubbles:**
+  - precomputed styles and RN `Text` (`useBubbleLook`, `useTextStyles`);
+  - ticks drawn as views (Lucide's shapes, 0046's colors);
+  - group names no longer redraw every bubble a moment after opening.
+- **Calls:**
+  - Diagnosed: a video call to the vivo connects through the relay when coturn runs and port 3478 is forwarded. The vivo has Force relay on and is the PC's hotspot.
+  - When the user called, Docker wasn't running and nothing forwarded 3478. Now `pnpm infra:up` starts coturn, and `pnpm --filter @pingdost/mobile start` / `android` run `scripts/adb-reverse.mjs` (3000, 8081, 3478 on every adb device). `apps/mobile/.env` → `127.0.0.1`.
+
+- **Follow-up (user: "messages instant, the screen still takes ~1 s"):**
+  - pushed screens slide in 200 ms (`ios_from_right`; Android 13+'s default is 450 ms);
+  - the chat no longer renders twice before its first frame (`FocusEffect` children; imperative `router` instead of `useRouter()`; exact header height; `ChatScreen` and `Composer` memo);
+  - cached date formatters in `chat-core`;
+  - look: 4/10 px between messages, 16 px under the newest, times in a new `2xs` (11 px) step;
+  - `adb-reverse.mjs` times out (a wedged adb server blocked Metro once).
+
+**Verification:**
+- Mobile, chat-core, ui-tokens, web: typecheck, lint, tests pass (12/12 turbo tasks); prettier clean.
+- After the follow-up: dev build drawn at ~495–550 ms; production bundle 185–255 ms (first chat after launch 600 ms), plus the 200 ms slide.
+- Vivo, `[chat-open]` (tap → drawn), before the follow-up:
+  - dev build: ~600–620 ms, everything at once (was: empty screen at ~260 ms, messages by ~730 ms in steps);
+  - production bundle (`--no-dev --minify`): 250–310 ms, 830 ms for the first chat after launch (Hermes compiling from source).
+- Headless peer → vivo video call: connected through TURN in 218 ms.
+- Not tested on the device: sending and receiving in a chat after the store change. The user was using the vivo, so it was not driven further. The user's own message and a delete for everyone shown correctly.
+
+**Remaining (user; JS only, no new build):**
+- [ ] Web ↔ vivo video call now: services are running (coturn, server, web, Metro with the forwards).
+- [ ] Send and receive in a chat (new messages at the bottom, ticks, reply, scroll up for older messages).
+- [ ] Remove the test contact `@sim_88c2007384` from the vivo account's circle (Settings → Circle). It was added for the call test.
+- [ ] Judge the speed in a release build (`android:release`). It may need the dev build reinstalled afterwards; check the signing key first (see run-on-devices.md, `INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
+
+**Known issues:**
+- Dev builds remain ~2× slower than production JS (React dev checks, Hermes compiling from source).
+- Committed together with ADR 0046's fixes (one commit, not pushed).
+
+**Next:** the checks above, or the next phase the user picks.
+
+## 2026-11-17 — Fixes: chat opening, read ticks, web ↔ phone calls — ✅ code done (phone checks open)
+Not a phase: the user's four reports. ADR 0046 has the causes and the evidence.
+
+**Done:**
+- **Chat opening:** recent chats (up to 64) are read into memory as the app opens (`warmChats`), with their conversation records. A cached chat no longer re-reads the store during its first frames, and unchanged messages keep their objects, so bubbles don't render twice. Dev builds log `[chat-open]` timings in Metro.
+- **Chat drawing (user retest):** "one message, then the rest" came from FlashList and the bubbles, not loading:
+  - a pnpm patch of FlashList 2.3.2 (first window = last screenful);
+  - the newest 8 items in the first frame;
+  - `SwipeAction` on `PanResponder`.
+  - Vivo dev build: newest 8 messages at 0.6 s, full page at 1.1–1.2 s (was 0.6 s / ~2 s). Swipe-to-reply and scrolling checked on the vivo.
+- **Mark read on focus:** a chat opened from memory never marked its messages read, so senders never saw "read" (since ADR 0045). It now marks them read on focus.
+- **Read ticks:** new `read` / `on-primary-read` tokens: blue on light bubbles, bright cyan on dark ones, deep colors on mid-tone ones. Tested in every scheme for 3:1 contrast and ≥ 30 ΔE from "delivered". Used on the phone, on the web (where delivered and read were identical) and in both Appearance previews.
+- **Calls:** the failed calls were Chrome ↔ the vivo, which is itself the PC's hotspot, so there was no direct path, and dev had no TURN. New `no_route` and `no_relay` errors say so (Force relay with no relay fails at once). The root `.env` now sets the dev relay (`turn:127.0.0.1:3478?transport=tcp`). Steps are in `docs/ops/run-on-devices.md` "Calls".
+
+**Verification:**
+- `pnpm turbo run typecheck lint test` for call-engine, mobile, web, server, sim-client and ui-tokens: 17/17 tasks (ui-tokens 770 tests, mobile 200).
+- Emulator ↔ Chrome:
+  - no TURN: "Connecting…", then failed (reproduced);
+  - with the dev relay: video both ways, "Relayed (TURN) · relay/relay · tcp";
+  - unread cleared on open after the fix, and the web's tick turned blue.
+
+**Remaining (user; JS only, no new build):**
+- [ ] Web ↔ vivo video call with the relay: `docker compose --profile calls up -d --wait`, restart the server, phone on USB, then `adb reverse tcp:3478 tcp:3478` (and tcp:8081 / tcp:3000 in mode B).
+- [ ] Chat opening feel on the phones, ideally in a release build (`android:release`); read the `[chat-open]` lines in Metro in a dev build.
+- [ ] Check the read-tick colors in a few schemes on the phone (Appearance preview shows one).
+
+**Known issues:**
+- Once, the web's circle list didn't show a just-accepted member until a later reload; while stale, the web drops that person's call signals (Phase 37 filter). Not reproduced again.
+- The dev-only warning "configured linking in multiple places" shows on deep links (`pingdost://…`).
+
+**Next:** the open checks above, or the next phase the user picks.
+
 ## 2026-11-13 — Fixes: chat opening, send speed, files and voice notes never sent — ✅ code done (phone timings open)
 Not a phase: the user's three reports from two phones (EAS dev builds). ADR 0045 has the causes and the evidence.
 

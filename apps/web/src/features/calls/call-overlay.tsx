@@ -71,6 +71,9 @@ const ERROR_TEXT: Record<NonNullable<CallSnapshot['error']>, string> = {
   no_devices: 'This contact has no device that can take calls.',
   unreachable: 'Could not reach this contact.',
   connection: 'The connection could not be made or was lost.',
+  no_route:
+    'The two devices could not reach each other directly, and no relay server is set up to connect them (for example, when a phone is this computer’s hotspot).',
+  no_relay: 'Force relay is on, but no relay server is set up. Turn it off in Settings → Calls.',
   signaling: 'The call could not be set up. Check your connection.',
 };
 

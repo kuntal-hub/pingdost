@@ -4,6 +4,8 @@ import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 
 import { useCalls } from '@/calls/runtime';
+import { startChatData, stopChatData } from '@/engine/chat-store';
+import { useChatRuntime } from '@/engine/hooks';
 import { conversationOf } from '@/push/notifications';
 import { usePhoneRequests } from '@/recovery/approvals';
 import { CallMiniWindow, CallPipView } from '@/screens/calls/call-overlays';
@@ -52,11 +54,25 @@ function useIncomingCallScreen(): void {
 }
 
 /**
+ * Every chat is read into memory as soon as the app is open (not in a headless push wake, which
+ * never renders this), so chats open with their messages at once (ADR 0047).
+ */
+function useChatsInMemory(): void {
+  const runtime = useChatRuntime();
+  useEffect(() => {
+    if (!runtime) return;
+    startChatData(runtime);
+    return () => stopChatData();
+  }, [runtime]);
+}
+
+/**
  * The signed-in app: the tabs, with chats and contacts pushed over them (no tab bar there). A
  * call going on shows over every screen as a mini window, and alone in picture-in-picture
  * (ADR 0037).
  */
 export default function AppStack() {
+  useChatsInMemory();
   useNotificationTaps();
   usePhoneRequestPrompt();
   useIncomingCallScreen();
@@ -69,9 +85,23 @@ export default function AppStack() {
   );
 }
 
+/**
+ * Pushed screens slide in from the right in 200 ms (`ios_from_right`, Android's short animation
+ * time). Android 13+'s default transition takes 450 ms, which made a chat feel slow to open
+ * (ADR 0047). Modals keep the default.
+ */
+const PUSH = { animation: 'ios_from_right' } as const;
+const MODAL = { animation: 'default' } as const;
+
 function Screens() {
   return (
-    <Stack screenOptions={{ headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal' }}>
+    <Stack
+      screenOptions={{
+        headerShadowVisible: false,
+        headerBackButtonDisplayMode: 'minimal',
+        ...PUSH,
+      }}
+    >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       {/* The chat draws its own floating header over the wallpaper. */}
       <Stack.Screen name="chat/[conversationId]" options={{ headerShown: false }} />
@@ -87,15 +117,29 @@ function Screens() {
       <Stack.Screen name="scan/[userId]" options={{ title: 'Scan safety code' }} />
       <Stack.Screen
         name="message-info/[messageId]"
-        options={{ title: 'Message info', presentation: 'modal' }}
+        options={{ title: 'Message info', presentation: 'modal', ...MODAL }}
       />
-      <Stack.Screen name="send-attachment" options={{ title: 'Send', presentation: 'modal' }} />
-      <Stack.Screen name="forward" options={{ title: 'Forward to', presentation: 'modal' }} />
+      <Stack.Screen
+        name="send-attachment"
+        options={{ title: 'Send', presentation: 'modal', ...MODAL }}
+      />
+      <Stack.Screen
+        name="forward"
+        options={{ title: 'Forward to', presentation: 'modal', ...MODAL }}
+      />
       <Stack.Screen name="media/[messageId]" options={{ title: '' }} />
-      <Stack.Screen name="approve-phone" options={{ title: 'New phone', presentation: 'modal' }} />
+      <Stack.Screen
+        name="approve-phone"
+        options={{ title: 'New phone', presentation: 'modal', ...MODAL }}
+      />
       <Stack.Screen
         name="call"
-        options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }}
+        options={{
+          headerShown: false,
+          presentation: 'fullScreenModal',
+          gestureEnabled: false,
+          ...MODAL,
+        }}
       />
     </Stack>
   );

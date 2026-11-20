@@ -20,7 +20,7 @@ export function CallsCard() {
       </p>
       <Toggle
         label="Force relay (TURN)"
-        description="Debug: send every call through the relay server, as on a network that blocks direct calls."
+        description="For testing: every call goes through the relay (TURN) server instead of straight between the devices, as on a network that blocks direct calls. Calls fail if no relay is set up."
         checked={relay}
         onChange={(value) => {
           callPrefs.setForceRelay(value);

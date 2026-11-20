@@ -17,8 +17,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "licenses:check": "node scripts/check-licenses.mjs",
-    "infra:up": "docker compose up -d --wait",
-    "infra:down": "docker compose down",
+    "infra:up": "docker compose --profile calls up -d --wait",
+    "infra:down": "docker compose --profile calls down",
     "infra:logs": "docker compose logs -f --tail=100"
   },
   "devDependencies": {

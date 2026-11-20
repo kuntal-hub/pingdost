@@ -75,7 +75,8 @@ function Preview() {
         >
           picking a wallpaper now
           <div className="flex items-center justify-end gap-1 text-xs text-on-primary/80">
-            14:02 <CheckCheck aria-hidden size={14} />
+            14:02{' '}
+            <CheckCheck aria-hidden size={14} strokeWidth={3} className="text-on-primary-read" />
           </div>
         </div>
       </div>

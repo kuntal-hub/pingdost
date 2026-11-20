@@ -94,10 +94,12 @@ On this PC, `.env` is set to `127.0.0.1` (mode B) right now.
 
 Use **three PowerShell windows**, each in the repo folder.
 
-**Window 1: databases and mail** (start Docker Desktop first and wait until it says running)
+**Window 1: databases, mail and the call relay** (start Docker Desktop first and wait until it
+says running)
 ```powershell
 pnpm infra:up
 ```
+This also starts the dev call relay (coturn), which calls with a phone need (see "Calls").
 
 **Window 2: API server** (keep it open)
 ```powershell
@@ -111,6 +113,8 @@ Check it from window 1: `curl.exe http://127.0.0.1:3000/readyz` should print
 pnpm --filter @pingdost/mobile start --clear
 ```
 `--clear` is needed only after you change `apps\mobile\.env`, but it is harmless otherwise.
+Before Metro starts, this runs `adb reverse` for ports 3000 (server), 8081 (Metro) and 3478
+(call relay) on every device attached over adb, so mode B needs no `adb reverse` of its own.
 
 ## 4A. Mode A: Wi-Fi (no cable)
 
@@ -149,7 +153,8 @@ like a phone does.
 
 ## 4B. Mode B: adb (USB cable or wireless debugging)
 
-`adb reverse` makes `127.0.0.1:3000` and `127.0.0.1:8081` on the device point at your PC. Set
+`adb reverse` makes `127.0.0.1:3000`, `127.0.0.1:8081` and `127.0.0.1:3478` on the device point
+at your PC (`pnpm --filter @pingdost/mobile start` sets it up for every attached device). Set
 `apps\mobile\.env` to:
 ```
 EXPO_PUBLIC_API_URL=http://127.0.0.1:3000
@@ -182,9 +187,11 @@ adb devices | Select-String "`tdevice$" | ForEach-Object {
   adb -s $id install -r $apk
   adb -s $id reverse tcp:8081 tcp:8081
   adb -s $id reverse tcp:3000 tcp:3000
+  adb -s $id reverse tcp:3478 tcp:3478
 }
 ```
-Run it **again** whenever a device reconnects, reboots, or the emulator restarts.
+Run it **again** whenever a device reconnects, reboots, or the emulator restarts (or restart
+Metro, which does the same).
 
 If install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` (a local build with another signing
 key is on the device), run `adb -s <id> uninstall com.pingdost.app` and install again. This
@@ -221,8 +228,27 @@ Mailpit catches every email the server sends, so any address works, even made-up
    - **Offline delivery:** swipe PingDost away on B (or turn on airplane mode in mode A), send
      from A, then reopen B. The message arrives.
    - **Photos, voice notes, groups, calls:** use the attach button, the mic button, Chats →
-     **+** → New group, and the call buttons in a chat. For calls, see "Calls" in CLAUDE.md
-     (coturn).
+     **+** → New group, and the call buttons in a chat. For calls, see "Calls" below.
+
+### Calls (voice and video)
+
+Calls go straight between the two devices when they can, else through a relay (TURN). A
+phone that is **itself the hotspot** the PC (or the other phone) uses has no direct path: its
+calls need the relay. The dev relay is coturn in Docker, at `127.0.0.1:3478` over TCP (the root
+`.env` has `TURN_URLS` and `TURN_SHARED_SECRET` for it).
+
+1. `pnpm infra:up` starts the relay with the databases. (Started some other way? Run
+   `docker compose --profile calls up -d --wait`.) Check: `docker ps` lists `pingdost-coturn-1`.
+2. Start (or restart) the server so it reads `.env`.
+3. Connect the phone with a USB cable (mode B) and start Metro: it runs
+   `adb reverse tcp:3478 tcp:3478` for the phone. Plugged in later? Restart Metro, or run that
+   line. The browser on the PC reaches the relay by itself.
+4. Call. During a call, the web shows the path under the timer ("Relayed (TURN) · relay/relay ·
+   tcp" when it goes through the relay).
+
+Without the relay, such a call ends with "The two devices could not reach each other directly,
+and no relay server is set up". "Force relay" (web Settings → Calls, phone Calls tab) sends every
+call through the relay; it is for testing, and with no relay set up it fails at once.
 
 **Only one device?** Start a headless test contact in a fourth window:
 ```powershell
