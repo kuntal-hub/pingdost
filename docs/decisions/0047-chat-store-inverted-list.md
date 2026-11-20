@@ -64,10 +64,11 @@ The user found messages instant, but a chat still took about a second to open. T
 - **Header height:** starts at its measured value (top inset + 64), not a guess, so measuring it no longer redraws the screen.
 - **Time labels:** `timeLabel` / `dayLabel` (`@pingdost/chat-core`) reuse `Intl.DateTimeFormat`s. `toLocaleTimeString` cost ~1 ms per call on the vivo, twice per bubble; a reused formatter costs 0.08 ms.
 - **Measured but not worth changing:** `SwipeAction`'s animated view and `Tap`'s Reanimated pressable (no measurable gain without them).
-- **Look (the user's request):**
-  - 4 px between messages in a run, 10 px where the sender changes (was 2 / 8);
-  - 16 px under the newest message (was 8);
-  - message times one step smaller: a new `2xs` type step (11/14) in `typeScale`, for bubble times only.
+- **Look (the user's request), phone and web:**
+  - phone: 4 px between messages in a run, 10 px where the sender changes (was 2 / 8); web: 4 px in a run (2 px compact; was 2 / 1), 12 px where the sender changes as before;
+  - 16 px under the newest message (phone was 8; web had none: a Virtuoso `Footer`);
+  - message times one step smaller: a new `2xs` type step (11/14) in `typeScale`, for bubble times only; on the web `--text-2xs` in `styles.css` (rem, so it follows the text size setting).
+  - First done on the phone only; the user asked for every UI change on both platforms.
 
 ## Consequences
 - Memory: every chat's newest page. About 50 KB per chat: ~5 MB for 100 chats.

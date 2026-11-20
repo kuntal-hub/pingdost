@@ -84,6 +84,11 @@ function failure(error: unknown): string {
 /** Messages this far apart start a new run, even from the same sender. */
 const RUN_GAP_MS = 5 * 60_000;
 
+/** Room under the newest message, above the composer (16 px, as on the phone; ADR 0047). */
+function ListEnd() {
+  return <div aria-hidden className="h-4" />;
+}
+
 /** Whether a neighbor continues the same sender's run of messages. */
 function continuesRun(me: MessageRecord, other: TimelineItem | undefined): boolean {
   if (other?.type !== 'message' || other.message.kind === 'system') return false;
@@ -789,7 +794,7 @@ export function ChatView() {
             startReached={() => void loadOlder()}
             atBottomStateChange={setAtBottom}
             computeItemKey={(_, item) => item.key}
-            components={{ Header: listHeader }}
+            components={{ Header: listHeader, Footer: ListEnd }}
             itemContent={(index, item) =>
               item.type === 'day' ? (
                 <div className="my-3 flex justify-center">

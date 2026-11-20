@@ -228,7 +228,8 @@ export function Bubble({
     <span
       {...(variant === 'spacer' ? { 'aria-hidden': true } : {})}
       className={cn(
-        'items-center justify-end gap-1 text-xs leading-4 whitespace-nowrap not-italic',
+        // One step under the smallest text (`2xs`, as on the phone; ADR 0047). Ticks keep 14 px.
+        'items-center justify-end gap-1 text-2xs whitespace-nowrap not-italic',
         onBrand ? 'text-on-primary/80' : 'text-muted',
         variant === 'overlay' && 'absolute right-0 bottom-0 flex',
         variant === 'spacer' && 'invisible ml-2 inline-flex',
@@ -323,7 +324,8 @@ export function Bubble({
             : selecting
               ? 'ml-12 items-start'
               : 'ml-4 items-start',
-          first ? 'mt-3' : compact ? 'mt-px' : 'mt-0.5',
+          // A little room between messages in a run, more where the sender changes.
+          first ? 'mt-3' : compact ? 'mt-0.5' : 'mt-1',
           fresh && (outgoing ? 'pd-bubble-new-out' : 'pd-bubble-new-in'),
           selecting && 'cursor-pointer',
         )}

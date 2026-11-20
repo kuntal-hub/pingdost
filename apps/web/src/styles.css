@@ -39,6 +39,10 @@
   --radius-2xl: var(--pd-radius-2xl);
   --font-sans: var(--pd-font-body);
   --font-display: var(--pd-font-display);
+  /* ui-tokens `typeScale['2xs']` (11/14 px): message times in bubbles only. In rem, so it
+     follows the text-size setting like the rest. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 0.875rem;
 }
 
 :root {
