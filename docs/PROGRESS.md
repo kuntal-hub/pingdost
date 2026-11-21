@@ -17,6 +17,49 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-21 — Games module planned; Phase 41: games core, Ludo vs computer, Games tab — ✅ done
+The user asked for games inside the app, Ludo first (CHANGES 2026-11-21, ADR 0049). Planned as Phases 41–47; 41 is built.
+
+**Done:**
+- **Docs:** CHANGES 2026-11-21 with the user's choices (friends and group members only; computer players only when playing alone, the count chosen by the user, for every game; Ludo King-style classic). ADR 0049: games live in chats, E2EE `Content.game` control fanout, shared rules, a seat per device, commit-reveal dice, stats on the device, card dealing decided in 45. ARCHITECTURE A4, ROADMAP rows and phase files 41–47.
+- **`packages/games`:** board geometry, rules with toggles, computer players (Easy, Medium, Hard), the controller (paces rolls, hops and computer turns; saves), solo setup and restore, labels, board shapes both apps draw, catalog, local stats.
+- **ui-tokens:** `gameBoardColors`, `gamePlayerShapes` (contrast-tested in every scheme).
+- **Phone:** a Games tab (Chats, Calls, Games, Settings), setup, the Ludo screen; saves in the encrypted settings. **Web:** the same at `/games`; localStorage; keys Space/R and 1–4.
+
+**Deviations / decisions:**
+- Auto-move ("Move by itself") is a player preference, not a game rule.
+- A finished solo game stays saved (phase `over`) until a new one replaces it, and the controller always starts from the newest saved state. Testing found a finished game reset to its start after a Fast Refresh.
+- Android: the result card needs a `zIndex` above the pieces (Fabric flattens the board's wrappers).
+
+**Verification:**
+- games 48 tests (about 30 s), ui-tokens, mobile 203, web 25; lint and typecheck: 12/12 turbo tasks; prettier clean.
+- Computer strength (400 seeded two-player games each): Medium beats Easy 84%, Hard beats Easy 92% and Medium 65%.
+- Metro bundles `game/ludo`, `game/ludo-setup` and `(games)/games`.
+- **Chrome** (web dev, paired browser):
+  - Hard with 3 computer players, classic, to the end (about 370 turns; "You finished 3rd"). It survived a reload mid-game with Motion Off.
+  - Easy and Medium against 1 computer player (quick) to the end.
+  - Play again, New game, Rules, Back to Games all work.
+  - A reload on the result reshows it without counting again. Record: Easy 1/1, Medium 1/2, Hard 0/1.
+- **Emulator** (`Pixel_8_API_35`, installed dev build, JS from Metro):
+  - The Games tab, setup, a classic game against Easy to the end (won), and a quick game (2nd).
+  - The game resumed after leaving the screen and after a Fast Refresh, and the result card sits above the board.
+  - Record: Easy 1/2.
+- Test settings were put back (Motion Full on the emulator account and in the browser).
+
+**Known issues / notes:**
+- `uiautomator dump` cannot read the game screen at Motion Full (the pulsing pieces and beckoning die never let it go idle): use Motion Off for adb-driven checks.
+- Chrome throttled and then discarded the background test tab during a long scripted game: keep the tab visible.
+
+**Remaining (user; JS only, no new build):**
+- [ ] Play a game on a real phone at Full motion: the hops, the dice and the haptics.
+
+**Next:** Phase 42, Ludo with friends in chats ("start phase 42"). The phase file has the plan:
+- the protocol `Content.game = 16`;
+- engine game records with phone migration 011 and the next Dexie version;
+- fair dice, the session fold and `GameHub` in `@pingdost/games`;
+- chat cards, the Games tab lists and the presence registry;
+- a sim-client player and `games.int.test.ts`.
+
 ## 2026-11-20 — Camera effects redone, movable self view — ✅ code done (phone checks open)
 Not a phase: the user found the lenses "cheap", beauty basic, and wanted more fun effects and a movable self view. ADR 0048 has the decisions; CHANGES 2026-11-20.
 

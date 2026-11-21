@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // crypto.getRandomValues and timers, as browsers and React Native provide them.
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["src", "vitest.config.ts"]
+}

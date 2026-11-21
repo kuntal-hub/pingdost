@@ -26,6 +26,10 @@ export const SETTING_KEYS = {
   calls: 'calls',
   /** `RelayPrefs` (Settings → Nearby relay): local to this phone, off by default (ADR 0025). */
   relay: 'relay',
+  /** Games (ADR 0049): the last solo setup, stats and preferences; local to this phone. */
+  games: 'games',
+  /** The unfinished solo game, saved after every roll and move (ADR 0049). */
+  gameSolo: 'game_solo',
 } as const;
 
 export async function readSetting<T>(

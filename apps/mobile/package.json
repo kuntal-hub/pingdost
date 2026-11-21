@@ -27,6 +27,7 @@
     "@pingdost/config": "workspace:*",
     "@pingdost/crypto": "workspace:*",
     "@pingdost/crypto-native": "workspace:*",
+    "@pingdost/games": "workspace:*",
     "@pingdost/mesh-protocol": "workspace:*",
     "@pingdost/message-engine": "workspace:*",
     "@pingdost/protocol": "workspace:*",

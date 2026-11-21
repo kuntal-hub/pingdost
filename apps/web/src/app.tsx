@@ -87,6 +87,18 @@ const router = createBrowserRouter([
         ...page(() => import('@/features/calls/calls-page').then((m) => m.CallsPage)),
       },
       {
+        path: 'games',
+        ...page(() => import('@/features/games/games-page').then((m) => m.GamesPage)),
+      },
+      {
+        path: 'games/ludo/setup',
+        ...page(() => import('@/features/games/ludo/ludo-setup').then((m) => m.LudoSetupPage)),
+      },
+      {
+        path: 'games/ludo',
+        ...page(() => import('@/features/games/ludo/ludo-page').then((m) => m.LudoPage)),
+      },
+      {
         path: 'settings',
         ...page(() => import('@/shell/settings-page').then((m) => m.SettingsPage)),
       },

@@ -4,6 +4,16 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-21 — New requirement: games module (ADR 0049)
+The user asked for games inside the app: simple multiplayer games played with friends in a chat, a Games section, and a play-with-computer mode with difficulty levels for every game. Ludo comes first, then the others one at a time. Not in REQ: an addition.
+1. **Opponents: circle friends and group members only** (the user's choice). There is no matchmaking with strangers and no server lobby. Games live in a 1:1 chat or a group; group members without a seat can watch.
+2. **Computer players only when playing alone** (the user's choice). From the Games screen the user picks how many computer players (Ludo: 1–3) and the difficulty (Easy, Medium, Hard). Games with friends never have computer players. The rule holds for every game.
+3. **Ludo defaults: Ludo King-style classic** (the user's choice): roll a 6 to leave base; a 6, a capture or reaching home gives another roll; a third 6 in a row ends the turn; start and star squares are safe; no blockades; exact roll to finish. The host can change the toggles (tokens 4 or 2, need a 6, blockades, stop at the first winner).
+4. **Privacy:** game moves are E2EE `Content` (a new `game` body, additive) sent like reactions through the normal outbox: offline players get them from the mailbox, and phones also play over nearby and the mesh. The server keeps no games, results or stats. Dice use hash commitments so no player can steer a roll. Stats stay on the device; rewards would need their own decision later.
+5. **No game engine and no new dependency:** boards and pieces are react-native-svg and Reanimated views on the phone, SVG on the web. A new tab, Games, joins Chats, Calls and Settings on both apps.
+6. **Old builds** show "Update PingDost" placeholders for game events (no public release yet; the phone change is JS-only).
+   - *Affects:* new Phases 41 (games core, Ludo vs computer, Games tab), 42 (Ludo with friends in chats), 43 (quick games), 44 (Chess), 45 (hidden hands + UNO), 46 (Call Bridge), 47 (Poker). Finished phases are not reworked.
+
 ### 2026-11-20 — Camera effects redone, self view movable (ADR 0048)
 1. **The effects catalog is replaced** (Phase 33's 21 effects become 54 in four groups: Beauty, Lenses, Fun, Filters). Lenses are shaded and animated; beauty smooths skin with detail kept, and on the phone it also reshapes slightly. There are 11 new face warps next to Big eyes, and graded filters. Clown, Party hat and Mustache are gone. No new dependency or asset.
    - *Affects:* 33 (done; reworked on the user's request).

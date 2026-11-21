@@ -10,6 +10,7 @@ export default function AppTabs() {
     >
       <Tabs.Screen name="(chats)" options={{ title: 'Chats' }} />
       <Tabs.Screen name="(calls)" options={{ title: 'Calls' }} />
+      <Tabs.Screen name="(games)" options={{ title: 'Games' }} />
       <Tabs.Screen name="(settings)" options={{ title: 'Settings' }} />
     </Tabs>
   );

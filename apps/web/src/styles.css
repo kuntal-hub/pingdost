@@ -394,6 +394,86 @@ h2 {
   opacity: 0.5;
 }
 
+/* Board games (ADR 0049). A hop is one transition per square; movable pieces pulse; the die
+   wobbles while it rolls and beckons when it is the player's roll. */
+.pd-piece {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.pd-piece-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pd-piece-pulse 900ms ease-in-out infinite;
+}
+
+.pd-piece-focus {
+  opacity: 0;
+}
+
+.pd-piece-target:focus-visible .pd-piece-focus {
+  opacity: 1;
+}
+
+.pd-roll {
+  animation: pd-roll 380ms linear infinite;
+}
+
+.pd-beckon {
+  animation: pd-beckon 1100ms ease-in-out infinite;
+}
+
+@keyframes pd-piece-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.55;
+  }
+}
+
+@keyframes pd-roll {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-16deg) scale(0.92);
+  }
+  50% {
+    transform: rotate(12deg) scale(1.06);
+  }
+  75% {
+    transform: rotate(-8deg) scale(0.96);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@keyframes pd-beckon {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+/* Calm: pieces jump instead of hopping, the die and the pieces keep still. */
+:root[data-motion='calm'] .pd-piece {
+  transition: none;
+}
+
+:root[data-motion='calm'] .pd-piece-pulse,
+:root[data-motion='calm'] .pd-roll,
+:root[data-motion='calm'] .pd-beckon {
+  animation: none;
+}
+
 /* Calm: only gentle fades. */
 :root[data-motion='calm'] .pd-pop,
 :root[data-motion='calm'] .pd-rise,

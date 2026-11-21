@@ -7,6 +7,7 @@ import { colorNames, type ColorName, type Palette } from './schemes';
 
 export * from './appearance';
 export * from './color';
+export * from './games';
 export * from './schemes';
 export * from './wallpapers';
 

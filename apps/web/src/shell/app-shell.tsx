@@ -1,7 +1,7 @@
-// The linked browser's app frame (ADR 0020, 0035): a floating dock with chats, calls and
-// settings, the connection state, and chat itself, started here for this tab (the engine in one
+// The linked browser's app frame (ADR 0020, 0035): a floating dock with chats, calls, games
+// (ADR 0049) and settings, the connection state, and chat itself, started here for this tab (the engine in one
 // tab per browser). Shortcuts: Ctrl+K searches, Alt+N starts a new chat.
-import { MessageCircle, Phone, Settings, type LucideIcon } from 'lucide-react';
+import { Gamepad2, MessageCircle, Phone, Settings, type LucideIcon } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 
@@ -30,6 +30,7 @@ const TABS: { to: string; label: string; icon: LucideIcon; match: (path: string)
     match: (path) => path === '/' || path.startsWith('/chat'),
   },
   { to: '/calls', label: 'Calls', icon: Phone, match: (path) => path.startsWith('/calls') },
+  { to: '/games', label: 'Games', icon: Gamepad2, match: (path) => path.startsWith('/games') },
   {
     to: '/settings',
     label: 'Settings',

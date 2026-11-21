@@ -10,6 +10,7 @@ import { useTheme } from '@/theme/theme-root';
 import { brandGradient } from '@pingdost/ui-tokens';
 
 import {
+  Gamepad2Icon,
   Icon,
   MessageCircleIcon,
   MessageCirclePlusIcon,
@@ -27,12 +28,13 @@ const BAR_HEIGHT = 64;
 const NEW_BUTTON = 56;
 const GAP = 12;
 /** The first screen of each tab; deeper screens get the whole height. */
-const ROOT_SCREENS: readonly string[] = ['chats', 'calls', 'settings'];
+const ROOT_SCREENS: readonly string[] = ['chats', 'calls', 'games', 'settings'];
 const PAD = 5;
 
 const TABS: Record<string, { label: string; icon: LucideIcon }> = {
   '(chats)': { label: 'Chats', icon: MessageCircleIcon },
   '(calls)': { label: 'Calls', icon: PhoneIcon },
+  '(games)': { label: 'Games', icon: Gamepad2Icon },
   '(settings)': { label: 'Settings', icon: SettingsIcon },
 };
 

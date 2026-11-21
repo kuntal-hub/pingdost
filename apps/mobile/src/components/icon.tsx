@@ -12,6 +12,7 @@ import BanIcon from 'lucide-react-native/icons/ban';
 import BellIcon from 'lucide-react-native/icons/bell';
 import BellOffIcon from 'lucide-react-native/icons/bell-off';
 import BluetoothIcon from 'lucide-react-native/icons/bluetooth';
+import BotIcon from 'lucide-react-native/icons/bot';
 import BubblesIcon from 'lucide-react-native/icons/bubbles';
 import CalendarClockIcon from 'lucide-react-native/icons/calendar-clock';
 import CameraIcon from 'lucide-react-native/icons/camera';
@@ -20,6 +21,7 @@ import CaseSensitiveIcon from 'lucide-react-native/icons/case-sensitive';
 import CatIcon from 'lucide-react-native/icons/cat';
 import CheckIcon from 'lucide-react-native/icons/check';
 import CheckCheckIcon from 'lucide-react-native/icons/check-check';
+import ChessKingIcon from 'lucide-react-native/icons/chess-king';
 import ChevronDownIcon from 'lucide-react-native/icons/chevron-down';
 import ChevronLeftIcon from 'lucide-react-native/icons/chevron-left';
 import ChevronRightIcon from 'lucide-react-native/icons/chevron-right';
@@ -30,11 +32,14 @@ import ClapperboardIcon from 'lucide-react-native/icons/clapperboard';
 import ClockIcon from 'lucide-react-native/icons/clock';
 import CloudIcon from 'lucide-react-native/icons/cloud';
 import CloudUploadIcon from 'lucide-react-native/icons/cloud-upload';
+import ClubIcon from 'lucide-react-native/icons/club';
+import CoinsIcon from 'lucide-react-native/icons/coins';
 import ContrastIcon from 'lucide-react-native/icons/contrast';
 import CopyIcon from 'lucide-react-native/icons/copy';
 import CrownIcon from 'lucide-react-native/icons/crown';
 import DatabaseIcon from 'lucide-react-native/icons/database';
 import DeleteIcon from 'lucide-react-native/icons/delete';
+import DicesIcon from 'lucide-react-native/icons/dices';
 import DogIcon from 'lucide-react-native/icons/dog';
 import DownloadIcon from 'lucide-react-native/icons/download';
 import DramaIcon from 'lucide-react-native/icons/drama';
@@ -50,11 +55,13 @@ import FlameIcon from 'lucide-react-native/icons/flame';
 import FlipHorizontalIcon from 'lucide-react-native/icons/flip-horizontal-2';
 import FlowerIcon from 'lucide-react-native/icons/flower-2';
 import ForwardIcon from 'lucide-react-native/icons/forward';
+import Gamepad2Icon from 'lucide-react-native/icons/gamepad-2';
 import GemIcon from 'lucide-react-native/icons/gem';
 import GhostIcon from 'lucide-react-native/icons/ghost';
 import GlassesIcon from 'lucide-react-native/icons/glasses';
 import Grid2x2Icon from 'lucide-react-native/icons/grid-2x2';
 import Grid3x3Icon from 'lucide-react-native/icons/grid-3x3';
+import GripIcon from 'lucide-react-native/icons/grip';
 import HandIcon from 'lucide-react-native/icons/hand';
 import HazeIcon from 'lucide-react-native/icons/haze';
 import HeadphonesIcon from 'lucide-react-native/icons/headphones';
@@ -74,6 +81,7 @@ import LockIcon from 'lucide-react-native/icons/lock';
 import LogOutIcon from 'lucide-react-native/icons/log-out';
 import MailIcon from 'lucide-react-native/icons/mail';
 import MaximizeIcon from 'lucide-react-native/icons/maximize';
+import MedalIcon from 'lucide-react-native/icons/medal';
 import MegaphoneIcon from 'lucide-react-native/icons/megaphone';
 import MessageCircleIcon from 'lucide-react-native/icons/message-circle';
 import MessageCirclePlusIcon from 'lucide-react-native/icons/message-circle-plus';
@@ -122,6 +130,7 @@ import ShieldCheckIcon from 'lucide-react-native/icons/shield-check';
 import SmartphoneIcon from 'lucide-react-native/icons/smartphone';
 import SmileIcon from 'lucide-react-native/icons/smile';
 import SnowflakeIcon from 'lucide-react-native/icons/snowflake';
+import SpadeIcon from 'lucide-react-native/icons/spade';
 import SparkleIcon from 'lucide-react-native/icons/sparkle';
 import SparklesIcon from 'lucide-react-native/icons/sparkles';
 import SquareIcon from 'lucide-react-native/icons/square';
@@ -134,6 +143,7 @@ import SwitchCameraIcon from 'lucide-react-native/icons/switch-camera';
 import ThermometerIcon from 'lucide-react-native/icons/thermometer';
 import TornadoIcon from 'lucide-react-native/icons/tornado';
 import Trash2Icon from 'lucide-react-native/icons/trash-2';
+import TrophyIcon from 'lucide-react-native/icons/trophy';
 import TvIcon from 'lucide-react-native/icons/tv';
 import UserPlusIcon from 'lucide-react-native/icons/user-plus';
 import UserRoundIcon from 'lucide-react-native/icons/user-round';
@@ -149,7 +159,21 @@ import ZapIcon from 'lucide-react-native/icons/zap';
 
 import { usePalette } from '@/theme/theme-root';
 import type { EffectIcon } from '@pingdost/call-engine';
+import type { CatalogEntry } from '@pingdost/games';
 import type { ColorName } from '@pingdost/ui-tokens';
+
+/** The icon of each game in the catalog (`@pingdost/games` names an icon key). */
+export const GAME_ICONS: Record<CatalogEntry['icon'], LucideIcon> = {
+  dice: DicesIcon,
+  grid: Grid3x3Icon,
+  circles: CircleDotIcon,
+  dots: GripIcon,
+  ladder: RouteIcon,
+  chess: ChessKingIcon,
+  cards: ClubIcon,
+  spade: SpadeIcon,
+  chips: CoinsIcon,
+};
 
 /** The icon of each camera effect (`@pingdost/call-engine` names Lucide icons). */
 export const EFFECT_ICONS: Record<EffectIcon, LucideIcon> = {
@@ -311,6 +335,11 @@ export {
   ZapIcon,
   EllipsisVerticalIcon,
   ForwardIcon,
+  BotIcon,
+  DicesIcon,
+  Gamepad2Icon,
+  MedalIcon,
+  TrophyIcon,
 };
 export type { LucideIcon };
 

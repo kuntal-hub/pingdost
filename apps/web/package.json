@@ -24,6 +24,7 @@
     "@pingdost/chat-core": "workspace:*",
     "@pingdost/config": "workspace:*",
     "@pingdost/crypto": "workspace:*",
+    "@pingdost/games": "workspace:*",
     "@pingdost/message-engine": "workspace:*",
     "@pingdost/protocol": "workspace:*",
     "@pingdost/shared-types": "workspace:*",

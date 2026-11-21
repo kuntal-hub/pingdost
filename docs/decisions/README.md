@@ -41,6 +41,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0034](0034-eas-android-dev-build.md) | Android dev builds from EAS Build (free tier): `eas.json`, root `.easignore`, prebuilt Rust `.so` uploaded | n.a. | Accepted |
 | [0035](0035-pop-design-system-and-appearance.md) | "Pop" design system: ten color schemes, user-configurable appearance kept on the device, Lucide icons, bundled OFL fonts, floating navigation | yes | Accepted |
 | [0036](0036-account-deletion.md) | Account deletion: email code, then every device revoked and its mailbox emptied, groups left, blocks, sessions, codes and the account record deleted (Play policy) | n.a. | Accepted |
+| [0049](0049-games-module.md) | Games module: games inside chats, E2EE game events, shared rules, commit-reveal dice, computer players only when alone | 41, 42 | Accepted |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 
@@ -75,6 +76,8 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ �
 | Chats from memory, mark read on focus, colored read tick, call failures without a relay | after 40 | No (done: 0046) |
 | Every chat in an in-memory store, inverted FlatList, lighter bubbles, dev call relay set up by itself | after 40 | No (done: 0047) |
 | Premium camera effects (shaded lenses, beauty, face warps, grades), head roll, movable self view | after 40 | No (done: 0048) |
+| Games module: rooms, wire, rules, fair dice, computer players | 41 | Product choices: yes (CHANGES 2026-11-21); done: 0049 |
+| Dealing hidden hands (cards) | 45 | No |
 | APNs route, iOS message wake, CallKit | 29 | No (done: 0032) |
 | iOS nearby link layer, Android↔iOS connect rule, MultipeerConnectivity / Wi-Fi Aware | 30 | No (done: 0033) |
 | Project license | 01 | **Yes** (done: 0001) |

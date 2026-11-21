@@ -10,6 +10,9 @@ import {
   contrast,
   defaultAppearance,
   DELIVERED_TICK_ALPHA,
+  gameBoardColors,
+  gamePlayerColors,
+  gamePlayerShapes,
   hsl,
   isDark,
   mix,
@@ -152,6 +155,43 @@ describe('color schemes', () => {
         ).toBeGreaterThanOrEqual(AA);
       }
     }
+  });
+
+  // Board games (ADR 0049): a piece's edge must read on the board and on every surface, the
+  // shape glyph on its fill, and the four players must look like four different colors.
+  it('keeps game pieces readable and the four players distinct', () => {
+    for (const { palette, label, dark } of everyPalette()) {
+      const board = gameBoardColors(dark);
+      for (const color of gamePlayerColors) {
+        const look = board.players[color];
+        for (const [where, background] of [
+          ['cell', board.cell],
+          ['board', board.board],
+          ['surface', palette.surface],
+          ['background', palette.background],
+        ] as const) {
+          expect(
+            contrast(look.ring, background),
+            `${label} ${color} on ${where}`,
+          ).toBeGreaterThanOrEqual(UI);
+        }
+        expect(contrast(look.on, look.fill), `${label} ${color} glyph`).toBeGreaterThanOrEqual(UI);
+        expect(
+          contrast(look.ring, look.soft),
+          `${label} ${color} in its yard`,
+        ).toBeGreaterThanOrEqual(UI);
+      }
+      for (const a of gamePlayerColors) {
+        for (const b of gamePlayerColors) {
+          if (a >= b) continue;
+          expect(
+            colorDistance(board.players[a].fill, board.players[b].fill),
+            `${label} ${a}/${b}`,
+          ).toBeGreaterThanOrEqual(DIFFERENT_AT_A_GLANCE);
+        }
+      }
+    }
+    expect(new Set(Object.values(gamePlayerShapes)).size).toBe(gamePlayerColors.length);
   });
 
   it('keeps avatar initials readable and stable', () => {

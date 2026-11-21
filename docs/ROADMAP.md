@@ -46,6 +46,13 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 38 | [Find people and pick group members](phases/phase-38-people-search.md) | 37 | 🔄 |
 | 39 | [Select several messages and forward them](phases/phase-39-select-forward.md) | 35, 37 | 🔄 |
 | 40 | [Voice notes: hold to record, slide to cancel, lock, review](phases/phase-40-voice-note-gestures.md) | 15, 36 | 🔄 |
+| 41 | [Games A: games core, Ludo vs computer, Games tab](phases/phase-41-games-core-ludo-solo.md) | 31 | ✅ |
+| 42 | [Games B: Ludo with friends in chats (E2EE moves, fair dice)](phases/phase-42-games-ludo-friends.md) | 41, 37, 17 | ⬜ |
+| 43 | [Games C: quick games: Tic-Tac-Toe, Connect Four, Dots and Boxes, Snakes and Ladders](phases/phase-43-games-quick.md) | 42 | ⬜ |
+| 44 | [Games D: Chess](phases/phase-44-games-chess.md) | 42 | ⬜ |
+| 45 | [Games E: hidden hands (dealing) + UNO](phases/phase-45-games-hidden-hands-uno.md) | 42 | ⬜ |
+| 46 | [Games F: Call Bridge](phases/phase-46-games-call-bridge.md) | 45 | ⬜ |
+| 47 | [Games G: Poker (Texas Hold'em, chips only)](phases/phase-47-games-poker.md) | 45 | ⬜ |
 
 **Order notes**
 - Phases mostly run in number order. Where dependencies allow, some can move:
@@ -56,6 +63,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
   - 34, 35, 36 and 40 change only the apps' UI (34 also adds one server endpoint);
   - 37 (Circles) is the largest: server, engine, both apps and every integration suite. It must come before 38 and 39;
   - 36 needs 34's keyboard-library decision.
+- 41–47 are the games module (CHANGES 2026-11-21, ADR 0049): 41 builds the shared rules package, Ludo against the computer and the Games tab with no wire change; 42 adds E2EE game events and play with friends in chats. 43–47 add one group of games each on that base, every one with solo play (computer players only when alone) and play with friends, on phone and web. 46 and 47 need 45's dealing decision.
 - REQ §20's Phase 0 spikes are placed just-in-time:
 
   | Spike | Phase |
@@ -99,3 +107,4 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | §19 | Acceptance criteria | each phase's "Done when" + 27 (traceability) |
 | §21 | Risks | 02, 08, 20, 21, 27 |
 | §22 | Low-cost providers | 05, 06, 14, 20 |
+| — (not in REQ) | Games (CHANGES 2026-11-21) | 41–47 |
