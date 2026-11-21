@@ -21,4 +21,7 @@ dependencies {
   // Camera effects and screen sharing (ADR 0037, 0038) plug into react-native-webrtc and its
   // WebRTC build (`org.jitsi:webrtc`, an `api` dependency there); the app ships both already.
   compileOnly project(':react-native-webrtc')
+
+  // JVM tests of the face tracker's roll estimate (EPL-1.0, test only; ADR 0048).
+  testImplementation 'junit:junit:4.13.2'
 }

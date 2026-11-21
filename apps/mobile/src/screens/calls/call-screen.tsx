@@ -36,7 +36,6 @@ import {
 import { ActionSheet, type SheetAction } from '@/components/action-sheet';
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
-import { Chip, ChipRow } from '@/components/controls';
 import {
   AppWindowIcon,
   CheckIcon,
@@ -63,6 +62,8 @@ import { useContact } from '@/engine/hooks';
 import { CSS_EASE_OUT, useMotion } from '@/theme/motion';
 import { useTheme } from '@/theme/theme-root';
 
+import { EffectPicker } from './effect-picker';
+import { SelfView } from './self-view';
 import type { AudioRoute } from '../../../modules/pingdost-calls/src';
 
 const ROUTE_LABEL: Record<AudioRoute, string> = {
@@ -388,34 +389,20 @@ export function CallScreen() {
         </View>
       </Fade>
       {smallStream ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={bigIsLocal ? 'Show their video large' : 'Show your video large'}
-          disabled={!canSwap}
-          onPress={() => {
+        <SelfView
+          streamURL={smallStream.toURL()}
+          mirror={!bigIsLocal && front}
+          label={bigIsLocal ? 'Show their video large' : 'Show your video large'}
+          canSwap={canSwap}
+          onSwap={() => {
             setSwapped((current) => !current);
             touch();
           }}
-          style={{
-            position: 'absolute',
-            right: 16,
-            // Above whatever is below the picture right now (controls, banners, effects).
-            bottom: bottomHeight + 12,
-            width: 110,
-            height: 160,
-            borderRadius: 20,
-            overflow: 'hidden',
-          }}
-        >
-          <RTCView
-            key={bigIsLocal ? 'small-remote' : 'small-local'}
-            streamURL={smallStream.toURL()}
-            objectFit="cover"
-            mirror={!bigIsLocal && front}
-            zOrder={1}
-            style={{ flex: 1 }}
-          />
-        </Pressable>
+          // Below the minimize button, above whatever is below the picture right now
+          // (controls, banners, effects).
+          top={insets.top + 64}
+          bottom={bottomHeight + 12}
+        />
       ) : null}
       <View className="flex-1" pointerEvents="none" />
       <View
@@ -484,25 +471,8 @@ export function CallScreen() {
         </View>
         <Fade shown={showControls}>
           {showEffects ? (
-            <View className="mb-3 gap-1">
-              <Text className="px-5 text-xs font-semibold text-white/80">
-                Effects run on your phone before the picture is encrypted.
-              </Text>
-              <ChipRow label="Camera effects">
-                <Chip
-                  label="None"
-                  selected={effect === 'none'}
-                  onPress={() => setVideoEffect('none')}
-                />
-                {effects.map((option) => (
-                  <Chip
-                    key={option.id}
-                    label={option.label}
-                    selected={effect === option.id}
-                    onPress={() => setVideoEffect(option.id)}
-                  />
-                ))}
-              </ChipRow>
+            <View className="mb-3">
+              <EffectPicker effects={effects} value={effect} onChange={setVideoEffect} />
             </View>
           ) : null}
           {routePicker && routes ? (

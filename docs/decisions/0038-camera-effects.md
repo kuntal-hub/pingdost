@@ -1,6 +1,6 @@
 # 0038 — Camera filters and effects in video calls
 
-- **Status:** Accepted
+- **Status:** Accepted; the catalog, the pickers and the tracker's roll are revised by ADR 0048
 - **Date:** 2026-11-09
 - **Phase:** 33
 - **Approved by user:** yes (the user asked for filters after the feasibility answer in ADR 0037: "ok let's add the filters and effects")

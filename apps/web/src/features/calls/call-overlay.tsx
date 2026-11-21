@@ -21,7 +21,14 @@ import {
   Video,
   VideoOff,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
 
 import { contactName, useContact } from '@/chat/contacts';
 import { Avatar } from '@/components/avatar';
@@ -29,6 +36,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 import type { CallSnapshot, ScreenSurface } from '@pingdost/call-engine';
 
+import { EffectsPanel } from './effects-panel';
 import { callPrefs } from './prefs';
 import {
   accept,
@@ -45,7 +53,6 @@ import {
   setCameraOff,
   setMinimized,
   setMuted,
-  setVideoEffect,
   startScreenShare,
   stopScreenShare,
   switchInput,
@@ -330,46 +337,116 @@ function ShareChooser({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Camera filters and effects (ADR 0038): drawn here before the picture is encrypted. */
-function EffectsPanel({ onClose }: { onClose: () => void }) {
-  const effect = useCalls((state) => state.effect);
-  const options = [{ id: 'none', label: 'None' }, ...effectChoices()];
+/**
+ * The small picture in a video call: drag it (or use the arrow keys) and it settles in the
+ * nearest corner of the picture area; a click swaps it with the big one.
+ */
+function SelfView({
+  label,
+  canSwap,
+  onSwap,
+  children,
+}: {
+  label: string;
+  canSwap: boolean;
+  onSwap: () => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [corner, setCorner] = useState({ right: true, bottom: true });
+  const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  /** Where it was before a corner change: it slides from there. */
+  const from = useRef<DOMRect | null>(null);
+  const dragged = useRef(false);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    const start = from.current;
+    from.current = null;
+    if (!element || !start) return;
+    element.classList.remove('pd-settle');
+    element.style.transform = '';
+    const end = element.getBoundingClientRect();
+    element.style.transform = `translate(${start.left - end.left}px, ${start.top - end.top}px)`;
+    void element.offsetWidth; // Applies the start position before the transition begins.
+    element.classList.add('pd-settle');
+    element.style.transform = '';
+  }, [corner]);
+
+  const moveTo = (next: { right: boolean; bottom: boolean }) => {
+    from.current = ref.current?.getBoundingClientRect() ?? null;
+    setCorner(next);
+  };
+  const onPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    drag.current = { x: event.clientX, y: event.clientY, moved: false };
+  };
+  const onPointerMove = (event: PointerEvent<HTMLButtonElement>) => {
+    const start = drag.current;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (!start.moved && Math.hypot(dx, dy) < 6) return;
+    start.moved = true;
+    event.currentTarget.classList.remove('pd-settle');
+    event.currentTarget.style.transform = `translate(${dx}px, ${dy}px)`;
+  };
+  const onPointerUp = (event: PointerEvent<HTMLButtonElement>) => {
+    const start = drag.current;
+    drag.current = null;
+    if (!start?.moved) return;
+    dragged.current = true;
+    const box = event.currentTarget.getBoundingClientRect();
+    const area = event.currentTarget.parentElement?.getBoundingClientRect() ?? box;
+    moveTo({
+      right: box.left + box.width / 2 > area.left + area.width / 2,
+      bottom: box.top + box.height / 2 > area.top + area.height / 2,
+    });
+  };
+  const keys: Record<string, Partial<typeof corner>> = {
+    ArrowLeft: { right: false },
+    ArrowRight: { right: true },
+    ArrowUp: { bottom: false },
+    ArrowDown: { bottom: true },
+  };
   return (
-    <div
-      role="dialog"
-      aria-labelledby="effects-title"
-      className="absolute bottom-24 left-1/2 flex w-[min(92vw,30rem)] -translate-x-1/2 flex-col gap-3 rounded-lg border border-border bg-surface p-4 text-foreground shadow-xl"
+    <button
+      ref={ref}
+      type="button"
+      aria-label={label}
+      aria-disabled={!canSwap}
+      title="Drag it, or use the arrow keys, to move it to another corner"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={(event) => {
+        drag.current = null;
+        moveTo(corner);
+        event.currentTarget.style.transform = '';
+      }}
+      onKeyDown={(event) => {
+        const change = keys[event.key];
+        if (!change) return;
+        event.preventDefault();
+        moveTo({ ...corner, ...change });
+      }}
+      onClick={() => {
+        // The click that ends a drag is not a tap.
+        if (dragged.current) {
+          dragged.current = false;
+          return;
+        }
+        if (canSwap) onSwap();
+      }}
+      className={cn(
+        'absolute w-32 cursor-grab touch-none overflow-hidden rounded-md border border-white/30 shadow-xl select-none active:cursor-grabbing md:w-48',
+        corner.right ? 'right-4' : 'left-4',
+        corner.bottom ? 'bottom-4' : 'top-24',
+      )}
     >
-      <p id="effects-title" className="font-semibold">
-        Camera effects
-      </p>
-      <div role="radiogroup" aria-labelledby="effects-title" className="flex flex-wrap gap-2">
-        {options.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            role="radio"
-            aria-checked={effect === option.id}
-            onClick={() => void setVideoEffect(option.id)}
-            className={cn(
-              'min-h-9 cursor-pointer rounded-full px-3 text-sm font-semibold',
-              effect === option.id
-                ? 'bg-brand text-on-primary'
-                : 'bg-raised text-foreground hover:bg-accent/15',
-            )}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-      <p className="text-sm text-muted">
-        Effects are drawn in this browser before the picture is encrypted. Face effects (ears,
-        glasses) are in the phone app.
-      </p>
-      <Button variant="secondary" onClick={onClose}>
-        Done
-      </Button>
-    </div>
+      {children}
+    </button>
   );
 }
 
@@ -554,15 +631,13 @@ function InCall({ call }: { call: CallSnapshot }) {
           </div>
         )}
         {showLocalVideo && (
-          <button
-            type="button"
-            aria-label={bigIsLocal ? 'Show their video large' : 'Show your video large'}
-            disabled={!canSwap}
-            onClick={() => {
+          <SelfView
+            label={bigIsLocal ? 'Show their video large' : 'Show your video large'}
+            canSwap={canSwap}
+            onSwap={() => {
               setSwapped((current) => !current);
               setTouchedAt(Date.now());
             }}
-            className="absolute right-4 bottom-4 w-32 cursor-pointer overflow-hidden rounded-md border border-white/30 disabled:cursor-default md:w-48"
           >
             {bigIsLocal ? (
               <Media stream={remote} kind="video" muted remoteVideo className="block w-full" />
@@ -574,7 +649,7 @@ function InCall({ call }: { call: CallSnapshot }) {
                 className={cn('block w-full', mirrorSelf && '-scale-x-100')}
               />
             )}
-          </button>
+          </SelfView>
         )}
         {showControls && (
           <div className="absolute inset-x-0 top-0 flex items-start gap-2 bg-gradient-to-b from-black/70 to-transparent p-4">

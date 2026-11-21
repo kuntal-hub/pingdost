@@ -74,6 +74,7 @@ Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ Â
 | Chat speed (sync SQL, page cache) and attachment URLs on the client's address | after 40 | No (done: 0045) |
 | Chats from memory, mark read on focus, colored read tick, call failures without a relay | after 40 | No (done: 0046) |
 | Every chat in an in-memory store, inverted FlatList, lighter bubbles, dev call relay set up by itself | after 40 | No (done: 0047) |
+| Premium camera effects (shaded lenses, beauty, face warps, grades), head roll, movable self view | after 40 | No (done: 0048) |
 | APNs route, iOS message wake, CallKit | 29 | No (done: 0032) |
 | iOS nearby link layer, Androidâ†”iOS connect rule, MultipeerConnectivity / Wi-Fi Aware | 30 | No (done: 0033) |
 | Project license | 01 | **Yes** (done: 0001) |

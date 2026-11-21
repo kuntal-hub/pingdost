@@ -260,8 +260,9 @@ private class EffectsProcessor : VideoFrameProcessor {
 
 /**
  * Where the face is, from Android's `FaceDetector` (the point between the eyes and their
- * distance; no roll). Detection runs on a 240-pixel-wide copy every third frame at most, one at
- * a time; frames in between use the last result, smoothed. Lost for 0.8 s, the effect fades.
+ * distance) plus the head's roll from `RollEstimator` (ADR 0048). Detection runs on a
+ * 240-pixel-wide copy every third frame at most, one at a time; frames in between use the last
+ * result, smoothed. Lost for 0.8 s, the effect fades.
  */
 private class FaceTracker {
   private companion object {
@@ -278,6 +279,7 @@ private class FaceTracker {
   private var x = 0f
   private var y = 0f
   private var eyes = 0f
+  private var roll = 0f
   private var on = 0f
   private var tracking = false
   // Used on the worker thread only.
@@ -316,6 +318,15 @@ private class FaceTracker {
     val raw = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
     pixels.rewind()
     raw.copyPixelsFromBuffer(pixels)
+    pixels.rewind()
+    val luma = FloatArray(w * h)
+    for (i in luma.indices) {
+      val r = pixels.get().toInt() and 0xFF
+      val g = pixels.get().toInt() and 0xFF
+      val b = pixels.get().toInt() and 0xFF
+      pixels.get()
+      luma[i] = (0.299f * r + 0.587f * g + 0.114f * b) / 255f
+    }
     // GL rows run bottom-up.
     val upright = Bitmap.createBitmap(raw, 0, 0, w, h, Matrix().apply { preScale(1f, -1f) }, false)
     val rgb = upright.copy(Bitmap.Config.RGB_565, false)
@@ -333,7 +344,10 @@ private class FaceTracker {
     if (count > 0 && face != null && face.confidence() >= 0.35f) {
       val mid = PointF()
       face.getMidPoint(mid)
-      found = floatArrayOf(mid.x / w, mid.y / h, face.eyesDistance() / w)
+      val distance = face.eyesDistance()
+      // The luminance rows run bottom-up (GL), the detector's top-down.
+      val angle = RollEstimator.estimate(luma, w, h, mid.x, h - mid.y, distance)
+      found = floatArrayOf(mid.x / w, mid.y / h, distance / w, angle ?: Float.NaN)
       foundAt = SystemClock.elapsedRealtime()
     }
   }
@@ -345,28 +359,33 @@ private class FaceTracker {
       val tx = f[0] * width
       val ty = (1f - f[1]) * height
       val te = f[2] * width
+      val tr = f[3]
       if (!tracking) {
         x = tx
         y = ty
         eyes = te
+        roll = if (tr.isNaN()) 0f else tr
         tracking = true
       } else {
         x += (tx - x) * 0.35f
         y += (ty - y) * 0.35f
         eyes += (te - eyes) * 0.25f
+        // An unsure frame keeps the last angle, easing back to level.
+        roll = if (tr.isNaN()) roll * 0.97f else roll + (tr - roll) * 0.3f
       }
       on = minOf(1f, on + 0.12f)
     } else {
       on = maxOf(0f, on - 0.06f)
       if (on == 0f) tracking = false
     }
-    return floatArrayOf(x, y, eyes, 0f, on)
+    return floatArrayOf(x, y, eyes, roll, on)
   }
 
   fun reset() {
     found = null
     tracking = false
     on = 0f
+    roll = 0f
   }
 
   fun releaseGl() {

@@ -609,7 +609,7 @@ export function setVideoEffect(id: string): void {
   PingdostCalls?.setVideoEffect?.(
     effect ? id : 'none',
     effect ? effectFragmentShader(effect) : '',
-    effect?.face ?? false,
+    effect?.tracksFace ?? false,
   );
   useCalls.setState({ effect: effect ? id : 'none' });
 }

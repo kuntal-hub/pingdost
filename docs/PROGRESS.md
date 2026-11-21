@@ -17,6 +17,36 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-20 — Camera effects redone, movable self view — ✅ code done (phone checks open)
+Not a phase: the user found the lenses "cheap", beauty basic, and wanted more fun effects and a movable self view. ADR 0048 has the decisions; CHANGES 2026-11-20.
+
+**Done:**
+- **Catalog** (`call-engine` `effects.ts`): 54 effects in Beauty 6, Lenses 12, Fun 24 (12 face warps), Filters 12. Each has a Lucide `icon`; `tracksFace` runs the tracker for beauty's reshaping. Uniforms are unchanged.
+- **Android roll:** `RollEstimator.kt` (+ JVM test, junit test-only in the calls module), fed into `FaceTracker` → `uFace.w`.
+- **Pickers:** phone `effect-picker.tsx` (group switch + round buttons); web `effects-panel.tsx` (group switch + grid).
+- **Self view:** drag to any corner. Phone: `self-view.tsx`. Web: `SelfView` in `call-overlay.tsx` (`pd-settle`, arrow keys).
+
+**Verification:**
+- call-engine, mobile, web: typecheck, lint, tests (9/9 turbo tasks); prettier clean.
+- `:pingdost-calls:testDebugUnitTest` (3/3) and `compileDebugKotlin` pass.
+- Chrome dev page: `checkEffectShaders()` → `[]` (54 shaders); the web offers 30. All effects were previewed on a public-domain portrait with a set face anchor and tuned.
+- **Live call, web (Chrome, `@pd_nothing`, Test media) ↔ vivo (installed EAS dev build from 2026-11-13, JS from Metro), 2026-11-21:**
+  - Web: the effects panel works (Comic, Kaleido on the test picture). The self view drags to a corner, moves with the arrow keys, and keeps its corner across swaps; a drag never counts as a tap.
+    - Fixed: the panel changed height between groups and the switch jumped (the grid now has a fixed height).
+  - Phone: the picker works. Puppy and Bunny tracked the user's face in a dim room (seen in the web's remote video). Filters and Fun were tried by the user.
+    - The self view drags (adb needs a slow swipe), keeps its corner across swaps, and follows the controls and the picker as they show or hide (logged: 641 → 413 → 221 dp).
+    - Once, right after answering, it overlapped the picker's group switch. Not reproduced in three later tries.
+  - Tuned from the live picture: fur edges on Bunny, Kitty, Teddy and Puppy (a dotted outline at stream resolution) and the puppy's nose (0.05 higher).
+  - The installed build is EAS-signed: a local build would need an uninstall, which wipes the phone's data. Roll needs a new EAS build.
+
+**Remaining (user):**
+- [ ] Lenses with good light, and the re-tuned fur edges (re-pick the lens after Metro reloads).
+- [ ] New EAS dev build for the head roll (`npx eas-cli@27.3.0 build -p android -e development` in `apps/mobile`, one of 15 free builds a month). Then tilt your head with Puppy or Aviators on.
+- [ ] Watch for the self view overlapping the effects picker right after answering a call.
+- [ ] Low-end phone: watch the frame rate with Glow, Hearts or Glitter.
+
+**Next:** the checks above. A web face tracker (lenses on the web, mouth-open triggers) would need a decision on its own (ADR 0048, Consequences).
+
 ## 2026-11-20 — Fixes: chats from an in-memory store, faster chat drawing, calls set up by themselves — ✅ code done (user checks open)
 Not a phase: the user's retest of ADR 0046. ADR 0047 has the causes, measurements and decisions.
 

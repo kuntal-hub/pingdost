@@ -4,6 +4,16 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-20 — Camera effects redone, self view movable (ADR 0048)
+1. **The effects catalog is replaced** (Phase 33's 21 effects become 54 in four groups: Beauty, Lenses, Fun, Filters). Lenses are shaded and animated; beauty smooths skin with detail kept, and on the phone it also reshapes slightly. There are 11 new face warps next to Big eyes, and graded filters. Clown, Party hat and Mustache are gone. No new dependency or asset.
+   - *Affects:* 33 (done; reworked on the user's request).
+2. **Android tracks the head's roll** from the eye line (pure Kotlin on `FaceDetector`'s output), so lenses tilt with the head. This needs a new build; the rest runs on the installed one.
+   - *Affects:* 33; the next EAS or local build.
+3. **The web still has no face effects** (no tracker). It offers beauty without reshaping, the picture fun effects and the filters. A web face tracker is left for a separate decision.
+   - *Affects:* 33.
+4. **The self view in a video call can be dragged to any corner** on both apps (and moved with the arrow keys on the web). A tap still swaps it with the big picture.
+   - *Affects:* 26, 32 (calls UI).
+
 ### 2026-11-12 — Phase 40 built: decisions taken while building (ADR 0044)
 1. **Locked recordings can also be sent directly** (Delete, Stop, and Send on the round button), as in other messengers. Stop opens review as planned.
 2. **The screen-reader flow is now the locked state:** a tap starts a hands-free recording with Delete, Stop (review) and Send. Phase 15's version had only Send or Cancel.
