@@ -95,6 +95,10 @@ const router = createBrowserRouter([
         ...page(() => import('@/features/games/ludo/ludo-setup').then((m) => m.LudoSetupPage)),
       },
       {
+        path: 'games/play/:gameId',
+        ...page(() => import('@/features/games/ludo/ludo-net-page').then((m) => m.LudoNetPage)),
+      },
+      {
         path: 'games/ludo',
         ...page(() => import('@/features/games/ludo/ludo-page').then((m) => m.LudoPage)),
       },

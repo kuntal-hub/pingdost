@@ -44,6 +44,7 @@
     "@pingdost/backup": "workspace:*",
     "@pingdost/call-engine": "workspace:*",
     "@pingdost/crypto": "workspace:*",
+    "@pingdost/games": "workspace:*",
     "@pingdost/message-engine": "workspace:*",
     "@pingdost/sim-client": "workspace:*",
     "@pingdost/transport": "workspace:*",

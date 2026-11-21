@@ -3,6 +3,7 @@
 export {
   attachmentText,
   attachmentType,
+  gameCardText,
   isBigEmoji,
   isSafetyNumberChange,
   previewText,

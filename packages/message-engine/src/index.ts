@@ -20,6 +20,7 @@ export type { DirectoryApi } from './directory';
 export { MAX_FORWARD_TARGETS, MessageEngine } from './engine';
 export type { ContactInfo } from './engine';
 export { MessageActionError, SyncError } from './errors';
+export { gameCardBody, gameTypeName, readGameCard } from './games';
 export { DEFAULT_SYNC_WINDOW, FILE_PART_BYTES } from './sync';
 export type {
   HistorySyncOptions,

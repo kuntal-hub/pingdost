@@ -575,6 +575,57 @@
       "binary": "ClEIARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDMyEAGS8aAAAHAAgAAAAAAAAAISCgoIUmVwbHlpbmd6ngEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
     },
     {
+      "name": "content/game",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+        "game": {
+          "gameId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "create": {
+            "type": "GAME_TYPE_LUDO",
+            "maxPlayers": 4,
+            "ludo": {
+              "blockades": true
+            },
+            "anchor": "Hz5dfJu62fgXNlV0k7LR8A8uTWyLqsnoByZFZIOiweA=",
+            "salt": "ID9efZy72vkYN1Z1lLPS8Q=="
+          }
+        }
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDN6agAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACCAVAKEAGS8aAAAHAAgAAAAAAAAKEiPAgBEAQaAhABIiAfPl18m7rZ+Bc2VXSTstHwDy5NbIuqyegHJkVkg6LB4CoQID9efZy72vkYN1Z1lLPS8Q=="
+    },
+    {
+      "name": "content/game-roll",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "game": {
+          "gameId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "turn": 7,
+          "index": 1,
+          "roll": {
+            "reveal": "IUBffp282/oZOFd2lbTT8hEwT26NrMvqCShHZoWkw+I=",
+            "salt": "IkFgf5693PsaOVh3lrXU8w=="
+          }
+        }
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDN6bgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAggFMChABkvGgAABwAIAAAAAAAAChEAcYATo0CiAhQF9+nbzb+hk4V3aVtNPyETBPbo2sy+oJKEdmhaTD4hIQIkFgf5693PsaOVh3lrXU8w=="
+    },
+    {
       "name": "client-frame/auth",
       "type": "pingdost.v1.ClientFrame",
       "json": {

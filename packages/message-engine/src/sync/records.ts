@@ -42,6 +42,8 @@ const KINDS: Record<MessageKind, SyncMessage_Kind> = {
   system: SyncMessage_Kind.SYSTEM,
   unsupported: SyncMessage_Kind.UNSUPPORTED,
   deleted: SyncMessage_Kind.DELETED,
+  // Never synced (the source skips game cards, ADR 0049); listed for completeness.
+  game: SyncMessage_Kind.UNSUPPORTED,
 };
 
 const ROLES = {

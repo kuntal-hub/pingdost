@@ -43,6 +43,8 @@ export type MessageKind =
   | 'system'
   /** A body type this build does not know: shown as "update needed" (ADR 0006). */
   | 'unsupported'
+  /** A game invitation card (ADR 0049); `body` is JSON `{ gameId, type }`. */
+  | 'game'
   /** Deleted for everyone by its sender: a tombstone, `body` is empty. */
   | 'deleted';
 
@@ -376,11 +378,47 @@ export interface SeenRecord {
   seenAt: number;
 }
 
+/**
+ * A game played in a conversation (ADR 0049): an index row; its events hold the rest. The
+ * engine does not interpret games: `@pingdost/games` folds the events.
+ */
+export interface GameRecord {
+  gameId: string;
+  conversationId: string;
+  /** The catalog ID, e.g. `ludo`. */
+  gameType: string;
+  createdBy: string;
+  createdAt: number;
+  /** The newest event's arrival. */
+  updatedAt: number;
+  /**
+   * Local only, never sent: this device's seat secret (base64) when it plays a seat. It is
+   * written in the same batch as the join, so no commitment goes out without it.
+   */
+  seatSeed: string | null;
+}
+
+/** One game event: a `Content.game` body as received or sent (ADR 0049). */
+export interface GameEventRecord {
+  /** The Content's message ID (UUIDv7): unique, and the tie-break between rival events. */
+  eventId: string;
+  gameId: string;
+  conversationId: string;
+  senderUserId: string;
+  senderDeviceId: string;
+  /** The sender's clock. */
+  sentAt: number;
+  /** When this device stored it (turn timers count from here). */
+  receivedAt: number;
+  /** The `Game` message as protobuf bytes, base64. */
+  payload: string;
+}
+
 /** One atomic write. Upserts replace whole records by key; deletions run before upserts. */
 export interface WriteBatch {
   /** The device Olm account's new pickle. */
   account?: string;
-  /** Deletes each conversation with its messages, their deliveries and pending ops. */
+  /** Deletes each conversation with its messages, their deliveries, pending ops and games. */
   deleteConversations?: string[];
   conversations?: ConversationRecord[];
   /** Deletes messages with their deliveries ("delete for me"). */
@@ -411,6 +449,12 @@ export interface WriteBatch {
   deleteHeld?: string[];
   /** Deletes held records received before this time. */
   pruneHeldBefore?: number;
+  /** Deletes each game with its events. */
+  deleteGames?: string[];
+  /** Upserted by game ID. */
+  games?: GameRecord[];
+  /** Upserted by event ID. */
+  gameEvents?: GameEventRecord[];
 }
 
 export interface EngineStore {
@@ -477,4 +521,10 @@ export interface EngineStore {
   listInboundGroupSessions(groupId: string): Promise<InboundGroupSessionRecord[]>;
   /** Held records of a group, oldest first. */
   listHeld(groupId: string): Promise<HeldGroupRecord[]>;
+
+  getGame(gameId: string): Promise<GameRecord | undefined>;
+  /** Most recently updated first. */
+  listGames(): Promise<GameRecord[]>;
+  /** A game's events in event ID order. */
+  listGameEvents(gameId: string): Promise<GameEventRecord[]>;
 }

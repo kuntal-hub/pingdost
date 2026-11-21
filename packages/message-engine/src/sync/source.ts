@@ -423,6 +423,11 @@ export class SyncSource {
             break;
           }
           const position = { sortAt: message.sortAt, messageId: message.messageId };
+          // Game cards stay on the phone: their events are not synced (ADR 0049).
+          if (message.kind === 'game') {
+            cursor = { ...cursor, before: position };
+            continue;
+          }
           const record = messageToSync(message);
           const n = syncRecordSize({ case: 'message', value: record });
           if (n > SYNC_DATA_MAX - 1_024) {

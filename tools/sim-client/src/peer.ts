@@ -27,6 +27,10 @@
  *
  * Files and voice notes (Phase 40): it downloads and decrypts each one, checks its size and that
  * audio is a real MP4 file, logs the duration and waveform, and replies with what it got.
+ *
+ * Games (Phase 42, ADR 0049): it joins every Ludo game it is invited to and plays its own turns
+ * with the Medium computer's moves. `!ludo` makes it start a game in that chat (`!ludo 4` in a
+ * group: up to 4 players). `--games false` turns this off.
  */
 import { parseArgs } from 'node:util';
 
@@ -37,6 +41,7 @@ import { attachmentDecryptInput, type MessageRecord } from '@pingdost/message-en
 
 import { simCalls } from './calls';
 import { SimClient } from './client';
+import { simGames, type SimGames } from './games';
 
 const { values } = parseArgs({
   options: {
@@ -48,6 +53,7 @@ const { values } = parseArgs({
     relay: { type: 'boolean', default: false },
     'dial-user': { type: 'string' },
     video: { type: 'boolean', default: false },
+    games: { type: 'string', default: 'true' },
   },
 });
 const api = values.api.replace(/\/+$/, '');
@@ -101,6 +107,12 @@ async function main(): Promise<void> {
         });
       }, 5_000);
     }
+  }
+
+  let games: SimGames | undefined;
+  if (values.games !== 'false') {
+    games = simGames(peer, crypto, { thinkMs: 700, log: (line) => console.log(line) });
+    console.log('plays Ludo: joins invitations, `!ludo` starts a game');
   }
 
   const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -202,6 +214,14 @@ async function main(): Promise<void> {
               () => console.log(`  in call: ${inCall}`),
               (error: unknown) => console.log(`  in call: ${inCall} failed: ${String(error)}`),
             );
+          }
+          const ludo = /^!ludo(?:\s+([2-4]))?/.exec(message.body);
+          if (ludo && games) {
+            const gameId = await games.createLudo(conversationId, {
+              maxPlayers: Number(ludo[1] ?? 2),
+            });
+            console.log(`→ started a Ludo game (${gameId})`);
+            continue;
           }
           const command = /^!(react|edit|delete)\b/.exec(message.body)?.[1];
           if (command === 'react') await peer.engine.react(message.messageId, '👍');

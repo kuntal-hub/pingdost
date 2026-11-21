@@ -10,6 +10,8 @@ import type {
   DeliveryRecord,
   DirectoryRecord,
   EngineStore,
+  GameEventRecord,
+  GameRecord,
   GroupRecord,
   HeldGroupRecord,
   InboundGroupSessionRecord,
@@ -52,6 +54,8 @@ export class MemoryEngineStore implements EngineStore {
   readonly #outboundGroup = new Map<string, OutboundGroupSessionRecord>();
   readonly #inboundGroup = new Map<string, InboundGroupSessionRecord>();
   readonly #held = new Map<string, HeldGroupRecord>();
+  readonly #games = new Map<string, GameRecord>();
+  readonly #gameEvents = new Map<string, GameEventRecord>();
   /** Fault injection for tests: the next `apply` rejects with this error and writes nothing. */
   failNextApply: Error | undefined;
 
@@ -77,7 +81,13 @@ export class MemoryEngineStore implements EngineStore {
       }
       for (const [id, op] of this.#ops)
         if (op.conversationId === conversationId) this.#ops.delete(id);
+      for (const game of [...this.#games.values()]) {
+        if (game.conversationId === conversationId) this.#deleteGame(game.gameId);
+      }
     }
+    for (const gameId of b.deleteGames ?? []) this.#deleteGame(gameId);
+    for (const game of b.games ?? []) this.#games.set(game.gameId, game);
+    for (const event of b.gameEvents ?? []) this.#gameEvents.set(event.eventId, event);
     for (const c of b.conversations ?? []) this.#conversations.set(c.conversationId, c);
     for (const id of b.deleteMessages ?? []) this.#deleteMessage(id);
     for (const m of b.messages ?? []) this.#messages.set(m.messageId, m);
@@ -119,6 +129,36 @@ export class MemoryEngineStore implements EngineStore {
     for (const id of b.deleteHeld ?? []) this.#held.delete(id);
     for (const h of b.held ?? []) this.#held.set(h.id, h);
     return Promise.resolve();
+  }
+
+  #deleteGame(gameId: string): void {
+    this.#games.delete(gameId);
+    for (const [id, event] of this.#gameEvents)
+      if (event.gameId === gameId) this.#gameEvents.delete(id);
+  }
+
+  getGame(gameId: string): Promise<GameRecord | undefined> {
+    return Promise.resolve(copy(this.#games.get(gameId)));
+  }
+
+  listGames(): Promise<GameRecord[]> {
+    return Promise.resolve(
+      copy(
+        [...this.#games.values()].sort(
+          (a, b) => b.updatedAt - a.updatedAt || (a.gameId < b.gameId ? -1 : 1),
+        ),
+      ),
+    );
+  }
+
+  listGameEvents(gameId: string): Promise<GameEventRecord[]> {
+    return Promise.resolve(
+      copy(
+        [...this.#gameEvents.values()]
+          .filter((e) => e.gameId === gameId)
+          .sort((a, b) => (a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0)),
+      ),
+    );
   }
 
   getGroup(groupId: string): Promise<GroupRecord | undefined> {

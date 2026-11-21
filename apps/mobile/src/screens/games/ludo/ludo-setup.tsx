@@ -33,7 +33,7 @@ const LEVEL_DETAIL: Record<BotLevel, string> = {
   hard: 'Weighs every risk and looks a roll ahead.',
 };
 
-function ToggleRow({
+export function ToggleRow({
   title,
   subtitle,
   value,

@@ -5,6 +5,7 @@
 // FTS5 index that migration 003's triggers keep in step with `messages` (ADR 0014). Groups
 // and their Megolm sessions are migration 004's tables (ADR 0016); attachment manifests are
 // migration 005's JSON column (ADR 0017), and their captions are indexed since 006 (ADR 0018).
+// Games and their events are migration 011's tables (ADR 0049).
 // The runtime hands it expo-sqlite's sync calls through `db/sync-sql.ts` (ADR 0045).
 import {
   ftsQuery,
@@ -13,6 +14,8 @@ import {
   type DeviceItem,
   type DirectoryRecord,
   type EngineStore,
+  type GameEventRecord,
+  type GameRecord,
   type GroupRecord,
   type HeldGroupRecord,
   type InboundGroupSessionRecord,
@@ -69,6 +72,9 @@ const CHAT_TABLES = [
   'device_sync_state',
   'messages_fts',
   'message_ops',
+  // Migration 011: games and their events (Phase 42).
+  'games',
+  'game_events',
 ] as const;
 
 const utf8 = new TextEncoder();
@@ -499,6 +505,52 @@ const toHeld = (r: HeldRow): HeldGroupRecord => ({
 
 const placeholders = (count: number) => Array.from({ length: count }, () => '?').join(', ');
 
+interface GameRow {
+  game_id: string;
+  conversation_id: string;
+  game_type: string;
+  created_by: string;
+  created_at: number;
+  updated_at: number;
+  seat_seed: string | null;
+}
+
+function toGame(row: GameRow): GameRecord {
+  return {
+    gameId: row.game_id,
+    conversationId: row.conversation_id,
+    gameType: row.game_type,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    seatSeed: row.seat_seed,
+  };
+}
+
+interface GameEventRow {
+  event_id: string;
+  game_id: string;
+  conversation_id: string;
+  sender_user_id: string;
+  sender_device_id: string;
+  sent_at: number;
+  received_at: number;
+  payload: string;
+}
+
+function toGameEvent(row: GameEventRow): GameEventRecord {
+  return {
+    eventId: row.event_id,
+    gameId: row.game_id,
+    conversationId: row.conversation_id,
+    senderUserId: row.sender_user_id,
+    senderDeviceId: row.sender_device_id,
+    sentAt: row.sent_at,
+    receivedAt: row.received_at,
+    payload: row.payload,
+  };
+}
+
 export class SqliteEngineStore implements EngineStore {
   #queue: Promise<unknown> = Promise.resolve();
 
@@ -537,6 +589,8 @@ export class SqliteEngineStore implements EngineStore {
         );
         await db.runAsync('DELETE FROM messages WHERE conversation_id = ?', [conversationId]);
         await db.runAsync('DELETE FROM message_ops WHERE conversation_id = ?', [conversationId]);
+        await db.runAsync('DELETE FROM game_events WHERE conversation_id = ?', [conversationId]);
+        await db.runAsync('DELETE FROM games WHERE conversation_id = ?', [conversationId]);
         await db.runAsync('DELETE FROM conversations WHERE conversation_id = ?', [conversationId]);
       }
       for (const c of b.conversations ?? []) {
@@ -680,6 +734,7 @@ export class SqliteEngineStore implements EngineStore {
         }
       }
       await this.#applyGroups(b);
+      await this.#applyGames(b);
       await db.execAsync('COMMIT');
     } catch (error) {
       await db.execAsync('ROLLBACK').catch(() => undefined);
@@ -776,6 +831,63 @@ export class SqliteEngineStore implements EngineStore {
         ],
       );
     }
+  }
+
+  /** Games and their events (migration 011, ADR 0049). */
+  async #applyGames(b: WriteBatch): Promise<void> {
+    const { db } = this;
+    for (const gameId of b.deleteGames ?? []) {
+      await db.runAsync('DELETE FROM game_events WHERE game_id = ?', [gameId]);
+      await db.runAsync('DELETE FROM games WHERE game_id = ?', [gameId]);
+    }
+    for (const g of b.games ?? []) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO games (game_id, conversation_id, game_type, created_by, created_at,
+           updated_at, seat_seed)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [g.gameId, g.conversationId, g.gameType, g.createdBy, g.createdAt, g.updatedAt, g.seatSeed],
+      );
+    }
+    for (const e of b.gameEvents ?? []) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO game_events (event_id, game_id, conversation_id, sender_user_id,
+           sender_device_id, sent_at, received_at, payload)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          e.eventId,
+          e.gameId,
+          e.conversationId,
+          e.senderUserId,
+          e.senderDeviceId,
+          e.sentAt,
+          e.receivedAt,
+          e.payload,
+        ],
+      );
+    }
+  }
+
+  async getGame(gameId: string): Promise<GameRecord | undefined> {
+    const row = await this.db.getFirstAsync<GameRow>('SELECT * FROM games WHERE game_id = ?', [
+      gameId,
+    ]);
+    return row ? toGame(row) : undefined;
+  }
+
+  async listGames(): Promise<GameRecord[]> {
+    const rows = await this.db.getAllAsync<GameRow>(
+      'SELECT * FROM games ORDER BY updated_at DESC, game_id',
+      [],
+    );
+    return rows.map(toGame);
+  }
+
+  async listGameEvents(gameId: string): Promise<GameEventRecord[]> {
+    const rows = await this.db.getAllAsync<GameEventRow>(
+      'SELECT * FROM game_events WHERE game_id = ? ORDER BY event_id',
+      [gameId],
+    );
+    return rows.map(toGameEvent);
   }
 
   async getGroup(groupId: string): Promise<GroupRecord | undefined> {

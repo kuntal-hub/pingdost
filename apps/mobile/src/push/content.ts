@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import type { ConversationRecord, MessageRecord } from '@pingdost/message-engine';
 
-import { attachmentText } from '../engine/labels';
+import { attachmentText, gameCardText } from '../engine/labels';
 
 /** Settings → Notifications; local to this phone. */
 export const NotificationPrefsSchema = z.object({
@@ -65,7 +65,9 @@ export function notificationContent(input: {
             attachmentText({ body: message.body, attachment: message.attachment ?? null }),
             PREVIEW_MAX,
           )
-        : 'New message (update PingDost to read it)';
+        : message.kind === 'game'
+          ? `Invited you to play ${gameCardText(message)}`
+          : 'New message (update PingDost to read it)';
   if (groupName !== undefined && !prefs.hideSender) text = `${senderName}: ${text}`;
   return { title, body: unreadCount > 1 ? `${text} · ${unreadCount} new messages` : text };
 }

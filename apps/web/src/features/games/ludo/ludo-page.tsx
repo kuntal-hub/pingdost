@@ -262,7 +262,7 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
  * Sounds for the game (ADR 0050): the rattle as a die starts tumbling, a tick per hop, a capture
  * or home chime as the piece lands, and a fanfare when the user wins.
  */
-function useGameSounds(view: LudoView | null, pace: LudoPace, animate: boolean): void {
+export function useGameSounds(view: LudoView | null, pace: LudoPace, animate: boolean): void {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const seen = useRef<{ move: number; rolling: boolean; over: boolean } | null>(null);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -293,13 +293,13 @@ function useGameSounds(view: LudoView | null, pace: LudoPace, animate: boolean):
     }
     if (view.waiting === 'over' && !seen.current.over) {
       seen.current.over = true;
-      if (view.state.players[view.you]!.rank === 1) at(400, 'win');
+      if (view.state.players[view.you]?.rank === 1) at(400, 'win');
     }
   }, [view, pace, animate]);
 }
 
 /** Each player's last roll, for the die in their panel. */
-function useLastDice(view: LudoView | null): Record<number, number> {
+export function useLastDice(view: LudoView | null): Record<number, number> {
   const [dice, setDice] = useState<Record<number, number>>({});
   const rollId = view?.lastRoll?.id;
   useEffect(() => {

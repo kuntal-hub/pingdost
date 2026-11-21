@@ -282,7 +282,7 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
 }
 
 /** A haptic for captures, pieces reaching home, and the user's rolls. */
-function useEventHaptics(view: LudoView | null): void {
+export function useEventHaptics(view: LudoView | null): void {
   const seen = useRef({ move: 0, roll: 0 });
   useEffect(() => {
     if (!view) return;
@@ -301,7 +301,7 @@ function useEventHaptics(view: LudoView | null): void {
  * or home chime as the piece lands, and a fanfare when the user wins. Scheduled sounds keep
  * playing across re-renders and stop when the screen closes.
  */
-function useGameSounds(view: LudoView | null, pace: LudoPace, moves: boolean): void {
+export function useGameSounds(view: LudoView | null, pace: LudoPace, moves: boolean): void {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const seen = useRef<{ move: number; rolling: boolean; over: boolean } | null>(null);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -332,13 +332,13 @@ function useGameSounds(view: LudoView | null, pace: LudoPace, moves: boolean): v
     }
     if (view.waiting === 'over' && !seen.current.over) {
       seen.current.over = true;
-      if (view.state.players[view.you]!.rank === 1) at(400, 'win');
+      if (view.state.players[view.you]?.rank === 1) at(400, 'win');
     }
   }, [view, pace, moves]);
 }
 
 /** Each player's last roll, for the die in their panel. */
-function useLastDice(view: LudoView | null): Record<number, number> {
+export function useLastDice(view: LudoView | null): Record<number, number> {
   const [dice, setDice] = useState<Record<number, number>>({});
   const rollId = view?.lastRoll?.id;
   useEffect(() => {

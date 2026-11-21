@@ -30,6 +30,7 @@ import { DropdownMenu } from 'radix-ui';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 
 import { Menu, type MenuItem } from '@/components/ui/menu';
+import { GameCard } from '@/features/games/game-card';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/session/session';
 import { useAppearance } from '@/theme';
@@ -214,7 +215,12 @@ export function Bubble({
   const AttachmentIcon = ATTACHMENT_ICONS[kind];
   const corners = bubbleCorners(bubbleShape, { outgoing, first, last });
   const StatusIcon = status ? STATE_ICONS[status.icon] : undefined;
-  const shownText = message.kind === 'attachment' && !deleted ? message.body : body;
+  const shownText =
+    message.kind === 'attachment' && !deleted
+      ? message.body
+      : message.kind === 'game' && !deleted
+        ? ''
+        : body;
   // Every message shows its time and state (Phase 35): beside the last line of text when it
   // fits, under media, a big emoji or right-to-left text.
   const inlineMeta = !bigEmoji && shownText !== '' && !startsRightToLeft(shownText);
@@ -411,6 +417,9 @@ export function Bubble({
                 </span>
               )}
             </div>
+          )}
+          {message.kind === 'game' && !deleted && (
+            <GameCard message={message} names={names} outgoing={outgoing} />
           )}
           {bigEmoji ? (
             <>

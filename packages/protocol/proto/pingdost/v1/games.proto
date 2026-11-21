@@ -1,0 +1,114 @@
+// PingDost wire protocol v1: games played inside chats (ADR 0049, Phase 42).
+//
+// A `Game` travels only inside E2EE Content (`Content.game`), as a control item to every
+// member's devices, like a reaction. The server never sees it. Every client checks each event
+// against the shared rules in `@pingdost/games` and folds the log into the same state.
+syntax = "proto3";
+
+package pingdost.v1;
+
+message Game {
+  // The game: the `create` event's message ID (16 bytes).
+  bytes game_id = 1;
+  // Turn events (`roll`, `move`, `skip`): the turn they belong to (0-based), and the roll
+  // within that turn (0-based; a 6, a capture or a piece reaching home gives another roll).
+  // `leave`: the turns the leaver had seen. Others: 0.
+  uint32 turn = 2;
+  uint32 index = 3;
+
+  oneof event {
+    GameCreate create = 4;
+    GameJoin join = 5;
+    GameStart start = 6;
+    GameRoll roll = 7;
+    GameMove move = 8;
+    GameSkip skip = 9;
+    GameLeave leave = 10;
+    GameEnd end = 11;
+    GameEmote emote = 12;
+  }
+}
+
+enum GameType {
+  GAME_TYPE_UNSPECIFIED = 0;
+  GAME_TYPE_LUDO = 1;
+}
+
+// Opens a game in the chat; it shows as an invitation card. The creator (host) takes the
+// first seat at once.
+message GameCreate {
+  GameType type = 1;
+  // 2 to 4 for Ludo; the game starts by itself when this many have joined.
+  uint32 max_players = 2;
+  oneof settings {
+    LudoSettings ludo = 3;
+  }
+  // The host's seat: see `GameJoin`.
+  bytes anchor = 4;
+  bytes salt = 5;
+}
+
+// Defaults are the classic rules, so an empty message is Ludo King-style classic.
+message LudoSettings {
+  // Any roll brings a piece out of the yard (classic: only a 6).
+  bool any_roll_starts = 1;
+  // Two pieces of one color on a plain square block the others.
+  bool blockades = 2;
+  // The game ends when the first player has every piece home.
+  bool stop_at_first_winner = 3;
+}
+
+// Takes a seat. `anchor` ends the seat's hash chain of roll secrets (32 bytes): every secret
+// is fixed before anyone else's randomness exists. `salt` (16 bytes) feeds other players' rolls.
+message GameJoin {
+  bytes anchor = 1;
+  bytes salt = 2;
+}
+
+// The host starts the game: these seats, in turn order. Self-contained, so a client that
+// missed a join can still check every roll.
+message GameStart {
+  repeated GameSeat seats = 1;
+}
+
+message GameSeat {
+  bytes user_id = 1;
+  bytes device_id = 2;
+  // Ludo: 0 red, 1 green, 2 yellow, 3 blue.
+  uint32 color = 3;
+  bytes anchor = 4;
+  bytes salt = 5;
+}
+
+// A roll by the seat whose turn it is. `reveal` is the next secret of its chain (32 bytes);
+// the die comes from it and the salt of the latest event by another device. `salt` is new.
+message GameRoll {
+  bytes reveal = 1;
+  bytes salt = 2;
+}
+
+// The piece moved after a roll. Sent by the seat, or, once its time is up, by another player
+// as the move the rules choose for it (ADR 0049 amendment). `state_hash` is 8 bytes of the
+// state after the move, to catch a desync.
+message GameMove {
+  uint32 token = 1;
+  bytes salt = 2;
+  bytes state_hash = 3;
+}
+
+// Another player skips a turn whose roll never came (the roller's app was closed).
+message GameSkip {
+  bytes salt = 1;
+  bytes state_hash = 2;
+}
+
+// The sender leaves; it takes effect at their next turn.
+message GameLeave {}
+
+// The host ends the game for everyone (or cancels it before the start).
+message GameEnd {}
+
+// A quick reaction shown over the board for a moment. One emoji.
+message GameEmote {
+  string emoji = 1;
+}

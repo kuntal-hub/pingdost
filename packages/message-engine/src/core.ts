@@ -30,6 +30,7 @@ import type {
   DeliveryRecord,
   DirectoryDeviceRecord,
   DirectoryRecord,
+  GameEventRecord,
   EngineStore,
   MessageRecord,
   SystemNotice,
@@ -225,6 +226,8 @@ export class EngineCore {
   /** Refreshes a group from the server (set by the engine; parts call it without the lock). */
   groupSync: ((groupId: string) => Promise<void>) | undefined;
   readonly events = new Listeners<[EngineEvent]>();
+  /** Game events stored (sent or received), after they are committed (ADR 0049). */
+  readonly gameEvents = new Listeners<[GameEventRecord]>();
   readonly #conversationListeners = new Map<string, Listeners<[ConversationEvent]>>();
   readonly #listListeners = new Listeners<[]>();
   /** Every conversation's events (the web's leader tab relays them to the others). */
@@ -306,6 +309,7 @@ export class EngineCore {
     ) {
       this.events.emit({ type: 'content_removed' });
     }
+    for (const event of batch.gameEvents ?? []) this.gameEvents.emit(event);
   }
 
   /** The rules every device applies to edits and deletes. */

@@ -7,6 +7,8 @@ syntax = "proto3";
 
 package pingdost.v1;
 
+import "pingdost/v1/games.proto";
+
 message ContentHeader {
   // Content major version (1). Decoders reject other major versions.
   uint32 version = 1;
@@ -46,6 +48,9 @@ message Content {
     SessionReset session_reset = 12;
     KeyChange key_change = 13;
     RoomKeyRequest room_key_request = 14;
+    // A game event (ADR 0049, Phase 42); 16 because 15 is the padding. Older apps see an
+    // unknown body.
+    Game game = 16;
   }
 
   // Zero bytes that pad the encoded Content to a size bucket (codec padding policy).

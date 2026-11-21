@@ -8,6 +8,7 @@ export * from './codec';
 export * from './errors';
 export * from './gen/pingdost/v1/content_pb';
 export * from './gen/pingdost/v1/envelope_pb';
+export * from './gen/pingdost/v1/games_pb';
 export * from './gen/pingdost/v1/mesh_pb';
 export * from './gen/pingdost/v1/packet_pb';
 export * from './gen/pingdost/v1/ws_pb';

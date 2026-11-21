@@ -17,6 +17,41 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-22 — Phase 42: Ludo with friends in chats — ✅ done (device checks open for the user)
+**Done:** games with friends live in chats as E2EE game events; details in the phase file's "As built" and ADR 0049's second amendment.
+- Wire and engine: `games.proto` (`Content.game = 16`), `sendGameEvent` / `getGame` / `listGames` / `listGameEvents` / `onGameEvent`, card kind `game`, stores (memory and contract, phone migration 011, Dexie version 4), chat-core preview, notification text.
+- `@pingdost/games`: fair dice from a hash chain fixed at join; `foldLudoGame` (slots, lowest event ID wins, three-skip removal, state hashes); `LudoNetController` (pace, 30 s timers, auto-play, skips, proxy moves); labels and summaries.
+- Phone: Game tile in the "+" sheet → `game/start`; chat card; `game/[gameId]` (lobby, board, names, timer rings, emotes, Leave, End for everyone); Games tab lists and Friends online; presence watched per part of the app; local "Your turn" notification.
+- Web: attach menu (Send a file, Start a game); chat card; `/games/play/:gameId`; Games page lists and Friends online; bus wiring.
+- Sim client: `simGames`; `peer` joins and plays by default, `!ludo [2-4]` starts a game.
+
+**Deviations / decisions:**
+- ADR 0049 second amendment: hash-chain dice (per-turn commitments let a roller pick among its own rolls), slots instead of `seq`, the lowest event ID wins, no clock checks by receivers.
+- The web game is its own page (chat button), not a side pane. No `GameHub` class: hooks per app, `simGames` for sim clients.
+- Moved to Phase 43: "Play with friends" on the game screen; unread badge, "Back to game" pill and message toasts while playing; Rematch.
+
+**Verification results:**
+- Repo-wide: `pnpm typecheck` 22/22, `pnpm lint` 22/22, `pnpm test` 18/18 tasks, `pnpm format:check` clean. Games 60 tests (about 2 minutes), protocol 128, message-engine 148, mobile 205.
+- Protocol regenerated (`gen`) and vectors rewritten; the vectors test passes.
+- `pnpm --filter @pingdost/server test:int`: 29 files, 199 passed, 2 skipped, games suite included.
+  - With the sim players at 10 ms per action, `mailbox.int.test.ts` scenario 8 (Redis down) timed out twice in the parallel run. It passed alone, beside the games file, and in the full run without the games file. At 100 ms per action the full run passes.
+- Chrome, web ↔ `sim-client peer`: invite, auto-join, auto-start, rolls (including no-move rolls), keyboard moves, card status ("Your turn · Play"), chat preview ("You: Ludo game"), Games page lists and Friends online. Not played to the end in Chrome (the end is covered by the integration and unit tests).
+- Phone: typecheck, lint, tests; Metro bundles `game/[gameId]`, `game/start`, the Games tab and the chat route. **No on-device run:** the emulator's app was signed out, and signing up needs a password typed in.
+
+**Device checks for the user:**
+1. `pnpm infra:up`, `pnpm --filter @pingdost/server dev`, `pnpm --filter @pingdost/sim-client peer`, then `pnpm --filter @pingdost/mobile start` with the dev build.
+2. On the phone, add the peer's printed username (New chat → Add), open the chat, + → Game → Send invitation. The peer joins, the game starts, play a few turns. Or send `!ludo` and tap Join on its card.
+3. Leave the game screen while it's your turn: the app should not move for you, and after about 40 s the peer skips you. With the app in the background, a "Your turn in Ludo" notification should come.
+4. Phone ↔ web: start a game from the web chat with the phone's user, play both sides.
+5. A group of 3 with two peers (`!ludo 3` in the group), one player leaving.
+
+**Known issues / tech debt:**
+- A modified client can skip others early (receivers can't check clocks; accepted, ADR 0049).
+- Folding re-reads all of a game's events on each new one (fine for Ludo-sized logs).
+- Old builds show game events as "Update PingDost" placeholders (accepted, ADR 0049 item 10).
+
+**Next:** Phase 43 (quick games), including the follow-ups moved from 42.
+
 ## 2026-11-21 — Phase 41 follow-up: Ludo look and feel; timers and invites planned for 42 — ✅ done
 The user's 12-point list after trying Ludo (CHANGES 2026-11-21, ADR 0050; ADR 0049 amended). The user chose:
 - sounds, with a switch;

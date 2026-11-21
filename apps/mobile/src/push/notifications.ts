@@ -11,6 +11,7 @@ import * as Notifications from 'expo-notifications';
 import { AppState, Platform } from 'react-native';
 
 import { contactName, loadContact } from '@/engine/contacts';
+import { installTurnNotifier } from '@/games/turn-notifier';
 import type { MessageEngine, MessageRecord } from '@pingdost/message-engine';
 
 import { isServerNotice, notificationContent, shouldNotify } from './content';
@@ -107,12 +108,18 @@ async function present(engine: MessageEngine, message: MessageRecord): Promise<v
 
 /** Shows a notification for each message the engine receives; returns the unsubscribe. */
 export function installNotifier(engine: MessageEngine): () => void {
-  const unsubscribe = engine.onEvent((event) => {
+  const offMessages = engine.onEvent((event) => {
     if (event.type !== 'received') return;
     void present(engine, event.message).catch((error: unknown) => {
       if (__DEV__) console.warn('[push] notification failed', error);
     });
   });
+  // Games with friends (Phase 42): "Your turn" when a game comes to this phone.
+  const offTurns = installTurnNotifier(engine, MESSAGES_CHANNEL);
+  const unsubscribe = () => {
+    offMessages();
+    offTurns();
+  };
   if (Platform.OS !== 'ios') return unsubscribe;
   const clear = () => void clearServerNotices().catch(() => undefined);
   if (AppState.currentState === 'active') clear();

@@ -4,3 +4,5 @@ export type { SimCallsOptions } from './calls';
 export { SimClient } from './client';
 export type { Endpoints, SimClientOptions } from './client';
 export { capturingSocket, containsMarker } from './frames';
+export { simGames } from './games';
+export type { SimGames, SimGamesOptions } from './games';

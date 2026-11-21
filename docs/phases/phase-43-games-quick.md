@@ -13,6 +13,8 @@
 - [ ] Wire: one settings and one move message per game in `games.proto` (additive; vectors).
 - [ ] Boards on both apps (SVG/views; tokens from ui-tokens; motion through the existing helpers).
 - [ ] Snakes and Ladders uses Phase 42's fair dice.
+- [ ] Friend games follow Ludo's pattern: a pure fold over slots (`packages/games/src/ludo/network.ts`), a network controller for the screens, and `simGames` support in the sim client.
+- [ ] From Phase 42 (not built there): "Play with friends" on the game screen (pick a chat); while playing, the chat's unread badge, a "Back to game" pill in the chat header and toasts for new messages; Rematch after a game (phone and web).
 
 ## Done when
 - [ ] Package, mobile and web tests, typecheck, lint; protocol vectors.

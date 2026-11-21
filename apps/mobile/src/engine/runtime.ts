@@ -96,9 +96,19 @@ export async function stopChat(): Promise<void> {
   useChatStore.setState({ runtime: null, status: 'offline', presence: {}, replaced: false });
 }
 
-/** Shows only the given users' presence (pass [] when no chat is open). */
-export function watchPresence(userIds: string[]): void {
-  useChatStore.getState().runtime?.transport.watchPresence(userIds);
+const watched = new Map<string, readonly string[]>();
+
+/**
+ * Watches these users' presence for one part of the app (`key`: the open chat by default, or the
+ * Games tab; pass [] when done). The socket watches every part's users together, the open
+ * chat's first, at most 32 (the server's cap).
+ */
+export function watchPresence(userIds: readonly string[], key = 'chat'): void {
+  watched.set(key, userIds);
+  const chat = watched.get('chat') ?? [];
+  const rest = [...watched].filter(([k]) => k !== 'chat').flatMap(([, ids]) => ids);
+  const all = [...new Set([...chat, ...rest])].slice(0, 32);
+  useChatStore.getState().runtime?.transport.watchPresence(all);
 }
 
 async function ownIdentityKey(provider: CryptoProvider): Promise<string | undefined> {

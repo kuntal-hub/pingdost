@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Check,
   Copy,
+  Dices,
   Forward,
   Info,
   Lock,
@@ -31,7 +32,8 @@ import { useChat, useChatClient, useCircleState } from '@/chat/store';
 import { Avatar } from '@/components/avatar';
 import { Button, IconButton } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/controls';
-import { Dialog } from '@/components/ui/menu';
+import { Dialog, Menu } from '@/components/ui/menu';
+import { StartGameDialog } from '@/features/games/start-game-dialog';
 import { cn } from '@/lib/cn';
 import { api, useSession } from '@/session/session';
 import { syncLabel, useHistorySync } from '@/sync/sync-status';
@@ -161,6 +163,8 @@ function Header({ conversation }: { conversation: ConversationRecord }) {
 
 function Composer({
   conversationId,
+  isGroup,
+  startGame,
   replyTo,
   editing,
   names,
@@ -170,6 +174,9 @@ function Composer({
   onSent,
 }: {
   conversationId: string;
+  isGroup: boolean;
+  /** Opens the game dialog at once (Invite on the Games page). */
+  startGame: boolean;
   replyTo: MessageRecord | undefined;
   editing: MessageRecord | undefined;
   names: ReturnType<typeof useNames>;
@@ -184,6 +191,7 @@ function Composer({
   const [error, setError] = useState<string>();
   const [picked, setPicked] = useState<File>();
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [gameOpen, setGameOpen] = useState(startGame);
   const input = useRef<HTMLTextAreaElement>(null);
   const filePicker = useRef<HTMLInputElement>(null);
   // Where an emoji goes: the field's selection when it was last left.
@@ -295,6 +303,12 @@ function Composer({
           {error}
         </p>
       )}
+      <StartGameDialog
+        open={gameOpen}
+        onOpenChange={setGameOpen}
+        conversationId={conversationId}
+        isGroup={isGroup}
+      />
       <div className="relative flex items-end gap-2">
         {emojiOpen && <EmojiPanel onPick={insertEmoji} onClose={closeEmoji} />}
         <input
@@ -308,14 +322,26 @@ function Composer({
           }}
         />
         <div className="pd-floating flex min-h-13 flex-1 items-end gap-1 rounded-2xl p-1.5 transition-shadow focus-within:shadow-[0_0_0_2px_rgb(var(--pd-accent))]">
-          <IconButton
-            tone="soft"
-            aria-label="Send a photo, video or file"
-            disabled={!client || editing !== undefined}
-            onClick={() => filePicker.current?.click()}
-          >
-            <Paperclip size={20} />
-          </IconButton>
+          <Menu
+            label="Attach"
+            trigger={
+              <IconButton
+                tone="soft"
+                aria-label="Attach a file or start a game"
+                disabled={!client || editing !== undefined}
+              >
+                <Paperclip size={20} />
+              </IconButton>
+            }
+            items={[
+              {
+                label: 'Send a photo, video or file',
+                icon: Paperclip,
+                onSelect: () => filePicker.current?.click(),
+              },
+              { label: 'Start a game', icon: Dices, onSelect: () => setGameOpen(true) },
+            ]}
+          />
           <textarea
             ref={input}
             aria-label={editing ? 'Edited message' : 'Message'}
@@ -908,6 +934,8 @@ export function ChatView() {
       ) : (
         <Composer
           conversationId={conversationId}
+          isGroup={isGroup}
+          startGame={params.get('startGame') === '1'}
           replyTo={replyTo}
           editing={editing}
           names={names}

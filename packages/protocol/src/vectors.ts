@@ -31,6 +31,7 @@ import {
   Receipt_Type,
 } from './gen/pingdost/v1/content_pb';
 import { CryptoType, EnvelopeSchema } from './gen/pingdost/v1/envelope_pb';
+import { GameType } from './gen/pingdost/v1/games_pb';
 import {
   HelloSchema,
   MeshAckSchema,
@@ -434,6 +435,40 @@ export function createVectors(): ProtocolVectors {
       'content/text-reply',
       ContentSchema,
       content({ case: 'text', value: { body: 'Replying' } }, id(0x02)),
+    ),
+    // Games (Phase 42, ADR 0049): an invitation, and a roll.
+    vector(
+      'content/game',
+      ContentSchema,
+      content({
+        case: 'game',
+        value: {
+          gameId: id(0xa1),
+          event: {
+            case: 'create',
+            value: {
+              type: GameType.LUDO,
+              maxPlayers: 4,
+              settings: { case: 'ludo', value: { blockades: true } },
+              anchor: filler(32, 31),
+              salt: filler(16, 32),
+            },
+          },
+        },
+      }),
+    ),
+    vector(
+      'content/game-roll',
+      ContentSchema,
+      content({
+        case: 'game',
+        value: {
+          gameId: id(0xa1),
+          turn: 7,
+          index: 1,
+          event: { case: 'roll', value: { reveal: filler(32, 33), salt: filler(16, 34) } },
+        },
+      }),
     ),
 
     // ClientFrame, one per body.

@@ -65,6 +65,8 @@ export class PingdostDb extends Dexie {
   groupSessionsOut!: Table<EngineRow, string>;
   groupSessionsIn!: Table<EngineRow, string>;
   held!: Table<EngineRow, string>;
+  games!: Table<EngineRow, string>;
+  gameEvents!: Table<EngineRow, string>;
   files!: EntityTable<FileRow, 'attachmentId'>;
   fileChunks!: Table<FileChunkRow, [string, number]>;
 
@@ -93,6 +95,11 @@ export class PingdostDb extends Dexie {
     this.version(3).stores({
       files: 'attachmentId, lastUsedAt',
       fileChunks: '[attachmentId+index], attachmentId',
+    });
+    // Version 4 (ADR 0049): games and their events, sealed like every engine row.
+    this.version(4).stores({
+      games: 'id, conversationId',
+      gameEvents: 'id, [gameId+id], conversationId',
     });
   }
 }

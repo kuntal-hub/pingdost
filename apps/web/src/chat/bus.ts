@@ -2,7 +2,12 @@
 // calls and announces everything that changes; followers ask and listen. Messages are
 // structured-cloned, so only plain data crosses (errors as `WireError`).
 import type { TransferStatus } from '@/attachments/transfers';
-import type { ConversationEvent, EngineEvent, HistorySyncStatus } from '@pingdost/message-engine';
+import type {
+  ConversationEvent,
+  EngineEvent,
+  GameEventRecord,
+  HistorySyncStatus,
+} from '@pingdost/message-engine';
 import type { IncomingCallSignal } from '@pingdost/protocol';
 import type { PrivacyPrefs } from '@pingdost/shared-types';
 import type { TransportStatus } from '@pingdost/transport';
@@ -49,6 +54,8 @@ export type BusMessage =
   | { type: 'transfer'; status: TransferStatus }
   /** A call signal for this device (ADR 0028): every tab runs its own call manager. */
   | { type: 'call_signal'; signal: IncomingCallSignal }
+  /** A game event stored by the leader's engine (ADR 0049). */
+  | { type: 'game'; event: GameEventRecord }
   /** A follower changed privacy settings or blocks: the leader reloads them. */
   | { type: 'prefs_changed' }
   | { type: 'signed_out'; notice?: string };
@@ -83,6 +90,7 @@ export class RemoteChat {
   readonly #sync = new Set<(status: HistorySyncStatus) => void>();
   readonly #transfer = new Set<(status: TransferStatus) => void>();
   readonly #callSignal = new Set<(signal: IncomingCallSignal) => void>();
+  readonly #game = new Set<(event: GameEventRecord) => void>();
 
   constructor(
     private readonly channel: BroadcastChannel,
@@ -133,6 +141,12 @@ export class RemoteChat {
         this.#callSignal.add(listener);
         return () => {
           this.#callSignal.delete(listener);
+        };
+      },
+      onGameEvent: (listener) => {
+        this.#game.add(listener);
+        return () => {
+          this.#game.delete(listener);
         };
       },
     };
@@ -211,6 +225,9 @@ export class RemoteChat {
         break;
       case 'call_signal':
         for (const listener of this.#callSignal) listener(message.signal);
+        break;
+      case 'game':
+        for (const listener of this.#game) listener(message.event);
         break;
       default:
         break;

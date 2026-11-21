@@ -6,6 +6,7 @@ import type { SendFileOptions, TransferStatus } from '@/attachments/transfers';
 import type {
   ConversationEvent,
   EngineEvent,
+  GameEventRecord,
   HistorySyncStatus,
   MessageEngine,
 } from '@pingdost/message-engine';
@@ -56,14 +57,22 @@ export const ENGINE_METHODS = [
   'callHistory',
   'recordCall',
   'clearCallHistory',
+  // Games (ADR 0049).
+  'sendGameEvent',
+  'getGame',
+  'listGames',
+  'listGameEvents',
 ] as const satisfies readonly (keyof MessageEngine)[];
 
 export type EngineMethod = (typeof ENGINE_METHODS)[number];
 
 /** The leader tab's own calls, besides the engine's. */
 export interface LeaderApi {
-  /** Only these users' presence is reported (the open chat's peer). */
-  watchPresence(userIds: string[]): Promise<void>;
+  /**
+   * Watches these users' presence for one part of the app (key: the open chat by default, or
+   * the Games page); the leader watches all parts' users together.
+   */
+  watchPresence(userIds: string[], key?: string): Promise<void>;
   /** Fetches a message's file (or preview) into this browser's cache. */
   downloadAttachment(messageId: string, role?: 'file' | 'thumbnail'): Promise<void>;
   /** Compresses (images), encrypts and sends a file; throws `SendFileError` with the reason. */
@@ -103,6 +112,8 @@ export interface ChatEvents {
   onTransfer(listener: (status: TransferStatus) => void): () => void;
   /** E2EE call signals for this device (ADR 0028), in every tab. */
   onCallSignal(listener: (signal: IncomingCallSignal) => void): () => void;
+  /** Every game event stored here, sent or received (ADR 0049). */
+  onGameEvent(listener: (event: GameEventRecord) => void): () => void;
 }
 
 export type ChatClient = ChatApi & ChatEvents;

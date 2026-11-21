@@ -129,6 +129,7 @@ export async function startLeader(
     engine.onHistorySync((status) => post({ type: 'sync', status })),
     // Calls run in whichever tab the user uses (ADR 0028): every tab gets the signals.
     engine.onCallSignal((signal) => post({ type: 'call_signal', signal })),
+    engine.onGameEvent((event) => post({ type: 'game', event })),
     router.status$.subscribe(
       (status) => {
         useChat.setState({ status });
@@ -171,6 +172,8 @@ export async function startLeader(
   document.addEventListener('visibilitychange', visibility);
   cleanup.push(() => document.removeEventListener('visibilitychange', visibility));
 
+  // Presence watched per part of the app (the open chat, the Games page), merged.
+  const watched = new Map<string, string[]>();
   const local = Object.fromEntries(
     ENGINE_METHODS.map((name) => [
       name,
@@ -180,8 +183,9 @@ export async function startLeader(
   );
   const client = {
     ...local,
-    watchPresence: (userIds: string[]) => {
-      transport.watchPresence(userIds);
+    watchPresence: (userIds: string[], key = 'chat') => {
+      watched.set(key, userIds);
+      transport.watchPresence(mergedWatch(watched));
       return Promise.resolve();
     },
     downloadAttachment: (messageId, role) => transfers.download(messageId, role),
@@ -197,6 +201,7 @@ export async function startLeader(
     onEngineEvent: (listener) => engine.onEvent(listener),
     onHistorySync: (listener) => engine.onHistorySync(listener),
     onCallSignal: (listener) => engine.onCallSignal(listener),
+    onGameEvent: (listener) => engine.onGameEvent(listener),
     onTransfer: (listener) => {
       transferListeners.add(listener);
       return () => {
@@ -247,4 +252,11 @@ export async function startLeader(
       router.dispose();
     },
   };
+}
+
+/** The users every part of the app watches, the open chat's first, at most 32 (the server's cap). */
+export function mergedWatch(watched: ReadonlyMap<string, readonly string[]>): string[] {
+  const chat = watched.get('chat') ?? [];
+  const rest = [...watched].filter(([key]) => key !== 'chat').flatMap(([, ids]) => ids);
+  return [...new Set([...chat, ...rest])].slice(0, 32);
 }

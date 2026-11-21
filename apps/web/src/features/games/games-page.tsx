@@ -1,5 +1,6 @@
-// The Games page (Phase 41, ADR 0049): the catalog, an unfinished game to continue, and the
-// results kept in this browser. Games with friends start from a chat (Phase 42).
+// The Games page (Phase 41, ADR 0049): games with friends (your turn, playing, invitations),
+// friends online to invite, the catalog, an unfinished solo game and the results kept in this
+// browser. Games with friends live in their chat (Phase 42).
 import {
   ChessKing,
   CircleDot,
@@ -25,6 +26,7 @@ import {
   type CatalogEntry,
 } from '@pingdost/games';
 
+import { FriendGames, FriendsOnline } from './friend-games';
 import { useGames } from './store';
 
 const GAME_ICONS: Record<CatalogEntry['icon'], LucideIcon> = {
@@ -92,7 +94,7 @@ function GameCard({ entry }: { entry: CatalogEntry }) {
         <Link to="/games/ludo/setup">Play with the computer</Link>
       </Button>
       <p className="text-center text-xs text-muted">
-        Playing with friends inside a chat is coming next.
+        To play with friends, start a game from a chat, or invite a friend below.
       </p>
     </section>
   );
@@ -128,10 +130,12 @@ export function GamesPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 p-4 md:p-6">
       <h1 className="font-display text-2xl font-extrabold">Games</h1>
+      <FriendGames />
       <ContinueCard />
       {available.map((entry) => (
         <GameCard key={entry.id} entry={entry} />
       ))}
+      <FriendsOnline />
       <Record />
       <section className="flex flex-col gap-2">
         <h2 className="font-bold text-muted">Coming soon</h2>

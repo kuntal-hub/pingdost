@@ -62,6 +62,19 @@ Before Phase 42 is built, this replaces "no timers in friend games" (Consequence
    - **After 3 skipped turns in a row** the player is removed (as a leave). A player who comes back in time plays on; one who returns after removal watches.
 4. **Invites start from** a 1:1 chat or group ("Play a game"), the Games tab (friends online, chats), or the game screen ("Play with friends"). They are always a game in a chat; an invite card is a message, so it notifies like one. "Your turn" notifications stay local.
 
+## Amendment 2026-11-21 (Phase 42 as built): hash-chain dice, slots, conflicts
+Building Phase 42 replaced parts of items 3 and 5 and of the first amendment. Where they differ, this section holds.
+1. **Dice: a hash chain fixed at join** (`packages/games/src/core/fair-dice.ts`). Per-turn commitments let a roller with several rolls in one turn learn its later secrets early and pick between them, so:
+   - At `create`/`join` the seat device draws a 32-byte seed and builds `chain[0] = seed`, `chain[i+1] = SHA-256("pingdost/game/chain/v1" ‖ chain[i])` up to 1,024 steps. It publishes the end (`anchor`) and a 16-byte salt; the start copies both into the seat. The seed is stored with the event (`GameRecord.seatSeed`; sealed on the web) and never sent.
+   - Roll *k* of a seat reveals `chain[1024 − k]`. Every client checks that it hashes to the seat's previous reveal (the anchor first). Secrets are never skipped: each of the seat's roll events, in event-ID order, must be the next link. A roll that lost a race still uses up its secret (a revealed secret is never used twice, so nobody can pick a salt against it).
+   - The die = rejection-sampled from `SHA-256("pingdost/game/roll/v1" ‖ reveal ‖ salt ‖ game_id ‖ turn ‖ index)`, where `salt` is that of the latest applied event by **another device** (the seats' own salts, in seat order, come first). Neither the roller (its secrets were fixed at join) nor the salt's author (it never saw the secret) can steer it.
+   - Who rolls first comes from all seats' salts (`firstSeat`); the last joiner could steer it, a small edge accepted.
+   - Accepted limit, unchanged: a player who dislikes the coming roll can let the timer run out (losing the turn).
+2. **Slots instead of `seq`.** Each step of a turn is a slot (`turn`, `index`): the turn number and the step within it (roll, move, roll after a 6, …). A roll that moves nothing ends the turn by itself (no move event). The fold (`ludo/network.ts`) is a pure function of the set of events: it starts again on every new event, so order of arrival and duplicates never matter.
+3. **Conflicts:** if a slot has several valid candidates (the player's late roll and someone's skip), the **lowest event ID wins**. Receivers do not check anyone's clock (they cannot): an honest app sends a skip or a proxy move only after the deadline plus the grace period, measured from its own receive time. A modified app could skip others early; accepted among friends.
+4. **Proxy moves** must be exactly the Medium computer player's move, seeded by the state hash, so every client checks them. Moves and skips carry the 8-byte hash of the resulting state; a mismatch marks the game out of sync (the move still counts).
+5. **Leaving:** a `leave` takes effect at the leaver's next slot (before the start it takes them out of the lobby; the host leaving the lobby ends it). The host's `end` stops the game; events with a higher ID are ignored.
+
 ## Consequences
 - New package `packages/games`; new tab Games on both apps (order Chats, Calls, Games, Settings); `gameColors` in ui-tokens with contrast tests.
 - Phase 42 adds the wire body, the engine API (`sendGameEvent`, `listGames`, `getGame`, `listGameEvents`, `onGameEvent`), a store migration on both apps, the web bus methods, a presence-watch registry (the open chat and the Games tab share the 32-user limit), "your turn" local notifications, and a sim-client player for device checks.

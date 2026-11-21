@@ -1,6 +1,8 @@
 // Ludo's English UI text, shared by the phone and the web.
 import { HOME, YARD, type LudoColor } from './board';
 import type { LudoView } from './controller';
+import { ludoSeatOf, type GamePlayerRef, type LudoNetGame } from './network';
+import type { LudoNetView } from './network-controller';
 import { LUDO_TOKENS, type LudoSettings } from './rules';
 import type { BotLevel, SeatKind } from '../core/types';
 
@@ -88,4 +90,141 @@ export function ludoRules(settings: LudoSettings): string[] {
       : 'The first player home wins; the others play on for places.',
     `Each player has ${LUDO_TOKENS} pieces.`,
   ];
+}
+
+/** How the apps name people: a contact name, or null to fall back to the color. */
+export type NameOf = (userId: string) => string | null;
+
+function netSeatName(view: LudoNetView, seat: number, names?: NameOf): string {
+  if (seat === view.you) return 'You';
+  const info = view.game.seats[seat];
+  if (!info) return 'Someone';
+  return names?.(info.userId) ?? LUDO_COLOR_NAMES[info.color];
+}
+
+/** One line under the board in a game with friends. */
+export function ludoNetStatus(view: LudoNetView, names?: NameOf): string {
+  const { game, board, you } = view;
+  switch (game.phase) {
+    case 'missing':
+      return 'Loading the game…';
+    case 'invalid':
+      return "This game can't be played";
+    case 'lobby':
+      return `Waiting for players (${game.lobby.length}/${game.maxPlayers})`;
+    case 'ended':
+      return 'The host ended the game';
+    default:
+      break;
+  }
+  if (!board) return '';
+  const state = board.state;
+  if (board.waiting === 'over' || state.phase === 'over') {
+    if (you >= 0) {
+      const place = state.players[you]!.rank;
+      if (place === 1) return 'You won!';
+      return place ? `You finished ${ordinal(place)}` : 'You left the game';
+    }
+    const winner = state.players.findIndex((p) => p.rank === 1);
+    return winner >= 0 ? `${netSeatName(view, winner, names)} won` : 'Game over';
+  }
+  const name = netSeatName(view, state.current, names);
+  switch (board.waiting) {
+    case 'you-roll':
+      return 'Your turn: roll the dice';
+    case 'you-move':
+      return 'Pick a piece to move';
+    case 'rolling':
+      return state.current === you ? 'Rolling…' : `${name} is rolling…`;
+    case 'moving':
+      return state.current === you ? 'Moving…' : `${name} is moving…`;
+    default:
+      return state.current === you ? 'Your turn' : `${name}'s turn`;
+  }
+}
+
+export type GameSummaryState =
+  | 'missing'
+  | 'invite'
+  | 'joined'
+  | 'full'
+  | 'your-turn'
+  | 'their-turn'
+  | 'over'
+  | 'ended'
+  | 'invalid';
+
+export interface GameSummary {
+  state: GameSummaryState;
+  /** One line for the chat card and the Games tab. */
+  text: string;
+  /** Still going (lobby or play). */
+  live: boolean;
+  /** This device has a seat, or joined the lobby. */
+  playing: boolean;
+}
+
+/** A game with friends in one line, from this device's side. */
+export function ludoGameSummary(
+  game: LudoNetGame,
+  self: GamePlayerRef,
+  names?: NameOf,
+): GameSummary {
+  const seat = ludoSeatOf(game, self);
+  const inLobby = game.lobby.some((e) => e.userId === self.userId);
+  const nameOf = (index: number) => {
+    const info = game.seats[index];
+    if (index === seat) return 'You';
+    return info ? (names?.(info.userId) ?? LUDO_COLOR_NAMES[info.color]) : 'Someone';
+  };
+  switch (game.phase) {
+    case 'missing':
+      return { state: 'missing', text: 'Loading…', live: false, playing: false };
+    case 'invalid':
+      return { state: 'invalid', text: "Can't be played", live: false, playing: false };
+    case 'ended':
+      return { state: 'ended', text: 'Ended', live: false, playing: inLobby };
+    case 'lobby': {
+      const count = `${game.lobby.length}/${game.maxPlayers}`;
+      if (inLobby)
+        return {
+          state: 'joined',
+          text: `Waiting for players · ${count}`,
+          live: true,
+          playing: true,
+        };
+      if (game.lobby.length >= game.maxPlayers) {
+        return { state: 'full', text: `Full · ${count}`, live: true, playing: false };
+      }
+      return { state: 'invite', text: `Join · ${count} players`, live: true, playing: false };
+    }
+    case 'over': {
+      const state = game.state!;
+      if (seat >= 0) {
+        const place = state.players[seat]!.rank;
+        const text =
+          place === 1 ? 'You won' : place ? `You finished ${ordinal(place)}` : 'You left';
+        return { state: 'over', text, live: false, playing: true };
+      }
+      const winner = state.players.findIndex((p) => p.rank === 1);
+      return {
+        state: 'over',
+        text: winner >= 0 ? `${nameOf(winner)} won` : 'Game over',
+        live: false,
+        playing: false,
+      };
+    }
+    default: {
+      const state = game.state!;
+      if (seat >= 0 && state.current === seat) {
+        return { state: 'your-turn', text: 'Your turn', live: true, playing: true };
+      }
+      return {
+        state: 'their-turn',
+        text: `${nameOf(state.current)}'s turn`,
+        live: true,
+        playing: seat >= 0 && !state.players[seat]!.left,
+      };
+    }
+  }
 }

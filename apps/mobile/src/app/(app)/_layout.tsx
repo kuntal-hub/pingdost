@@ -130,6 +130,11 @@ function Screens() {
       <Stack.Screen name="media/[messageId]" options={{ title: '' }} />
       <Stack.Screen name="game/ludo-setup" options={{ title: 'Play Ludo' }} />
       <Stack.Screen name="game/ludo" options={{ title: 'Ludo' }} />
+      <Stack.Screen name="game/[gameId]" options={{ title: 'Ludo' }} />
+      <Stack.Screen
+        name="game/start"
+        options={{ title: 'Play Ludo', presentation: 'modal', ...MODAL }}
+      />
       <Stack.Screen
         name="approve-phone"
         options={{ title: 'New phone', presentation: 'modal', ...MODAL }}

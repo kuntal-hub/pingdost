@@ -258,6 +258,15 @@ export function move(state: LudoState, token: number): MoveResult {
   return { state: endTurn(next), seat, token, from, to, captures, home, again };
 }
 
+/**
+ * The current player's turn is skipped (a game with friends: their roll never came in time,
+ * ADR 0049). Only before they rolled.
+ */
+export function skipTurn(state: LudoState): LudoState {
+  if (state.phase !== 'roll') throw new LudoRuleError('only a turn that has not rolled is skipped');
+  return endTurn(state);
+}
+
 /** A player leaves (a game with friends): pieces leave the board; play skips them. */
 export function leave(state: LudoState, seat: number): LudoState {
   const player = state.players[seat];

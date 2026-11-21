@@ -1,6 +1,6 @@
 // What each message state is called in the UI (REQ §8.3, §11.6; ARCHITECTURE A8). Never
 // "delivered" for a server or relay hop: only a receipt from the recipient's device says so.
-import { parseGroupNotice, type MessageRecord } from '@pingdost/message-engine';
+import { parseGroupNotice, readGameCard, type MessageRecord } from '@pingdost/message-engine';
 import type { MessageState } from '@pingdost/shared-types';
 
 /** How to name people in notices: a contact name, and who "you" are. */
@@ -118,9 +118,20 @@ export function previewText(message: MessageRecord, names?: Names): string {
       return 'Update PingDost to see this message';
     case 'attachment':
       return attachmentText(message);
+    case 'game':
+      return gameCardText(message);
     case 'text':
       return message.body.replace(/\s+/g, ' ').trim();
   }
+}
+
+const GAME_NAMES: Record<string, string> = { ludo: 'Ludo' };
+
+/** A game invitation card (ADR 0049) in one line: "Ludo game". */
+export function gameCardText(message: Pick<MessageRecord, 'body'>): string {
+  const card = readGameCard(message.body);
+  const name = card ? GAME_NAMES[card.type] : undefined;
+  return name ? `${name} game` : 'Game';
 }
 
 /** Which status mark to draw; each app maps it to an icon. Ticks follow the common convention. */

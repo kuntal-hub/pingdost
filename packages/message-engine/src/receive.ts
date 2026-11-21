@@ -19,11 +19,14 @@ import {
   decodeContent,
   decodeContentHeader,
   decodeEnvelope,
+  encodeGame,
   ProtocolError,
   Receipt_Type,
+  toBase64,
   type Content,
   type ContentHeader,
   type Envelope,
+  type Game,
   type GroupControl,
   type TransportPacket,
 } from '@pingdost/protocol';
@@ -32,6 +35,7 @@ import { readAttachment } from './attachments';
 import { checkGroupHeader, checkHeader, type CheckedHeader } from './content';
 import { EngineCore } from './core';
 import { applyOp, applyPending, type Op } from './features/ops';
+import { gameCardBody, nextGameRecord } from './games';
 import { readControl } from './groups/content';
 import { groupNoticeBody } from './groups/notices';
 import { applyControl, isMember } from './groups/state';
@@ -52,7 +56,15 @@ import type {
 type Effect = () => void | Promise<void>;
 
 /** What group members may send over Megolm; everything else comes over Olm or not at all. */
-const GROUP_BODIES = new Set<string>(['text', 'attachmentManifest', 'reaction', 'edit', 'delete']);
+const GROUP_BODIES = new Set<string>([
+  'text',
+  'attachmentManifest',
+  'reaction',
+  'edit',
+  'delete',
+  // Games (ADR 0049): content a person sends, so the circle rule and member check apply.
+  'game',
+]);
 /** What a person writes one to one (`undefined`: a body from a newer version). */
 const DIRECT_CONTENT = new Set<string | undefined>([...GROUP_BODIES, undefined]);
 
@@ -583,6 +595,8 @@ export class Receiver {
         );
         return [];
       }
+      case 'game':
+        return this.#receiveGame(batch, checked, sender, body.value, now);
       case 'sessionReset':
         return [() => this.outbox.resendTo(sender.userId, sender.deviceId)];
       case 'keyChange':
@@ -644,6 +658,58 @@ export class Receiver {
     if (conversation && conversation.unreadCount > 0) {
       batch.conversations = [{ ...conversation, unreadCount: conversation.unreadCount - 1 }];
     }
+  }
+
+  /**
+   * Keeps a game event (ADR 0049) for `@pingdost/games` to fold; a `create` also files the
+   * invitation card in the chat. A game belongs to the chat it was created in.
+   */
+  async #receiveGame(
+    batch: WriteBatch,
+    header: CheckedHeader,
+    sender: RemoteDevice,
+    game: Game,
+    now: number,
+  ): Promise<Effect[]> {
+    const { core } = this;
+    const gameId = bytesToUuid(game.gameId);
+    if (game.event.case === 'create' && gameId !== header.messageId) return [];
+    const existing = await core.store.getGame(gameId);
+    if (existing && existing.conversationId !== header.conversationId) return [];
+    const record = nextGameRecord(
+      existing,
+      game,
+      {
+        gameId,
+        conversationId: header.conversationId,
+        senderUserId: header.senderUserId,
+        sentAt: header.sentAt,
+      },
+      now,
+    );
+    batch.games = [...(batch.games ?? []), record];
+    batch.gameEvents = [
+      ...(batch.gameEvents ?? []),
+      {
+        eventId: header.messageId,
+        gameId,
+        conversationId: header.conversationId,
+        senderUserId: header.senderUserId,
+        senderDeviceId: sender.deviceId,
+        sentAt: header.sentAt,
+        receivedAt: now,
+        payload: toBase64(encodeGame(game)),
+      },
+    ];
+    if (game.event.case !== 'create') return [];
+    return this.#storeMessage(
+      batch,
+      header,
+      sender,
+      'game',
+      gameCardBody(gameId, record.gameType),
+      now,
+    );
   }
 
   /** Files a new message; the effect announces it (`received`) once it is committed. */

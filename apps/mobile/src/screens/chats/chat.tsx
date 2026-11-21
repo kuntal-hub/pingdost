@@ -50,6 +50,7 @@ import {
   BanIcon,
   CameraIcon,
   CopyIcon,
+  DicesIcon,
   EllipsisVerticalIcon,
   FileTextIcon,
   ForwardIcon,
@@ -120,6 +121,7 @@ import {
   copyText,
   deleteForEveryoneCheck,
   forwardable,
+  gameCardText,
   newestMark,
   selectedMessages,
   toggleSelected,
@@ -147,6 +149,7 @@ import {
 import { AttachmentContent } from './attachment-bubble';
 import { EmojiPanel } from './emoji-panel';
 import { takeForwardNotice } from './forward';
+import { GameCard } from './game-card';
 import { MicHold, useVoiceNote, VoiceBar, VoiceHint, type VoiceNote } from './voice-recorder';
 import { CircleAction } from '../circle/circle-action';
 
@@ -646,7 +649,9 @@ const Bubble = memo(function Bubble(props: BubbleProps) {
           : 'This message was deleted'
         : message.kind === 'attachment'
           ? attachmentBody(message)
-          : message.body;
+          : message.kind === 'game'
+            ? gameCardText(message)
+            : message.body;
   const retry =
     message.state === 'failed' && runtime && !deleted
       ? () => void runtime.engine.retry(message.messageId)
@@ -664,7 +669,8 @@ const Bubble = memo(function Bubble(props: BubbleProps) {
   const metaText = `${timeLabel(message.sortAt)}${edited ? ' · edited' : ''}${
     stateWords ? ` · ${stateWords}` : ''
   }`;
-  const textShown = attachment ? message.body : body;
+  const game = message.kind === 'game' && !deleted;
+  const textShown = attachment ? message.body : game ? '' : body;
   // Beside the last line of text when it fits; under media, a big emoji or right-to-left text.
   const inlineMeta = !bigEmoji && textShown !== '' && !startsRightToLeft(textShown);
   const { look } = props;
@@ -793,6 +799,7 @@ const Bubble = memo(function Bubble(props: BubbleProps) {
             }}
           />
         )}
+        {game && <GameCard message={message} names={people} outgoing={outgoing} />}
         {bigEmoji ? (
           <>
             <Text selectable={false} className="text-5xl">
@@ -1320,14 +1327,22 @@ function ComposerView({
         <ActionSheet
           visible={attaching}
           onClose={() => setAttaching(false)}
-          title="Send a file"
+          title="Send or play"
           layout="tiles"
-          actions={PICK_ACTIONS.map(({ source, label, detail, icon }) => ({
-            label,
-            detail,
-            icon,
-            onPress: () => void attach(source),
-          }))}
+          actions={[
+            ...PICK_ACTIONS.map(({ source, label, detail, icon }) => ({
+              label,
+              detail,
+              icon,
+              onPress: () => void attach(source),
+            })),
+            {
+              label: 'Game',
+              detail: 'Play Ludo here',
+              icon: DicesIcon,
+              onPress: () => router.push({ pathname: '/game/start', params: { conversationId } }),
+            },
+          ]}
         />
       </View>
       {panel === 'search' && (

@@ -1,5 +1,6 @@
-// The Games tab (Phase 41, ADR 0049): the catalog, an unfinished game to continue, and the
-// results kept on this phone. Games with friends start from a chat (Phase 42).
+// The Games tab (Phase 41, ADR 0049): games with friends (your turn, playing, invitations),
+// friends online to invite, the catalog, an unfinished solo game and the results kept on this
+// phone. Games with friends live in their chat (Phase 42).
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { ScrollView, View } from 'react-native';
@@ -19,6 +20,8 @@ import {
   totals,
   type CatalogEntry,
 } from '@pingdost/games';
+
+import { FriendGames, FriendsOnline } from './friend-games';
 
 function players(entry: CatalogEntry): string {
   return entry.minPlayers === entry.maxPlayers
@@ -73,7 +76,7 @@ function GameCard({ entry }: { entry: CatalogEntry }) {
         feedback="selection"
       />
       <Text className="text-center text-xs text-muted">
-        Playing with friends inside a chat is coming next.
+        To play with friends, start a game from a chat, or invite a friend below.
       </Text>
     </View>
   );
@@ -148,10 +151,12 @@ export function GamesHomeScreen() {
     <View className="flex-1 bg-background">
       <TabHeader title="Games" />
       <ScrollView contentContainerStyle={{ paddingBottom: tabInset, paddingTop: 8, gap: 20 }}>
+        <FriendGames />
         <ContinueCard />
         {available.map((entry) => (
           <GameCard key={entry.id} entry={entry} />
         ))}
+        <FriendsOnline />
         <Record />
         <ComingSoon />
         <Text className="px-6 text-xs text-muted">

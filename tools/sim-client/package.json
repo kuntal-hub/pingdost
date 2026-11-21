@@ -21,6 +21,7 @@
     "@pingdost/backup": "workspace:*",
     "@pingdost/call-engine": "workspace:*",
     "@pingdost/crypto": "workspace:*",
+    "@pingdost/games": "workspace:*",
     "@pingdost/message-engine": "workspace:*",
     "@pingdost/protocol": "workspace:*",
     "@pingdost/shared-types": "workspace:*",

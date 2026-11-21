@@ -67,7 +67,13 @@ export function canDeleteForEveryone(
 }
 
 export function canReact(message: MessageRecord): boolean {
-  return message.kind === 'text' || message.kind === 'attachment' || message.kind === 'unsupported';
+  return (
+    message.kind === 'text' ||
+    message.kind === 'attachment' ||
+    message.kind === 'unsupported' ||
+    // A game invitation card (ADR 0049); it is never edited.
+    message.kind === 'game'
+  );
 }
 
 /** The target after `op`, or undefined when the op is not allowed or changes nothing. */

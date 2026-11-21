@@ -1,11 +1,14 @@
 // Player panels in the board's corners (ADR 0050): each player sits by their own yard with
 // their own die. The active player's panel glows and holds the big die; the user (always bottom
-// left) rolls by tapping theirs. Phase 42 draws the turn timers around the avatar.
+// left) rolls by tapping theirs. In games with friends the panel shows the person's name, and a
+// ring around the active player's avatar runs down their 30 s (Phase 42).
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
 
 import { BotIcon, Icon } from '@/components/icon';
 import { Text } from '@/components/text';
+import { usePalette } from '@/theme/theme-root';
 import {
   BOT_LEVEL_NAMES,
   HOME,
@@ -32,7 +35,14 @@ interface PanelProps {
   lastDie: number | null;
   width: number;
   onRoll: () => void;
+  /** The person's name (games with friends); the color's name otherwise. */
+  name?: string;
+  /** The share of the turn's time left, 0–1, while this player is on the clock. */
+  timeLeft?: number | null;
 }
+
+/** The ring's circumference (radius 24). */
+const RING = 2 * Math.PI * 24;
 
 export function PlayerPanel({
   view,
@@ -45,7 +55,10 @@ export function PlayerPanel({
   lastDie,
   width,
   onRoll,
+  name: personName,
+  timeLeft,
 }: PanelProps) {
+  const palette = usePalette();
   const player = view.state.players[seat]!;
   const look = gameBoardColors(dark).players[player.color];
   const kind = view.seats[seat]!;
@@ -58,7 +71,7 @@ export function PlayerPanel({
     : player.left
       ? 'Left'
       : `${home}/${player.tokens.length} home`;
-  const name = seatName(kind, player.color);
+  const name = personName ?? seatName(kind, player.color);
 
   const avatar = (
     <View
@@ -72,6 +85,25 @@ export function PlayerPanel({
       }}
     >
       <ShapeGlyph color={player.color} size={18} fill={look.on} />
+      {timeLeft != null && (
+        <Svg
+          width={52}
+          height={52}
+          viewBox="0 0 52 52"
+          style={{ position: 'absolute', left: -8, top: -8, transform: [{ rotate: '-90deg' }] }}
+        >
+          <Circle
+            cx={26}
+            cy={26}
+            r={24}
+            fill="none"
+            stroke={timeLeft < 0.25 ? palette.danger : look.ring}
+            strokeWidth={3.5}
+            strokeLinecap="round"
+            strokeDasharray={`${Math.max(0, timeLeft) * RING} ${RING}`}
+          />
+        </Svg>
+      )}
     </View>
   );
   const label = (

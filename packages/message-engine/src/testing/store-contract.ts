@@ -11,6 +11,8 @@ import type {
   DirectoryRecord,
   EngineStore,
   FanoutItem,
+  GameEventRecord,
+  GameRecord,
   GroupRecord,
   HeldGroupRecord,
   InboundGroupSessionRecord,
@@ -650,6 +652,56 @@ export function runEngineStoreContract(name: string, makeStore: () => Promise<En
       expect(await store.listHeld(groupId)).toEqual([]);
       expect(await store.listGroups()).toEqual([older]);
       expect(await store.getConversation(groupId)).toEqual(conversation);
+    });
+
+    it('keeps games and their events, and deletes them with the game or the chat (ADR 0049)', async () => {
+      const store = await makeStore();
+      const conversation = conversationRecord();
+      const { conversationId } = conversation;
+      const game = (updatedAt: number, seatSeed: string | null = null): GameRecord => ({
+        gameId: testId(),
+        conversationId,
+        gameType: 'ludo',
+        createdBy: testId(),
+        createdAt: 1,
+        updatedAt,
+        seatSeed,
+      });
+      const event = (gameId: string): GameEventRecord => ({
+        eventId: testId(),
+        gameId,
+        conversationId,
+        senderUserId: testId(),
+        senderDeviceId: testId(),
+        sentAt: 3,
+        receivedAt: 4,
+        payload: 'CgQBAgME',
+      });
+      const older = game(2, 'c2VlZA==');
+      const newer = game(5);
+      const card = messageRecord({ conversationId, kind: 'game', body: '{"gameId":"x"}' });
+      const [first, second] = [event(older.gameId), event(older.gameId)];
+      const third = event(newer.gameId);
+      await store.apply({
+        conversations: [conversation],
+        messages: [card],
+        games: [older, newer],
+        // Out of order on purpose: the store lists by event ID.
+        gameEvents: [second, third, first],
+      });
+      expect(await store.listGames()).toEqual([newer, older]);
+      expect(await store.getGame(older.gameId)).toEqual(older);
+      expect(await store.listGameEvents(older.gameId)).toEqual([first, second]);
+      expect(await store.getMessage(card.messageId)).toEqual(card);
+
+      await store.apply({ deleteGames: [older.gameId] });
+      expect(await store.getGame(older.gameId)).toBeUndefined();
+      expect(await store.listGameEvents(older.gameId)).toEqual([]);
+      expect(await store.listGameEvents(newer.gameId)).toEqual([third]);
+
+      await store.apply({ deleteConversations: [conversationId] });
+      expect(await store.listGames()).toEqual([]);
+      expect(await store.listGameEvents(newer.gameId)).toEqual([]);
     });
   });
 }

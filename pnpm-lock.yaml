@@ -371,6 +371,9 @@ importers:
       '@pingdost/crypto':
         specifier: workspace:*
         version: link:../../packages/crypto
+      '@pingdost/games':
+        specifier: workspace:*
+        version: link:../../packages/games
       '@pingdost/message-engine':
         specifier: workspace:*
         version: link:../../packages/message-engine
@@ -742,6 +745,10 @@ importers:
         version: 0.31.0-6
 
   packages/games:
+    dependencies:
+      '@pingdost/protocol':
+        specifier: workspace:*
+        version: link:../protocol
     devDependencies:
       typescript:
         specifier: 'catalog:'
@@ -923,6 +930,9 @@ importers:
       '@pingdost/crypto':
         specifier: workspace:*
         version: link:../../packages/crypto
+      '@pingdost/games':
+        specifier: workspace:*
+        version: link:../../packages/games
       '@pingdost/message-engine':
         specifier: workspace:*
         version: link:../../packages/message-engine
@@ -10876,7 +10886,9 @@ snapshots:
       metro-runtime: 0.87.1
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.88.0': {}
 

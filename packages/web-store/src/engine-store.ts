@@ -8,12 +8,16 @@
 // - Search: text and caption bodies are kept in memory once the first search builds the
 //   index (decrypting every message once), then updated by each apply; matching follows the
 //   shared `matchesQuery` rules (ADR 0014). Nothing about it is written to disk.
+import Dexie from 'dexie';
+
 import {
   matchesQuery,
   type ConversationRecord,
   type DeliveryRecord,
   type DirectoryRecord,
   type EngineStore,
+  type GameEventRecord,
+  type GameRecord,
   type GroupRecord,
   type HeldGroupRecord,
   type InboundGroupSessionRecord,
@@ -87,7 +91,9 @@ type Table =
   | 'groups'
   | 'groupSessionsOut'
   | 'groupSessionsIn'
-  | 'held';
+  | 'held'
+  | 'games'
+  | 'gameEvents';
 
 interface Searchable {
   conversationId: string;
@@ -250,6 +256,24 @@ export class DexieEngineStore implements EngineStore {
         this.#seal('held', h.id, h, { id: h.id, groupId: h.groupId, receivedAt: h.receivedAt }),
       ),
     );
+    // Games (ADR 0049): the seat secret and the events stay sealed.
+    const games = await Promise.all(
+      (b.games ?? []).map((g) =>
+        this.#seal('games', g.gameId, g, {
+          id: g.gameId,
+          conversationId: g.conversationId,
+        }),
+      ),
+    );
+    const gameEvents = await Promise.all(
+      (b.gameEvents ?? []).map((e) =>
+        this.#seal('gameEvents', e.eventId, e, {
+          id: e.eventId,
+          gameId: e.gameId,
+          conversationId: e.conversationId,
+        }),
+      ),
+    );
 
     const removedMessages: string[] = [];
     const tables = [
@@ -268,6 +292,8 @@ export class DexieEngineStore implements EngineStore {
       db.groupSessionsOut,
       db.groupSessionsIn,
       db.held,
+      db.games,
+      db.gameEvents,
     ];
     await db.transaction('rw', tables, async () => {
       if (account) await db.records.put(account);
@@ -277,8 +303,19 @@ export class DexieEngineStore implements EngineStore {
         await db.messages.bulkDelete(ids);
         if (ids.length > 0) await db.deliveries.where('messageId').anyOf(ids).delete();
         await db.ops.where('conversationId').equals(conversationId).delete();
+        await db.games.where('conversationId').equals(conversationId).delete();
+        await db.gameEvents.where('conversationId').equals(conversationId).delete();
         removedMessages.push(...ids);
       }
+      for (const gameId of b.deleteGames ?? []) {
+        await db.games.delete(gameId);
+        await db.gameEvents
+          .where('[gameId+id]')
+          .between([gameId, Dexie.minKey], [gameId, Dexie.maxKey])
+          .delete();
+      }
+      await db.games.bulkPut(games);
+      await db.gameEvents.bulkPut(gameEvents);
       await db.conversations.bulkPut(conversations);
       const deleteMessages = b.deleteMessages ?? [];
       if (deleteMessages.length > 0) {
@@ -558,5 +595,25 @@ export class DexieEngineStore implements EngineStore {
     const rows = await this.db.held.where('groupId').equals(groupId).toArray();
     const all = await this.#openAll<HeldGroupRecord>('held', (r) => r.id as string, rows);
     return all.sort((a, b) => a.receivedAt - b.receivedAt || (a.id < b.id ? -1 : 1));
+  }
+
+  // Games (ADR 0049)
+
+  getGame(gameId: string): Promise<GameRecord | undefined> {
+    return this.db.games.get(gameId).then((row) => this.#open<GameRecord>('games', gameId, row));
+  }
+
+  async listGames(): Promise<GameRecord[]> {
+    const rows = await this.db.games.toArray();
+    const all = await this.#openAll<GameRecord>('games', (r) => r.id as string, rows);
+    return all.sort((a, b) => b.updatedAt - a.updatedAt || (a.gameId < b.gameId ? -1 : 1));
+  }
+
+  async listGameEvents(gameId: string): Promise<GameEventRecord[]> {
+    const rows = await this.db.gameEvents
+      .where('[gameId+id]')
+      .between([gameId, Dexie.minKey], [gameId, Dexie.maxKey])
+      .toArray();
+    return this.#openAll<GameEventRecord>('gameEvents', (r) => r.id as string, rows);
   }
 }

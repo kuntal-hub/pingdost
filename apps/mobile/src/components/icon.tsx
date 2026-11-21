@@ -41,6 +41,7 @@ import DatabaseIcon from 'lucide-react-native/icons/database';
 import DeleteIcon from 'lucide-react-native/icons/delete';
 import DicesIcon from 'lucide-react-native/icons/dices';
 import DogIcon from 'lucide-react-native/icons/dog';
+import DoorOpenIcon from 'lucide-react-native/icons/door-open';
 import DownloadIcon from 'lucide-react-native/icons/download';
 import DramaIcon from 'lucide-react-native/icons/drama';
 import DropletIcon from 'lucide-react-native/icons/droplet';
@@ -93,6 +94,7 @@ import MoonIcon from 'lucide-react-native/icons/moon';
 import MoveHorizontalIcon from 'lucide-react-native/icons/move-horizontal';
 import MoveVerticalIcon from 'lucide-react-native/icons/move-vertical';
 import MusicIcon from 'lucide-react-native/icons/music';
+import OctagonXIcon from 'lucide-react-native/icons/octagon-x';
 import PaletteIcon from 'lucide-react-native/icons/palette';
 import PauseIcon from 'lucide-react-native/icons/pause';
 import PawPrintIcon from 'lucide-react-native/icons/paw-print';
@@ -143,6 +145,7 @@ import SwitchCameraIcon from 'lucide-react-native/icons/switch-camera';
 import ThermometerIcon from 'lucide-react-native/icons/thermometer';
 import TornadoIcon from 'lucide-react-native/icons/tornado';
 import Trash2Icon from 'lucide-react-native/icons/trash-2';
+import TriangleAlertIcon from 'lucide-react-native/icons/triangle-alert';
 import TrophyIcon from 'lucide-react-native/icons/trophy';
 import TvIcon from 'lucide-react-native/icons/tv';
 import UserPlusIcon from 'lucide-react-native/icons/user-plus';
@@ -256,8 +259,11 @@ export {
   CloudUploadIcon,
   CopyIcon,
   DatabaseIcon,
+  DoorOpenIcon,
   DownloadIcon,
   EyeIcon,
+  OctagonXIcon,
+  TriangleAlertIcon,
   EyeOffIcon,
   FileIcon,
   FileTextIcon,

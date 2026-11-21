@@ -4,7 +4,7 @@
 // the search index (Phase 11), 004 the group tables (Phase 13), 005 attachment messages
 // (Phase 14), 006 local attachment files and searchable captions (Phase 15), 007 the path of
 // each delivery (Phase 22), 008 the mesh relay store and relay counts (Phase 23), 009 files over
-// the mesh (Phase 24).
+// the mesh (Phase 24), 010 forwarded messages (Phase 39), 011 games (Phase 42).
 //
 // The transaction is `BEGIN IMMEDIATE` on the same connection, never expo-sqlite's
 // `withExclusiveTransactionAsync`: that opens a second connection which has no SQLCipher
@@ -19,6 +19,7 @@ import { NEARBY_SCHEMA } from './migrations/007-nearby';
 import { MESH_RELAY_SCHEMA } from './migrations/008-mesh-relay';
 import { MESH_FILES_SCHEMA } from './migrations/009-mesh-files';
 import { FORWARDED_SCHEMA } from './migrations/010-forwarded';
+import { GAMES_SCHEMA } from './migrations/011-games';
 
 export interface Migration {
   version: number;
@@ -52,6 +53,7 @@ export const migrations: readonly Migration[] = [
   { version: 8, name: '008_mesh_relay', sql: MESH_RELAY_SCHEMA },
   { version: 9, name: '009_mesh_files', sql: MESH_FILES_SCHEMA },
   { version: 10, name: '010_forwarded', sql: FORWARDED_SCHEMA },
+  { version: 11, name: '011_games', sql: GAMES_SCHEMA },
 ];
 
 /** The subset of `SQLiteDatabase` the runner needs (keeps it testable without native code). */

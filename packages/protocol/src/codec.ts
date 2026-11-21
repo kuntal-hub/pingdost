@@ -23,6 +23,7 @@ import {
   type SyncMessage,
 } from './gen/pingdost/v1/content_pb';
 import { CryptoType, EnvelopeSchema, type Envelope } from './gen/pingdost/v1/envelope_pb';
+import { GameSchema, type Game } from './gen/pingdost/v1/games_pb';
 import {
   HelloSchema,
   MeshAckSchema,
@@ -532,11 +533,100 @@ function checkContent(content: Content): void {
       checkId(body.value.callId, 'call_signal.call_id');
       checkEnumSet(body.value.type, 'call_signal.type');
       break;
+    case 'game':
+      checkGame(body.value);
+      break;
     case 'text':
     case 'sessionReset':
     case 'keyChange':
       break;
   }
+}
+
+// Games (ADR 0049): sizes the rules rely on. The die and the state hash are SHA-256 based.
+export const GAME_SECRET_BYTES = 32;
+export const GAME_SALT_BYTES = 16;
+export const GAME_STATE_HASH_BYTES = 8;
+export const GAME_MAX_SEATS = 4;
+/** A game's whole encoded event, far below a Content's limit. */
+const GAME_MAX_BYTES = 1024;
+
+function checkBytes(value: Uint8Array, length: number, field: string): void {
+  if (value.length === 0) throw missing(field);
+  if (value.length !== length) throw invalid(field, `must be ${length} bytes`);
+}
+
+function checkGame(game: Game): void {
+  checkId(game.gameId, 'game.game_id');
+  const event = game.event;
+  switch (event.case) {
+    case undefined:
+      throw missingBody(game, 'game.event');
+    case 'create': {
+      checkEnumSet(event.value.type, 'game.create.type');
+      const max = event.value.maxPlayers;
+      if (max < 2 || max > GAME_MAX_SEATS) {
+        throw invalid('game.create.max_players', `must be 2 to ${GAME_MAX_SEATS}`);
+      }
+      checkBytes(event.value.anchor, GAME_SECRET_BYTES, 'game.create.anchor');
+      checkBytes(event.value.salt, GAME_SALT_BYTES, 'game.create.salt');
+      break;
+    }
+    case 'join':
+      checkBytes(event.value.anchor, GAME_SECRET_BYTES, 'game.join.anchor');
+      checkBytes(event.value.salt, GAME_SALT_BYTES, 'game.join.salt');
+      break;
+    case 'start': {
+      const seats = event.value.seats;
+      if (seats.length < 2 || seats.length > GAME_MAX_SEATS) {
+        throw invalid('game.start.seats', `must hold 2 to ${GAME_MAX_SEATS} seats`);
+      }
+      for (const seat of seats) {
+        checkId(seat.userId, 'game.start.seats.user_id');
+        checkId(seat.deviceId, 'game.start.seats.device_id');
+        if (seat.color > 3) throw invalid('game.start.seats.color', 'must be 0 to 3');
+        checkBytes(seat.anchor, GAME_SECRET_BYTES, 'game.start.seats.anchor');
+        checkBytes(seat.salt, GAME_SALT_BYTES, 'game.start.seats.salt');
+      }
+      break;
+    }
+    case 'roll':
+      checkBytes(event.value.reveal, GAME_SECRET_BYTES, 'game.roll.reveal');
+      checkBytes(event.value.salt, GAME_SALT_BYTES, 'game.roll.salt');
+      break;
+    case 'move':
+      if (event.value.token > 3) throw invalid('game.move.token', 'must be 0 to 3');
+      checkBytes(event.value.salt, GAME_SALT_BYTES, 'game.move.salt');
+      checkBytes(event.value.stateHash, GAME_STATE_HASH_BYTES, 'game.move.state_hash');
+      break;
+    case 'skip':
+      checkBytes(event.value.salt, GAME_SALT_BYTES, 'game.skip.salt');
+      checkBytes(event.value.stateHash, GAME_STATE_HASH_BYTES, 'game.skip.state_hash');
+      break;
+    case 'emote': {
+      const emoji = event.value.emoji;
+      // One emoji, perhaps with modifiers: a few UTF-16 units at most.
+      if (emoji === '') throw missing('game.emote.emoji');
+      if (emoji.length > 16) throw invalid('game.emote.emoji', 'must be one emoji');
+      break;
+    }
+    case 'leave':
+    case 'end':
+      break;
+  }
+}
+
+/** A game event as stored by the engine (ADR 0049): checked protobuf bytes. */
+export function encodeGame(game: Game): Uint8Array {
+  checkGame(game);
+  return serialize(GameSchema, game, GAME_MAX_BYTES);
+}
+
+/** Reads a stored or received game event; throws `ProtocolError` if it breaks a rule. */
+export function decodeGame(bytes: Uint8Array): Game {
+  const game = parse(GameSchema, bytes, GAME_MAX_BYTES);
+  checkGame(game);
+  return game;
 }
 
 /** Encodes `content` padded to its size bucket (ADR 0006), ready to encrypt. */

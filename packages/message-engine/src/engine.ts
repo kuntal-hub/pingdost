@@ -12,11 +12,17 @@
  * - Read receipts go out when the user opens the chat, only while the toggle is on.
  */
 import {
+  bytesToUuid,
+  create,
+  encodeGame,
+  GameSchema,
+  toBase64,
   uuidToBytes,
   uuidv7,
   type AttachmentManifest,
   type CallSignalData,
   type IncomingCallSignal,
+  type MessageInitShape,
 } from '@pingdost/protocol';
 import { MessageState } from '@pingdost/shared-types';
 import type { Route, SendResult } from '@pingdost/transport';
@@ -34,6 +40,7 @@ import {
   isValidReaction,
   type Op,
 } from './features/ops';
+import { gameCardBody, nextGameRecord } from './games';
 import { GroupManager, type GroupInfo } from './groups/manager';
 import { FALLBACK_KEY_MAX_AGE_MS, publishKeys, type PublishKeysResult } from './keys';
 import { Outbox } from './outbox';
@@ -44,6 +51,8 @@ import type {
   DeliveryRecord,
   DirectoryRecord,
   FanoutItem,
+  GameEventRecord,
+  GameRecord,
   GroupRecord,
   MessageCursor,
   MessageRecord,
@@ -279,6 +288,126 @@ export class MessageEngine {
 
   clearCallHistory(): Promise<void> {
     return this.#calls.clearHistory();
+  }
+
+  // Games (ADR 0049)
+
+  /**
+   * Sends a game event to everyone in the conversation and this user's other devices, as a
+   * control item like a reaction, and stores it here. A `create` takes its own message ID as
+   * the game ID and files the invitation card. `seatSeed` (this device's seat secret, base64)
+   * is kept with the game in the same write and never sent.
+   */
+  async sendGameEvent(
+    conversationId: string,
+    game: MessageInitShape<typeof GameSchema>,
+    options: { seatSeed?: string } = {},
+  ): Promise<GameEventRecord> {
+    const core = this.#core;
+    const sent = await core.mutex.run(async () => {
+      const conversation = await core.store.getConversation(conversationId);
+      if (!conversation) throw new MessageActionError('not_found', 'unknown conversation');
+      const audience = await this.#audience(conversation);
+      const now = core.now();
+      const eventId = uuidv7();
+      const value = create(GameSchema, game);
+      if (value.event.case === 'create') value.gameId = uuidToBytes(eventId);
+      const gameId = bytesToUuid(value.gameId);
+      const existing = await core.store.getGame(gameId);
+      if (existing && existing.conversationId !== conversationId) {
+        throw new MessageActionError('invalid', 'the game belongs to another chat');
+      }
+      // Throws on an event that breaks the wire rules: nothing is stored then.
+      const content = buildContent(
+        {
+          messageId: eventId,
+          conversationId,
+          senderUserId: core.self.userId,
+          ...(audience.peerUserId ? { recipientUserId: audience.peerUserId } : {}),
+          sentAt: now,
+        },
+        { case: 'game', value },
+        core.settings.envelopeMaxBytes,
+      );
+      const record = nextGameRecord(
+        existing,
+        value,
+        { gameId, conversationId, senderUserId: core.self.userId, sentAt: now },
+        now,
+      );
+      if (options.seatSeed) record.seatSeed = options.seatSeed;
+      const event: GameEventRecord = {
+        eventId,
+        gameId,
+        conversationId,
+        senderUserId: core.self.userId,
+        senderDeviceId: core.self.deviceId,
+        sentAt: now,
+        receivedAt: now,
+        payload: toBase64(encodeGame(value)),
+      };
+      const batch: WriteBatch = {
+        games: [record],
+        gameEvents: [event],
+        outbox: [this.#controlFanout(eventId, conversation, audience, content, now)],
+      };
+      if (value.event.case === 'create') {
+        // The invitation card: no delivery ticks (control items carry no delivery state).
+        batch.messages = [
+          {
+            messageId: eventId,
+            conversationId,
+            senderUserId: core.self.userId,
+            senderDeviceId: core.self.deviceId,
+            direction: 'out',
+            kind: 'game',
+            body: gameCardBody(gameId, record.gameType),
+            attachment: null,
+            replyTo: null,
+            sentAt: now,
+            sortAt: now,
+            createdAt: now,
+            state: null,
+            expiresAt: null,
+            editedAt: null,
+            editId: null,
+            deletedAt: null,
+            readAt: now,
+            reactions: [],
+          },
+        ];
+        batch.conversations = [
+          {
+            ...conversation,
+            updatedAt: Math.max(conversation.updatedAt, now),
+            lastMessageId: eventId,
+          },
+        ];
+      }
+      await core.commit(batch);
+      return event;
+    });
+    this.#outbox.kick();
+    return sent;
+  }
+
+  getGame(gameId: string): Promise<GameRecord | undefined> {
+    return this.#core.store.getGame(gameId);
+  }
+
+  /** Most recently active first. */
+  listGames(): Promise<GameRecord[]> {
+    return this.#core.store.listGames();
+  }
+
+  /** A game's events, in event ID (UUIDv7) order. */
+  listGameEvents(gameId: string): Promise<GameEventRecord[]> {
+    return this.#core.store.listGameEvents(gameId);
+  }
+
+  /** Every game event stored here, sent or received, once committed. */
+  onGameEvent(listener: (event: GameEventRecord) => void): () => void {
+    return this.#core.gameEvents.add(listener);
   }
 
   // Events
