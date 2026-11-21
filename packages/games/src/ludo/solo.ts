@@ -4,6 +4,7 @@ import { HOME, LUDO_COLORS, YARD, type LudoColor } from './board';
 import {
   colorsFor,
   DEFAULT_LUDO_SETTINGS,
+  LUDO_TOKENS,
   normalizeLudoSettings,
   setupLudo,
   type LudoSettings,
@@ -77,7 +78,8 @@ export function restoreLudoSolo(raw: unknown): LudoSoloGame | null {
   if (game.seats.filter((seat) => seat === 'you').length !== 1) return null;
   for (const player of players) {
     if (!LUDO_COLORS.includes(player.color)) return null;
-    if (!Array.isArray(player.tokens) || player.tokens.length !== settings.tokens) return null;
+    // Always four pieces (ADR 0050): a saved two-piece game from before is dropped.
+    if (!Array.isArray(player.tokens) || player.tokens.length !== LUDO_TOKENS) return null;
     if (!player.tokens.every((p) => Number.isInteger(p) && p >= YARD && p <= HOME)) return null;
   }
   if (!Number.isInteger(state.current) || !players[state.current]) return null;

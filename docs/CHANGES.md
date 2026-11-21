@@ -4,6 +4,34 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-21 — Ludo look and feel; turn timers and invites for games with friends (ADR 0049 amended, ADR 0050)
+The user's 12-point list after trying Phase 41, plus four choices they made.
+1. **Look and feel (solo now, the same screens later for friends):**
+   - more vivid board colors;
+   - 3D-looking pieces (shaded pins);
+   - a dice tumble of 500–1000 ms in the roller's color;
+   - pieces that bounce square by square;
+   - the active player's yard glows;
+   - every player has a corner panel with their own dice;
+   - pieces sharing a square stack with a count.
+   - *Affects:* 41 (reopened for this follow-up; ADR 0050).
+2. **Always 4 pieces:** the "Quick game" (2 pieces) toggle is removed. Saved quick games are dropped.
+   - *Affects:* 41.
+3. **Sounds** (the user's choice: yes, with a switch): dice, hop, capture, home, win. They are generated in code (no sound files, so nothing to license) and follow a "Game sounds" switch. Fair dice were already in place: the CSPRNG with rejection sampling when solo, commit-reveal with friends.
+   - *Affects:* 41.
+4. **Turn timers, only in games with friends** (the user's choices):
+   - 30 s to roll, then 30 s to move, shown as two countdowns.
+   - If the player's app is open, it rolls and moves for them when time runs out.
+   - If it is closed or offline, the others' apps skip that turn (fair dice need the roller's device). After 3 missed turns in a row the player is removed.
+   - Solo games have no timers. This replaces ADR 0049's "no timers in friend games"; a turn now travels as two events (roll, then move), so everyone sees the roll at once.
+   - *Affects:* 42.
+5. **Play with friends** (already planned as Phase 42) is reached from:
+   - a 1:1 chat or a group (a "Play a game" option);
+   - the Games tab;
+   - the game screen itself.
+   An invitation notifies the friend.
+   - *Affects:* 42.
+
 ### 2026-11-21 — New requirement: games module (ADR 0049)
 The user asked for games inside the app: simple multiplayer games played with friends in a chat, a Games section, and a play-with-computer mode with difficulty levels for every game. Ludo comes first, then the others one at a time. Not in REQ: an addition.
 1. **Opponents: circle friends and group members only** (the user's choice). There is no matchmaking with strangers and no server lobby. Games live in a 1:1 chat or a group; group members without a seat can watch.

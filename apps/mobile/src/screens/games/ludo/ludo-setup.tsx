@@ -60,6 +60,7 @@ export function LudoSetupScreen() {
   const loaded = useGames((state) => state.loaded);
   const saved = useGames((state) => state.solo);
   const autoMove = useGames((state) => state.autoMove);
+  const sounds = useGames((state) => state.sounds);
   const [options, setOptions] = useState<LudoSoloOptions>(() => useGames.getState().ludoSetup);
   useEffect(() => {
     if (loaded) return;
@@ -150,12 +151,6 @@ export function LudoSetupScreen() {
 
         <ListSection title="Rules">
           <ToggleRow
-            title="Quick game"
-            subtitle="Two pieces each instead of four."
-            value={options.settings.tokens === 2}
-            onChange={(on) => setRule({ tokens: on ? 2 : 4 })}
-          />
-          <ToggleRow
             title="Roll a 6 to start"
             subtitle="Off: any roll brings a piece out."
             value={options.settings.needSix}
@@ -181,6 +176,12 @@ export function LudoSetupScreen() {
             subtitle="When only one piece can move, move it for me."
             value={autoMove}
             onChange={(value) => useGames.getState().setAutoMove(value)}
+          />
+          <ToggleRow
+            title="Game sounds"
+            subtitle="Dice, moves, captures and wins."
+            value={sounds}
+            onChange={(value) => useGames.getState().setSounds(value)}
           />
         </ListSection>
 

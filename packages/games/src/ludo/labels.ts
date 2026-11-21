@@ -1,7 +1,7 @@
 // Ludo's English UI text, shared by the phone and the web.
 import { HOME, YARD, type LudoColor } from './board';
 import type { LudoView } from './controller';
-import type { LudoSettings } from './rules';
+import { LUDO_TOKENS, type LudoSettings } from './rules';
 import type { BotLevel, SeatKind } from '../core/types';
 
 export const LUDO_COLOR_NAMES: Record<LudoColor, string> = {
@@ -86,6 +86,6 @@ export function ludoRules(settings: LudoSettings): string[] {
     settings.stopAtFirstWinner
       ? 'The game ends when the first player has every piece home.'
       : 'The first player home wins; the others play on for places.',
-    `Each player has ${settings.tokens} pieces.`,
+    `Each player has ${LUDO_TOKENS} pieces.`,
   ];
 }

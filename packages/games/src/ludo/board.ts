@@ -85,6 +85,18 @@ const HOME_POINT: Record<LudoColor, Point> = {
   blue: { x: 8.45, y: 7.5 },
 };
 
+/** The middle of a color's home triangle, where its finished pieces stack. */
+export function homeCenter(color: LudoColor): Point {
+  return { ...HOME_POINT[color] };
+}
+
+/** Which screen corner a color's yard is in once the board is turned. */
+export function cornerOf(color: LudoColor, quarterTurns: number): { top: boolean; left: boolean } {
+  const [ox, oy] = YARD_ORIGIN[color];
+  const center = rotatePoint({ x: ox + 3, y: oy + 3 }, quarterTurns);
+  return { top: center.y < 7.5, left: center.x < 7.5 };
+}
+
 /** Where finished piece `token` stands in the center. */
 export function homePoint(color: LudoColor, token: number): Point {
   const base = HOME_POINT[color];

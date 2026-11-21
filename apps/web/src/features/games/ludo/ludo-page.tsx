@@ -1,7 +1,17 @@
 // Ludo against the computer in the browser (Phase 41, ADR 0049). Everything runs in this tab;
 // every roll and move is saved, so a reload continues the game. Keys: Space or R rolls,
 // 1–4 move a piece.
-import { Bot, Dices, EllipsisVertical, Info, Medal, RotateCcw, Trash2, Trophy } from 'lucide-react';
+import {
+  Dices,
+  EllipsisVertical,
+  Info,
+  Medal,
+  RotateCcw,
+  Trash2,
+  Trophy,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -10,7 +20,7 @@ import { EmptyState } from '@/components/ui/controls';
 import { Dialog, Menu } from '@/components/ui/menu';
 import { useAppearance } from '@/theme';
 import {
-  BOT_LEVEL_NAMES,
+  cornerOf,
   cryptoRandom,
   FAST_PACE,
   HOME,
@@ -23,15 +33,16 @@ import {
   rotationFor,
   seatName,
   standings,
+  YARD,
+  type LudoPace,
   type LudoSoloGame,
   type LudoView,
 } from '@pingdost/games';
-import { gameBoardColors } from '@pingdost/ui-tokens';
 
-import { ShapeIcon } from '../shape';
+import { playGameSound } from '../sounds';
 import { useGames } from '../store';
 import { LudoBoard } from './board';
-import { Dice } from './dice';
+import { PlayerPanel } from './panels';
 
 function useMotionLevel(): 'full' | 'calm' | 'off' {
   const setting = useAppearance((state) => state.prefs.motion);
@@ -119,6 +130,9 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
   useEffect(() => controller?.setAutoMove(autoMove), [controller, autoMove]);
 
   const view = useLudoView(controller);
+  useGameSounds(view, pace, motion === 'full');
+  const lastDice = useLastDice(view);
+  const sounds = useGames((state) => state.sounds);
 
   // Space or R rolls; 1–4 move that piece.
   useEffect(() => {
@@ -139,13 +153,32 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
   }, [controller]);
 
   if (!view || !controller) return null;
-  const current = view.state.players[view.state.current]!;
-  const look = gameBoardColors(dark).players[current.color];
   const note = ludoRollNote(view);
   const over = view.waiting === 'over';
+  const rotation = rotationFor(game.options.you);
+  const corner = (top: boolean, left: boolean) => {
+    const seat = view.state.players.findIndex((player) => {
+      const at = cornerOf(player.color, rotation);
+      return at.top === top && at.left === left;
+    });
+    if (seat < 0) return <div className="min-w-0 flex-1" />;
+    return (
+      <PlayerPanel
+        view={view}
+        seat={seat}
+        level={game.options.level}
+        left={left}
+        dark={dark}
+        animate={motion === 'full'}
+        rollMs={pace.roll}
+        lastDie={lastDice[seat] ?? null}
+        onRoll={() => controller.roll()}
+      />
+    );
+  };
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 p-4 md:p-6">
+    <div className="mx-auto flex max-w-3xl flex-col items-center gap-2 p-4 md:p-5">
       <div className="flex w-full items-center gap-2">
         <h1 className="flex-1 font-display text-2xl font-extrabold">Ludo</h1>
         <Menu
@@ -163,6 +196,11 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
             },
             { label: 'Rules', icon: Info, onSelect: () => setRules(true) },
             {
+              label: sounds ? 'Turn game sounds off' : 'Turn game sounds on',
+              icon: sounds ? VolumeX : Volume2,
+              onSelect: () => useGames.getState().setSounds(!sounds),
+            },
+            {
               label: 'End this game',
               icon: Trash2,
               destructive: true,
@@ -174,28 +212,26 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
           ]}
         />
       </div>
-      <PlayersStrip view={view} dark={dark} level={game.options.level} />
-      <div className="w-[min(100%,calc(100dvh-300px))] min-w-[280px]">
+      <div className="flex w-[min(100%,calc(100dvh-270px))] min-w-[340px] flex-col gap-2">
+        <div className="flex gap-2">
+          {corner(true, true)}
+          {corner(true, false)}
+        </div>
         <LudoBoard
           view={view}
-          rotation={rotationFor(game.options.you)}
+          rotation={rotation}
           dark={dark}
           animate={motion === 'full'}
           hopMs={pace.hop}
           captureMs={pace.capture}
           onMove={(token) => controller.move(token)}
         />
+        <div className="flex gap-2">
+          {corner(false, true)}
+          {corner(false, false)}
+        </div>
       </div>
-      <div className="flex min-h-28 flex-col items-center gap-2">
-        <Dice
-          value={view.state.die}
-          rolling={view.waiting === 'rolling'}
-          rollId={view.lastRoll?.id ?? 0}
-          look={look}
-          ready={view.waiting === 'you-roll'}
-          animate={motion === 'full'}
-          onRoll={() => controller.roll()}
-        />
+      <div className="flex min-h-14 flex-col items-center gap-1">
         <p aria-live="polite" className="text-center font-bold">
           {ludoStatus(view)}
         </p>
@@ -222,55 +258,56 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
   );
 }
 
-function PlayersStrip({
-  view,
-  dark,
-  level,
-}: {
-  view: LudoView;
-  dark: boolean;
-  level: LudoSoloGame['options']['level'];
-}) {
-  const colors = gameBoardColors(dark);
-  return (
-    <ul className="flex flex-wrap justify-center gap-2" aria-label="Players">
-      {view.state.players.map((player, seat) => {
-        const look = colors.players[player.color];
-        const turn = seat === view.state.current && view.waiting !== 'over';
-        const home = player.tokens.filter((p) => p === HOME).length;
-        const kind = view.seats[seat]!;
-        return (
-          <li
-            key={player.color}
-            aria-current={turn ? 'true' : undefined}
-            className="pd-card flex items-center gap-2 rounded-full border-2 py-1.5 pr-3 pl-1.5"
-            style={{ borderColor: turn ? look.ring : 'transparent' }}
-          >
-            <span
-              className="flex size-7 items-center justify-center rounded-full border-2"
-              style={{ backgroundColor: look.fill, borderColor: look.ring }}
-            >
-              <ShapeIcon color={player.color} size={13} fill={look.on} />
-            </span>
-            <span className="leading-tight">
-              <span className="flex items-center gap-1 text-sm font-bold">
-                {seatName(kind, player.color)}
-                {kind === 'computer' && (
-                  <>
-                    <Bot aria-hidden size={13} className="text-muted" />
-                    <span className="sr-only">computer, {BOT_LEVEL_NAMES[level]}</span>
-                  </>
-                )}
-              </span>
-              <span className="block text-xs text-muted">
-                {player.rank ? ordinal(player.rank) : `${home}/${player.tokens.length} home`}
-              </span>
-            </span>
-          </li>
-        );
-      })}
-    </ul>
-  );
+/**
+ * Sounds for the game (ADR 0050): the rattle as a die starts tumbling, a tick per hop, a capture
+ * or home chime as the piece lands, and a fanfare when the user wins.
+ */
+function useGameSounds(view: LudoView | null, pace: LudoPace, animate: boolean): void {
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const seen = useRef<{ move: number; rolling: boolean; over: boolean } | null>(null);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  useEffect(() => {
+    if (!view) return;
+    // The first view only sets the baseline: a restored game makes no sound.
+    if (!seen.current) {
+      seen.current = {
+        move: view.lastMove?.id ?? 0,
+        rolling: view.waiting === 'rolling',
+        over: view.waiting === 'over',
+      };
+      return;
+    }
+    const at = (ms: number, kind: Parameters<typeof playGameSound>[0]) =>
+      timers.current.push(setTimeout(() => playGameSound(kind), ms));
+    const rolling = view.waiting === 'rolling';
+    if (rolling && !seen.current.rolling) playGameSound('roll');
+    seen.current.rolling = rolling;
+    const move = view.lastMove;
+    if (move && move.id !== seen.current.move) {
+      seen.current.move = move.id;
+      const hops = animate ? (move.from === YARD ? 1 : move.to - move.from) : 1;
+      const hopMs = animate ? pace.hop : 0;
+      for (let i = 0; i < hops; i++) at((i + 0.85) * hopMs, 'hop');
+      if (move.captures.length > 0) at(hops * hopMs, 'capture');
+      else if (move.to === HOME) at(hops * hopMs, 'home');
+    }
+    if (view.waiting === 'over' && !seen.current.over) {
+      seen.current.over = true;
+      if (view.state.players[view.you]!.rank === 1) at(400, 'win');
+    }
+  }, [view, pace, animate]);
+}
+
+/** Each player's last roll, for the die in their panel. */
+function useLastDice(view: LudoView | null): Record<number, number> {
+  const [dice, setDice] = useState<Record<number, number>>({});
+  const rollId = view?.lastRoll?.id;
+  useEffect(() => {
+    const roll = view?.lastRoll;
+    if (roll) setDice((current) => ({ ...current, [roll.seat]: roll.die }));
+    // Only a new roll changes the dice.
+  }, [rollId]);
+  return dice;
 }
 
 function ResultBody({

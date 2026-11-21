@@ -1,4 +1,5 @@
-// The die: spins while rolling (`pd-roll`), pops the result, and is the roll button.
+// The die (ADR 0050): a shaded cube in the roller's color that tumbles for the whole roll
+// (`pd-tumble`), then settles; it beckons when it is the user's roll and is the roll button.
 import { useEffect, useState } from 'react';
 
 import { cn } from '@/lib/cn';
@@ -21,38 +22,72 @@ interface DiceProps {
   look: GamePlayerLook;
   ready: boolean;
   animate: boolean;
+  /** How long a roll tumbles (the controller's pace). */
+  duration: number;
+  size: number;
+  /** Dimmed: another player's last roll. */
+  idle?: boolean;
   onRoll: () => void;
 }
 
-export function Dice({ value, rolling, rollId, look, ready, animate, onRoll }: DiceProps) {
+export function Dice({
+  value,
+  rolling,
+  rollId,
+  look,
+  ready,
+  animate,
+  duration,
+  size,
+  idle = false,
+  onRoll,
+}: DiceProps) {
   const [spinFace, setSpinFace] = useState(1);
   useEffect(() => {
     if (!rolling || !animate) return;
-    const timer = setInterval(() => setSpinFace(1 + Math.floor(Math.random() * 6)), 75);
+    const timer = setInterval(() => setSpinFace(1 + Math.floor(Math.random() * 6)), 70);
     return () => clearInterval(timer);
   }, [rolling, animate]);
   const face = rolling && animate ? spinFace : (value ?? 6);
+  const pip = Math.round(size * 0.17);
   return (
     <button
       type="button"
-      key={rolling ? 'rolling' : `face${rollId}`}
+      key={rolling ? `rolling${rollId}` : `face${rollId}`}
       disabled={!ready}
       aria-label={ready ? 'Roll the dice (Space)' : value ? `The dice shows ${value}` : 'Dice'}
       aria-busy={rolling}
       onClick={onRoll}
       className={cn(
-        'pd-press grid size-16 cursor-pointer grid-cols-3 grid-rows-3 gap-0.5 rounded-2xl border-[3px] p-2 disabled:cursor-default',
-        rolling ? 'pd-roll' : ready ? 'pd-beckon' : value !== null && 'pd-pop',
+        'pd-press grid shrink-0 cursor-pointer grid-cols-3 grid-rows-3 disabled:cursor-default',
+        rolling ? 'pd-tumble' : ready ? 'pd-beckon' : value !== null && !idle && 'pd-settle-die',
+        idle && 'opacity-55',
         rolling && !animate && 'opacity-60',
       )}
-      style={{ backgroundColor: look.fill, borderColor: look.ring }}
+      style={{
+        width: size,
+        height: size,
+        padding: size * 0.15,
+        borderRadius: size * 0.22,
+        border: `${Math.max(1.5, size * 0.04)}px solid ${look.ring}`,
+        backgroundImage: `linear-gradient(145deg, ${look.light}, ${look.fill} 52%, ${look.dark})`,
+        boxShadow: `0 ${size * 0.08}px ${size * 0.14}px rgb(0 0 0 / 0.35), inset 0 ${-size * 0.06}px 0 ${look.dark}`,
+        animationDuration: rolling ? `${duration}ms` : undefined,
+      }}
     >
       {Array.from({ length: 9 }, (_, cell) => (
         <span
           key={cell}
           aria-hidden
-          className="m-auto size-2.5 rounded-full"
-          style={{ backgroundColor: PIPS[face]!.includes(cell) ? look.on : 'transparent' }}
+          className="m-auto rounded-full"
+          style={{
+            width: pip,
+            height: pip,
+            backgroundColor: PIPS[face]!.includes(cell) ? look.on : 'transparent',
+            boxShadow: PIPS[face]!.includes(cell)
+              ? `inset 0 ${pip * 0.15}px ${pip * 0.2}px rgb(0 0 0 / 0.35)`
+              : undefined,
+          }}
         />
       ))}
     </button>

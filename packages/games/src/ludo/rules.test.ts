@@ -53,9 +53,9 @@ describe('setup', () => {
 
   it('reads stored settings, falling back to the classic ones', () => {
     expect(normalizeLudoSettings(null)).toEqual(DEFAULT_LUDO_SETTINGS);
+    // A stored `tokens: 2` from before ADR 0050 is ignored: always four pieces.
     expect(normalizeLudoSettings({ tokens: 2, blockades: true, needSix: 'yes' })).toEqual({
       ...DEFAULT_LUDO_SETTINGS,
-      tokens: 2,
       blockades: true,
     });
   });
@@ -80,7 +80,7 @@ describe('leaving the yard', () => {
 
   it('leaves on any roll when the toggle is off, to the start square', () => {
     const state = roll(
-      game({ red: [Y, Y], yellow: [Y, Y] }, { needSix: false, tokens: 2 }),
+      game({ red: [Y, Y, Y, Y], yellow: [Y, Y, Y, Y] }, { needSix: false }),
       3,
     ).state;
     const moved = move(state, 0);
@@ -220,10 +220,13 @@ describe('blockades', () => {
   });
 });
 
-describe('quick mode and leaving', () => {
-  it('plays with two pieces', () => {
-    const state = setupLudo(['red', 'blue'], { ...DEFAULT_LUDO_SETTINGS, tokens: 2 });
-    expect(state.players[0]!.tokens).toEqual([Y, Y]);
+describe('pieces and leaving', () => {
+  it('always gives every player four pieces', () => {
+    const state = setupLudo(['red', 'blue'], normalizeLudoSettings({ tokens: 2 }));
+    expect(state.players.map((p) => p.tokens)).toEqual([
+      [Y, Y, Y, Y],
+      [Y, Y, Y, Y],
+    ]);
   });
 
   it('takes a leaving player off the board and skips them', () => {

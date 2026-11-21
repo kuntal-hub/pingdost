@@ -26,6 +26,8 @@ interface GamesState {
   loaded: boolean;
   ludoSetup: LudoSoloOptions;
   autoMove: boolean;
+  /** Game sounds (ADR 0050), on by default. */
+  sounds: boolean;
   stats: StatsBook;
   /** The unfinished solo game, if any. */
   solo: LudoSoloGame | null;
@@ -37,6 +39,7 @@ interface GamesState {
   /** Forgets the solo game (finished or abandoned). */
   clearSolo(): void;
   setAutoMove(autoMove: boolean): void;
+  setSounds(sounds: boolean): void;
   record(game: GameId, mode: { solo: BotLevel } | 'friends', won: boolean): void;
 }
 
@@ -52,13 +55,19 @@ function persist(key: string, value: unknown): void {
 }
 
 function prefsOf(state: GamesState): unknown {
-  return { ludoSetup: state.ludoSetup, autoMove: state.autoMove, stats: state.stats };
+  return {
+    ludoSetup: state.ludoSetup,
+    autoMove: state.autoMove,
+    sounds: state.sounds,
+    stats: state.stats,
+  };
 }
 
 export const useGames = create<GamesState>()((set, get) => ({
   loaded: false,
   ludoSetup: DEFAULT_LUDO_SOLO,
   autoMove: true,
+  sounds: true,
   stats: {},
   solo: null,
 
@@ -77,6 +86,7 @@ export const useGames = create<GamesState>()((set, get) => ({
       loaded: true,
       ludoSetup: normalizeLudoSoloOptions(value.ludoSetup),
       autoMove: typeof value.autoMove === 'boolean' ? value.autoMove : true,
+      sounds: typeof value.sounds === 'boolean' ? value.sounds : true,
       stats: normalizeStats(value.stats),
       solo: restoreLudoSolo(solo),
     });
@@ -105,6 +115,11 @@ export const useGames = create<GamesState>()((set, get) => ({
 
   setAutoMove(autoMove) {
     set({ autoMove });
+    persist(SETTING_KEYS.games, prefsOf(get()));
+  },
+
+  setSounds(sounds) {
+    set({ sounds });
     persist(SETTING_KEYS.games, prefsOf(get()));
   },
 

@@ -10,9 +10,10 @@ import {
   type LudoColor,
 } from './board';
 
+/** Every player always has four pieces (the user's rule, ADR 0050). */
+export const LUDO_TOKENS = 4;
+
 export interface LudoSettings {
-  /** Pieces per player: 4 (classic) or 2 (quick). */
-  tokens: 2 | 4;
   /** A piece leaves the yard only on a 6. Off: on any roll. */
   needSix: boolean;
   /** Two pieces of one color on a plain square form a wall others cannot pass or land on. */
@@ -22,7 +23,6 @@ export interface LudoSettings {
 }
 
 export const DEFAULT_LUDO_SETTINGS: LudoSettings = {
-  tokens: 4,
   needSix: true,
   blockades: false,
   stopAtFirstWinner: false,
@@ -36,7 +36,6 @@ export function normalizeLudoSettings(raw: unknown): LudoSettings {
     return typeof stored === 'boolean' ? stored : DEFAULT_LUDO_SETTINGS[key];
   };
   return {
-    tokens: value.tokens === 2 ? 2 : 4,
     needSix: flag('needSix'),
     blockades: flag('blockades'),
     stopAtFirstWinner: flag('stopAtFirstWinner'),
@@ -126,7 +125,7 @@ export function setupLudo(
     settings,
     players: ordered.map((color) => ({
       color,
-      tokens: Array.from({ length: settings.tokens }, () => YARD),
+      tokens: Array.from({ length: LUDO_TOKENS }, () => YARD),
       rank: null,
       left: false,
     })),

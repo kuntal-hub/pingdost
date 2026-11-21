@@ -7,7 +7,14 @@
 **Read first:** ADR 0049, ADR 0011 (outbox, control items), ADR 0014 (ops), ADR 0016 (groups), ADR 0041 (circle drop), ADR 0006 (codecs, vectors), ADR 0020 (web leader and bus). Code: `packages/protocol/proto/pingdost/v1/content.proto`, `packages/message-engine/src/{engine,receive,store}.ts`, `apps/mobile/src/screens/chats/chat.tsx` (`PICK_ACTIONS`, `Bubble`), `apps/web/src/features/chats/{chat-view,bubble}.tsx`, `apps/web/src/chat/{client,leader,bus}.ts`.
 
 ## Tasks
-- [ ] **Protocol:** `games.proto` (`Game { game_id, seq, oneof event { create, join, start, turn, leave, end, emote } }`, `LudoSettings`, `LudoMove`) and `Content.game = 16`; `gen`; `checkContent` (sizes, caps, one emoji); `make-vectors` (deliberate wire change); `buf lint`.
+- [ ] **Protocol:** `games.proto` (`Game { game_id, seq, oneof event { create, join, start, roll, move, skip, leave, end, emote } }`, `LudoSettings`, `LudoMove`) and `Content.game = 16`; `gen`; `checkContent` (sizes, caps, one emoji); `make-vectors` (deliberate wire change); `buf lint`. A turn is a `roll` (reveal, commitment, salt) then a `move` (ADR 0049 amendment).
+- [ ] **Timers (friend games only; ADR 0049 amendment):** 30 s to roll and 30 s to move, two countdowns around the active avatar.
+  - If the player's app is open when time runs out, it rolls, then makes the deterministic Medium move.
+  - Any client may send that deterministic move after a `roll` whose move is late.
+  - If no `roll` comes by the deadline plus 10 s of grace, another player's app sends `skip`; clients accept it only after deadline plus 5 s on their own clock.
+  - After 3 skips in a row the player is removed.
+  - Tests: skip and auto-move convergence, clock skew, removal.
+- [ ] **Invites from everywhere:** "Play a game" in 1:1 chats and groups, the Games tab (friends online, chats), and "Play with friends" on the game screen (pick a chat). The invite card is a message, so it notifies like one.
 - [ ] **Engine:** `MessageKind` `game` (the invite card), `GameRecord` / `GameEventRecord`, `WriteBatch.games` / `gameEvents` / `deleteGames` (cascade on conversation delete), `getGame` / `listGames` / `listGameEvents`; `sendGameEvent` (own copy + card on create + control fanout; the seat seed stored in the same write), `onGameEvent`; receive `case 'game'` with `game` in `GROUP_BODIES` and `DIRECT_CONTENT`; cards take reactions, not edits; history sync leaves games out. Memory store and `runEngineStoreContract` cases; phone migration 011 and store; `DexieEngineStore` next version (sealed payloads and seeds).
 - [ ] **chat-core:** preview "Ludo game"; selection rules (no copy or forward for cards).
 - [ ] **`@pingdost/games`:** `fair-dice` (seed, nonces, commitments, rolls, verification), `session` (log fold: lobby, auto-start when full, seq buffer, dedupe, leave at the leaver's next turn, end, state hash, invalid), `hub` (`GameHub` over an engine-like API: summaries and actions create/join/start/move/leave/end/emote/rematch). Tests: convergence under seeded shuffles and duplicates, leave and end, tampered reveal and wrong device rejected, hash mismatch reported.

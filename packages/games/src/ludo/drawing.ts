@@ -2,15 +2,22 @@
 // (react-native-svg) and the web (DOM SVG) draw the same board. Paints name roles; each app
 // resolves them with `gameBoardColors` from ui-tokens.
 import {
+  HOME,
   HOME_COLUMN,
+  homeCenter,
   LUDO_COLORS,
+  pointOf,
+  rotatePoint,
   START_INDEX,
   STAR_INDEXES,
   TRACK,
+  YARD,
   YARD_ORIGIN,
   yardPoint,
   type LudoColor,
+  type Point,
 } from './board';
+import type { LudoState } from './rules';
 
 export type LudoPaint = 'board' | 'cell' | 'line' | `${LudoColor}.fill` | `${LudoColor}.soft`;
 
@@ -127,6 +134,126 @@ function buildShapes(): LudoShape[] {
 
 /** Every shape of the board, back to front. */
 export const LUDO_BOARD_SHAPES: readonly LudoShape[] = buildShapes();
+
+/**
+ * A piece: a shaded map pin standing on its square (ADR 0050). Coordinates are in cells,
+ * relative to the square's center; scale them by the cell size and the stack's scale.
+ */
+export const LUDO_PIN = {
+  /** The pin outline: a round head over a point that touches the square. */
+  path: 'M 0 0.3 L -0.21 0.094 A 0.3 0.3 0 1 1 0.21 0.094 Z',
+  head: { cx: 0, cy: -0.12, r: 0.3 },
+  /** The white disc in the head that carries the color-blind shape. */
+  face: { cx: 0, cy: -0.12, r: 0.17 },
+  /** The shape glyph's width. */
+  glyph: 0.19,
+  /** A soft gloss on the upper left of the head. */
+  gloss: { cx: -0.1, cy: -0.25, rx: 0.08, ry: 0.05 },
+  /** The ground shadow, and the ring that pulses under a piece that can move. */
+  shadow: { cx: 0, cy: 0.3, rx: 0.23, ry: 0.075 },
+  ring: { cx: 0, cy: 0.3, rx: 0.36, ry: 0.13 },
+  /** The box the pin occupies: x −0.36..0.36, y −0.43..0.43. */
+  box: { x: -0.36, y: -0.43, width: 0.72, height: 0.86 },
+  /** Radial gradient stops (light → fill → dark), as offsets. */
+  gradient: { cx: 0.35, cy: 0.3, r: 0.85, stops: [0, 0.55, 1] },
+} as const;
+
+/** How a piece is drawn: where, how big, and its place in a stack. */
+export interface LudoStackPiece {
+  seat: number;
+  color: LudoColor;
+  token: number;
+  progress: number;
+  /** The center of the square it stands on (cell units, turned), plus its stack offset. */
+  x: number;
+  y: number;
+  scale: number;
+  /** 0 at the bottom of its stack. */
+  layer: number;
+  /** Pieces of its color on its square (1 when alone). */
+  count: number;
+  /** The top piece of a stack of two or more carries the count badge. */
+  top: boolean;
+}
+
+/**
+ * Every piece's drawing position (ADR 0050): pieces of one color on one square stack with a
+ * count; different colors on one (safe) square sit side by side; finished pieces stack in
+ * their home triangle; waiting pieces keep their own yard spot.
+ */
+export function ludoStacks(state: LudoState, quarterTurns: number): LudoStackPiece[] {
+  const squares = new Map<
+    string,
+    { seat: number; color: LudoColor; token: number; progress: number; at: Point }[]
+  >();
+  const pieces: LudoStackPiece[] = [];
+  state.players.forEach((player, seat) => {
+    if (player.left) return;
+    player.tokens.forEach((progress, token) => {
+      if (progress === YARD) {
+        const at = rotatePoint(yardPoint(player.color, token), quarterTurns);
+        pieces.push({
+          seat,
+          color: player.color,
+          token,
+          progress,
+          x: at.x,
+          y: at.y,
+          scale: 1,
+          layer: 0,
+          count: 1,
+          top: false,
+        });
+        return;
+      }
+      const at = rotatePoint(
+        progress >= HOME ? homeCenter(player.color) : pointOf(player.color, token, progress),
+        quarterTurns,
+      );
+      const key = `${at.x.toFixed(2)},${at.y.toFixed(2)}`;
+      squares.set(key, [
+        ...(squares.get(key) ?? []),
+        { seat, color: player.color, token, progress, at },
+      ]);
+    });
+  });
+  for (const here of squares.values()) {
+    const colors = [...new Set(here.map((p) => p.color))];
+    colors.forEach((color, slot) => {
+      const stack = here.filter((p) => p.color === color);
+      const { dx, dy, scale } = sideBySide(colors.length, slot);
+      stack.forEach((p, layer) => {
+        pieces.push({
+          seat: p.seat,
+          color,
+          token: p.token,
+          progress: p.progress,
+          x: p.at.x + dx,
+          // Each piece in a stack sits a little higher, so the stack looks piled.
+          y: p.at.y + dy - layer * 0.07 * scale,
+          scale,
+          layer,
+          count: stack.length,
+          top: stack.length > 1 && layer === stack.length - 1,
+        });
+      });
+    });
+  }
+  return pieces;
+}
+
+function sideBySide(count: number, slot: number): { dx: number; dy: number; scale: number } {
+  if (count <= 1) return { dx: 0, dy: 0, scale: 1 };
+  if (count === 2) return { dx: slot === 0 ? -0.2 : 0.2, dy: 0, scale: 0.78 };
+  const spots = [
+    [-0.2, -0.17],
+    [0.2, -0.17],
+    [-0.2, 0.19],
+    [0.2, 0.19],
+  ] as const;
+  const [dx, dy] = spots[slot % 4]!;
+  return { dx, dy, scale: 0.64 };
+}
 
 /** A paint's color from a palette shaped like ui-tokens' `GameBoardColors`. */
 export function resolveLudoPaint(

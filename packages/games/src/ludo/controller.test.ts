@@ -120,6 +120,15 @@ describe('solo games', () => {
     expect(
       restoreLudoSolo({ ...solo, seats: ['computer', 'computer', 'computer', 'computer'] }),
     ).toBeNull();
+    // A two-piece game saved before ADR 0050 (always four pieces) is dropped.
+    const twoPieces = {
+      ...solo,
+      state: {
+        ...solo.state,
+        players: solo.state.players.map((p) => ({ ...p, tokens: [-1, -1] })),
+      },
+    };
+    expect(restoreLudoSolo(twoPieces)).toBeNull();
     const broken = {
       ...solo,
       state: { ...solo.state, players: [{ ...solo.state.players[0], tokens: [99] }] },

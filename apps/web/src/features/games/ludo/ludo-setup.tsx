@@ -34,6 +34,7 @@ export function LudoSetupPage() {
   const dark = useAppearance((state) => state.dark);
   const saved = useGames((state) => state.solo);
   const autoMove = useGames((state) => state.autoMove);
+  const sounds = useGames((state) => state.sounds);
   const [options, setOptions] = useState<LudoSoloOptions>(() => useGames.getState().ludoSetup);
   const setRule = (change: Partial<LudoSettings>) =>
     setOptions((current) => ({ ...current, settings: { ...current.settings, ...change } }));
@@ -108,12 +109,6 @@ export function LudoSetupPage() {
       <section className="pd-card flex flex-col divide-y divide-border rounded-xl px-4">
         <h2 className="sr-only">Rules</h2>
         <Toggle
-          label="Quick game"
-          description="Two pieces each instead of four."
-          checked={options.settings.tokens === 2}
-          onChange={(on) => setRule({ tokens: on ? 2 : 4 })}
-        />
-        <Toggle
           label="Roll a 6 to start"
           description="Off: any roll brings a piece out."
           checked={options.settings.needSix}
@@ -133,12 +128,19 @@ export function LudoSetupPage() {
         />
       </section>
 
-      <section className="pd-card rounded-xl px-4">
+      <section className="pd-card flex flex-col divide-y divide-border rounded-xl px-4">
+        <h2 className="sr-only">While playing</h2>
         <Toggle
           label="Move by itself"
           description="When only one piece can move, move it for me."
           checked={autoMove}
           onChange={(value) => useGames.getState().setAutoMove(value)}
+        />
+        <Toggle
+          label="Game sounds"
+          description="Dice, moves, captures and wins."
+          checked={sounds}
+          onChange={(value) => useGames.getState().setSounds(value)}
         />
       </section>
 

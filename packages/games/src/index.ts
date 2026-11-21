@@ -2,6 +2,7 @@
 // the web. Pure TypeScript: no React, no platform code, no network.
 export * from './core/catalog';
 export * from './core/random';
+export * from './core/sounds';
 export * from './core/stats';
 export * from './core/types';
 export * from './ludo/board';

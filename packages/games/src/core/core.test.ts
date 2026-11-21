@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { GAME_CATALOG } from './catalog';
 import { cryptoRandom, seededRandom } from './random';
+import { encodeWav, GAME_SOUND_RATE, GAME_SOUNDS, synthesizeGameSound } from './sounds';
 import { normalizeStats, recordResult, totals } from './stats';
 
 describe('random', () => {
@@ -45,6 +46,29 @@ describe('stats', () => {
     });
     expect(book.ludo!.solo.hard).toEqual({ played: 2, won: 2 });
     expect(book.ludo!.friends).toEqual({ played: 0, won: 0 });
+  });
+});
+
+describe('sounds', () => {
+  it('makes every sound in range, with a peak, the same each time', () => {
+    for (const kind of GAME_SOUNDS) {
+      const samples = synthesizeGameSound(kind);
+      expect(samples.length, kind).toBeGreaterThan(GAME_SOUND_RATE * 0.05);
+      const peak = samples.reduce((max, s) => Math.max(max, Math.abs(s)), 0);
+      expect(peak, kind).toBeCloseTo(0.8, 5);
+      expect(synthesizeGameSound(kind), kind).toEqual(samples);
+    }
+  });
+
+  it('wraps samples as a 16-bit mono WAV', () => {
+    const samples = new Float32Array([0, 1, -1, 0.5]);
+    const wav = encodeWav(samples, 8000);
+    const text = (from: number, to: number) => String.fromCharCode(...wav.slice(from, to));
+    const view = new DataView(wav.buffer);
+    expect([text(0, 4), text(8, 12), text(36, 40)]).toEqual(['RIFF', 'WAVE', 'data']);
+    expect(view.getUint32(24, true)).toBe(8000);
+    expect(view.getUint32(40, true)).toBe(8);
+    expect([view.getInt16(46, true), view.getInt16(48, true)]).toEqual([32767, -32767]);
   });
 });
 

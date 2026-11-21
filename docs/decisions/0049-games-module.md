@@ -52,11 +52,21 @@ The user decided (2026-11-21):
 9. **Card games with hidden hands** (UNO, Call Bridge, Poker) need a way to deal cards nobody else can see. Mental poker is custom cryptography; the likely answer is a dealer device that shuffles and sends each hand over Olm one to one, with commitments revealed at the end. It is decided in Phase 45's ADR.
 10. **Old builds** (before Phase 42) store each game event as an "Update PingDost" placeholder. That is accepted: there is no public release yet, and the phone change is JS-only.
 
+## Amendment 2026-11-21: turn timers, two-part turns, where invites start (user's choices; CHANGES 2026-11-21)
+Before Phase 42 is built, this replaces "no timers in friend games" (Consequences below).
+1. **Timers, only in games with friends:** 30 s to roll, then 30 s to move; both shown as countdowns. Solo games have none.
+2. **A turn is two events:** `roll` (the reveal, the new commitment and a salt; every client derives the die at once and shows it) and `move` (the piece, or none if no piece can move). Extra rolls inside a turn (6, capture, home) are further roll/move pairs. The roll inputs are unchanged: the reveal, plus the salt of the event before it.
+3. **When time runs out:**
+   - **The player's app is open:** it acts for them, rolling at the roll deadline and then making the move the Medium computer player would make, with a deterministic tie-break. Because that move is deterministic, any client can also send it for an absent player once the die is known (after a `roll` event).
+   - **The player's app is closed or offline at the roll deadline:** nobody else can roll (no reveal). After the deadline plus 10 s of grace, any other player's app sends `skip` for that turn. Clients accept a `skip` only after their own clock has passed the deadline plus 5 s; the deadline is measured from the receive time of the event that started the turn. The first valid event for a turn wins, as for moves.
+   - **After 3 skipped turns in a row** the player is removed (as a leave). A player who comes back in time plays on; one who returns after removal watches.
+4. **Invites start from** a 1:1 chat or group ("Play a game"), the Games tab (friends online, chats), or the game screen ("Play with friends"). They are always a game in a chat; an invite card is a message, so it notifies like one. "Your turn" notifications stay local.
+
 ## Consequences
 - New package `packages/games`; new tab Games on both apps (order Chats, Calls, Games, Settings); `gameColors` in ui-tokens with contrast tests.
 - Phase 42 adds the wire body, the engine API (`sendGameEvent`, `listGames`, `getGame`, `listGameEvents`, `onGameEvent`), a store migration on both apps, the web bus methods, a presence-watch registry (the open chat and the Games tab share the 32-user limit), "your turn" local notifications, and a sim-client player for device checks.
 - History sync leaves game rows out: a browser linked after a game started shows it as playing on the phone. Backups (`.pdbk`) leave games out.
-- No timers in friend games (they suit slow play over the mailbox). A stuck game is left or ended by the host.
+- ~~No timers in friend games.~~ Amended 2026-11-21: 30 s timers, auto-play, skips and removal after 3 missed turns (above). The host can still end a game for everyone.
 - Phase files 41–47 were written with this ADR; ROADMAP, ARCHITECTURE A4 and CHANGES 2026-11-21 were updated.
 
 ## Evidence

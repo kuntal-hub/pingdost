@@ -394,17 +394,47 @@ h2 {
   opacity: 0.5;
 }
 
-/* Board games (ADR 0049). A hop is one transition per square; movable pieces pulse; the die
-   wobbles while it rolls and beckons when it is the player's roll. */
+/* Board games (ADR 0049, 0050). A hop is one transition per square plus an arc (`pd-hop`) that
+   squashes on landing; captures fly home (`pd-fly`); movable pins bob over a pulsing ring; the
+   die tumbles for the whole roll, settles, and beckons on the player's roll; the active yard
+   glows; a stack pops when a piece lands on it. Lengths inside SVG are board cells. */
 .pd-piece {
   transition-property: transform;
-  transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  transition-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+.pd-hop,
+.pd-fly {
+  transform-origin: 0 0.37px;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: both;
+}
+
+.pd-hop {
+  animation-name: pd-hop;
+}
+
+.pd-fly {
+  animation-name: pd-fly;
+}
+
+.pd-bob {
+  animation: pd-bob 700ms ease-in-out infinite;
 }
 
 .pd-piece-pulse {
   transform-box: fill-box;
   transform-origin: center;
-  animation: pd-piece-pulse 900ms ease-in-out infinite;
+  animation: pd-ring-pulse 900ms ease-out infinite;
+}
+
+.pd-stack-pop {
+  transform-origin: 0 0.37px;
+  animation: pd-stack-pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.pd-yard-glow {
+  animation: pd-yard-glow 1300ms ease-in-out infinite;
 }
 
 .pd-piece-focus {
@@ -415,61 +445,151 @@ h2 {
   opacity: 1;
 }
 
-.pd-roll {
-  animation: pd-roll 380ms linear infinite;
+.pd-tumble {
+  animation: pd-tumble 800ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.pd-settle-die {
+  animation: pd-settle-die 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .pd-beckon {
-  animation: pd-beckon 1100ms ease-in-out infinite;
+  animation: pd-beckon 1200ms ease-in-out infinite;
 }
 
-@keyframes pd-piece-pulse {
+@keyframes pd-hop {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  45% {
+    transform: translateY(-0.38px) scale(1, 1.06);
+  }
+  82% {
+    transform: translateY(0) scale(1.06, 0.8);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+
+@keyframes pd-fly {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.2px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes pd-bob {
   0%,
   100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.08px);
+  }
+}
+
+@keyframes pd-ring-pulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0.15;
+  }
+}
+
+@keyframes pd-stack-pop {
+  0% {
     transform: scale(1);
+  }
+  40% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pd-yard-glow {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
-    transform: scale(1.18);
-    opacity: 0.55;
+    opacity: 0.45;
   }
 }
 
-@keyframes pd-roll {
+@keyframes pd-tumble {
   0% {
-    transform: rotate(0deg) scale(1);
+    transform: translateY(0) rotate(0deg) scale(1);
   }
-  25% {
-    transform: rotate(-16deg) scale(0.92);
+  20% {
+    transform: translateY(-22px) rotate(160deg) scale(1.14);
   }
-  50% {
-    transform: rotate(12deg) scale(1.06);
+  42% {
+    transform: translateY(0) rotate(310deg) scale(0.92);
   }
-  75% {
-    transform: rotate(-8deg) scale(0.96);
+  60% {
+    transform: translateY(-10px) rotate(420deg) scale(1.06);
+  }
+  78% {
+    transform: translateY(0) rotate(520deg) scale(0.97);
+  }
+  90% {
+    transform: translateY(-3px) rotate(700deg) scale(1.01);
   }
   100% {
-    transform: rotate(0deg) scale(1);
+    transform: translateY(0) rotate(720deg) scale(1);
+  }
+}
+
+@keyframes pd-settle-die {
+  0% {
+    transform: scale(1.18);
+  }
+  55% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
 @keyframes pd-beckon {
   0%,
   100% {
-    transform: scale(1);
+    transform: scale(1) rotate(0deg);
   }
-  50% {
-    transform: scale(1.07);
+  30% {
+    transform: scale(1.08) rotate(-6deg);
+  }
+  60% {
+    transform: scale(1.08) rotate(6deg);
   }
 }
 
-/* Calm: pieces jump instead of hopping, the die and the pieces keep still. */
+/* Calm: pieces jump instead of hopping; dice, pins and the yard keep still (the yard keeps its
+   outline). */
 :root[data-motion='calm'] .pd-piece {
   transition: none;
 }
 
 :root[data-motion='calm'] .pd-piece-pulse,
-:root[data-motion='calm'] .pd-roll,
+:root[data-motion='calm'] .pd-hop,
+:root[data-motion='calm'] .pd-fly,
+:root[data-motion='calm'] .pd-bob,
+:root[data-motion='calm'] .pd-stack-pop,
+:root[data-motion='calm'] .pd-yard-glow,
+:root[data-motion='calm'] .pd-tumble,
+:root[data-motion='calm'] .pd-settle-die,
 :root[data-motion='calm'] .pd-beckon {
   animation: none;
 }

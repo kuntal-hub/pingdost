@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   cellOf,
+  cornerOf,
   HOME,
   HOME_COLUMN,
+  homeCenter,
   LUDO_COLORS,
   pathPoints,
   pointOf,
@@ -19,7 +21,8 @@ import {
   YARD_ORIGIN,
   type Cell,
 } from './board';
-import { LUDO_BOARD_SHAPES, resolveLudoPaint } from './drawing';
+import { LUDO_BOARD_SHAPES, ludoStacks, resolveLudoPaint } from './drawing';
+import { setupLudo, type LudoState } from './rules';
 
 const near = (a: Cell, b: Cell): boolean =>
   Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])) === 1;
@@ -100,6 +103,46 @@ describe('ludo board', () => {
     };
     expect(resolveLudoPaint('cell', colors)).toBe('C');
     expect(resolveLudoPaint('blue.soft', colors)).toBe('blueS');
+  });
+
+  it('stacks pieces of one color with a count, and puts colors side by side', () => {
+    const base = setupLudo(['red', 'green', 'yellow']);
+    // Red: two pieces on track 10, one home; green: one piece on track 13 (its start, safe),
+    // red's fourth piece also on track 13; yellow waits in its yard.
+    const state: LudoState = {
+      ...base,
+      players: base.players.map((p) =>
+        p.color === 'red'
+          ? { ...p, tokens: [10, 10, HOME, 13] }
+          : p.color === 'green'
+            ? { ...p, tokens: [0, YARD, YARD, YARD] }
+            : p,
+      ),
+    };
+    const pieces = ludoStacks(state, 0);
+    expect(pieces).toHaveLength(12);
+    const red = pieces.filter((p) => p.color === 'red');
+    const pair = red.filter((p) => p.progress === 10);
+    expect(pair.map((p) => p.count)).toEqual([2, 2]);
+    expect(pair.map((p) => p.top)).toEqual([false, true]);
+    expect(pair[1]!.y).toBeLessThan(pair[0]!.y);
+    const shared = pieces.filter(
+      (p) => p.progress !== YARD && (p.token === 3 || p.color === 'green'),
+    );
+    expect(shared.map((p) => p.scale)).toEqual([0.78, 0.78]);
+    expect(Math.abs(shared[0]!.x - shared[1]!.x)).toBeCloseTo(0.4);
+    expect(red.find((p) => p.progress === HOME)).toMatchObject(homeCenter('red'));
+    expect(pieces.filter((p) => p.color === 'yellow').every((p) => p.count === 1 && !p.top)).toBe(
+      true,
+    );
+  });
+
+  it('puts every player in the corner of their yard, the user bottom left', () => {
+    expect(cornerOf('red', 0)).toEqual({ top: false, left: true });
+    expect(cornerOf('yellow', 0)).toEqual({ top: true, left: false });
+    for (const color of LUDO_COLORS) {
+      expect(cornerOf(color, rotationFor(color)), color).toEqual({ top: false, left: true });
+    }
   });
 
   it('turns the board so the player sits bottom left', () => {

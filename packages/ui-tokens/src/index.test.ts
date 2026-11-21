@@ -180,6 +180,9 @@ describe('color schemes', () => {
           contrast(look.ring, look.soft),
           `${label} ${color} in its yard`,
         ).toBeGreaterThanOrEqual(UI);
+        // The 3D shading reads as light and shadow of the same color, not as the color itself.
+        expect(colorDistance(look.light, look.fill), `${label} ${color} light`).toBeGreaterThan(10);
+        expect(colorDistance(look.dark, look.fill), `${label} ${color} dark`).toBeGreaterThan(10);
       }
       for (const a of gamePlayerColors) {
         for (const b of gamePlayerColors) {

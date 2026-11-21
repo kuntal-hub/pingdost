@@ -20,6 +20,15 @@ Built 2026-11-21 (ADR 0049).
 - [x] **Phone:** the Games tab (Chats, Calls, Games, Settings): catalog, "Continue" for a saved game, the record per level; setup (computer players 1–3, difficulty, color, rule toggles, "Move by itself"); the Ludo screen (react-native-svg board, Reanimated hops, dice with haptics, movable pieces pulse and are labelled for screen readers, result card, Play again, menu with New game, Rules, End). The save and stats go in the encrypted settings (`games`, `game_solo`).
 - [x] **Web:** the same Games page, setup and Ludo page (SVG board and pieces, `pd-piece`/`pd-roll`/`pd-beckon` with Calm and Off, keys Space/R and 1–4, dialogs for the result and rules). The save and stats go in localStorage next to the appearance prefs.
 
+## Follow-up: look and feel (the user's list of 2026-11-21; ADR 0050)
+- [x] Vivid colors with `light`/`dark` shades; 3D pins (`LUDO_PIN`); always 4 pieces (Quick game removed).
+- [x] Die: a gradient cube in the roller's color, a tumble of 800 ms; corner panels with each player's die; the user taps their own.
+- [x] Hops: an arc and a landing squash per square; captures fly home; the active yard glows.
+- [x] Stacks with a count badge (`ludoStacks`); a pop on landing.
+- [x] Sounds generated in code (roll, hop, capture, home, win) and a Game sounds switch (setup and game menu), on both apps.
+- [x] Checks: package tests (52; stacks, sounds, restore), both apps' checks (12/12 turbo tasks), Chrome (the new look, a tumble caught mid-roll, a stack of 3 with its badge, colors side by side on a star, sounds rendered through Web Audio) and the emulator (the new look, rolls, the extra roll after a 6, the WAVs written to the cache).
+  - **Open (user):** hearing the sounds and feeling the hops on a real phone.
+
 ## Done when
 - [x] `pnpm --filter @pingdost/games test`, `pnpm --filter @pingdost/ui-tokens test`, mobile and web typecheck, lint and test; prettier clean (12/12 turbo tasks, 2026-11-21).
 - [x] Web dev page in Chrome: full games against 1 and 3 computer players, each difficulty; Motion Off. (Hard × 3 classic, Easy × 1 and Medium × 1 quick; a reload mid-game and on the result.)

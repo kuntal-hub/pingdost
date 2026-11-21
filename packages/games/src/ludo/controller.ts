@@ -30,7 +30,8 @@ export interface LudoPace {
   think: number;
 }
 
-export const NORMAL_PACE: LudoPace = { roll: 650, hop: 150, capture: 420, read: 450, think: 550 };
+// The die tumbles for 800 ms (the user asked for 500–1000 ms); a hop is one arc per square.
+export const NORMAL_PACE: LudoPace = { roll: 800, hop: 170, capture: 450, read: 350, think: 500 };
 export const FAST_PACE: LudoPace = { roll: 200, hop: 40, capture: 120, read: 250, think: 300 };
 
 export type LudoWaiting = 'you-roll' | 'you-move' | 'rolling' | 'moving' | 'computer' | 'over';

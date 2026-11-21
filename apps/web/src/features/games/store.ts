@@ -42,6 +42,8 @@ function write(key: string, value: unknown): void {
 interface GamesState {
   ludoSetup: LudoSoloOptions;
   autoMove: boolean;
+  /** Game sounds (ADR 0050), on by default. */
+  sounds: boolean;
   stats: StatsBook;
   /** The unfinished solo game, if any. */
   solo: LudoSoloGame | null;
@@ -49,14 +51,20 @@ interface GamesState {
   saveSoloState(state: LudoState): void;
   clearSolo(): void;
   setAutoMove(autoMove: boolean): void;
+  setSounds(sounds: boolean): void;
   record(game: GameId, mode: { solo: BotLevel } | 'friends', won: boolean): void;
 }
 
 function savePrefs(state: GamesState): void {
-  write(PREFS_KEY, { ludoSetup: state.ludoSetup, autoMove: state.autoMove, stats: state.stats });
+  write(PREFS_KEY, {
+    ludoSetup: state.ludoSetup,
+    autoMove: state.autoMove,
+    sounds: state.sounds,
+    stats: state.stats,
+  });
 }
 
-function initial(): Pick<GamesState, 'ludoSetup' | 'autoMove' | 'stats' | 'solo'> {
+function initial(): Pick<GamesState, 'ludoSetup' | 'autoMove' | 'sounds' | 'stats' | 'solo'> {
   const stored = read(PREFS_KEY);
   const prefs = (typeof stored === 'object' && stored !== null ? stored : {}) as Record<
     string,
@@ -65,6 +73,7 @@ function initial(): Pick<GamesState, 'ludoSetup' | 'autoMove' | 'stats' | 'solo'
   return {
     ludoSetup: prefs.ludoSetup ? normalizeLudoSoloOptions(prefs.ludoSetup) : DEFAULT_LUDO_SOLO,
     autoMove: typeof prefs.autoMove === 'boolean' ? prefs.autoMove : true,
+    sounds: typeof prefs.sounds === 'boolean' ? prefs.sounds : true,
     stats: normalizeStats(prefs.stats),
     solo: restoreLudoSolo(read(SOLO_KEY)),
   };
@@ -96,6 +105,11 @@ export const useGames = create<GamesState>()((set, get) => ({
 
   setAutoMove(autoMove) {
     set({ autoMove });
+    savePrefs(get());
+  },
+
+  setSounds(sounds) {
+    set({ sounds });
     savePrefs(get());
   },
 

@@ -48,12 +48,12 @@ function winner(state: LudoState): LudoColor {
 describe('ludo computer players', () => {
   it('finish 1,000 games of every size, level and rule set with legal moves only', () => {
     for (let seed = 1; seed <= 1000; seed++) {
-      // Hard looks a roll ahead and is slower: it plays every tenth game.
-      const levels: BotLevel[] = seed % 10 === 0 ? ['hard', 'easy', 'medium'] : ['easy', 'medium'];
+      // Hard looks a roll ahead and is slower: it plays every 25th game (the strength tests below
+      // play it 800 times more).
+      const levels: BotLevel[] = seed % 25 === 0 ? ['hard', 'easy', 'medium'] : ['easy', 'medium'];
       const count = 2 + (seed % 3);
       const colors = LUDO_COLORS.slice(0, count);
       const settings: LudoSettings = {
-        tokens: seed % 5 === 0 ? 2 : 4,
         needSix: seed % 7 !== 0,
         blockades: seed % 4 === 0,
         stopAtFirstWinner: seed % 6 === 0,
@@ -67,7 +67,8 @@ describe('ludo computer players', () => {
       const ranks = state.players.map((p) => p.rank).sort();
       expect(ranks).toEqual(Array.from({ length: count }, (_, i) => i + 1));
     }
-  }, 60_000);
+    // Generous: Turborepo runs every package's tests at once.
+  }, 120_000);
 
   it('take a capture or a finish when one is there', () => {
     const base = setupLudo(['red', 'green'], DEFAULT_LUDO_SETTINGS);
@@ -119,7 +120,7 @@ describe('ludo computer players', () => {
       }
       expect(wins / games).toBeGreaterThanOrEqual(minimum);
     },
-    60_000,
+    120_000,
   );
 
   it('decide quickly', () => {

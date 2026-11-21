@@ -17,6 +17,45 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-21 — Phase 41 follow-up: Ludo look and feel; timers and invites planned for 42 — ✅ done
+The user's 12-point list after trying Ludo (CHANGES 2026-11-21, ADR 0050; ADR 0049 amended). The user chose:
+- sounds, with a switch;
+- 30 s turn timers, only in games with friends;
+- when time runs out, the player's own app plays for them, else the turn is skipped; 3 skips in a row remove the player;
+- look and feel first, then Phase 42.
+
+**Done (both apps):**
+- Vivid colors with light and dark shades; shaded 3D pins (`LUDO_PIN`).
+- A die that tumbles for 800 ms in the roller's color.
+- Corner panels, each player with their own die (the user rolls with theirs, bottom left); the active yard glows.
+- Hops arc square by square and squash on landing; captures fly home.
+- Stacks show a count; colors share safe squares side by side.
+- Always 4 pieces: Quick game is removed, and saved 2-piece games are dropped.
+- Generated sounds (roll, hop, capture, home, win) and a Game sounds switch, in setup and in the game menu.
+
+**Planned for 42 (phase file and ADR 0049 amended):**
+- A turn is two events (roll, then move).
+- 30 s + 30 s timers drawn around the panel avatar; auto-play by the player's own app; `skip` from the others' apps after the deadline plus grace; removal after 3 skips.
+- "Play a game" in chats and groups, the Games tab and the game screen.
+
+**Verification:**
+- games 52 tests (about 70 s), ui-tokens, mobile, web: 12/12 turbo tasks; prettier clean.
+- **Chrome:** the new layout in dark mode; Blue's die caught mid-tumble; a stack of 3 with its badge; red and green side by side on a star; all five sounds rendered through Web Audio (lengths and levels as expected); no console errors.
+- **Emulator:**
+  - the new layout in light mode, a roll, a 6 bringing a piece out with another roll;
+  - `pingdost-game-roll-v1.wav` and `-hop-v1.wav` written to the cache, no player errors in logcat.
+  - The test games left stats and a saved game on the emulator and in the browser.
+- When I came back to the emulator it was on the @pd_nothing chat, and two taps landed there. Nothing was typed or sent; I backed out.
+
+**Known issues / notes:**
+- Android has no silent-mode check without native code: game sounds follow the media volume and the switch (ADR 0050).
+- The games test suite is slower now that every game has 4 pieces (the 1,000-game test plays Hard in every 25th game).
+
+**Remaining (user; JS only, no new build):**
+- [ ] On a real phone: hear the sounds, feel the hops and the die, check the corner panels on a small screen.
+
+**Next:** Phase 42 ("start phase 42").
+
 ## 2026-11-21 — Games module planned; Phase 41: games core, Ludo vs computer, Games tab — ✅ done
 The user asked for games inside the app, Ludo first (CHANGES 2026-11-21, ADR 0049). Planned as Phases 41–47; 41 is built.
 
