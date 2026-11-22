@@ -30,6 +30,7 @@ import { CONNECT_FOUR, type ConnectFourState } from '../connect-four/rules';
 import { DOTS_AND_BOXES } from '../dots-and-boxes/rules';
 import { LAST_CARD, type LastCardMove, type LastCardState } from '../last-card/rules';
 import type { GameEventInit, GameSendOptions } from '../ludo/network-controller';
+import { POKER, potTotal, type PokerState } from '../poker/rules';
 import { SNAKES_AND_LADDERS, type SnakesState } from '../snakes-and-ladders/rules';
 import { TIC_TAC_TOE, type TicTacToeState } from '../tic-tac-toe/rules';
 
@@ -480,6 +481,86 @@ describe('turn games with friends', () => {
       false,
     );
     expect(controllers).toHaveLength(4);
+  }, 120_000);
+
+  /** Plays Poker with the Medium computer's bets until `done`; `idle` ms pass when nobody can act. */
+  async function playPoker(table: Table, done: (s: PokerState) => boolean, idle: number) {
+    const random = seededRandom(31);
+    let checkedHidden = false;
+    for (let i = 0; i < 4_000; i++) {
+      const game = table.fold();
+      if (game.phase !== 'playing' || done(game.state as PokerState)) break;
+      let acted = false;
+      for (const { controller } of table.controllers) {
+        const view = controller.getView();
+        if (view.waiting !== 'you' || !view.state || view.legal.length === 0) continue;
+        controller.move(await POKER.bot(view.state as PokerState, 'medium', random));
+        acted = true;
+      }
+      const shared = table.fold().state as PokerState;
+      if (shared.phase === 'bet') {
+        // While a hand is bet, no card that hasn't been turned up is in the shared state...
+        expect(shared.holes.flat().every((c) => c === -1)).toBe(true);
+        // ...and each player sees their own two cards only.
+        for (const { controller } of table.controllers) {
+          const { you, state } = controller.getView();
+          const mine = state as PokerState;
+          if (!mine.dealt[you] || mine.phase !== 'bet') continue;
+          expect(mine.holes[you]!.every((c) => c >= 0)).toBe(true);
+          expect(
+            mine.holes
+              .filter((_, s) => s !== you)
+              .flat()
+              .every((c) => c === -1),
+          ).toBe(true);
+          checkedHidden = true;
+        }
+      }
+      await vi.advanceTimersByTimeAsync(acted ? 1 : idle);
+    }
+    return { game: table.fold(), checkedHidden };
+  }
+
+  it('Poker: three players, a rotating dealer, hidden hands, proved cards, checked deals', async () => {
+    const { table } = await setUp(POKER, [alice, bob, carol]);
+    const { game, checkedHidden } = await playPoker(table, (s) => s.hand >= 5, 10);
+    const state = game.state as PokerState;
+    expect(checkedHidden).toBe(true);
+    expect(game.desync).toBe(false);
+    expect(state.hand >= 5 || state.ranks !== null).toBe(true);
+    expect(state.badDeal).toBe(false);
+    expect(state.unchecked).toBe(0);
+    expect(game.entries.some((e) => e.kind === 'proxy')).toBe(false);
+    // Every dealer showed its secret: each seat's chain moved down once per hand it dealt.
+    const dealt = state.tipAt.filter((at) => at < 1024).length;
+    expect(dealt).toBeGreaterThanOrEqual(2);
+    expect(state.stacks.reduce((a, b) => a + b, 0) + potTotal(state)).toBe(3000);
+    // Showdowns named a hand at least once, or someone took a pot uncontested.
+    expect(game.entries.some((e) => (e.state as PokerState).last !== null)).toBe(true);
+    // Hands went privately; no seat secret ever appeared on the shared log.
+    expect(table.events.some((e) => decodeGame(fromBase64(e.payload)).event.case === 'deal')).toBe(
+      false,
+    );
+    const wire = table.events.map((e) => e.payload).join('');
+    for (const seed of table.seeds.values()) expect(wire).not.toContain(seed);
+  }, 120_000);
+
+  it('Poker: an absent player checks or folds, as dealer passes, and three in a row take them out', async () => {
+    const { table, controllers } = await setUp(POKER, [alice, bob, carol]);
+    // Carol's app closes at once.
+    table.remove(controllers[2]!);
+    const { game } = await playPoker(
+      table,
+      (s) => s.left[2]!,
+      POKER.turnMs! + TURN_GRACE_MS + 3_100,
+    );
+    const state = game.state as PokerState;
+    expect(game.desync).toBe(false);
+    expect(state.left[2]).toBe(true);
+    const proxies = game.entries.filter((e) => e.kind === 'proxy');
+    expect(proxies).toHaveLength(3);
+    for (const p of proxies) expect(p.seat).toBe(2);
+    expect(state.badDeal).toBe(false);
   }, 120_000);
 
   it('the host can end the game for everyone', async () => {

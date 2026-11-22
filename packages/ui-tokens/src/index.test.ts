@@ -232,6 +232,16 @@ describe('color schemes', () => {
     expect(gameBoardColors(true).cards).toEqual(cards);
   });
 
+  // The poker table (Phase 47): text, chips and card edges read on the cloth.
+  it('keeps the poker table readable', () => {
+    const { felt, cards } = gameBoardColors(false);
+    expect(contrast(felt.ink, felt.cloth)).toBeGreaterThanOrEqual(AA);
+    expect(contrast(felt.chip, felt.cloth)).toBeGreaterThanOrEqual(UI);
+    expect(contrast(cards.edge, felt.cloth)).toBeGreaterThanOrEqual(UI);
+    expect(contrast(felt.rim, felt.ink)).toBeGreaterThanOrEqual(AA);
+    expect(gameBoardColors(true).felt).toEqual(felt);
+  });
+
   // Chess (Phase 44): every piece's outline reads on both squares, black pieces stand out from
   // the dark squares, the coordinates are readable text, and the two squares differ.
   it('keeps the chess board readable', () => {

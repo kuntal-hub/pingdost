@@ -77,8 +77,8 @@ export function StartGameScreen({
       const gameId = await startGame(
         runtime,
         conversationId,
-        entry.id as Playable,
-        entry.id === game ? settings : settingsFor(entry.id as Playable),
+        entry.id,
+        entry.id === game ? settings : settingsFor(entry.id),
         isGroup ? seats : 2,
       );
       router.replace({ pathname: '/game/[gameId]', params: { gameId } });
@@ -109,7 +109,7 @@ export function StartGameScreen({
                   accessibilityLabel={option.name}
                   accessibilityState={{ selected }}
                   feedback="selection"
-                  onPress={() => pick(option.id as Playable)}
+                  onPress={() => pick(option.id)}
                   className={`w-[31%] items-center gap-1 rounded-xl px-2 py-3 ${selected ? 'bg-primary' : 'bg-raised'}`}
                 >
                   <Icon

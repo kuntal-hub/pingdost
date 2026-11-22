@@ -21,6 +21,8 @@ import {
   type ChessState,
   type LastCardState,
   type LudoPace,
+  type PokerState,
+  potTotal,
   type SnakesState,
 } from '@pingdost/games';
 import { decodeGame, fromBase64, GameType } from '@pingdost/protocol';
@@ -226,6 +228,44 @@ describe('Quick games with friends through the server (Phase 43)', () => {
       const events = await client.engine.listGameEvents(gameId);
       const deals = events.filter((e) => decodeGame(fromBase64(e.payload)).event.case === 'deal');
       expect(deals.every((e) => e.senderDeviceId !== client.deviceId)).toBe(true);
+    }
+    players[0]!.turnController(gameId)!.end();
+  }, 200_000);
+
+  it('plays Poker in a group of three (Phase 47): the button deals, proves and shows each deal', async () => {
+    const alice = await sim();
+    const bob = await sim([alice]);
+    const carol = await sim([alice, bob]);
+    const { conversationId: groupId } = await alice.engine.createGroup({
+      name: 'Poker',
+      memberUserIds: [bob.userId, carol.userId],
+    });
+    const players = [play(alice), play(bob), play(carol)];
+    const gameId = await players[0]!.createTurn(groupId, 'poker', { maxPlayers: 3 });
+    // Three hands through the server: each seat deals once, turns up the board with proofs and
+    // shows its secret at the end of the hand.
+    const a = await players[0]!.untilTurn(
+      gameId,
+      (v) => v.game.phase === 'over' || ((v.game.state as PokerState | null)?.hand ?? 0) >= 3,
+      150_000,
+    );
+    const state = a.game.state as PokerState;
+    expect(a.game.desync).toBe(false);
+    expect(state.badDeal).toBe(false);
+    expect(state.unchecked).toBe(0);
+    expect(a.game.entries.some((e) => e.kind === 'proxy')).toBe(false);
+    expect(state.stacks.reduce((x, y) => x + y, 0) + potTotal(state)).toBe(3000);
+    // Each device got its two cards from that hand's dealer, never from itself.
+    for (const client of [alice, bob, carol]) {
+      const events = await client.engine.listGameEvents(gameId);
+      const deals = events.filter((e) => decodeGame(fromBase64(e.payload)).event.case === 'deal');
+      expect(deals.length).toBeGreaterThan(0);
+      expect(deals.every((e) => e.senderDeviceId !== client.deviceId)).toBe(true);
+      // No seat secret in any frame the server saw.
+      const seed = (await client.engine.getGame(gameId))?.seatSeed;
+      expect(frames.some((f) => Buffer.from(f).includes(Buffer.from(fromBase64(seed!))))).toBe(
+        false,
+      );
     }
     players[0]!.turnController(gameId)!.end();
   }, 200_000);

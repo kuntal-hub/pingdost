@@ -2,10 +2,14 @@
 import { Segmented } from '@/components/ui/controls';
 import { Toggle } from '@/components/ui/input';
 import {
+  BLINDS_EVERY,
   DOTS_SIZES,
+  formatChips,
+  POKER_CHIPS,
   type AnyTurnRules,
   type ChessSettings,
   type DotsSettings,
+  type PokerSettings,
   type SnakesSettings,
 } from '@pingdost/games';
 
@@ -49,6 +53,31 @@ export function TurnSettingsEditor({
           onChange={(hostSide) => onChange({ ...value, hostSide })}
         />
         <p className="text-sm text-muted">White moves first.</p>
+      </section>
+    );
+  }
+  if (rules.id === 'poker') {
+    const value = settings as PokerSettings;
+    return (
+      <section className="flex flex-col gap-2">
+        <h3 className="font-bold text-muted">Starting chips</h3>
+        <Segmented
+          label="Starting chips"
+          options={POKER_CHIPS.map((chips) => ({ id: String(chips), label: formatChips(chips) }))}
+          value={String(value.chips)}
+          onChange={(chips) => onChange({ ...value, chips: Number(chips) })}
+        />
+        <div className="pd-card rounded-xl px-4">
+          <Toggle
+            label="Blinds go up"
+            description={`Double every ${BLINDS_EVERY} hands, so the game ends in good time. Off: always 10 and 20.`}
+            checked={value.risingBlinds}
+            onChange={(risingBlinds) => onChange({ ...value, risingBlinds })}
+          />
+        </div>
+        <p className="text-sm text-muted">
+          Play chips only: no real money, nothing to buy and nothing to win.
+        </p>
       </section>
     );
   }

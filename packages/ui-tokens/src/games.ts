@@ -55,7 +55,29 @@ export interface GameBoardColors {
   chess: ChessColors;
   /** Phase 45: playing cards (the same in light and dark, like real cards). */
   cards: CardColors;
+  /** Phase 47: the poker table (the same in light and dark). */
+  felt: FeltColors;
 }
+
+export interface FeltColors {
+  /** The table's cloth, and its rim. */
+  cloth: string;
+  rim: string;
+  /** Text on the cloth (the pot, the hand's line). */
+  ink: string;
+  /** Chips drawn on the cloth, and the dealer button. */
+  chip: string;
+  /** An empty spot for a shared card not dealt yet. */
+  slot: string;
+}
+
+const FELT: FeltColors = {
+  cloth: '#14633F',
+  rim: '#0B3D26',
+  ink: '#F2F7F4',
+  chip: '#F5C542',
+  slot: 'rgba(255, 255, 255, 0.28)',
+};
 
 export interface CardColors {
   /** The back of a card, and the ring drawn on it. */
@@ -163,6 +185,7 @@ const LIGHT: GameBoardColors = {
     black: { fill: '#2A2F37', edge: '#0E1013', detail: '#E8EDF5' },
   },
   cards: CARDS,
+  felt: FELT,
 };
 
 const DARK: GameBoardColors = {
@@ -221,6 +244,7 @@ const DARK: GameBoardColors = {
     black: { fill: '#2A2F37', edge: '#0E1013', detail: '#E8EDF5' },
   },
   cards: CARDS,
+  felt: FELT,
 };
 
 /** The board and player colors for light or dark mode. */

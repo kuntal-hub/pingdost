@@ -204,6 +204,7 @@ export function TurnNetPage({ gameId, rules }: { gameId: string; rules: AnyTurnR
               dark={dark}
               animate={motion === 'full'}
               pace={pace}
+              names={seatName}
             />
           </div>
           <TurnDie

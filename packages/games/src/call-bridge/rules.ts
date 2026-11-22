@@ -10,6 +10,7 @@
 // and any revoke.
 import { GameType, fromBase64, toBase64 } from '@pingdost/protocol';
 
+import { concatBytes, hashStream, shuffleDeck, soloDeck, u32 } from '../core/deck';
 import { sameBytes, type Sha256 } from '../core/fair-dice';
 import type { Random } from '../core/random';
 import {
@@ -105,53 +106,10 @@ const D_SEED = encoder.encode('pingdost/game/deal-seed/v1');
 const D_NONCE = encoder.encode('pingdost/game/deal-nonce/v1');
 const D_CARD = encoder.encode('pingdost/game/deal-card/v1');
 
-function concat(...parts: Uint8Array[]): Uint8Array {
-  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
-  let at = 0;
-  for (const part of parts) {
-    out.set(part, at);
-    at += part.length;
-  }
-  return out;
-}
-const u32 = (n: number) => {
-  const out = new Uint8Array(4);
-  new DataView(out.buffer).setUint32(0, n >>> 0);
-  return out;
-};
+const concat = concatBytes;
+const shuffle = shuffleDeck;
 
 // The deal
-
-/** Fisher–Yates over 52 cards with `next(n)` giving an unbiased integer in [0, n). */
-function shuffle(next: (n: number) => number): number[] {
-  const deck = Array.from({ length: 52 }, (_, i) => i);
-  for (let i = 51; i > 0; i--) {
-    const j = next(i + 1);
-    [deck[i], deck[j]] = [deck[j]!, deck[i]!];
-  }
-  return deck;
-}
-
-/** An unbiased integer stream from SHA-256 of a seed (counter mode, rejection sampling). */
-function hashStream(sha256: Sha256, seed: Uint8Array): (n: number) => number {
-  let counter = 0;
-  let block: Uint8Array = new Uint8Array(0);
-  let at = 0;
-  const byte = () => {
-    if (at >= block.length) {
-      block = sha256(concat(seed, u32(counter++)));
-      at = 0;
-    }
-    return block[at++]!;
-  };
-  return (n) => {
-    for (;;) {
-      const v = (byte() << 8) | byte();
-      const limit = 65536 - (65536 % n);
-      if (v < limit) return v % n;
-    }
-  };
-}
 
 export function dealerSecret(sha256: Sha256, seed: Uint8Array, round: number): Uint8Array {
   return sha256(concat(D_SECRET, seed, u32(round)));
@@ -286,22 +244,6 @@ function newRound(state: BridgeState, deck: number[] | null): BridgeState {
     lastTrick: null,
     played: [],
   };
-}
-
-function soloDeck(rng: number): { rng: number; deck: number[] } {
-  let r = rng >>> 0 || 1;
-  const nextInt = (n: number) => {
-    for (;;) {
-      r ^= r << 13;
-      r ^= r >>> 17;
-      r ^= r << 5;
-      r >>>= 0;
-      const limit = 4294967296 - (4294967296 % n);
-      if (r < limit) return r % n;
-    }
-  };
-  const deck = shuffle(nextInt);
-  return { rng: r, deck };
 }
 
 /** The round is over: points, history, then the next round (solo deals it) or the end. */

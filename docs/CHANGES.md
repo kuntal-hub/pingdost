@@ -4,6 +4,18 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-22 — Phase 47 built: Poker (ADR 0053)
+1. **Poker on phone and web:** no-limit Texas Hold'em for 2 to 6 players with **play chips only** (none are sold, cashed out or exchanged; no prizes, no ads). Starting chips 500 / 1,000 / 2,000 / 5,000; blinds 10/20 that double every 10 hands unless the host fixes them. The last player with chips wins. Solo against Easy / Medium / Hard computer players; a solo game ends when you run out of chips.
+   - *Affects:* 47.
+2. **With friends the button's app deals each hand** (ADR 0052's rotating dealer): it turns up the flop, turn and river as the hand goes, every card is checked, players' apps show their cards at the showdown, and the dealer's app shows its secret after the hand so everyone's app checks the whole deal. Accepted limit, as in Call Bridge: the dealer's device knows the hands it dealt.
+   - *Affects:* 47.
+3. **30 s timers** (unlike Call Bridge): an absent player checks, or folds to a bet; at the showdown their cards stay down and they give up the pot; an absent dealer passes (before the deal the next seat deals; during the hand every bet goes back; after it the deal goes unchecked). Three in a row take a player out.
+   - *Affects:* 47.
+4. **Store wording:** "Play chips: no real money, nothing to buy and nothing to win." The rating questionnaire must say yes to simulated gambling; Play's policy must be reread before release (`docs/release/play-console.md`).
+   - *Affects:* 47, release.
+5. **Additive wire change:** `GameType.POKER`, `PokerSettings`, `PokerMove`.
+   - *Affects:* 47.
+
 ### 2026-11-22 — Phase 46 built: Call Bridge (ADR 0052)
 1. **Call Bridge on phone and web:** 4 players, calls 1–13, follow suit or else trump, spades always trumps, 5 rounds; the call plus a tenth per extra trick, or minus the call. Solo with three computer players at Easy / Medium / Hard; with friends in a group of four.
    - *Affects:* 46.

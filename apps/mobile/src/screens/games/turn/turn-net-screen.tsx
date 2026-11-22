@@ -243,6 +243,7 @@ export function TurnNetScreen({
             dark={dark}
             moves={moves}
             pace={pace}
+            names={seatName}
           />
           <TurnDie
             rules={rules}

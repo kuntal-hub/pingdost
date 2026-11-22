@@ -225,6 +225,7 @@ function TurnSoloGameView({
           dark={dark}
           animate={motion === 'full'}
           pace={pace}
+          names={seatName}
         />
       </div>
       <TurnDie

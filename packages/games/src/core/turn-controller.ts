@@ -169,6 +169,15 @@ export class TurnController<S extends TurnCore, M, Settings> {
       }
       return;
     }
+    const auto = this.#rules.auto?.(state);
+    if (auto !== undefined && auto !== null) {
+      this.#set({ waiting: 'moving', legal: [] });
+      this.#later(this.#pace.read, () => {
+        if (this.#view.state !== state) return;
+        this.#show('move', state.current, state, this.#rules.apply(state, auto), auto);
+      });
+      return;
+    }
     const seat = state.current;
     if (seats[seat] === 'you') {
       this.#set({ waiting: 'you', legal: this.#rules.dice ? [] : this.#rules.legal(state) });

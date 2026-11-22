@@ -41,6 +41,7 @@ import { gameBoardColors } from '@pingdost/ui-tokens';
 import { CallBridgeBoard } from './call-bridge-board';
 import { ChessBoard } from './chess-board';
 import { LastCardBoard } from './last-card-board';
+import { PokerBoard } from './poker-board';
 import { ShapeGlyph } from '../shape';
 
 export interface TurnBoardProps<S extends TurnCore = TurnCore, M = unknown> {
@@ -52,6 +53,8 @@ export interface TurnBoardProps<S extends TurnCore = TurnCore, M = unknown> {
   dark: boolean;
   animate: boolean;
   pace: TurnPace;
+  /** Each seat's name as the players' strip shows it ("You", a friend, "Computer 2"). */
+  names?: (seat: number) => string;
 }
 
 /** Enter or Space on a focusable SVG target. */
@@ -571,6 +574,7 @@ const BOARDS = {
   chess: ChessBoard,
   'last-card': LastCardBoard,
   'call-bridge': CallBridgeBoard,
+  poker: PokerBoard,
 } as unknown as Record<AnyTurnRules['id'], (props: TurnBoardProps) => JSX.Element>;
 
 export function TurnBoard({ rules, ...props }: TurnBoardProps & { rules: AnyTurnRules }) {

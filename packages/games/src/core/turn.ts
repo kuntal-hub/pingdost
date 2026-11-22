@@ -24,7 +24,8 @@ export type TurnGameId =
   | 'snakes-and-ladders'
   | 'chess'
   | 'last-card'
-  | 'call-bridge';
+  | 'call-bridge'
+  | 'poker';
 
 /** What every turn game's state has. States are plain JSON (saved, folded, compared). */
 export interface TurnCore {
@@ -206,6 +207,16 @@ export interface TurnRules<S extends TurnCore, M, Settings> {
   stepMs?(step: TurnStep<S, M>, pace: TurnPace): number;
   /** Solo games that need randomness at the start (shuffling, dealing). */
   soloSetup?(state: S, random: Random): S;
+  /**
+   * Solo games: a step nobody chooses (Poker: deal, turn up the board, show the hands). The
+   * solo controller plays it after a short pause, whoever's seat is current.
+   */
+  auto?(state: S): M | null;
+  /**
+   * A line about the game's moment that replaces the generic status ("Bob is dealing…",
+   * "Showdown"), or null for the usual "Your turn" / "Bob's turn".
+   */
+  note?(state: S, you: number, name: (seat: number) => string): string | null;
   /** Hidden-hand games (ADR 0052). */
   hidden?: HiddenHooks<S, M, Settings>;
 }
@@ -221,7 +232,8 @@ export function isTurnGameId(id: string): id is TurnGameId {
     id === 'snakes-and-ladders' ||
     id === 'chess' ||
     id === 'last-card' ||
-    id === 'call-bridge'
+    id === 'call-bridge' ||
+    id === 'poker'
   );
 }
 

@@ -70,8 +70,8 @@ export function StartGameDialog({
       const gameId = await startGame(
         client,
         conversationId,
-        entry.id as Playable,
-        entry.id === game ? settings : settingsFor(entry.id as Playable),
+        entry.id,
+        entry.id === game ? settings : settingsFor(entry.id),
         isGroup ? seats : 2,
       );
       onOpenChange(false);
@@ -107,8 +107,8 @@ export function StartGameDialog({
                 role="radio"
                 aria-checked={selected}
                 onClick={() => {
-                  setGame(option.id as Playable);
-                  setSettings(settingsFor(option.id as Playable));
+                  setGame(option.id);
+                  setSettings(settingsFor(option.id));
                 }}
                 className={cn(
                   'pd-press flex cursor-pointer flex-col items-center gap-1 rounded-xl px-2 py-3 text-xs font-semibold',

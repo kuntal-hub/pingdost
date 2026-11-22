@@ -31,7 +31,7 @@
  * Games (Phases 42–43, ADR 0049): it joins every game it is invited to and plays its own turns
  * with the Medium computer's moves. `!ludo` makes it start a Ludo game in that chat (`!ludo 4`
  * in a group: up to 4 players); `!ttt`, `!c4`, `!dots [2-4] [3-6]`, `!snakes [2-4]`, `!chess` and
- * `!lastcard [2-4]` and `!bridge` (a group of four) start the other games.
+ * `!lastcard [2-4]`, `!bridge` (a group of four) and `!poker [2-6]` start the other games.
  * `--games false` turns this off.
  */
 import { parseArgs } from 'node:util';
@@ -134,7 +134,7 @@ async function main(): Promise<void> {
   if (values.games !== 'false') {
     games = simGames(peer, crypto, { thinkMs: 700, log: (line) => console.log(line) });
     console.log(
-      'plays games: joins invitations; `!ludo [2-4]`, `!ttt`, `!c4`, `!dots [2-4] [3-6]`, `!snakes [2-4]`, `!chess`, `!lastcard [2-4]`, `!bridge` (a group of four) start one',
+      'plays games: joins invitations; `!ludo [2-4]`, `!ttt`, `!c4`, `!dots [2-4] [3-6]`, `!snakes [2-4]`, `!chess`, `!lastcard [2-4]`, `!bridge` (a group of four), `!poker [2-6]` start one',
     );
   }
 
@@ -244,6 +244,15 @@ async function main(): Promise<void> {
               maxPlayers: Number(ludo[1] ?? 2),
             });
             console.log(`→ started a Ludo game (${gameId})`);
+            continue;
+          }
+          // Phase 47: `!poker [2-6]` (players; a group for more than two).
+          const poker = /^!poker(?:\s+([2-6]))?/.exec(message.body);
+          if (poker && games) {
+            const gameId = await games.createTurn(conversationId, 'poker', {
+              maxPlayers: Number(poker[1] ?? 2),
+            });
+            console.log(`→ started a poker game (${gameId})`);
             continue;
           }
           // Phase 43: `!ttt`, `!c4`, `!dots [2-4] [3-6]` (players, boxes per side), `!snakes [2-4]`.

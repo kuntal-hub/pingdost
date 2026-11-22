@@ -15,6 +15,8 @@ export interface TurnBoardProps<S extends TurnCore = TurnCore, M = unknown> {
   /** Motion is on (the user's Motion setting). */
   moves: boolean;
   pace: TurnPace;
+  /** Each seat's name as the players' strip shows it ("You", a friend, "Computer 2"). */
+  names?: (seat: number) => string;
 }
 
 /** A keyframe pop for a mark or box that just appeared. */

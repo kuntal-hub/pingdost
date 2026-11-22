@@ -36,7 +36,8 @@
 | Privacy policy URL | A public page with `docs/legal/privacy-policy.md` (after you fill in the bracketed fields), e.g. on `pingdost.com/privacy` or the GitHub-rendered file |
 | Ads | No ads |
 | App access | Account needed: give reviewers a test username and password (a real account on staging, not yours) |
-| Content rating | Questionnaire: messaging app with user-to-user communication; users can share content; no moderation of encrypted content (reports exist) |
+| Content rating | Questionnaire: messaging app with user-to-user communication; users can share content; no moderation of encrypted content (reports exist). **Games (Phase 47):** answer *yes* to simulated gambling (Poker with play chips); no real money, nothing to buy, no prizes. Expect a higher age rating from it |
+| Simulated gambling (Phase 47) | Poker uses play chips only: none are sold, cashed out or exchanged for anything, and there are no ads. Play's "Real-Money Gambling, Games, and Contests" policy (read 2026-11-22) restricts gambling **ads** in apps ("App must not provide simulated gambling content (for example, social casino apps; apps with virtual slot machines)" applies to apps that show gambling ads) and forbids "a simulated casino game that promotes or directs users to real money casinos". Neither applies. **Before release:** reread the live policy page and the Families policy; keep the app out of the Designed for Families program; never add chip purchases, prizes or gambling ads |
 | Target audience | 18+ (or 16+/13+ per your terms); not designed for children |
 | News app | No |
 | Government app | No |
@@ -86,4 +87,5 @@ Removed in `app.json` (`blockedPermissions`): `READ_MEDIA_IMAGES` (added by expo
 - Short description: "Private, end-to-end encrypted chat that also works nearby without Internet."
 - Full description: features (E2EE 1:1 and groups, files, web on your computer by QR, nearby Bluetooth messaging and relay, 1:1 calls) and the honest privacy line: "No permanent server-side chat history. Encrypted messages wait on our server only until delivered, 14 days at most."
 - Do not claim "no data ever touches our servers" or "anonymous" (A10).
+- Games: say "Poker with play chips: no real money, nothing to buy, nothing to win" wherever Poker is mentioned (the in-app setup and rules say the same).
 - Screenshots: phone 16:9 or 9:16, at least 2; a 512×512 icon; a 1024×500 feature graphic.

@@ -51,6 +51,10 @@ export function turnSoloStatus(rules: AnyTurnRules, view: TurnView<TurnCore, unk
   const { state, you, waiting } = view;
   const name = (seat: number) => (seat === you ? 'You' : rules.sideName(state, seat));
   const mine = state.current === you;
+  if (waiting !== 'over') {
+    const note = rules.note?.(state, you, name);
+    if (note) return note;
+  }
   switch (waiting) {
     case 'over':
       return turnResultLine(state, you, name);
@@ -102,6 +106,8 @@ export function turnNetStatus(
   if (!state) return '';
   const name = (seat: number) => netName(rules, game, state, seat, you, names);
   if (view.waiting === 'over' || state.ranks) return turnResultLine(state, you, name);
+  const note = rules.note?.(state, you, name);
+  if (note) return note;
   const mine = state.current === you;
   switch (view.waiting) {
     case 'you':

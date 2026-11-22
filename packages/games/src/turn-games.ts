@@ -5,6 +5,7 @@ import { CONNECT_FOUR, connectFourColor, type ConnectFourState } from './connect
 import type { AnyTurnRules, TurnCore, TurnGameId } from './core/turn';
 import { DOTS_AND_BOXES, DOTS_COLORS } from './dots-and-boxes/rules';
 import { LAST_CARD } from './last-card/rules';
+import { POKER } from './poker/rules';
 import { SNAKES_AND_LADDERS, SNAKES_COLORS } from './snakes-and-ladders/rules';
 import { TIC_TAC_TOE, ticTacToeMark, type TicTacToeState } from './tic-tac-toe/rules';
 
@@ -16,6 +17,7 @@ export const TURN_GAMES: Readonly<Record<TurnGameId, AnyTurnRules>> = {
   chess: CHESS,
   'last-card': LAST_CARD,
   'call-bridge': CALL_BRIDGE,
+  poker: POKER,
 };
 
 export const TURN_GAME_IDS = Object.keys(TURN_GAMES) as TurnGameId[];
@@ -42,6 +44,9 @@ export function turnSeatColor(id: TurnGameId, state: TurnCore, seat: number): Se
       return DOTS_COLORS[seat] ?? 'red';
     case 'snakes-and-ladders':
       return SNAKES_COLORS[seat] ?? 'red';
+    case 'poker':
+      // Up to six seats on four colors: the table also shows each seat's name and chips.
+      return DOTS_COLORS[seat % DOTS_COLORS.length] ?? 'red';
     case 'chess':
       // Chess sides are White and Black; the apps draw a king. Blue and red only tint the strip.
       return seat === (state as ChessState).white ? 'blue' : 'red';

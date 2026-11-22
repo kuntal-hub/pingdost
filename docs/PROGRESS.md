@@ -17,6 +17,33 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-22 — Phase 47: Poker — 🔄 code done, browser and phone runs open
+**Done:** details in the phase file and ADR 0053. Started with Phase 45 still 🔄 (the user said to proceed).
+- No-limit Texas Hold'em, 2–6 players, play chips only: blinds (rising or fixed), minimum raises, short all-ins, side pots, busts and places; hand ranking; computer players (Monte Carlo equity vs pot odds, bluff rates by level).
+- Solo: dealing, board and showdown run as visible `auto` steps (new optional `TurnRules.auto`); `TurnRules.note` gives status lines. Friends: the button deals from its dealing chain, proves each street and every showdown card, and shows its link after the hand; 30 s check/fold timers, muck, dealer pass.
+- Tables on phone and web, setup options, felt colors in ui-tokens, seat names passed to boards, sim peer `!poker [2-6]`, store wording and the Play gambling-policy note (`docs/release/play-console.md`).
+
+**Remaining:**
+- [ ] Web and phone: Poker solo at each level, and a friend game with `sim-client peer`s (`!poker` one to one; `!poker 3` in a group with two peers).
+- [ ] The open runs of Phases 43–46.
+
+**Deviations / decisions:** ADR 0053; CHANGES 2026-11-22 (Phase 47): timers (Call Bridge has none), a solo game ends when you are out of chips, an absent dealer passes.
+
+**Verification results:**
+- `pnpm --filter @pingdost/games test`: 153 tests pass (poker 17, plus two Poker friend games over `TurnNetController`). Hard > Medium > Easy in duplicate heads-up matches (30 pairs of 40 hands: Medium +79,772 vs Easy, Hard +58,970 vs Medium); at six seats Hard and Medium are about even.
+- `games.int.test.ts` Poker: three hands, three sim clients in a group through the real server; deals checked, no seat secret in any frame (38 s).
+- Typecheck and lint clean on every touched workspace; `format:check` clean; web `build` passes; ui-tokens 775 tests (felt contrast added).
+- Metro bundles the phone routes `game/play`, `game/setup` and `game/[gameId]` (dev bundle, 200).
+- `turbo run test` (all 18 in parallel): 15 passed; attachments `mesh.test.ts`, backup `backup.test.ts` and mobile `chunk-store.test.ts` timed out under the load and pass when run alone (22, 14 and 205 tests). Not touched by this phase.
+- "Vectors": a pinned deal vector and wire round trips in the games tests. The protocol golden vectors (`v1.json`) have no game messages, as in Phases 42–46.
+- **Not run:** any browser or phone game.
+
+**Known issues / tech debt:**
+- Every fold re-folds a game from its first event; a long Poker game (hundreds of hands, ~12 events each) costs more per event than other games. Cache a folded prefix if it shows on phones.
+- Seats 5 and 6 reuse the first two seat colors in the players' strip (four player colors in ui-tokens); names and chips tell them apart.
+
+**Next:** the open device runs of 43–47. All planned game phases (41–47) are now built.
+
 ## 2026-11-22 — Phase 46: Call Bridge — 🔄 code done, browser and phone runs open
 **Done:** details in the phase file and ADR 0052.
 - Rules (calls, follow suit or trump, spades trumps, scoring in tenths, five rounds, rotating dealer), computer players (call estimates; Medium heuristics; Hard samples hidden hands), the dealer's private deals, per-card proofs, and the end-of-round reveal with deal and revoke checks.

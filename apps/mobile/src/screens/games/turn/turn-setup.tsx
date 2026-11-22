@@ -13,14 +13,18 @@ import { Screen } from '@/components/screen';
 import { Text } from '@/components/text';
 import { turnSetupOf, useGames } from '@/games/store';
 import {
+  BLINDS_EVERY,
   BOT_LEVEL_NAMES,
   BOT_LEVELS,
   DOTS_SIZES,
+  formatChips,
+  POKER_CHIPS,
   turnRules,
   type AnyTurnRules,
   type BotLevel,
   type ChessSettings,
   type DotsSettings,
+  type PokerSettings,
   type SnakesSettings,
   type TurnGameId,
   type TurnSoloOptions,
@@ -53,6 +57,11 @@ const LEVEL_DETAIL: Partial<Record<TurnGameId, Record<BotLevel, string>>> = {
     easy: 'Plays any card it may and calls loosely.',
     medium: 'Calls from its high cards and trumps, and wins tricks only when it needs them.',
     hard: 'Plays out sample deals of the unseen cards to pick each card.',
+  },
+  poker: {
+    easy: 'Misreads its cards, calls too much and bluffs at random.',
+    medium: 'Bets good hands, calls when the price is right, bluffs now and then.',
+    hard: 'Reads raises, bets for value and bluffs when few players are left.',
   },
   chess: {
     easy: 'Looks one move ahead and often picks a weaker move.',
@@ -106,6 +115,33 @@ export function TurnSettingsEditor({
           onChange={(hostSide) => onChange({ ...value, hostSide })}
         />
         <Text className="px-2 text-sm text-muted">White moves first.</Text>
+      </View>
+    );
+  }
+  if (rules.id === 'poker') {
+    const value = settings as PokerSettings;
+    return (
+      <View className="gap-2">
+        <Text accessibilityRole="header" className="px-2 font-bold text-muted">
+          Starting chips
+        </Text>
+        <Segmented
+          accessibilityLabel="Starting chips"
+          options={POKER_CHIPS.map((chips) => ({ id: String(chips), label: formatChips(chips) }))}
+          value={String(value.chips)}
+          onChange={(chips) => onChange({ ...value, chips: Number(chips) })}
+        />
+        <ListSection title="Blinds">
+          <ToggleRow
+            title="Blinds go up"
+            subtitle={`Double every ${BLINDS_EVERY} hands, so the game ends in good time. Off: always 10 and 20.`}
+            value={value.risingBlinds}
+            onChange={(risingBlinds) => onChange({ ...value, risingBlinds })}
+          />
+        </ListSection>
+        <Text className="px-2 text-sm text-muted">
+          Play chips only: no real money, nothing to buy and nothing to win.
+        </Text>
       </View>
     );
   }

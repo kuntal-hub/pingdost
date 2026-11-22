@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file pingdost/v1/games.proto.
  */
 export const file_pingdost_v1_games: GenFile = /*@__PURE__*/
-  fileDesc("ChdwaW5nZG9zdC92MS9nYW1lcy5wcm90bxILcGluZ2Rvc3QudjEiywMKBEdhbWUSDwoHZ2FtZV9pZBgBIAEoDBIMCgR0dXJuGAIgASgNEg0KBWluZGV4GAMgASgNEikKBmNyZWF0ZRgEIAEoCzIXLnBpbmdkb3N0LnYxLkdhbWVDcmVhdGVIABIlCgRqb2luGAUgASgLMhUucGluZ2Rvc3QudjEuR2FtZUpvaW5IABInCgVzdGFydBgGIAEoCzIWLnBpbmdkb3N0LnYxLkdhbWVTdGFydEgAEiUKBHJvbGwYByABKAsyFS5waW5nZG9zdC52MS5HYW1lUm9sbEgAEiUKBG1vdmUYCCABKAsyFS5waW5nZG9zdC52MS5HYW1lTW92ZUgAEiUKBHNraXAYCSABKAsyFS5waW5nZG9zdC52MS5HYW1lU2tpcEgAEicKBWxlYXZlGAogASgLMhYucGluZ2Rvc3QudjEuR2FtZUxlYXZlSAASIwoDZW5kGAsgASgLMhQucGluZ2Rvc3QudjEuR2FtZUVuZEgAEicKBWVtb3RlGAwgASgLMhYucGluZ2Rvc3QudjEuR2FtZUVtb3RlSAASJQoEZGVhbBgNIAEoCzIVLnBpbmdkb3N0LnYxLkdhbWVEZWFsSABCBwoFZXZlbnQikgQKCkdhbWVDcmVhdGUSIwoEdHlwZRgBIAEoDjIVLnBpbmdkb3N0LnYxLkdhbWVUeXBlEhMKC21heF9wbGF5ZXJzGAIgASgNEikKBGx1ZG8YAyABKAsyGS5waW5nZG9zdC52MS5MdWRvU2V0dGluZ3NIABI1Cgt0aWNfdGFjX3RvZRgGIAEoCzIeLnBpbmdkb3N0LnYxLlRpY1RhY1RvZVNldHRpbmdzSAASOAoMY29ubmVjdF9mb3VyGAcgASgLMiAucGluZ2Rvc3QudjEuQ29ubmVjdEZvdXJTZXR0aW5nc0gAEikKBGRvdHMYCCABKAsyGS5waW5nZG9zdC52MS5Eb3RzU2V0dGluZ3NIABItCgZzbmFrZXMYCSABKAsyGy5waW5nZG9zdC52MS5TbmFrZXNTZXR0aW5nc0gAEisKBWNoZXNzGAogASgLMhoucGluZ2Rvc3QudjEuQ2hlc3NTZXR0aW5nc0gAEjIKCWxhc3RfY2FyZBgMIAEoCzIdLnBpbmdkb3N0LnYxLkxhc3RDYXJkU2V0dGluZ3NIABI2CgtjYWxsX2JyaWRnZRgNIAEoCzIfLnBpbmdkb3N0LnYxLkNhbGxCcmlkZ2VTZXR0aW5nc0gAEg4KBmFuY2hvchgEIAEoDBIMCgRzYWx0GAUgASgMEhEKCXNlYXRfZGF0YRgLIAEoDEIKCghzZXR0aW5ncyJYCgxMdWRvU2V0dGluZ3MSFwoPYW55X3JvbGxfc3RhcnRzGAEgASgIEhEKCWJsb2NrYWRlcxgCIAEoCBIcChRzdG9wX2F0X2ZpcnN0X3dpbm5lchgDIAEoCCITChFUaWNUYWNUb2VTZXR0aW5ncyIVChNDb25uZWN0Rm91clNldHRpbmdzIhwKDERvdHNTZXR0aW5ncxIMCgRzaXplGAEgASgNIj4KDlNuYWtlc1NldHRpbmdzEhcKD3NpeF9yb2xsc19hZ2FpbhgBIAEoCBITCgtib3VuY2VfYmFjaxgCIAEoCCIiCg1DaGVzc1NldHRpbmdzEhEKCWhvc3Rfc2lkZRgBIAEoDSI7CghHYW1lSm9pbhIOCgZhbmNob3IYASABKAwSDAoEc2FsdBgCIAEoDBIRCglzZWF0X2RhdGEYAyABKAwiPwoJR2FtZVN0YXJ0EiQKBXNlYXRzGAEgAygLMhUucGluZ2Rvc3QudjEuR2FtZVNlYXQSDAoEc2FsdBgCIAEoDCJuCghHYW1lU2VhdBIPCgd1c2VyX2lkGAEgASgMEhEKCWRldmljZV9pZBgCIAEoDBINCgVjb2xvchgDIAEoDRIOCgZhbmNob3IYBCABKAwSDAoEc2FsdBgFIAEoDBIRCglzZWF0X2RhdGEYBiABKAwiPAoIR2FtZVJvbGwSDgoGcmV2ZWFsGAEgASgMEgwKBHNhbHQYAiABKAwSEgoKc3RhdGVfaGFzaBgDIAEoDCLgAgoIR2FtZU1vdmUSDQoFdG9rZW4YASABKA0SDAoEc2FsdBgCIAEoDBISCgpzdGF0ZV9oYXNoGAMgASgMEjEKC3RpY190YWNfdG9lGAQgASgLMhoucGluZ2Rvc3QudjEuVGljVGFjVG9lTW92ZUgAEjQKDGNvbm5lY3RfZm91chgFIAEoCzIcLnBpbmdkb3N0LnYxLkNvbm5lY3RGb3VyTW92ZUgAEiUKBGRvdHMYBiABKAsyFS5waW5nZG9zdC52MS5Eb3RzTW92ZUgAEicKBWNoZXNzGAcgASgLMhYucGluZ2Rvc3QudjEuQ2hlc3NNb3ZlSAASLgoJbGFzdF9jYXJkGAggASgLMhkucGluZ2Rvc3QudjEuTGFzdENhcmRNb3ZlSAASMgoLY2FsbF9icmlkZ2UYCSABKAsyGy5waW5nZG9zdC52MS5DYWxsQnJpZGdlTW92ZUgAQgYKBHBsYXkiHQoNVGljVGFjVG9lTW92ZRIMCgRjZWxsGAEgASgNIiEKD0Nvbm5lY3RGb3VyTW92ZRIOCgZjb2x1bW4YASABKA0iGAoIRG90c01vdmUSDAoEbGluZRgBIAEoDSJhCglDaGVzc01vdmUSDAoEZnJvbRgBIAEoDRIKCgJ0bxgCIAEoDRIRCglwcm9tb3Rpb24YAyABKA0SEgoKb2ZmZXJfZHJhdxgEIAEoCBITCgthY2NlcHRfZHJhdxgFIAEoCCIsCghHYW1lU2tpcBIMCgRzYWx0GAEgASgMEhIKCnN0YXRlX2hhc2gYAiABKAwiCwoJR2FtZUxlYXZlIgkKB0dhbWVFbmQiGgoJR2FtZUVtb3RlEg0KBWVtb2ppGAEgASgJIicKCEdhbWVEZWFsEg0KBXJvdW5kGAEgASgNEgwKBGRhdGEYAiABKAwiEgoQTGFzdENhcmRTZXR0aW5ncyKDAQoMTGFzdENhcmRNb3ZlEhIKCmRyYXdfaW5kZXgYASABKA0SDAoEY2FyZBgCIAEoDRIOCgZzZWNyZXQYAyABKAwSDQoFY29sb3IYBCABKA0SFgoObGFzdF9jYXJkX2NhbGwYBSABKAgSDAoEZHJhdxgGIAEoCBIMCgRwYXNzGAcgASgIIhQKEkNhbGxCcmlkZ2VTZXR0aW5ncyJyCg5DYWxsQnJpZGdlTW92ZRIMCgRjYWxsGAEgASgNEhAKCHBvc2l0aW9uGAIgASgNEgwKBGNhcmQYAyABKA0SDQoFbm9uY2UYBCABKAwSEwoLY29tbWl0bWVudHMYBSABKAwSDgoGcmV2ZWFsGAYgASgMKvkBCghHYW1lVHlwZRIZChVHQU1FX1RZUEVfVU5TUEVDSUZJRUQQABISCg5HQU1FX1RZUEVfTFVETxABEhkKFUdBTUVfVFlQRV9USUNfVEFDX1RPRRACEhoKFkdBTUVfVFlQRV9DT05ORUNUX0ZPVVIQAxIcChhHQU1FX1RZUEVfRE9UU19BTkRfQk9YRVMQBBIgChxHQU1FX1RZUEVfU05BS0VTX0FORF9MQURERVJTEAUSEwoPR0FNRV9UWVBFX0NIRVNTEAYSFwoTR0FNRV9UWVBFX0xBU1RfQ0FSRBAHEhkKFUdBTUVfVFlQRV9DQUxMX0JSSURHRRAIYgZwcm90bzM");
+  fileDesc("ChdwaW5nZG9zdC92MS9nYW1lcy5wcm90bxILcGluZ2Rvc3QudjEiywMKBEdhbWUSDwoHZ2FtZV9pZBgBIAEoDBIMCgR0dXJuGAIgASgNEg0KBWluZGV4GAMgASgNEikKBmNyZWF0ZRgEIAEoCzIXLnBpbmdkb3N0LnYxLkdhbWVDcmVhdGVIABIlCgRqb2luGAUgASgLMhUucGluZ2Rvc3QudjEuR2FtZUpvaW5IABInCgVzdGFydBgGIAEoCzIWLnBpbmdkb3N0LnYxLkdhbWVTdGFydEgAEiUKBHJvbGwYByABKAsyFS5waW5nZG9zdC52MS5HYW1lUm9sbEgAEiUKBG1vdmUYCCABKAsyFS5waW5nZG9zdC52MS5HYW1lTW92ZUgAEiUKBHNraXAYCSABKAsyFS5waW5nZG9zdC52MS5HYW1lU2tpcEgAEicKBWxlYXZlGAogASgLMhYucGluZ2Rvc3QudjEuR2FtZUxlYXZlSAASIwoDZW5kGAsgASgLMhQucGluZ2Rvc3QudjEuR2FtZUVuZEgAEicKBWVtb3RlGAwgASgLMhYucGluZ2Rvc3QudjEuR2FtZUVtb3RlSAASJQoEZGVhbBgNIAEoCzIVLnBpbmdkb3N0LnYxLkdhbWVEZWFsSABCBwoFZXZlbnQivwQKCkdhbWVDcmVhdGUSIwoEdHlwZRgBIAEoDjIVLnBpbmdkb3N0LnYxLkdhbWVUeXBlEhMKC21heF9wbGF5ZXJzGAIgASgNEikKBGx1ZG8YAyABKAsyGS5waW5nZG9zdC52MS5MdWRvU2V0dGluZ3NIABI1Cgt0aWNfdGFjX3RvZRgGIAEoCzIeLnBpbmdkb3N0LnYxLlRpY1RhY1RvZVNldHRpbmdzSAASOAoMY29ubmVjdF9mb3VyGAcgASgLMiAucGluZ2Rvc3QudjEuQ29ubmVjdEZvdXJTZXR0aW5nc0gAEikKBGRvdHMYCCABKAsyGS5waW5nZG9zdC52MS5Eb3RzU2V0dGluZ3NIABItCgZzbmFrZXMYCSABKAsyGy5waW5nZG9zdC52MS5TbmFrZXNTZXR0aW5nc0gAEisKBWNoZXNzGAogASgLMhoucGluZ2Rvc3QudjEuQ2hlc3NTZXR0aW5nc0gAEjIKCWxhc3RfY2FyZBgMIAEoCzIdLnBpbmdkb3N0LnYxLkxhc3RDYXJkU2V0dGluZ3NIABI2CgtjYWxsX2JyaWRnZRgNIAEoCzIfLnBpbmdkb3N0LnYxLkNhbGxCcmlkZ2VTZXR0aW5nc0gAEisKBXBva2VyGA4gASgLMhoucGluZ2Rvc3QudjEuUG9rZXJTZXR0aW5nc0gAEg4KBmFuY2hvchgEIAEoDBIMCgRzYWx0GAUgASgMEhEKCXNlYXRfZGF0YRgLIAEoDEIKCghzZXR0aW5ncyJYCgxMdWRvU2V0dGluZ3MSFwoPYW55X3JvbGxfc3RhcnRzGAEgASgIEhEKCWJsb2NrYWRlcxgCIAEoCBIcChRzdG9wX2F0X2ZpcnN0X3dpbm5lchgDIAEoCCITChFUaWNUYWNUb2VTZXR0aW5ncyIVChNDb25uZWN0Rm91clNldHRpbmdzIhwKDERvdHNTZXR0aW5ncxIMCgRzaXplGAEgASgNIj4KDlNuYWtlc1NldHRpbmdzEhcKD3NpeF9yb2xsc19hZ2FpbhgBIAEoCBITCgtib3VuY2VfYmFjaxgCIAEoCCIiCg1DaGVzc1NldHRpbmdzEhEKCWhvc3Rfc2lkZRgBIAEoDSI7CghHYW1lSm9pbhIOCgZhbmNob3IYASABKAwSDAoEc2FsdBgCIAEoDBIRCglzZWF0X2RhdGEYAyABKAwiPwoJR2FtZVN0YXJ0EiQKBXNlYXRzGAEgAygLMhUucGluZ2Rvc3QudjEuR2FtZVNlYXQSDAoEc2FsdBgCIAEoDCJuCghHYW1lU2VhdBIPCgd1c2VyX2lkGAEgASgMEhEKCWRldmljZV9pZBgCIAEoDBINCgVjb2xvchgDIAEoDRIOCgZhbmNob3IYBCABKAwSDAoEc2FsdBgFIAEoDBIRCglzZWF0X2RhdGEYBiABKAwiPAoIR2FtZVJvbGwSDgoGcmV2ZWFsGAEgASgMEgwKBHNhbHQYAiABKAwSEgoKc3RhdGVfaGFzaBgDIAEoDCKJAwoIR2FtZU1vdmUSDQoFdG9rZW4YASABKA0SDAoEc2FsdBgCIAEoDBISCgpzdGF0ZV9oYXNoGAMgASgMEjEKC3RpY190YWNfdG9lGAQgASgLMhoucGluZ2Rvc3QudjEuVGljVGFjVG9lTW92ZUgAEjQKDGNvbm5lY3RfZm91chgFIAEoCzIcLnBpbmdkb3N0LnYxLkNvbm5lY3RGb3VyTW92ZUgAEiUKBGRvdHMYBiABKAsyFS5waW5nZG9zdC52MS5Eb3RzTW92ZUgAEicKBWNoZXNzGAcgASgLMhYucGluZ2Rvc3QudjEuQ2hlc3NNb3ZlSAASLgoJbGFzdF9jYXJkGAggASgLMhkucGluZ2Rvc3QudjEuTGFzdENhcmRNb3ZlSAASMgoLY2FsbF9icmlkZ2UYCSABKAsyGy5waW5nZG9zdC52MS5DYWxsQnJpZGdlTW92ZUgAEicKBXBva2VyGAogASgLMhYucGluZ2Rvc3QudjEuUG9rZXJNb3ZlSABCBgoEcGxheSIdCg1UaWNUYWNUb2VNb3ZlEgwKBGNlbGwYASABKA0iIQoPQ29ubmVjdEZvdXJNb3ZlEg4KBmNvbHVtbhgBIAEoDSIYCghEb3RzTW92ZRIMCgRsaW5lGAEgASgNImEKCUNoZXNzTW92ZRIMCgRmcm9tGAEgASgNEgoKAnRvGAIgASgNEhEKCXByb21vdGlvbhgDIAEoDRISCgpvZmZlcl9kcmF3GAQgASgIEhMKC2FjY2VwdF9kcmF3GAUgASgIIiwKCEdhbWVTa2lwEgwKBHNhbHQYASABKAwSEgoKc3RhdGVfaGFzaBgCIAEoDCILCglHYW1lTGVhdmUiCQoHR2FtZUVuZCIaCglHYW1lRW1vdGUSDQoFZW1vamkYASABKAkiJwoIR2FtZURlYWwSDQoFcm91bmQYASABKA0SDAoEZGF0YRgCIAEoDCISChBMYXN0Q2FyZFNldHRpbmdzIoMBCgxMYXN0Q2FyZE1vdmUSEgoKZHJhd19pbmRleBgBIAEoDRIMCgRjYXJkGAIgASgNEg4KBnNlY3JldBgDIAEoDBINCgVjb2xvchgEIAEoDRIWCg5sYXN0X2NhcmRfY2FsbBgFIAEoCBIMCgRkcmF3GAYgASgIEgwKBHBhc3MYByABKAgiFAoSQ2FsbEJyaWRnZVNldHRpbmdzInIKDkNhbGxCcmlkZ2VNb3ZlEgwKBGNhbGwYASABKA0SEAoIcG9zaXRpb24YAiABKA0SDAoEY2FyZBgDIAEoDRINCgVub25jZRgEIAEoDBITCgtjb21taXRtZW50cxgFIAEoDBIOCgZyZXZlYWwYBiABKAwiPQoNUG9rZXJTZXR0aW5ncxIWCg5zdGFydGluZ19jaGlwcxgBIAEoDRIUCgxmaXhlZF9ibGluZHMYAiABKAgingEKCVBva2VyTW92ZRIOCgZhY3Rpb24YASABKA0SDgoGYW1vdW50GAIgASgNEhMKC2NvbW1pdG1lbnRzGAMgASgMEhEKCXBvc2l0aW9ucxgEIAMoDRINCgVjYXJkcxgFIAMoDRIOCgZub25jZXMYBiABKAwSDgoGcmV2ZWFsGAcgASgMEgwKBG11Y2sYCCABKAgSDAoEcGFzcxgJIAEoCCqOAgoIR2FtZVR5cGUSGQoVR0FNRV9UWVBFX1VOU1BFQ0lGSUVEEAASEgoOR0FNRV9UWVBFX0xVRE8QARIZChVHQU1FX1RZUEVfVElDX1RBQ19UT0UQAhIaChZHQU1FX1RZUEVfQ09OTkVDVF9GT1VSEAMSHAoYR0FNRV9UWVBFX0RPVFNfQU5EX0JPWEVTEAQSIAocR0FNRV9UWVBFX1NOQUtFU19BTkRfTEFEREVSUxAFEhMKD0dBTUVfVFlQRV9DSEVTUxAGEhcKE0dBTUVfVFlQRV9MQVNUX0NBUkQQBxIZChVHQU1FX1RZUEVfQ0FMTF9CUklER0UQCBITCg9HQU1FX1RZUEVfUE9LRVIQCWIGcHJvdG8z");
 
 /**
  * @generated from message pingdost.v1.Game
@@ -190,6 +190,12 @@ export type GameCreate = Message<"pingdost.v1.GameCreate"> & {
      */
     value: CallBridgeSettings;
     case: "callBridge";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.PokerSettings poker = 14;
+     */
+    value: PokerSettings;
+    case: "poker";
   } | { case: undefined; value?: undefined };
 
   /**
@@ -549,6 +555,12 @@ export type GameMove = Message<"pingdost.v1.GameMove"> & {
      */
     value: CallBridgeMove;
     case: "callBridge";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.PokerMove poker = 10;
+     */
+    value: PokerMove;
+    case: "poker";
   } | { case: undefined; value?: undefined };
 };
 
@@ -901,6 +913,110 @@ export const CallBridgeMoveSchema: GenMessage<CallBridgeMove> = /*@__PURE__*/
   messageDesc(file_pingdost_v1_games, 25);
 
 /**
+ * Play chips only: nothing is bought, paid or won. Blinds start at 10 and 20.
+ *
+ * @generated from message pingdost.v1.PokerSettings
+ */
+export type PokerSettings = Message<"pingdost.v1.PokerSettings"> & {
+  /**
+   * Chips each player starts with: 500, 1000, 2000 or 5000 (0: 1000).
+   *
+   * @generated from field: uint32 starting_chips = 1;
+   */
+  startingChips: number;
+
+  /**
+   * The blinds stay at 10 and 20 (otherwise they double every 10 hands).
+   *
+   * @generated from field: bool fixed_blinds = 2;
+   */
+  fixedBlinds: boolean;
+};
+
+/**
+ * Describes the message pingdost.v1.PokerSettings.
+ * Use `create(PokerSettingsSchema)` to create a new message.
+ */
+export const PokerSettingsSchema: GenMessage<PokerSettings> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 26);
+
+/**
+ * One step of a hand (ADR 0052, 0053). Players bet; the dealer's app (the button) deals
+ * (`commitments`), turns up the flop, turn and river with their nonces, and at the hand's end
+ * shows its secret (`reveal`); at the showdown each player's app shows their two cards.
+ *
+ * @generated from message pingdost.v1.PokerMove
+ */
+export type PokerMove = Message<"pingdost.v1.PokerMove"> & {
+  /**
+   * A bet: 1 fold, 2 check, 3 call, 4 raise (or bet) to `amount` chips in this round of
+   * betting (0: not a bet).
+   *
+   * @generated from field: uint32 action = 1;
+   */
+  action: number;
+
+  /**
+   * @generated from field: uint32 amount = 2;
+   */
+  amount: number;
+
+  /**
+   * The dealer: a 16-byte commitment per position (two per seat in seat order, then five for
+   * the board).
+   *
+   * @generated from field: bytes commitments = 3;
+   */
+  commitments: Uint8Array;
+
+  /**
+   * Cards turned up (the board, or a hand at the showdown): positions, cards plus one (1 to 52,
+   * as in Call Bridge) and a 16-byte nonce each.
+   *
+   * @generated from field: repeated uint32 positions = 4;
+   */
+  positions: number[];
+
+  /**
+   * @generated from field: repeated uint32 cards = 5;
+   */
+  cards: number[];
+
+  /**
+   * @generated from field: bytes nonces = 6;
+   */
+  nonces: Uint8Array;
+
+  /**
+   * The dealer's secret for this hand: the next link of its dealing chain (32 bytes).
+   *
+   * @generated from field: bytes reveal = 7;
+   */
+  reveal: Uint8Array;
+
+  /**
+   * Played for an absent player once their time ran out: at the showdown their cards stay
+   * down and they give up the pot (`muck`); an absent dealer passes (`pass`: before the deal
+   * the next seat deals, during the hand the bets go back, at the end the deal goes unchecked).
+   *
+   * @generated from field: bool muck = 8;
+   */
+  muck: boolean;
+
+  /**
+   * @generated from field: bool pass = 9;
+   */
+  pass: boolean;
+};
+
+/**
+ * Describes the message pingdost.v1.PokerMove.
+ * Use `create(PokerMoveSchema)` to create a new message.
+ */
+export const PokerMoveSchema: GenMessage<PokerMove> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 27);
+
+/**
  * @generated from enum pingdost.v1.GameType
  */
 export enum GameType {
@@ -956,6 +1072,13 @@ export enum GameType {
    * @generated from enum value: GAME_TYPE_CALL_BRIDGE = 8;
    */
   CALL_BRIDGE = 8,
+
+  /**
+   * Phase 47: Texas Hold'em with play chips (no money), 2 to 6 players.
+   *
+   * @generated from enum value: GAME_TYPE_POKER = 9;
+   */
+  POKER = 9,
 }
 
 /**

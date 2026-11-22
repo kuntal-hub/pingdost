@@ -52,7 +52,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 44 | [Games D: Chess](phases/phase-44-games-chess.md) | 42 | 🔄 |
 | 45 | [Games E: hidden hands (dealing) + Last Card (UNO-style)](phases/phase-45-games-hidden-hands-uno.md) | 42 | 🔄 |
 | 46 | [Games F: Call Bridge](phases/phase-46-games-call-bridge.md) | 45 | 🔄 |
-| 47 | [Games G: Poker (Texas Hold'em, chips only)](phases/phase-47-games-poker.md) | 45 | ⬜ |
+| 47 | [Games G: Poker (Texas Hold'em, chips only)](phases/phase-47-games-poker.md) | 45 | 🔄 |
 
 **Order notes**
 - Phases mostly run in number order. Where dependencies allow, some can move:

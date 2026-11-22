@@ -17,6 +17,8 @@ import {
   type ChessState,
   type DotsState,
   type LastCardState,
+  pokerSeatLine,
+  type PokerState,
   type SnakesState,
   type TurnCore,
   type TurnGameId,
@@ -32,6 +34,7 @@ import { ChessBoard, ChessPiece } from './chess-board';
 import { ConnectFourBoard } from './connect-four-board';
 import { DotsBoard } from './dots-board';
 import { LastCardBoard } from './last-card-board';
+import { PokerBoard } from './poker-board';
 import { SnakesBoard } from './snakes-board';
 import { TicTacToeBoard } from './tic-tac-toe-board';
 import { Dice } from '../ludo/dice';
@@ -46,6 +49,7 @@ const BOARDS = {
   chess: ChessBoard,
   'last-card': LastCardBoard,
   'call-bridge': CallBridgeBoard,
+  poker: PokerBoard,
 } as unknown as Record<TurnGameId, ComponentType<TurnBoardProps>>;
 
 export function TurnBoard({ rules, ...props }: TurnBoardProps & { rules: AnyTurnRules }) {
@@ -64,7 +68,9 @@ export function turnBoardWidth(rules: AnyTurnRules, width: number, height: numbe
           ? 0.75
           : rules.id === 'call-bridge'
             ? 0.95
-            : 1;
+            : rules.id === 'poker'
+              ? 1.05
+              : 1;
   return Math.floor(Math.max(220, Math.min(width - 24, (height - 330) / tall, 520)));
 }
 
@@ -80,6 +86,7 @@ function seatDetail(rules: AnyTurnRules, state: TurnCore, seat: number): string 
     const call = s.calls[seat]!;
     return call > 0 ? `${total} · took ${s.tricks[seat]}/${call}` : `${total} points`;
   }
+  if (rules.id === 'poker') return pokerSeatLine(state as PokerState, seat);
   if (rules.id === 'last-card') {
     const count = (state as LastCardState).hands[seat]?.length ?? 0;
     return `${count} ${count === 1 ? 'card' : 'cards'}`;

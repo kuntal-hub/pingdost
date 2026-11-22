@@ -47,6 +47,11 @@ const LEVEL_DETAIL: Partial<Record<TurnGameId, Record<BotLevel, string>>> = {
     medium: 'Calls from its high cards and trumps, and wins tricks only when it needs them.',
     hard: 'Plays out sample deals of the unseen cards to pick each card.',
   },
+  poker: {
+    easy: 'Misreads its cards, calls too much and bluffs at random.',
+    medium: 'Bets good hands, calls when the price is right, bluffs now and then.',
+    hard: 'Reads raises, bets for value and bluffs when few players are left.',
+  },
   chess: {
     easy: 'Looks one move ahead and often picks a weaker move.',
     medium: 'Looks about three moves ahead.',

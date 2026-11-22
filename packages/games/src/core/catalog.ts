@@ -94,7 +94,7 @@ export const GAME_CATALOG: readonly CatalogEntry[] = [
     minPlayers: 2,
     maxPlayers: 6,
     icon: 'chips',
-    available: false,
+    available: true,
   },
 ];
 

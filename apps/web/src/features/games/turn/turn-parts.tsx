@@ -7,6 +7,7 @@ import { useAppearance } from '@/theme';
 import {
   isDraw,
   KING,
+  pokerSeatLine,
   snakesPath,
   turnSeatColor,
   type AnyTurnRules,
@@ -14,6 +15,7 @@ import {
   type ChessState,
   type DotsState,
   type LastCardState,
+  type PokerState,
   type SnakesState,
   type TurnCore,
   type TurnLast,
@@ -44,6 +46,7 @@ function seatDetail(rules: AnyTurnRules, state: TurnCore, seat: number): string 
     const call = s.calls[seat]!;
     return call > 0 ? `${total} · took ${s.tricks[seat]}/${call}` : `${total} points`;
   }
+  if (rules.id === 'poker') return pokerSeatLine(state as PokerState, seat);
   if (rules.id === 'last-card') {
     const count = (state as LastCardState).hands[seat]?.length ?? 0;
     return `${count} ${count === 1 ? 'card' : 'cards'}`;
