@@ -216,7 +216,7 @@ export function LastCardBoard({
   const cardWidth = Math.min(64, Math.floor(size / 6));
   const colorLook = colors.players[LAST_CARD_COLORS[state.color]!];
   const needsCall = mine.length === 2 && plays.length > 0;
-  const freshTop = last?.move && 'play' in (last.move);
+  const freshTop = last?.move && 'play' in last.move;
 
   const playCard = (k: number, card: number) => {
     if (isWild(card)) {
