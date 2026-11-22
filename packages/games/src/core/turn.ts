@@ -12,12 +12,13 @@ import type {
   MessageInitShape,
 } from '@pingdost/protocol';
 
+import type { Sha256 } from './fair-dice';
 import type { Random } from './random';
 import type { BotLevel } from './types';
 
 /** The games built on this frame. */
 export type TurnGameId =
-  'tic-tac-toe' | 'connect-four' | 'dots-and-boxes' | 'snakes-and-ladders' | 'chess';
+  'tic-tac-toe' | 'connect-four' | 'dots-and-boxes' | 'snakes-and-ladders' | 'chess' | 'last-card';
 
 /** What every turn game's state has. States are plain JSON (saved, folded, compared). */
 export interface TurnCore {
@@ -82,6 +83,61 @@ export interface TurnStep<S, M> {
   die?: number;
 }
 
+/** Hidden-hand games with friends (ADR 0052): the start, as every device sees it. */
+export interface NetSetup {
+  sha256: Sha256;
+  gameId: Uint8Array;
+  /** Each seat's `seat_data` and salt, by seat. */
+  seatData: Uint8Array[];
+  salts: Uint8Array[];
+  /** The host's fresh salt in `start`. */
+  startSalt: Uint8Array;
+  host: number;
+}
+
+/** Hidden-hand games: what a step is checked and applied with. */
+export interface NetStep {
+  sha256: Sha256;
+  gameId: Uint8Array;
+  /** The salt a card drawn now by `seat` uses: the latest by another device (this event's too). */
+  saltFor(seat: number): Uint8Array;
+}
+
+/** Hidden-hand games: what this device knows that the shared log does not show. */
+export interface Knowledge {
+  sha256: Sha256;
+  gameId: Uint8Array;
+  /** This device's seat secret (null when it has none). */
+  seed: Uint8Array | null;
+  /** Private events dealt to this device, oldest first, with the seat that sent each. */
+  deals: { round: number; data: Uint8Array; from: number }[];
+}
+
+/**
+ * Hooks for games whose hands are hidden (ADR 0052). Solo games don't use them: their state has
+ * every card (the computer players only look at their own).
+ */
+export interface HiddenHooks<S, M, Settings> {
+  /** What a seat commits to when it sits down, from its seat seed. */
+  seatData(seed: Uint8Array, sha256: Sha256): Uint8Array;
+  setupNet(seats: number, settings: Settings, first: number, net: NetSetup): S;
+  isLegalNet(state: S, move: M, step: NetStep): boolean;
+  applyNet(state: S, move: M, step: NetStep): S;
+  /** The state as `seat` sees it: its own cards filled in. */
+  personalize(state: S, seat: number, knows: Knowledge): S;
+  /** A move picked on the personal view, with the proof the others check (a revealed secret). */
+  prove(state: S, move: M, seat: number, knows: Knowledge): M;
+  /** Dealer games: the seat that must deal now, or null. */
+  dealer?(state: S): number | null;
+  /** Dealer games: the public deal step and the private hands to send. */
+  deal?(
+    state: S,
+    seat: number,
+    knows: Knowledge,
+    step: NetStep,
+  ): { move: M; hands: { seat: number; round: number; data: Uint8Array }[] };
+}
+
 export type SettingsWire = MessageInitShape<typeof GameCreateSchema>['settings'];
 export type PlayWire = MessageInitShape<typeof GameMoveSchema>['play'];
 
@@ -142,6 +198,10 @@ export interface TurnRules<S extends TurnCore, M, Settings> {
   resultDetail?(state: S): string | null;
   /** How long a step takes on screen (default: `pace.step`). */
   stepMs?(step: TurnStep<S, M>, pace: TurnPace): number;
+  /** Solo games that need randomness at the start (shuffling, dealing). */
+  soloSetup?(state: S, random: Random): S;
+  /** Hidden-hand games (ADR 0052). */
+  hidden?: HiddenHooks<S, M, Settings>;
 }
 
 /** Any turn game (method parameters are bivariant, so every game's rules fit). */
@@ -153,7 +213,8 @@ export function isTurnGameId(id: string): id is TurnGameId {
     id === 'connect-four' ||
     id === 'dots-and-boxes' ||
     id === 'snakes-and-ladders' ||
-    id === 'chess'
+    id === 'chess' ||
+    id === 'last-card'
   );
 }
 

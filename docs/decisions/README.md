@@ -44,6 +44,7 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0049](0049-games-module.md) | Games module: games inside chats, E2EE game events, shared rules, commit-reveal dice, computer players only when alone (amended: turn timers, two-part turns; Phase 43: one turn-game frame) | 41, 42, 43 | Accepted |
 | [0050](0050-ludo-look-and-feel.md) | Ludo look and feel: 3D pins, corner panels with dice, glowing yard, stacks, generated sounds, always 4 pieces | 41 | Accepted |
 | [0051](0051-chess.md) | Chess: own move generator (perft-tested), in-house pieces, slow play, draw offers with a move | 44 | Accepted |
+| [0052](0052-dealing-hidden-hands.md) | Dealing hidden hands: self-dealt draws (Last Card), rotating dealer (Call Bridge, Poker), private game events | 45 | Accepted |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 

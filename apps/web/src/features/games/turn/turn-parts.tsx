@@ -12,6 +12,7 @@ import {
   type AnyTurnRules,
   type ChessState,
   type DotsState,
+  type LastCardState,
   type SnakesState,
   type TurnCore,
   type TurnLast,
@@ -35,6 +36,10 @@ function seatDetail(rules: AnyTurnRules, state: TurnCore, seat: number): string 
   if (rules.id === 'dots-and-boxes') {
     const score = (state as DotsState).scores[seat] ?? 0;
     return `${score} ${score === 1 ? 'box' : 'boxes'}`;
+  }
+  if (rules.id === 'last-card') {
+    const count = (state as LastCardState).hands[seat]?.length ?? 0;
+    return `${count} ${count === 1 ? 'card' : 'cards'}`;
   }
   if (rules.id === 'snakes-and-ladders') {
     const square = (state as SnakesState).positions[seat] ?? 0;

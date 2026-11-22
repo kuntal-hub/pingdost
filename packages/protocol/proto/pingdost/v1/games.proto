@@ -27,6 +27,8 @@ message Game {
     GameLeave leave = 10;
     GameEnd end = 11;
     GameEmote emote = 12;
+    // Phase 45 (ADR 0052): sent to one seat's device only, over Olm; never in the shared log.
+    GameDeal deal = 13;
   }
 }
 
@@ -40,6 +42,8 @@ enum GameType {
   GAME_TYPE_SNAKES_AND_LADDERS = 5;
   // Phase 44.
   GAME_TYPE_CHESS = 6;
+  // Phase 45: a shedding card game (match color or number).
+  GAME_TYPE_LAST_CARD = 7;
 }
 
 // Opens a game in the chat; it shows as an invitation card. The creator (host) takes the
@@ -56,10 +60,12 @@ message GameCreate {
     DotsSettings dots = 8;
     SnakesSettings snakes = 9;
     ChessSettings chess = 10;
+    LastCardSettings last_card = 12;
   }
   // The host's seat: see `GameJoin`.
   bytes anchor = 4;
   bytes salt = 5;
+  bytes seat_data = 11;
 }
 
 // Defaults are the classic rules, so an empty message is Ludo King-style classic.
@@ -102,12 +108,17 @@ message ChessSettings {
 message GameJoin {
   bytes anchor = 1;
   bytes salt = 2;
+  // Hidden-hand games (ADR 0052): what the seat commits to when it sits down (Last Card: 128
+  // draw commitments of 16 bytes). Empty for the other games.
+  bytes seat_data = 3;
 }
 
 // The host starts the game: these seats, in turn order. Self-contained, so a client that
 // missed a join can still check every roll.
 message GameStart {
   repeated GameSeat seats = 1;
+  // A fresh salt from the host, made after every join (ADR 0052: opening hands).
+  bytes salt = 2;
 }
 
 message GameSeat {
@@ -118,6 +129,7 @@ message GameSeat {
   uint32 color = 3;
   bytes anchor = 4;
   bytes salt = 5;
+  bytes seat_data = 6;
 }
 
 // A roll by the seat whose turn it is. `reveal` is the next secret of its chain (32 bytes);
@@ -142,6 +154,7 @@ message GameMove {
     ConnectFourMove connect_four = 5;
     DotsMove dots = 6;
     ChessMove chess = 7;
+    LastCardMove last_card = 8;
   }
 }
 
@@ -188,4 +201,30 @@ message GameEnd {}
 // A quick reaction shown over the board for a moment. One emoji.
 message GameEmote {
   string emoji = 1;
+}
+
+// Private (ADR 0052): cards dealt to one seat for a round, as the game encodes them.
+message GameDeal {
+  uint32 round = 1;
+  bytes data = 2;
+}
+
+// No options yet: one round, first to empty their hand wins.
+message LastCardSettings {}
+
+// Play a card, draw one, or keep the drawn card and pass.
+message LastCardMove {
+  // The card played: the player's draw number for it, its code (1 to 54: colors 0 to 3 times
+  // 0-9, skip, reverse, draw two; then wild, wild draw four) and the secret behind it.
+  uint32 draw_index = 1;
+  uint32 card = 2;
+  bytes secret = 3;
+  // A wild's new color, 1 to 4 (0: none).
+  uint32 color = 4;
+  // Called "last card" with the second-to-last card (otherwise two cards as a penalty).
+  bool last_card_call = 5;
+  // Instead of a card: draw one; `pass` keeps the drawn card and ends the turn (both: an
+  // absent player's turn played for them).
+  bool draw = 6;
+  bool pass = 7;
 }

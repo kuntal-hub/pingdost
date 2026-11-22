@@ -15,6 +15,7 @@ import {
   type AnyTurnRules,
   type ChessState,
   type DotsState,
+  type LastCardState,
   type SnakesState,
   type TurnCore,
   type TurnGameId,
@@ -28,6 +29,7 @@ import type { TurnBoardProps } from './board-props';
 import { ChessBoard, ChessPiece } from './chess-board';
 import { ConnectFourBoard } from './connect-four-board';
 import { DotsBoard } from './dots-board';
+import { LastCardBoard } from './last-card-board';
 import { SnakesBoard } from './snakes-board';
 import { TicTacToeBoard } from './tic-tac-toe-board';
 import { Dice } from '../ludo/dice';
@@ -40,6 +42,7 @@ const BOARDS = {
   'dots-and-boxes': DotsBoard,
   'snakes-and-ladders': SnakesBoard,
   chess: ChessBoard,
+  'last-card': LastCardBoard,
 } as unknown as Record<TurnGameId, ComponentType<TurnBoardProps>>;
 
 export function TurnBoard({ rules, ...props }: TurnBoardProps & { rules: AnyTurnRules }) {
@@ -49,7 +52,14 @@ export function TurnBoard({ rules, ...props }: TurnBoardProps & { rules: AnyTurn
 
 /** The board's width for the space there is (Snakes and Ladders needs room for its start row). */
 export function turnBoardWidth(rules: AnyTurnRules, width: number, height: number): number {
-  const tall = rules.id === 'snakes-and-ladders' ? 1.11 : rules.id === 'connect-four' ? 0.9 : 1;
+  const tall =
+    rules.id === 'snakes-and-ladders'
+      ? 1.11
+      : rules.id === 'connect-four'
+        ? 0.9
+        : rules.id === 'last-card'
+          ? 0.75
+          : 1;
   return Math.floor(Math.max(220, Math.min(width - 24, (height - 330) / tall, 520)));
 }
 
@@ -58,6 +68,10 @@ function seatDetail(rules: AnyTurnRules, state: TurnCore, seat: number): string 
   if (rules.id === 'dots-and-boxes') {
     const score = (state as DotsState).scores[seat] ?? 0;
     return `${score} ${score === 1 ? 'box' : 'boxes'}`;
+  }
+  if (rules.id === 'last-card') {
+    const count = (state as LastCardState).hands[seat]?.length ?? 0;
+    return `${count} ${count === 1 ? 'card' : 'cards'}`;
   }
   if (rules.id === 'snakes-and-ladders') {
     const square = (state as SnakesState).positions[seat] ?? 0;

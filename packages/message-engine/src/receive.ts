@@ -46,6 +46,7 @@ import type {
   AttachmentInfo,
   ConversationRecord,
   DeliveryRecord,
+  GameRecord,
   GroupRecord,
   HeldGroupRecord,
   MessageRecord,
@@ -67,6 +68,11 @@ const GROUP_BODIES = new Set<string>([
 ]);
 /** What a person writes one to one (`undefined`: a body from a newer version). */
 const DIRECT_CONTENT = new Set<string | undefined>([...GROUP_BODIES, undefined]);
+
+/** A private game event (ADR 0052): cards dealt to one seat, sent one to one. */
+function isPrivateDeal(content: Content | undefined): boolean {
+  return content?.body.case === 'game' && content.body.value.event.case === 'deal';
+}
 
 /** A key request from one device for one session is answered at most this often. */
 const KEY_ANSWER_INTERVAL_MS = 60_000;
@@ -540,7 +546,14 @@ export class Receiver {
     if (core.isBlocked(checked.senderUserId)) return [];
     // Circles (Phase 37): direct content from outside the circle is dropped without a receipt.
     // Receipts, session repair and key changes still pass (group co-members send them).
-    if (!group && DIRECT_CONTENT.has(kind) && core.outsideCircle(checked.senderUserId)) return [];
+    if (
+      !group &&
+      DIRECT_CONTENT.has(kind) &&
+      core.outsideCircle(checked.senderUserId) &&
+      !(isPrivateDeal(content) && (await this.#sharesGroup(checked.senderUserId)))
+    ) {
+      return [];
+    }
     if (group) {
       // Over Megolm: only members' messages, edits, deletes and reactions count.
       if (!isMember(group, checked.senderUserId)) return [];
@@ -675,6 +688,8 @@ export class Receiver {
     const gameId = bytesToUuid(game.gameId);
     if (game.event.case === 'create' && gameId !== header.messageId) return [];
     const existing = await core.store.getGame(gameId);
+    if (game.event.case === 'deal')
+      return this.#receiveDeal(batch, header, sender, game, existing, now);
     if (existing && existing.conversationId !== header.conversationId) return [];
     const record = nextGameRecord(
       existing,
@@ -710,6 +725,50 @@ export class Receiver {
       gameCardBody(gameId, record.gameType),
       now,
     );
+  }
+
+  /**
+   * A private game event (ADR 0052: cards dealt to this device) arrives one to one with a direct
+   * header. It is kept with its game's events only: it never creates or changes the game's
+   * record (it may overtake the `create`), and it counts only from someone who belongs to the
+   * game's chat.
+   */
+  async #receiveDeal(
+    batch: WriteBatch,
+    header: CheckedHeader,
+    sender: RemoteDevice,
+    game: Game,
+    existing: GameRecord | undefined,
+    now: number,
+  ): Promise<Effect[]> {
+    const { core } = this;
+    if (header.senderUserId === core.self.userId) return [];
+    let conversationId = header.conversationId;
+    if (existing && existing.conversationId !== header.conversationId) {
+      const group = await core.store.getGroup(existing.conversationId);
+      if (!group || group.left || !isMember(group, header.senderUserId)) return [];
+      conversationId = existing.conversationId;
+    }
+    batch.gameEvents = [
+      ...(batch.gameEvents ?? []),
+      {
+        eventId: header.messageId,
+        gameId: bytesToUuid(game.gameId),
+        conversationId,
+        senderUserId: header.senderUserId,
+        senderDeviceId: sender.deviceId,
+        sentAt: header.sentAt,
+        receivedAt: now,
+        payload: toBase64(encodeGame(game)),
+      },
+    ];
+    return [];
+  }
+
+  /** Whether `userId` is in a group with this user (a co-member may deal cards here). */
+  async #sharesGroup(userId: string): Promise<boolean> {
+    const groups = await this.core.store.listGroups();
+    return groups.some((group) => !group.left && isMember(group, userId));
   }
 
   /** Files a new message; the effect announces it (`received`) once it is committed. */

@@ -548,8 +548,20 @@ export const GAME_SECRET_BYTES = 32;
 export const GAME_SALT_BYTES = 16;
 export const GAME_STATE_HASH_BYTES = 8;
 export const GAME_MAX_SEATS = 4;
-/** A game's whole encoded event, far below a Content's limit. */
-const GAME_MAX_BYTES = 1024;
+/**
+ * A game's whole encoded event, below a Content's limit: a four-seat `start` with hidden-hand
+ * commitments (ADR 0052) is about 8.5 KiB.
+ */
+const GAME_MAX_BYTES = 16 * 1024;
+/** Hidden-hand commitments a seat publishes (ADR 0052): up to 128 of 16 bytes. */
+export const GAME_SEAT_DATA_MAX_BYTES = 2048;
+const GAME_DEAL_MAX_BYTES = 1024;
+
+function checkSeatData(value: Uint8Array, field: string): void {
+  if (value.length > GAME_SEAT_DATA_MAX_BYTES || value.length % 16 !== 0) {
+    throw invalid(field, `must be up to ${GAME_SEAT_DATA_MAX_BYTES} bytes, in 16-byte steps`);
+  }
+}
 
 function checkBytes(value: Uint8Array, length: number, field: string): void {
   if (value.length === 0) throw missing(field);
@@ -570,11 +582,13 @@ function checkGame(game: Game): void {
       }
       checkBytes(event.value.anchor, GAME_SECRET_BYTES, 'game.create.anchor');
       checkBytes(event.value.salt, GAME_SALT_BYTES, 'game.create.salt');
+      checkSeatData(event.value.seatData, 'game.create.seat_data');
       break;
     }
     case 'join':
       checkBytes(event.value.anchor, GAME_SECRET_BYTES, 'game.join.anchor');
       checkBytes(event.value.salt, GAME_SALT_BYTES, 'game.join.salt');
+      checkSeatData(event.value.seatData, 'game.join.seat_data');
       break;
     case 'start': {
       const seats = event.value.seats;
@@ -587,7 +601,20 @@ function checkGame(game: Game): void {
         if (seat.color > 3) throw invalid('game.start.seats.color', 'must be 0 to 3');
         checkBytes(seat.anchor, GAME_SECRET_BYTES, 'game.start.seats.anchor');
         checkBytes(seat.salt, GAME_SALT_BYTES, 'game.start.seats.salt');
+        checkSeatData(seat.seatData, 'game.start.seats.seat_data');
       }
+      // Older starts have no salt; newer ones carry exactly one.
+      if (event.value.salt.length !== 0 && event.value.salt.length !== GAME_SALT_BYTES) {
+        throw invalid('game.start.salt', `must be ${GAME_SALT_BYTES} bytes`);
+      }
+      break;
+    }
+    case 'deal': {
+      if (event.value.data.length === 0) throw missing('game.deal.data');
+      if (event.value.data.length > GAME_DEAL_MAX_BYTES) {
+        throw invalid('game.deal.data', `must be up to ${GAME_DEAL_MAX_BYTES} bytes`);
+      }
+      if (event.value.round > 1000) throw invalid('game.deal.round', 'must be up to 1000');
       break;
     }
     case 'roll':

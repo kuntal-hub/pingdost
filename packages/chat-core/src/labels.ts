@@ -132,6 +132,7 @@ const GAME_NAMES: Record<string, string> = {
   'dots-and-boxes': 'Dots and Boxes',
   'snakes-and-ladders': 'Snakes and Ladders',
   chess: 'Chess',
+  'last-card': 'Last Card',
 };
 
 /** A game invitation card (ADR 0049) in one line: "Ludo game". */

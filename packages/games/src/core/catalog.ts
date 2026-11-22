@@ -70,13 +70,13 @@ export const GAME_CATALOG: readonly CatalogEntry[] = [
     available: true,
   },
   {
-    id: 'uno',
-    name: 'UNO',
-    tagline: 'Match colors and numbers, empty your hand.',
+    id: 'last-card',
+    name: 'Last Card',
+    tagline: 'Match the color or the number, empty your hand first.',
     minPlayers: 2,
     maxPlayers: 4,
     icon: 'cards',
-    available: false,
+    available: true,
   },
   {
     id: 'call-bridge',

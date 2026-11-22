@@ -19,6 +19,7 @@ import {
 import { CHESS, type ChessState } from '../chess/rules';
 import { CONNECT_FOUR, type ConnectFourState } from '../connect-four/rules';
 import { DOTS_AND_BOXES } from '../dots-and-boxes/rules';
+import { LAST_CARD, type LastCardMove, type LastCardState } from '../last-card/rules';
 import type { GameEventInit, GameSendOptions } from '../ludo/network-controller';
 import { SNAKES_AND_LADDERS, type SnakesState } from '../snakes-and-ladders/rules';
 import { TIC_TAC_TOE, type TicTacToeState } from '../tic-tac-toe/rules';
@@ -364,6 +365,54 @@ describe('turn games with friends', () => {
     expect((game.state as ChessState).end).toBe('resigned');
     expect(game.state!.ranks).toEqual([2, 1]);
   });
+
+  it('Last Card: three players to the end; hands stay hidden; absent turns are draw and pass', async () => {
+    const { table, controllers } = await setUp(LAST_CARD, [alice, bob, carol]);
+    const started = table.fold();
+    expect(started.phase).toBe('playing');
+    // Everyone's opening hand is hidden in the shared state; each player sees only their own.
+    expect((started.state as LastCardState).hands.flat().every((c) => c.card === 0)).toBe(true);
+    for (const [seat, c] of controllers.entries()) {
+      const view = c.getView().state as LastCardState;
+      const you = c.getView().you;
+      expect(view.hands[you]!.every((h) => h.card > 0)).toBe(true);
+      expect(
+        view.hands
+          .filter((_, s) => s !== you)
+          .flat()
+          .every((h) => h.card === 0),
+      ).toBe(true);
+      expect(seat).toBeGreaterThanOrEqual(0);
+    }
+    // No seat secret ever appears in a shared event.
+    const wire = table.events.map((e) => e.payload).join('');
+    for (const seed of table.seeds.values()) expect(wire).not.toContain(seed);
+
+    // Carol's app closes: the others play her turns as draw-and-pass, then she is out.
+    table.remove(controllers[2]!);
+    const random = seededRandom(13);
+    for (let i = 0; i < 3_000 && table.fold().phase === 'playing'; i++) {
+      let acted = false;
+      for (const { controller } of table.controllers) {
+        const view = controller.getView();
+        if (view.waiting !== 'you' || !view.state) continue;
+        controller.move(await LAST_CARD.bot(view.state as LastCardState, 'medium', random));
+        acted = true;
+      }
+      await vi.advanceTimersByTimeAsync(acted ? 1 : LAST_CARD.turnMs! + TURN_GRACE_MS + 3_100);
+    }
+    const game = table.fold();
+    expect(game.phase).toBe('over');
+    expect(game.desync).toBe(false);
+    const proxies = game.entries.filter((e) => e.kind === 'proxy');
+    for (const p of proxies) expect(p.seat).toBe(2);
+    expect(proxies.length).toBeGreaterThan(0);
+    // Every card played was proved: the played cards are known in the entries.
+    const plays = game.entries.filter(
+      (e) => e.kind === 'move' && e.move && 'play' in (e.move as LastCardMove),
+    );
+    expect(plays.length).toBeGreaterThan(0);
+  }, 60_000);
 
   it('the host can end the game for everyone', async () => {
     const { table, controllers } = await setUp(CONNECT_FOUR, [alice, bob]);

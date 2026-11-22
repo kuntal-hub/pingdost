@@ -42,6 +42,8 @@ export type GameEventInit = MessageInitShape<typeof GameSchema>;
 export interface GameSendOptions {
   /** This device's seat secret, stored with the event and never sent. */
   seatSeed?: string;
+  /** A private event (ADR 0052): to this device only. */
+  to?: GamePlayerRef;
 }
 
 /** What the controller needs from the app: who this is, SHA-256, and a way to send. */

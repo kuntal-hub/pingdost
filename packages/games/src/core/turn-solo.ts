@@ -1,5 +1,6 @@
 // A solo turn game: the user (seat 0) against computer players (ADR 0049: only when playing
 // alone), saved on the device so it survives closing the app.
+import { cryptoRandom, type Random } from './random';
 import type { AnyTurnRules, TurnCore, TurnGameId } from './turn';
 import { BOT_LEVELS, type BotLevel, type SeatKind } from './types';
 
@@ -44,6 +45,7 @@ export function createTurnSolo(
   options: TurnSoloOptions,
   now: number,
   first = 0,
+  random: Random = cryptoRandom(),
 ): TurnSoloGame {
   const normalized = normalizeTurnSoloOptions(rules, options);
   const count = normalized.computers + 1;
@@ -54,7 +56,9 @@ export function createTurnSolo(
     options: normalized,
     seats: Array.from({ length: count }, (_, i) => (i === 0 ? 'you' : 'computer')),
     first: first % count,
-    state: rules.setup(count, normalized.settings, starter),
+    state: ((s) => (rules.soloSetup ? rules.soloSetup(s, random) : s))(
+      rules.setup(count, normalized.settings, starter),
+    ),
     startedAt: now,
   };
 }

@@ -3,6 +3,7 @@ import { CHESS, type ChessState } from './chess/rules';
 import { CONNECT_FOUR, connectFourColor, type ConnectFourState } from './connect-four/rules';
 import type { AnyTurnRules, TurnCore, TurnGameId } from './core/turn';
 import { DOTS_AND_BOXES, DOTS_COLORS } from './dots-and-boxes/rules';
+import { LAST_CARD } from './last-card/rules';
 import { SNAKES_AND_LADDERS, SNAKES_COLORS } from './snakes-and-ladders/rules';
 import { TIC_TAC_TOE, ticTacToeMark, type TicTacToeState } from './tic-tac-toe/rules';
 
@@ -12,6 +13,7 @@ export const TURN_GAMES: Readonly<Record<TurnGameId, AnyTurnRules>> = {
   'dots-and-boxes': DOTS_AND_BOXES,
   'snakes-and-ladders': SNAKES_AND_LADDERS,
   chess: CHESS,
+  'last-card': LAST_CARD,
 };
 
 export const TURN_GAME_IDS = Object.keys(TURN_GAMES) as TurnGameId[];
@@ -33,6 +35,7 @@ export function turnSeatColor(id: TurnGameId, state: TurnCore, seat: number): Se
     case 'connect-four':
       return connectFourColor(state as ConnectFourState, seat);
     case 'dots-and-boxes':
+    case 'last-card':
       return DOTS_COLORS[seat] ?? 'red';
     case 'snakes-and-ladders':
       return SNAKES_COLORS[seat] ?? 'red';

@@ -53,7 +53,7 @@ export function GameCard({
       </span>
       <button
         type="button"
-        aria-label={` `}
+        aria-label={`${action} ${title}`}
         onClick={(event) => {
           event.stopPropagation();
           void navigate(

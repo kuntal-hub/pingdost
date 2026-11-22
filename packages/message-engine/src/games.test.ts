@@ -142,6 +142,80 @@ describe('games through the engine', () => {
     }
   });
 
+  it('deals privately (ADR 0052): one device gets it, the dealer keeps nothing, co-members pass the circle', async () => {
+    const server = new FakeServer();
+    const alice = await client(server);
+    // Bob has nobody in his circle: a group co-member's deal still reaches him.
+    const bob = await client(server, { circle: () => false });
+    const carol = await client(server);
+    await online(alice, bob, carol);
+    const { conversationId: groupId } = await alice.engine.createGroup({
+      name: 'Cards',
+      memberUserIds: [bob.userId, carol.userId],
+    });
+    const { gameId } = await alice.engine.sendGameEvent(groupId, ludo);
+    await eventually(
+      async () => (await carol.engine.getGame(gameId)) !== undefined,
+      5_000,
+      'carol has the game',
+    );
+    const secretHand = bytes(40, 0x5a);
+    const deal = await alice.engine.sendGameEvent(
+      groupId,
+      {
+        gameId: uuidToBytes(gameId),
+        event: { case: 'deal', value: { round: 1, data: secretHand } },
+      },
+      { to: { userId: carol.userId, deviceId: carol.deviceId } },
+    );
+    await alice.engine.sendGameEvent(
+      groupId,
+      {
+        gameId: uuidToBytes(gameId),
+        event: { case: 'deal', value: { round: 1, data: bytes(40, 7) } },
+      },
+      { to: { userId: bob.userId, deviceId: bob.deviceId } },
+    );
+    await eventually(
+      async () =>
+        (await carol.engine.listGameEvents(gameId)).some((e) => e.eventId === deal.eventId),
+      5_000,
+      'carol has her hand',
+    );
+    const carolEvents = await carol.engine.listGameEvents(gameId);
+    const received = carolEvents.find((e) => e.eventId === deal.eventId)!;
+    expect(received).toMatchObject({ conversationId: groupId, senderUserId: alice.userId });
+    const value = decodeGame(fromBase64(received.payload)).event;
+    expect(
+      value.case === 'deal' && Buffer.from(value.value.data).equals(Buffer.from(secretHand)),
+    ).toBe(true);
+    await eventually(
+      async () =>
+        (await bob.engine.listGameEvents(gameId)).some(
+          (e) =>
+            e.senderUserId === alice.userId &&
+            decodeGame(fromBase64(e.payload)).event.case === 'deal',
+        ),
+      5_000,
+      'bob has his hand',
+    );
+    // Only the two dealt hands went out: nobody got the other's, the dealer stored neither,
+    // and the deal changed nobody's game record.
+    expect(
+      carolEvents.filter((e) => decodeGame(fromBase64(e.payload)).event.case === 'deal'),
+    ).toHaveLength(1);
+    expect((await alice.engine.listGameEvents(gameId)).map((e) => e.eventId)).toEqual([gameId]);
+    expect((await carol.engine.getGame(gameId))?.conversationId).toBe(groupId);
+    // A deal must go to someone else, and only a deal goes to one device.
+    await expect(
+      alice.engine.sendGameEvent(
+        groupId,
+        { gameId: uuidToBytes(gameId), event: { case: 'emote', value: { emoji: '🙂' } } },
+        { to: { userId: bob.userId, deviceId: bob.deviceId } },
+      ),
+    ).rejects.toThrow();
+  });
+
   it('drops a game from outside the circle, and deletes games with their chat', async () => {
     const server = new FakeServer();
     const circle = new Set<string>();

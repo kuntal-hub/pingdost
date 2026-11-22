@@ -21,6 +21,8 @@ export function gameTypeName(type: GameType): string {
       return 'snakes-and-ladders';
     case GameType.CHESS:
       return 'chess';
+    case GameType.LAST_CARD:
+      return 'last-card';
     default:
       return 'unknown';
   }

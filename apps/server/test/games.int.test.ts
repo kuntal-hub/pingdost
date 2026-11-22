@@ -18,6 +18,7 @@ import {
   ZERO_TURN_PACE,
   type LudoNetView,
   type ChessState,
+  type LastCardState,
   type LudoPace,
   type SnakesState,
 } from '@pingdost/games';
@@ -162,6 +163,40 @@ describe('Quick games with friends through the server (Phase 43)', () => {
     expect(sa.white).toBe(0);
     expect(a.game.desync || b.game.desync).toBe(false);
   }, 150_000);
+
+  it('plays Last Card in a group of three (Phase 45): hidden hands, every card proved', async () => {
+    const alice = await sim();
+    const bob = await sim([alice]);
+    const carol = await sim([alice, bob]);
+    const { conversationId: groupId } = await alice.engine.createGroup({
+      name: 'Cards',
+      memberUserIds: [bob.userId, carol.userId],
+    });
+    const [ga, gb, gc] = [play(alice), play(bob), play(carol)];
+    const gameId = await ga.createTurn(groupId, 'last-card', { maxPlayers: 3 });
+    const a = await ga.untilTurn(gameId, (v) => v.game.phase === 'over', 120_000);
+    const steps = a.game.entries.length;
+    for (const g of [gb, gc]) {
+      const v = await g.untilTurn(
+        gameId,
+        (x) => x.game.phase === 'over' && x.game.entries.length === steps,
+        30_000,
+      );
+      expect(v.game.desync).toBe(false);
+    }
+    expect(a.game.desync).toBe(false);
+    // The shared state never shows a card that was not played.
+    const state = a.game.state as LastCardState;
+    expect(state.hands.flat().every((c) => c.card === 0)).toBe(true);
+    // No seat secret in any frame the server saw.
+    for (const client of [alice, bob, carol]) {
+      const seed = (await client.engine.getGame(gameId))?.seatSeed;
+      expect(seed).toBeTruthy();
+      expect(frames.some((f) => Buffer.from(f).includes(Buffer.from(fromBase64(seed!))))).toBe(
+        false,
+      );
+    }
+  }, 180_000);
 
   it('plays Snakes and Ladders in a group of three with fair dice', async () => {
     const alice = await sim();

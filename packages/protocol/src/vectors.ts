@@ -510,6 +510,46 @@ export function createVectors(): ProtocolVectors {
         },
       }),
     ),
+    // Phase 45: a Last Card play with its secret, and a private deal (ADR 0052).
+    vector(
+      'content/game-move-last-card',
+      ContentSchema,
+      content({
+        case: 'game',
+        value: {
+          gameId: id(0xa5),
+          turn: 12,
+          event: {
+            case: 'move',
+            value: {
+              salt: filler(16, 41),
+              stateHash: filler(8, 42),
+              play: {
+                case: 'lastCard',
+                value: {
+                  drawIndex: 9,
+                  card: 53,
+                  secret: filler(32, 43),
+                  color: 2,
+                  lastCardCall: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+    ),
+    vector(
+      'content/game-deal',
+      ContentSchema,
+      content({
+        case: 'game',
+        value: {
+          gameId: id(0xa6),
+          event: { case: 'deal', value: { round: 2, data: filler(221, 44) } },
+        },
+      }),
+    ),
     // Phase 44: a chess move that promotes and offers a draw.
     vector(
       'content/game-move-chess',

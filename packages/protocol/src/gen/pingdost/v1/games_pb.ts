@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file pingdost/v1/games.proto.
  */
 export const file_pingdost_v1_games: GenFile = /*@__PURE__*/
-  fileDesc("ChdwaW5nZG9zdC92MS9nYW1lcy5wcm90bxILcGluZ2Rvc3QudjEipAMKBEdhbWUSDwoHZ2FtZV9pZBgBIAEoDBIMCgR0dXJuGAIgASgNEg0KBWluZGV4GAMgASgNEikKBmNyZWF0ZRgEIAEoCzIXLnBpbmdkb3N0LnYxLkdhbWVDcmVhdGVIABIlCgRqb2luGAUgASgLMhUucGluZ2Rvc3QudjEuR2FtZUpvaW5IABInCgVzdGFydBgGIAEoCzIWLnBpbmdkb3N0LnYxLkdhbWVTdGFydEgAEiUKBHJvbGwYByABKAsyFS5waW5nZG9zdC52MS5HYW1lUm9sbEgAEiUKBG1vdmUYCCABKAsyFS5waW5nZG9zdC52MS5HYW1lTW92ZUgAEiUKBHNraXAYCSABKAsyFS5waW5nZG9zdC52MS5HYW1lU2tpcEgAEicKBWxlYXZlGAogASgLMhYucGluZ2Rvc3QudjEuR2FtZUxlYXZlSAASIwoDZW5kGAsgASgLMhQucGluZ2Rvc3QudjEuR2FtZUVuZEgAEicKBWVtb3RlGAwgASgLMhYucGluZ2Rvc3QudjEuR2FtZUVtb3RlSABCBwoFZXZlbnQikwMKCkdhbWVDcmVhdGUSIwoEdHlwZRgBIAEoDjIVLnBpbmdkb3N0LnYxLkdhbWVUeXBlEhMKC21heF9wbGF5ZXJzGAIgASgNEikKBGx1ZG8YAyABKAsyGS5waW5nZG9zdC52MS5MdWRvU2V0dGluZ3NIABI1Cgt0aWNfdGFjX3RvZRgGIAEoCzIeLnBpbmdkb3N0LnYxLlRpY1RhY1RvZVNldHRpbmdzSAASOAoMY29ubmVjdF9mb3VyGAcgASgLMiAucGluZ2Rvc3QudjEuQ29ubmVjdEZvdXJTZXR0aW5nc0gAEikKBGRvdHMYCCABKAsyGS5waW5nZG9zdC52MS5Eb3RzU2V0dGluZ3NIABItCgZzbmFrZXMYCSABKAsyGy5waW5nZG9zdC52MS5TbmFrZXNTZXR0aW5nc0gAEisKBWNoZXNzGAogASgLMhoucGluZ2Rvc3QudjEuQ2hlc3NTZXR0aW5nc0gAEg4KBmFuY2hvchgEIAEoDBIMCgRzYWx0GAUgASgMQgoKCHNldHRpbmdzIlgKDEx1ZG9TZXR0aW5ncxIXCg9hbnlfcm9sbF9zdGFydHMYASABKAgSEQoJYmxvY2thZGVzGAIgASgIEhwKFHN0b3BfYXRfZmlyc3Rfd2lubmVyGAMgASgIIhMKEVRpY1RhY1RvZVNldHRpbmdzIhUKE0Nvbm5lY3RGb3VyU2V0dGluZ3MiHAoMRG90c1NldHRpbmdzEgwKBHNpemUYASABKA0iPgoOU25ha2VzU2V0dGluZ3MSFwoPc2l4X3JvbGxzX2FnYWluGAEgASgIEhMKC2JvdW5jZV9iYWNrGAIgASgIIiIKDUNoZXNzU2V0dGluZ3MSEQoJaG9zdF9zaWRlGAEgASgNIigKCEdhbWVKb2luEg4KBmFuY2hvchgBIAEoDBIMCgRzYWx0GAIgASgMIjEKCUdhbWVTdGFydBIkCgVzZWF0cxgBIAMoCzIVLnBpbmdkb3N0LnYxLkdhbWVTZWF0IlsKCEdhbWVTZWF0Eg8KB3VzZXJfaWQYASABKAwSEQoJZGV2aWNlX2lkGAIgASgMEg0KBWNvbG9yGAMgASgNEg4KBmFuY2hvchgEIAEoDBIMCgRzYWx0GAUgASgMIjwKCEdhbWVSb2xsEg4KBnJldmVhbBgBIAEoDBIMCgRzYWx0GAIgASgMEhIKCnN0YXRlX2hhc2gYAyABKAwi/AEKCEdhbWVNb3ZlEg0KBXRva2VuGAEgASgNEgwKBHNhbHQYAiABKAwSEgoKc3RhdGVfaGFzaBgDIAEoDBIxCgt0aWNfdGFjX3RvZRgEIAEoCzIaLnBpbmdkb3N0LnYxLlRpY1RhY1RvZU1vdmVIABI0Cgxjb25uZWN0X2ZvdXIYBSABKAsyHC5waW5nZG9zdC52MS5Db25uZWN0Rm91ck1vdmVIABIlCgRkb3RzGAYgASgLMhUucGluZ2Rvc3QudjEuRG90c01vdmVIABInCgVjaGVzcxgHIAEoCzIWLnBpbmdkb3N0LnYxLkNoZXNzTW92ZUgAQgYKBHBsYXkiHQoNVGljVGFjVG9lTW92ZRIMCgRjZWxsGAEgASgNIiEKD0Nvbm5lY3RGb3VyTW92ZRIOCgZjb2x1bW4YASABKA0iGAoIRG90c01vdmUSDAoEbGluZRgBIAEoDSJhCglDaGVzc01vdmUSDAoEZnJvbRgBIAEoDRIKCgJ0bxgCIAEoDRIRCglwcm9tb3Rpb24YAyABKA0SEgoKb2ZmZXJfZHJhdxgEIAEoCBITCgthY2NlcHRfZHJhdxgFIAEoCCIsCghHYW1lU2tpcBIMCgRzYWx0GAEgASgMEhIKCnN0YXRlX2hhc2gYAiABKAwiCwoJR2FtZUxlYXZlIgkKB0dhbWVFbmQiGgoJR2FtZUVtb3RlEg0KBWVtb2ppGAEgASgJKsUBCghHYW1lVHlwZRIZChVHQU1FX1RZUEVfVU5TUEVDSUZJRUQQABISCg5HQU1FX1RZUEVfTFVETxABEhkKFUdBTUVfVFlQRV9USUNfVEFDX1RPRRACEhoKFkdBTUVfVFlQRV9DT05ORUNUX0ZPVVIQAxIcChhHQU1FX1RZUEVfRE9UU19BTkRfQk9YRVMQBBIgChxHQU1FX1RZUEVfU05BS0VTX0FORF9MQURERVJTEAUSEwoPR0FNRV9UWVBFX0NIRVNTEAZiBnByb3RvMw");
+  fileDesc("ChdwaW5nZG9zdC92MS9nYW1lcy5wcm90bxILcGluZ2Rvc3QudjEiywMKBEdhbWUSDwoHZ2FtZV9pZBgBIAEoDBIMCgR0dXJuGAIgASgNEg0KBWluZGV4GAMgASgNEikKBmNyZWF0ZRgEIAEoCzIXLnBpbmdkb3N0LnYxLkdhbWVDcmVhdGVIABIlCgRqb2luGAUgASgLMhUucGluZ2Rvc3QudjEuR2FtZUpvaW5IABInCgVzdGFydBgGIAEoCzIWLnBpbmdkb3N0LnYxLkdhbWVTdGFydEgAEiUKBHJvbGwYByABKAsyFS5waW5nZG9zdC52MS5HYW1lUm9sbEgAEiUKBG1vdmUYCCABKAsyFS5waW5nZG9zdC52MS5HYW1lTW92ZUgAEiUKBHNraXAYCSABKAsyFS5waW5nZG9zdC52MS5HYW1lU2tpcEgAEicKBWxlYXZlGAogASgLMhYucGluZ2Rvc3QudjEuR2FtZUxlYXZlSAASIwoDZW5kGAsgASgLMhQucGluZ2Rvc3QudjEuR2FtZUVuZEgAEicKBWVtb3RlGAwgASgLMhYucGluZ2Rvc3QudjEuR2FtZUVtb3RlSAASJQoEZGVhbBgNIAEoCzIVLnBpbmdkb3N0LnYxLkdhbWVEZWFsSABCBwoFZXZlbnQi2gMKCkdhbWVDcmVhdGUSIwoEdHlwZRgBIAEoDjIVLnBpbmdkb3N0LnYxLkdhbWVUeXBlEhMKC21heF9wbGF5ZXJzGAIgASgNEikKBGx1ZG8YAyABKAsyGS5waW5nZG9zdC52MS5MdWRvU2V0dGluZ3NIABI1Cgt0aWNfdGFjX3RvZRgGIAEoCzIeLnBpbmdkb3N0LnYxLlRpY1RhY1RvZVNldHRpbmdzSAASOAoMY29ubmVjdF9mb3VyGAcgASgLMiAucGluZ2Rvc3QudjEuQ29ubmVjdEZvdXJTZXR0aW5nc0gAEikKBGRvdHMYCCABKAsyGS5waW5nZG9zdC52MS5Eb3RzU2V0dGluZ3NIABItCgZzbmFrZXMYCSABKAsyGy5waW5nZG9zdC52MS5TbmFrZXNTZXR0aW5nc0gAEisKBWNoZXNzGAogASgLMhoucGluZ2Rvc3QudjEuQ2hlc3NTZXR0aW5nc0gAEjIKCWxhc3RfY2FyZBgMIAEoCzIdLnBpbmdkb3N0LnYxLkxhc3RDYXJkU2V0dGluZ3NIABIOCgZhbmNob3IYBCABKAwSDAoEc2FsdBgFIAEoDBIRCglzZWF0X2RhdGEYCyABKAxCCgoIc2V0dGluZ3MiWAoMTHVkb1NldHRpbmdzEhcKD2FueV9yb2xsX3N0YXJ0cxgBIAEoCBIRCglibG9ja2FkZXMYAiABKAgSHAoUc3RvcF9hdF9maXJzdF93aW5uZXIYAyABKAgiEwoRVGljVGFjVG9lU2V0dGluZ3MiFQoTQ29ubmVjdEZvdXJTZXR0aW5ncyIcCgxEb3RzU2V0dGluZ3MSDAoEc2l6ZRgBIAEoDSI+Cg5TbmFrZXNTZXR0aW5ncxIXCg9zaXhfcm9sbHNfYWdhaW4YASABKAgSEwoLYm91bmNlX2JhY2sYAiABKAgiIgoNQ2hlc3NTZXR0aW5ncxIRCglob3N0X3NpZGUYASABKA0iOwoIR2FtZUpvaW4SDgoGYW5jaG9yGAEgASgMEgwKBHNhbHQYAiABKAwSEQoJc2VhdF9kYXRhGAMgASgMIj8KCUdhbWVTdGFydBIkCgVzZWF0cxgBIAMoCzIVLnBpbmdkb3N0LnYxLkdhbWVTZWF0EgwKBHNhbHQYAiABKAwibgoIR2FtZVNlYXQSDwoHdXNlcl9pZBgBIAEoDBIRCglkZXZpY2VfaWQYAiABKAwSDQoFY29sb3IYAyABKA0SDgoGYW5jaG9yGAQgASgMEgwKBHNhbHQYBSABKAwSEQoJc2VhdF9kYXRhGAYgASgMIjwKCEdhbWVSb2xsEg4KBnJldmVhbBgBIAEoDBIMCgRzYWx0GAIgASgMEhIKCnN0YXRlX2hhc2gYAyABKAwirAIKCEdhbWVNb3ZlEg0KBXRva2VuGAEgASgNEgwKBHNhbHQYAiABKAwSEgoKc3RhdGVfaGFzaBgDIAEoDBIxCgt0aWNfdGFjX3RvZRgEIAEoCzIaLnBpbmdkb3N0LnYxLlRpY1RhY1RvZU1vdmVIABI0Cgxjb25uZWN0X2ZvdXIYBSABKAsyHC5waW5nZG9zdC52MS5Db25uZWN0Rm91ck1vdmVIABIlCgRkb3RzGAYgASgLMhUucGluZ2Rvc3QudjEuRG90c01vdmVIABInCgVjaGVzcxgHIAEoCzIWLnBpbmdkb3N0LnYxLkNoZXNzTW92ZUgAEi4KCWxhc3RfY2FyZBgIIAEoCzIZLnBpbmdkb3N0LnYxLkxhc3RDYXJkTW92ZUgAQgYKBHBsYXkiHQoNVGljVGFjVG9lTW92ZRIMCgRjZWxsGAEgASgNIiEKD0Nvbm5lY3RGb3VyTW92ZRIOCgZjb2x1bW4YASABKA0iGAoIRG90c01vdmUSDAoEbGluZRgBIAEoDSJhCglDaGVzc01vdmUSDAoEZnJvbRgBIAEoDRIKCgJ0bxgCIAEoDRIRCglwcm9tb3Rpb24YAyABKA0SEgoKb2ZmZXJfZHJhdxgEIAEoCBITCgthY2NlcHRfZHJhdxgFIAEoCCIsCghHYW1lU2tpcBIMCgRzYWx0GAEgASgMEhIKCnN0YXRlX2hhc2gYAiABKAwiCwoJR2FtZUxlYXZlIgkKB0dhbWVFbmQiGgoJR2FtZUVtb3RlEg0KBWVtb2ppGAEgASgJIicKCEdhbWVEZWFsEg0KBXJvdW5kGAEgASgNEgwKBGRhdGEYAiABKAwiEgoQTGFzdENhcmRTZXR0aW5ncyKDAQoMTGFzdENhcmRNb3ZlEhIKCmRyYXdfaW5kZXgYASABKA0SDAoEY2FyZBgCIAEoDRIOCgZzZWNyZXQYAyABKAwSDQoFY29sb3IYBCABKA0SFgoObGFzdF9jYXJkX2NhbGwYBSABKAgSDAoEZHJhdxgGIAEoCBIMCgRwYXNzGAcgASgIKt4BCghHYW1lVHlwZRIZChVHQU1FX1RZUEVfVU5TUEVDSUZJRUQQABISCg5HQU1FX1RZUEVfTFVETxABEhkKFUdBTUVfVFlQRV9USUNfVEFDX1RPRRACEhoKFkdBTUVfVFlQRV9DT05ORUNUX0ZPVVIQAxIcChhHQU1FX1RZUEVfRE9UU19BTkRfQk9YRVMQBBIgChxHQU1FX1RZUEVfU05BS0VTX0FORF9MQURERVJTEAUSEwoPR0FNRV9UWVBFX0NIRVNTEAYSFwoTR0FNRV9UWVBFX0xBU1RfQ0FSRBAHYgZwcm90bzM");
 
 /**
  * @generated from message pingdost.v1.Game
@@ -101,6 +101,14 @@ export type Game = Message<"pingdost.v1.Game"> & {
      */
     value: GameEmote;
     case: "emote";
+  } | {
+    /**
+     * Phase 45 (ADR 0052): sent to one seat's device only, over Olm; never in the shared log.
+     *
+     * @generated from field: pingdost.v1.GameDeal deal = 13;
+     */
+    value: GameDeal;
+    case: "deal";
   } | { case: undefined; value?: undefined };
 };
 
@@ -170,6 +178,12 @@ export type GameCreate = Message<"pingdost.v1.GameCreate"> & {
      */
     value: ChessSettings;
     case: "chess";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.LastCardSettings last_card = 12;
+     */
+    value: LastCardSettings;
+    case: "lastCard";
   } | { case: undefined; value?: undefined };
 
   /**
@@ -183,6 +197,11 @@ export type GameCreate = Message<"pingdost.v1.GameCreate"> & {
    * @generated from field: bytes salt = 5;
    */
   salt: Uint8Array;
+
+  /**
+   * @generated from field: bytes seat_data = 11;
+   */
+  seatData: Uint8Array;
 };
 
 /**
@@ -340,6 +359,14 @@ export type GameJoin = Message<"pingdost.v1.GameJoin"> & {
    * @generated from field: bytes salt = 2;
    */
   salt: Uint8Array;
+
+  /**
+   * Hidden-hand games (ADR 0052): what the seat commits to when it sits down (Last Card: 128
+   * draw commitments of 16 bytes). Empty for the other games.
+   *
+   * @generated from field: bytes seat_data = 3;
+   */
+  seatData: Uint8Array;
 };
 
 /**
@@ -360,6 +387,13 @@ export type GameStart = Message<"pingdost.v1.GameStart"> & {
    * @generated from field: repeated pingdost.v1.GameSeat seats = 1;
    */
   seats: GameSeat[];
+
+  /**
+   * A fresh salt from the host, made after every join (ADR 0052: opening hands).
+   *
+   * @generated from field: bytes salt = 2;
+   */
+  salt: Uint8Array;
 };
 
 /**
@@ -400,6 +434,11 @@ export type GameSeat = Message<"pingdost.v1.GameSeat"> & {
    * @generated from field: bytes salt = 5;
    */
   salt: Uint8Array;
+
+  /**
+   * @generated from field: bytes seat_data = 6;
+   */
+  seatData: Uint8Array;
 };
 
 /**
@@ -492,6 +531,12 @@ export type GameMove = Message<"pingdost.v1.GameMove"> & {
      */
     value: ChessMove;
     case: "chess";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.LastCardMove last_card = 8;
+     */
+    value: LastCardMove;
+    case: "lastCard";
   } | { case: undefined; value?: undefined };
 };
 
@@ -679,6 +724,104 @@ export const GameEmoteSchema: GenMessage<GameEmote> = /*@__PURE__*/
   messageDesc(file_pingdost_v1_games, 20);
 
 /**
+ * Private (ADR 0052): cards dealt to one seat for a round, as the game encodes them.
+ *
+ * @generated from message pingdost.v1.GameDeal
+ */
+export type GameDeal = Message<"pingdost.v1.GameDeal"> & {
+  /**
+   * @generated from field: uint32 round = 1;
+   */
+  round: number;
+
+  /**
+   * @generated from field: bytes data = 2;
+   */
+  data: Uint8Array;
+};
+
+/**
+ * Describes the message pingdost.v1.GameDeal.
+ * Use `create(GameDealSchema)` to create a new message.
+ */
+export const GameDealSchema: GenMessage<GameDeal> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 21);
+
+/**
+ * No options yet: one round, first to empty their hand wins.
+ *
+ * @generated from message pingdost.v1.LastCardSettings
+ */
+export type LastCardSettings = Message<"pingdost.v1.LastCardSettings"> & {
+};
+
+/**
+ * Describes the message pingdost.v1.LastCardSettings.
+ * Use `create(LastCardSettingsSchema)` to create a new message.
+ */
+export const LastCardSettingsSchema: GenMessage<LastCardSettings> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 22);
+
+/**
+ * Play a card, draw one, or keep the drawn card and pass.
+ *
+ * @generated from message pingdost.v1.LastCardMove
+ */
+export type LastCardMove = Message<"pingdost.v1.LastCardMove"> & {
+  /**
+   * The card played: the player's draw number for it, its code (1 to 54: colors 0 to 3 times
+   * 0-9, skip, reverse, draw two; then wild, wild draw four) and the secret behind it.
+   *
+   * @generated from field: uint32 draw_index = 1;
+   */
+  drawIndex: number;
+
+  /**
+   * @generated from field: uint32 card = 2;
+   */
+  card: number;
+
+  /**
+   * @generated from field: bytes secret = 3;
+   */
+  secret: Uint8Array;
+
+  /**
+   * A wild's new color, 1 to 4 (0: none).
+   *
+   * @generated from field: uint32 color = 4;
+   */
+  color: number;
+
+  /**
+   * Called "last card" with the second-to-last card (otherwise two cards as a penalty).
+   *
+   * @generated from field: bool last_card_call = 5;
+   */
+  lastCardCall: boolean;
+
+  /**
+   * Instead of a card: draw one; `pass` keeps the drawn card and ends the turn (both: an
+   * absent player's turn played for them).
+   *
+   * @generated from field: bool draw = 6;
+   */
+  draw: boolean;
+
+  /**
+   * @generated from field: bool pass = 7;
+   */
+  pass: boolean;
+};
+
+/**
+ * Describes the message pingdost.v1.LastCardMove.
+ * Use `create(LastCardMoveSchema)` to create a new message.
+ */
+export const LastCardMoveSchema: GenMessage<LastCardMove> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 23);
+
+/**
  * @generated from enum pingdost.v1.GameType
  */
 export enum GameType {
@@ -720,6 +863,13 @@ export enum GameType {
    * @generated from enum value: GAME_TYPE_CHESS = 6;
    */
   CHESS = 6,
+
+  /**
+   * Phase 45: a shedding card game (match color or number).
+   *
+   * @generated from enum value: GAME_TYPE_LAST_CARD = 7;
+   */
+  LAST_CARD = 7,
 }
 
 /**

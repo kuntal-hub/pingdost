@@ -8,7 +8,7 @@ export type GameId =
   | 'dots-and-boxes'
   | 'snakes-and-ladders'
   | 'chess'
-  | 'uno'
+  | 'last-card'
   | 'call-bridge'
   | 'poker';
 

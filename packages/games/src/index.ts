@@ -20,6 +20,7 @@ export * from './core/turn-solo';
 export * from './core/types';
 export * from './connect-four/rules';
 export * from './dots-and-boxes/rules';
+export * from './last-card/rules';
 export * from './ludo/board';
 export * from './ludo/bot';
 export * from './ludo/controller';

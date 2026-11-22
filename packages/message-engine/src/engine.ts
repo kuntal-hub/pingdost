@@ -14,7 +14,9 @@
 import {
   bytesToUuid,
   create,
+  directConversationIdFor,
   encodeGame,
+  envelopeIdFor,
   GameSchema,
   toBase64,
   uuidToBytes,
@@ -301,8 +303,9 @@ export class MessageEngine {
   async sendGameEvent(
     conversationId: string,
     game: MessageInitShape<typeof GameSchema>,
-    options: { seatSeed?: string } = {},
+    options: { seatSeed?: string; to?: { userId: string; deviceId: string } } = {},
   ): Promise<GameEventRecord> {
+    if (options.to) return this.#sendPrivateGameEvent(conversationId, game, options.to);
     const core = this.#core;
     const sent = await core.mutex.run(async () => {
       const conversation = await core.store.getConversation(conversationId);
@@ -386,6 +389,76 @@ export class MessageEngine {
       }
       await core.commit(batch);
       return event;
+    });
+    this.#outbox.kick();
+    return sent;
+  }
+
+  /**
+   * A private game event (ADR 0052: a hand dealt to one seat) to one device only, over Olm with
+   * a direct header, like a receipt. It is not stored here: the dealer can work it out again.
+   */
+  async #sendPrivateGameEvent(
+    conversationId: string,
+    game: MessageInitShape<typeof GameSchema>,
+    to: { userId: string; deviceId: string },
+  ): Promise<GameEventRecord> {
+    const core = this.#core;
+    const value = create(GameSchema, game);
+    if (value.event.case !== 'deal') {
+      throw new MessageActionError('invalid', 'only a deal goes to one device');
+    }
+    if (to.userId === core.self.userId) {
+      throw new MessageActionError('invalid', 'a deal goes to another person');
+    }
+    const gameId = bytesToUuid(value.gameId);
+    const sent = await core.mutex.run(async () => {
+      const record = await core.store.getGame(gameId);
+      if (!record || record.conversationId !== conversationId) {
+        throw new MessageActionError('not_found', 'unknown game');
+      }
+      const now = core.now();
+      const eventId = uuidv7();
+      const content = buildContent(
+        {
+          messageId: eventId,
+          conversationId: directConversationIdFor(core.self.userId, to.userId),
+          senderUserId: core.self.userId,
+          recipientUserId: to.userId,
+          sentAt: now,
+        },
+        { case: 'game', value },
+        core.settings.envelopeMaxBytes,
+      );
+      await core.commit({
+        outbox: [
+          {
+            type: 'device',
+            purpose: 'control',
+            id: bytesToUuid(envelopeIdFor(eventId, to.deviceId)),
+            messageId: eventId,
+            recipientUserId: to.userId,
+            recipientDeviceId: to.deviceId,
+            content,
+            packet: null,
+            newSession: false,
+            createdAt: now,
+            expiresAt: now + core.settings.maxRetentionMs,
+            attempts: 0,
+            nextAttemptAt: now,
+          },
+        ],
+      });
+      return {
+        eventId,
+        gameId,
+        conversationId,
+        senderUserId: core.self.userId,
+        senderDeviceId: core.self.deviceId,
+        sentAt: now,
+        receivedAt: now,
+        payload: toBase64(encodeGame(value)),
+      } satisfies GameEventRecord;
     });
     this.#outbox.kick();
     return sent;

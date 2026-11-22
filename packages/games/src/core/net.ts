@@ -31,6 +31,8 @@ export interface LobbyEntry extends GamePlayerRef {
   eventId: string;
   anchor: Uint8Array;
   salt: Uint8Array;
+  /** Hidden-hand games (ADR 0052): what the seat committed to; empty otherwise. */
+  data: Uint8Array;
 }
 
 export interface NetEmote extends GamePlayerRef {
@@ -113,7 +115,7 @@ export function foldLobby(gameId: string, all: readonly DecodedGameEvent[]): Lob
   const live = cutoff === undefined ? [...all] : all.filter((e) => e.eventId <= cutoff);
 
   const lobby: LobbyEntry[] = [
-    { ...host, eventId: create.eventId, anchor: body.anchor, salt: body.salt },
+    { ...host, eventId: create.eventId, anchor: body.anchor, salt: body.salt, data: body.seatData },
   ];
   for (const e of live) {
     if (e.game.event.case !== 'join') continue;
@@ -124,6 +126,7 @@ export function foldLobby(gameId: string, all: readonly DecodedGameEvent[]): Lob
       eventId: e.eventId,
       anchor: e.game.event.value.anchor,
       salt: e.game.event.value.salt,
+      data: e.game.event.value.seatData,
     });
   }
   const start = live.find((e) => e.game.event.case === 'start' && isHost(e));

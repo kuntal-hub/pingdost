@@ -53,7 +53,29 @@ export interface GameBoardColors {
   dot: string;
   /** Phase 44. */
   chess: ChessColors;
+  /** Phase 45: playing cards (the same in light and dark, like real cards). */
+  cards: CardColors;
 }
+
+export interface CardColors {
+  /** The back of a card, and the ring drawn on it. */
+  back: string;
+  pattern: string;
+  /** The white edge around every card. */
+  edge: string;
+  /** A wild card's face. */
+  wild: string;
+  /** The lighter disc in the middle of a face. */
+  shine: string;
+}
+
+const CARDS: CardColors = {
+  back: '#273041',
+  pattern: '#5B6B86',
+  edge: '#F4F6FA',
+  wild: '#1B1F27',
+  shine: 'rgba(255, 255, 255, 0.22)',
+};
 
 export interface ChessPieceLook {
   fill: string;
@@ -133,6 +155,7 @@ const LIGHT: GameBoardColors = {
     white: { fill: '#FFFFFF', edge: '#1F2329', detail: '#1F2329' },
     black: { fill: '#2A2F37', edge: '#0E1013', detail: '#E8EDF5' },
   },
+  cards: CARDS,
 };
 
 const DARK: GameBoardColors = {
@@ -190,6 +213,7 @@ const DARK: GameBoardColors = {
     white: { fill: '#FFFFFF', edge: '#1F2329', detail: '#1F2329' },
     black: { fill: '#2A2F37', edge: '#0E1013', detail: '#E8EDF5' },
   },
+  cards: CARDS,
 };
 
 /** The board and player colors for light or dark mode. */

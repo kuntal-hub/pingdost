@@ -17,6 +17,26 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-22 — Phase 45: hidden hands + Last Card (UNO-style) — 🔄 code done, browser and phone runs open
+**Done:** details in the phase file and ADR 0052.
+- Dealing: Last Card self-deals (each seat commits to 128 draw secrets at join; cards revealed with their secret and checked); a rotating dealer is designed for Call Bridge and Poker. Engine: private `deal` events to one device over Olm (`sendGameEvent(…, { to })`), kept by receivers as game events only, accepted from group co-members outside the circle.
+- Frame: `TurnRules.hidden` hooks, used by the fold and `TurnNetController` (personal view, proofs, dealer step); `soloSetup` for solo randomness.
+- Last Card: rules, computer players, card tables on phone and web (own card design; colors in ui-tokens `cards`), Games tab entry renamed from UNO; sim peer `!lastcard [2-4]`.
+
+**Remaining:**
+- [ ] Web and phone: Last Card solo at each level, and a friend game with `sim-client peer` (`!lastcard 3` in a group with two peers).
+- [ ] The open runs of Phases 43 and 44.
+
+**Deviations / decisions:** ADR 0052; CHANGES 2026-11-22 (Phase 45): UNO built as "Last Card" (trademark); cards with replacement; Wild Draw Four any time; absent turn = draw and pass.
+
+**Verification results:**
+- Repo-wide: lint 21/21 after fixes, `turbo run test` 18/18 (games: Last Card 9 tests, network 12 including a three-player Last Card game with an absent player; message-engine games 4 including private deals; protocol 133), `pnpm format:check` clean; typecheck of every changed package.
+- `games.int.test.ts` Last Card scenario: three sim clients in a group to the end, no desync, no hidden card in the shared state, no seat secret in any frame.
+- Fixed on the way: the web game card's button label from Phase 43 had lost its text (a shell escaping slip).
+- **Not run:** Metro bundling and any browser or phone run.
+
+**Next:** Phase 46 (Call Bridge, the rotating dealer).
+
 ## 2026-11-22 — Phase 44: Chess — 🔄 code done, browser and phone runs open
 **Done:** details in the phase file's "As built" and ADR 0051.
 - `@pingdost/games`: own 0x88 move generator (perft matches five standard positions), rules with SAN, automatic draws (threefold, fifty moves, material), draw offers with a move, resign; an async alpha-beta computer player (Easy/Medium/Hard, time budget, yields between root moves); in-house piece shapes. `TurnController.resign()`.

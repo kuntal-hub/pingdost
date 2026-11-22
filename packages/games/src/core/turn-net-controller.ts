@@ -7,11 +7,19 @@
 import { fromBase64, toBase64, uuidToBytes } from '@pingdost/protocol';
 
 import { buildChain, revealAt, rollDie, sameBytes, type Sha256 } from './fair-dice';
-import type { GameEventLike, GamePlayerRef } from './net';
-import { NORMAL_TURN_PACE, type TurnCore, type TurnPace, type TurnRules } from './turn';
+import { decodeGameEvents, type GameEventLike, type GamePlayerRef } from './net';
+import {
+  NORMAL_TURN_PACE,
+  type Knowledge,
+  type NetStep,
+  type TurnCore,
+  type TurnPace,
+  type TurnRules,
+} from './turn';
 import type { TurnLast, TurnWaiting } from './turn-controller';
 import { stepDuration } from './turn-controller';
 import {
+  applyTurnMove,
   foldTurnGame,
   missedTurn,
   proxyTurnMove,
@@ -88,6 +96,7 @@ export function createTurnEvent<S extends TurnCore, M, Settings>(
           settings: rules.settingsToWire(rules.normalizeSettings(settings)),
           anchor: chain[chain.length - 1]!,
           salt: randomBytes(16),
+          seatData: rules.hidden?.seatData(seed, sha256) ?? new Uint8Array(0),
         },
       },
     },
@@ -114,6 +123,7 @@ export class TurnNetController<S extends TurnCore, M, Settings> {
   #startSent = false;
   #last: TurnLast<S, M> | null = null;
   #waitingOverride: TurnWaiting | null = null;
+  #knows: { key: string; events: readonly GameEventLike[]; value: Knowledge } | null = null;
 
   constructor(options: TurnNetControllerOptions<S, M, Settings>) {
     this.#options = options;
@@ -179,7 +189,16 @@ export class TurnNetController<S extends TurnCore, M, Settings> {
   move(move: M): void {
     const state = this.#game.state;
     if (this.#game.phase !== 'playing' || !state || this.rules.dice) return;
-    if (state.current !== this.#you || !this.rules.isLegal(state, move)) return;
+    if (state.current !== this.#you) return;
+    const hidden = this.rules.hidden;
+    if (hidden) {
+      // Checked on this seat's own view, then sent with the proof the others check.
+      const knows = this.#knowledge();
+      if (!this.rules.isLegal(hidden.personalize(state, this.#you, knows), move)) return;
+      this.#sendMove(hidden.prove(state, move, this.#you, knows), false);
+      return;
+    }
+    if (!this.rules.isLegal(state, move)) return;
     this.#sendMove(move, false);
   }
 
@@ -226,8 +245,12 @@ export class TurnNetController<S extends TurnCore, M, Settings> {
     this.#chain = chain;
     const seatSeed = toBase64(seed);
     this.#options = { ...this.#options, seatSeed };
+    const seatData = this.rules.hidden?.seatData(seed, this.#port.sha256) ?? new Uint8Array(0);
     void this.#send(
-      { case: 'join', value: { anchor: chain[chain.length - 1]!, salt: this.#random(16) } },
+      {
+        case: 'join',
+        value: { anchor: chain[chain.length - 1]!, salt: this.#random(16), seatData },
+      },
       { seatSeed },
     );
   }
@@ -246,7 +269,9 @@ export class TurnNetController<S extends TurnCore, M, Settings> {
           color: i,
           anchor: p.anchor,
           salt: p.salt,
+          seatData: p.data,
         })),
+        salt: this.#random(16),
       },
     }).catch(() => {
       this.#startSent = false;
@@ -340,15 +365,53 @@ export class TurnNetController<S extends TurnCore, M, Settings> {
     });
   }
 
+  /**
+   * The step context a fold will use for an event this device sends with `salt` (ADR 0052): the
+   * salts so far plus this one.
+   */
+  #netStep(salt: Uint8Array): NetStep {
+    const salts = [...this.#game.salts, { deviceId: this.#port.self.deviceId, salt }];
+    const seats = this.#game.seats;
+    return {
+      sha256: this.#port.sha256,
+      gameId: uuidToBytes(this.#game.gameId),
+      saltFor: (seat) => saltFromOthers(salts, seats[seat]?.deviceId ?? ''),
+    };
+  }
+
+  /** What this device knows beyond the shared log: its seat secret and the cards dealt to it. */
+  #knowledge(): Knowledge {
+    const key = `${this.#options.seatSeed ?? ''}/${this.#events.length}`;
+    if (this.#knows?.key === key && this.#knows.events === this.#events) return this.#knows.value;
+    const game = this.#game;
+    const deals: Knowledge['deals'] = [];
+    for (const e of decodeGameEvents(this.#events)) {
+      if (e.game.event.case !== 'deal') continue;
+      const from = turnSeatOf(game, e);
+      if (from < 0) continue;
+      deals.push({ round: e.game.event.value.round, data: e.game.event.value.data, from });
+    }
+    const value: Knowledge = {
+      sha256: this.#port.sha256,
+      gameId: uuidToBytes(game.gameId),
+      seed: this.#options.seatSeed ? fromBase64(this.#options.seatSeed) : null,
+      deals,
+    };
+    this.#knows = { key, events: this.#events, value };
+    return value;
+  }
+
   /** Sends a move: the user's own, or (`forOther`) the proxy move for an absent player. */
   #sendMove(move: M, forOther: boolean): void {
     const state = this.#game.state!;
     const step = state.turns;
     if (this.#acted.has(step)) return;
     this.#acted.add(step);
+    const salt = this.#random(16);
+    const netStep = this.#netStep(salt);
     const next = forOther
-      ? missedTurn(this.rules, state, this.#game.strikes[state.current]!, move)
-      : this.rules.apply(state, move);
+      ? missedTurn(this.rules, state, this.#game.strikes[state.current]!, move, netStep)
+      : applyTurnMove(this.rules, state, move, netStep);
     if (this.#caughtUp && !forOther) {
       this.#waitingOverride = 'moving';
       this.#refresh();
@@ -357,7 +420,7 @@ export class TurnNetController<S extends TurnCore, M, Settings> {
       {
         case: 'move',
         value: {
-          salt: this.#random(16),
+          salt,
           stateHash: turnStateHash(this.rules, this.#port.sha256, next),
           play: this.rules.moveToWire(move),
         },
@@ -371,17 +434,65 @@ export class TurnNetController<S extends TurnCore, M, Settings> {
     const step = state.turns;
     if (this.#acted.has(step)) return;
     this.#acted.add(step);
-    const next = missedTurn(this.rules, state, this.#game.strikes[state.current]!, null);
+    const salt = this.#random(16);
+    const next = missedTurn(
+      this.rules,
+      state,
+      this.#game.strikes[state.current]!,
+      null,
+      this.#netStep(salt),
+    );
     this.#sendStep(
       {
         case: 'skip',
-        value: {
-          salt: this.#random(16),
-          stateHash: turnStateHash(this.rules, this.#port.sha256, next),
-        },
+        value: { salt, stateHash: turnStateHash(this.rules, this.#port.sha256, next) },
       },
       step,
     );
+  }
+
+  /**
+   * Dealer games (ADR 0052): when this seat must deal, it sends each other seat its hand
+   * privately, then the public deal step with the commitments.
+   */
+  #dealIfDue(): void {
+    const hidden = this.rules.hidden;
+    const state = this.#game.state;
+    const you = this.#you;
+    if (!hidden?.dealer || !hidden.deal || this.#game.phase !== 'playing' || !state) return;
+    if (hidden.dealer(state) !== you || you < 0 || this.#acted.has(state.turns)) return;
+    const knows = this.#knowledge();
+    if (!knows.seed) return;
+    const step = state.turns;
+    this.#acted.add(step);
+    const salt = this.#random(16);
+    const netStep = this.#netStep(salt);
+    const { move, hands } = hidden.deal(state, you, knows, netStep);
+    const next = applyTurnMove(this.rules, state, move, netStep);
+    const seats = this.#game.seats;
+    void Promise.all(
+      hands
+        .filter((h) => h.seat !== you && seats[h.seat])
+        .map((h) =>
+          this.#send(
+            { case: 'deal', value: { round: h.round, data: h.data } },
+            { to: { userId: seats[h.seat]!.userId, deviceId: seats[h.seat]!.deviceId } },
+          ),
+        ),
+    )
+      .then(() =>
+        this.#send({
+          case: 'move',
+          value: {
+            salt,
+            stateHash: turnStateHash(this.rules, this.#port.sha256, next),
+            play: this.rules.moveToWire(move),
+          },
+        }),
+      )
+      .catch(() => {
+        this.#acted.delete(step);
+      });
   }
 
   // Showing steps one by one
@@ -400,6 +511,7 @@ export class TurnNetController<S extends TurnCore, M, Settings> {
     if (this.#animating === null) this.#advance();
     else this.#refresh();
     this.#scheduleClock();
+    this.#dealIfDue();
   }
 
   #advance(): void {
@@ -471,7 +583,12 @@ export class TurnNetController<S extends TurnCore, M, Settings> {
     const isHost = game.host?.deviceId === self.deviceId && game.host.userId === self.userId;
     const inLobby = game.lobby.some((e) => e.userId === self.userId);
     const locked = this.#locked;
-    const state = this.#presented ?? game.state;
+    const shown = this.#presented ?? game.state;
+    // Hidden-hand games: this seat sees its own cards (ADR 0052).
+    const state =
+      shown && this.rules.hidden && you >= 0
+        ? this.rules.hidden.personalize(shown, you, this.#knowledge())
+        : shown;
     const now = state
       ? (waiting ?? this.#waitingOverride ?? this.#settledWaiting(state, you, locked))
       : 'them';

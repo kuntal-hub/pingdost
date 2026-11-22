@@ -26,13 +26,15 @@ import {
   type NetEmote,
 } from './net';
 import { seededRandom } from './random';
-import type { TurnCore, TurnGameId, TurnRules, TurnStep } from './turn';
+import type { NetStep, TurnCore, TurnGameId, TurnRules, TurnStep } from './turn';
 
 export interface TurnNetSeat extends GamePlayerRef {
   /** The seat's place at the table (its index in `seats`). */
   place: number;
   anchor: Uint8Array;
   salt: Uint8Array;
+  /** Hidden-hand games: what the seat committed to (ADR 0052). */
+  data: Uint8Array;
 }
 
 /** One applied step (or leave), with the states around it. */
@@ -99,15 +101,26 @@ export function proxyTurnMove<S extends TurnCore, M>(
   return rules.proxy(state, seededRandom(seed));
 }
 
+/** Applies a move: with friends, hidden-hand games use the step's salts (ADR 0052). */
+export function applyTurnMove<S extends TurnCore, M>(
+  rules: TurnRules<S, M, unknown>,
+  state: S,
+  move: M,
+  step?: NetStep,
+): S {
+  return rules.hidden && step ? rules.hidden.applyNet(state, move, step) : rules.apply(state, move);
+}
+
 /** A missed step played for the current seat; the third in a row takes it out. */
 export function missedTurn<S extends TurnCore, M>(
   rules: TurnRules<S, M, unknown>,
   state: S,
   strikes: number,
   move: M | null,
+  step?: NetStep,
 ): S {
   const seat = state.current;
-  const next = move === null ? rules.skip(state) : rules.apply(state, move);
+  const next = move === null ? rules.skip(state) : applyTurnMove(rules, state, move, step);
   return strikes + 1 >= TURN_MAX_STRIKES ? rules.leave(next, seat) : next;
 }
 
@@ -175,6 +188,7 @@ export function foldTurnGame<S extends TurnCore, M, Settings>(
     place: s.color,
     anchor: s.anchor,
     salt: s.salt,
+    data: s.seatData,
   }));
   const problem = seatProblem(seats, lobby, rules.minPlayers, game.maxPlayers);
   if (problem) return { ...game, phase: 'invalid', invalid: problem };
@@ -191,7 +205,16 @@ export function foldTurnGame<S extends TurnCore, M, Settings>(
     seats.findIndex((s) => samePlayer(s, folded.host)),
   );
   const first = rules.firstSeat?.(game.settings, drawn, hostSeat, seats.length) ?? drawn;
-  let state = rules.setup(seats.length, game.settings, first);
+  let state = rules.hidden
+    ? rules.hidden.setupNet(seats.length, game.settings, first, {
+        sha256,
+        gameId: gameIdBytes,
+        seatData: seats.map((s) => s.data),
+        salts: seats.map((s) => s.salt),
+        startSalt: start.game.event.value.salt,
+        host: hostSeat,
+      })
+    : rules.setup(seats.length, game.settings, first);
   game.initial = state;
   game.since = start.receivedAt;
 
@@ -232,6 +255,12 @@ export function foldTurnGame<S extends TurnCore, M, Settings>(
     salt: s.salt,
   }));
   const otherSalt = (deviceId: string) => saltFromOthers(salts, deviceId);
+  // Hidden-hand games: a card drawn by a seat uses the latest salt by another device (ADR 0052).
+  const stepNow = (): NetStep => ({
+    sha256,
+    gameId: gameIdBytes,
+    saltFor: (seat) => saltFromOthers(salts, seats[seat]?.deviceId ?? ''),
+  });
   const strikes = seats.map(() => 0);
   const used = new Set<string>();
   const decodedMoves = new Map<string, M | null>();
@@ -287,7 +316,11 @@ export function foldTurnGame<S extends TurnCore, M, Settings>(
         if (rules.dice) return false;
         const move = moveOf(e);
         if (move === null) return false;
-        if (mine) return rules.isLegal(state, move);
+        if (mine) {
+          return rules.hidden
+            ? rules.hidden.isLegalNet(state, move, stepNow())
+            : rules.isLegal(state, move);
+        }
         const proxy = proxyNow();
         return proxy !== null && rules.sameMove(move, proxy);
       }
@@ -321,17 +354,17 @@ export function foldTurnGame<S extends TurnCore, M, Settings>(
         salts.push({ deviceId: e.deviceId, salt: event.value.salt });
         if (seatOf(e) === seat) {
           strikes[seat] = 0;
-          const next = rules.apply(state, move);
+          const next = applyTurnMove(rules, state, move, stepNow());
           checkHash(event.value.stateHash, next);
           return { kind: 'move', seat, state: next, move };
         }
-        const next = missedTurn(rules, state, strikes[seat]!, move);
+        const next = missedTurn(rules, state, strikes[seat]!, move, stepNow());
         strikes[seat]! += 1;
         checkHash(event.value.stateHash, next);
         return { kind: 'proxy', seat, state: next, move };
       }
       case 'skip': {
-        const next = missedTurn(rules, state, strikes[seat]!, null);
+        const next = missedTurn(rules, state, strikes[seat]!, null, stepNow());
         strikes[seat]! += 1;
         salts.push({ deviceId: e.deviceId, salt: event.value.salt });
         checkHash(event.value.stateHash, next);
@@ -386,7 +419,8 @@ function seatProblem(
       joined &&
       (joined.userId !== seat.userId ||
         !sameBytes(joined.anchor, seat.anchor) ||
-        !sameBytes(joined.salt, seat.salt))
+        !sameBytes(joined.salt, seat.salt) ||
+        !sameBytes(joined.data, seat.data))
     ) {
       return 'a seat differs from its join';
     }

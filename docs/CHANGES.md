@@ -4,6 +4,18 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-22 — Phase 45 built: hidden hands and Last Card (ADR 0052)
+1. **"UNO" is built as "Last Card"**: the same kind of shedding game (match color or number, skip, reverse, draw two, wild, wild draw four, a call with one card left), under a generic name and with PingDost's own card design, because UNO is a trademarked game. The catalog entry is renamed; you can choose another name.
+   - *Affects:* 45, ROADMAP, the Games tab.
+2. **Nobody sees anyone else's hand, not even the host:** each player deals their own cards from secrets they committed to when they sat down; every card played is checked. Cards come from the full mix every time (it never runs out). Wild Draw Four can be played any time.
+   - *Affects:* 45.
+3. **An absent player's turn is draw one and pass** (30 s timers as in the other games); three in a row take them out.
+   - *Affects:* 45.
+4. **Call Bridge and Poker will use a rotating dealer:** that round's dealer's device knows the hands (an honest app never shows them); the deal is jointly random and checked at the round's end.
+   - *Affects:* 46, 47.
+5. **Additive wire change:** seat data, a start salt, private `deal` events, Last Card settings and moves; `Game` messages up to 16 KiB.
+   - *Affects:* 45.
+
 ### 2026-11-22 — Phase 44 built: Chess (ADR 0051)
 1. **Chess on phone and web**, solo at Easy / Medium / Hard (the user picks White, Black or random) and with a friend in a chat (the host picks a side, or it is drawn). No clocks, as planned.
    - *Affects:* 44.
