@@ -11,11 +11,11 @@ import { EmptyState } from '@/components/feedback';
 import {
   DicesIcon,
   EllipsisVerticalIcon,
+  FlagIcon,
   Icon,
   InfoIcon,
   MedalIcon,
   RotateCcwIcon,
-  Trash2Icon,
   TrophyIcon,
   UsersRoundIcon,
   Volume2Icon,
@@ -46,6 +46,7 @@ import {
   type LudoView,
 } from '@pingdost/games';
 
+import { confirmQuit } from '../confirm-quit';
 import { LudoBoard } from './board';
 import { PlayerPanel } from './panels';
 import { LudoPieces, YardGlow } from './pieces';
@@ -151,6 +152,7 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
   useEffect(() => () => releaseGameSounds(), []);
 
   if (!view || !controller) return <View className="flex-1 bg-background" />;
+  const unfinished = view.waiting !== 'over';
   const playWithFriends = () =>
     router.push({ pathname: '/game/pick-chat', params: { game: 'ludo' } });
   const note = ludoRollNote(view);
@@ -255,9 +257,15 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
           },
           {
             label: 'Play with friends',
-            detail: 'Invite someone in a chat',
+            detail: unfinished ? 'Ends this game as a loss' : 'Invite someone in a chat',
             icon: UsersRoundIcon,
-            onPress: playWithFriends,
+            onPress: unfinished
+              ? () =>
+                  confirmQuit('Play with friends?', 'End and invite', () => {
+                    controller.resign();
+                    playWithFriends();
+                  })
+              : playWithFriends,
           },
           { label: 'Rules', icon: InfoIcon, onPress: () => setRules(true) },
           {
@@ -265,15 +273,18 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
             icon: Volume2Icon,
             onPress: () => useGames.getState().setSounds(!sounds),
           },
-          {
-            label: 'End this game',
-            icon: Trash2Icon,
-            destructive: true,
-            onPress: () => {
-              useGames.getState().clearSolo();
-              router.back();
-            },
-          },
+          ...(unfinished
+            ? [
+                {
+                  label: 'End this game',
+                  detail: 'Counts as a loss',
+                  icon: FlagIcon,
+                  destructive: true,
+                  onPress: () =>
+                    confirmQuit('End this game?', 'End game', () => controller.resign()),
+                },
+              ]
+            : []),
         ]}
       />
       <ActionSheet
@@ -396,7 +407,7 @@ function ResultCard({
           {standings(view.state).map((entry) => (
             <View key={entry.color} className="flex-row justify-between">
               <Text className="text-base text-foreground">
-                {entry.rank ? ordinal(entry.rank) : '–'}{' '}
+                {entry.rank ? ordinal(entry.rank) : entry.left ? 'Left' : '–'}{' '}
                 {seatName(view.seats[entry.seat]!, entry.color)}
               </Text>
             </View>

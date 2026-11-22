@@ -279,6 +279,17 @@ export function leave(state: LudoState, seat: number): LudoState {
   return seat === state.current ? endTurn(next) : next;
 }
 
+/**
+ * The user quits a solo game before the end, which counts as a loss: the game ends now, they
+ * come last, and the others are placed by how far they came.
+ */
+export function forfeitLudo(state: LudoState, seat: number): LudoState {
+  const player = state.players[seat];
+  if (!player || !isActive(player) || state.phase === 'over') return state;
+  const players = state.players.map((p, i) => (i === seat ? { ...p, left: true } : p));
+  return finishIfOver({ ...state, players }, true);
+}
+
 /** Final places, best first (left players last, in seat order). */
 export function standings(
   state: LudoState,
@@ -310,12 +321,14 @@ function endTurn(state: LudoState): LudoState {
   return { ...state, current, phase: 'roll', sixes: 0, turns: state.turns + 1 };
 }
 
-// Over when at most one player is still playing, or at the first winner if so set. The rest
-// are ranked by how far they came.
-function finishIfOver(state: LudoState): LudoState {
+// Over when at most one player is still playing, or at the first winner if so set (or now, when
+// forced). The rest are ranked by how far they came.
+function finishIfOver(state: LudoState, force = false): LudoState {
   const active = state.players.filter(isActive);
   const someoneFinished = state.players.some((player) => player.rank !== null);
-  if (active.length > 1 && !(state.settings.stopAtFirstWinner && someoneFinished)) return state;
+  if (!force && active.length > 1 && !(state.settings.stopAtFirstWinner && someoneFinished)) {
+    return state;
+  }
   let rank = state.players.filter((player) => player.rank !== null).length;
   const order = state.players
     .map((player, seat) => ({ player, seat }))

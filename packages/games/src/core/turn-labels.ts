@@ -34,9 +34,10 @@ export function turnResultLine(
   names: (seat: number) => string,
 ): string {
   if (!state.ranks) return '';
-  if (isDraw(state)) return state.left[you] ? 'Draw' : "It's a draw";
+  // Before the draw check: when you quit, the players still in may share first place.
+  if (you >= 0 && state.left[you]) return 'You left the game';
+  if (isDraw(state)) return "It's a draw";
   if (you >= 0) {
-    if (state.left[you]) return 'You left the game';
     const place = state.ranks[you]!;
     if (place === 1) return 'You won!';
     const active = state.left.filter((left) => !left).length;

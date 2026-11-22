@@ -34,6 +34,11 @@ The tasks above were written before the build; ADR 0049's second amendment holds
 - Built differently: the web game is its own page with a chat button, not a side pane; there is no `GameHub` class (each app folds per game with hooks; `simGames` drives sim clients); receivers do not check clocks on skips.
 - Not built (moved to Phase 43): "Play with friends" on the game screen; while playing, the chat's unread badge, a "Back to game" pill and message toasts; rematch.
 
+## Follow-up: the last player in wins at once (rules change 2026-11-22; ADR 0049 amendment)
+- [x] `foldLudoGame`: when the leaves in hand would leave exactly one player in, they take effect at once and that player wins, without finishing their turn. Other leaves still wait for the leaver's next slot. The turn games already worked this way; a test now checks every turn game (Call Bridge ends at the first leave, as before).
+- [x] Checks: `network.test.ts` (a group of three, the other two leave during the stayer's turn, the same end in any order), `games.int.test.ts` 9/9.
+  - **Open (user):** a 3-player group game where the other two leave.
+
 ## Done when
 - [x] Protocol gen has no drift; vectors test passes.
 - [x] Engine, games, chat-core, web-store, mobile and web tests, typecheck and lint pass (repo-wide `pnpm lint`, `typecheck`, `test`, `format:check`).

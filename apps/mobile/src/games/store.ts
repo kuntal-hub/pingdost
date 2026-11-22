@@ -49,7 +49,7 @@ interface GamesState {
   /** The unfinished solo game of each turn game. */
   turnSolo: TurnSolos;
   load(): Promise<void>;
-  /** Starts a new solo game with these options (replacing any saved one). */
+  /** Starts a new solo game with these options; replacing an unfinished one records a loss. */
   startSolo(options: LudoSoloOptions): LudoSoloGame;
   /** Saves the solo game's state after a roll or move. */
   saveSoloState(state: LudoState): void;
@@ -144,6 +144,11 @@ export const useGames = create<GamesState>()((set, get) => ({
   },
 
   startSolo(options) {
+    // Replacing an unfinished game quits it: a loss.
+    const replaced = get().solo;
+    if (replaced && replaced.state.phase !== 'over') {
+      get().record('ludo', { solo: replaced.options.level }, false);
+    }
     const solo = createLudoSolo(options, Date.now());
     set({ solo, ludoSetup: solo.options });
     persist(SETTING_KEYS.gameSolo, solo);
@@ -165,6 +170,10 @@ export const useGames = create<GamesState>()((set, get) => ({
   },
 
   startTurnSolo(game, options, first = 0) {
+    const replaced = get().turnSolo[game];
+    if (replaced && replaced.state.ranks === null) {
+      get().record(game, { solo: replaced.options.level }, false);
+    }
     const solo = createTurnSolo(turnRules(game), options, Date.now(), first);
     set({
       turnSolo: { ...get().turnSolo, [game]: solo },

@@ -4,10 +4,10 @@
 import {
   Dices,
   EllipsisVertical,
+  Flag,
   Info,
   Medal,
   RotateCcw,
-  Trash2,
   Trophy,
   Volume2,
   VolumeX,
@@ -40,6 +40,7 @@ import {
   type LudoView,
 } from '@pingdost/games';
 
+import { QuitDialog, type QuitAsk } from '../quit-dialog';
 import { playGameSound } from '../sounds';
 import { useGames } from '../store';
 import { LudoBoard } from './board';
@@ -99,6 +100,7 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
   const pace = motion === 'full' ? NORMAL_PACE : FAST_PACE;
   const [controller, setController] = useState<LudoController | null>(null);
   const [rules, setRules] = useState(false);
+  const [quit, setQuit] = useState<QuitAsk | null>(null);
 
   // The newest state: if the effect below runs again or the page remounts (HMR, StrictMode),
   // the game continues from the saved position, not from where it stood when the page opened.
@@ -156,6 +158,7 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
   if (!view || !controller) return null;
   const note = ludoRollNote(view);
   const over = view.waiting === 'over';
+  const friends = () => void navigate('/games/friends/ludo');
   const rotation = rotationFor(game.options.you);
   const corner = (top: boolean, left: boolean) => {
     const seat = view.state.players.findIndex((player) => {
@@ -198,7 +201,17 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
             {
               label: 'Play with friends',
               icon: UsersRound,
-              onSelect: () => void navigate('/games/friends/ludo'),
+              onSelect: over
+                ? friends
+                : () =>
+                    setQuit({
+                      title: 'Play with friends?',
+                      confirm: 'End and invite',
+                      run: () => {
+                        controller.resign();
+                        friends();
+                      },
+                    }),
             },
             { label: 'Rules', icon: Info, onSelect: () => setRules(true) },
             {
@@ -206,15 +219,21 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
               icon: sounds ? VolumeX : Volume2,
               onSelect: () => useGames.getState().setSounds(!sounds),
             },
-            {
-              label: 'End this game',
-              icon: Trash2,
-              destructive: true,
-              onSelect: () => {
-                useGames.getState().clearSolo();
-                void navigate('/games');
-              },
-            },
+            ...(over
+              ? []
+              : [
+                  {
+                    label: 'End this game',
+                    icon: Flag,
+                    destructive: true,
+                    onSelect: () =>
+                      setQuit({
+                        title: 'End this game?',
+                        confirm: 'End game',
+                        run: () => controller.resign(),
+                      }),
+                  },
+                ]),
           ]}
         />
       </div>
@@ -250,6 +269,7 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
       <Dialog open={over} onOpenChange={() => undefined} title={over ? ludoStatus(view) : 'Ludo'}>
         <ResultBody view={view} onPlayAgain={onPlayAgain} onDone={() => void navigate('/games')} />
       </Dialog>
+      <QuitDialog ask={quit} onClose={() => setQuit(null)} />
       <Dialog open={rules} onOpenChange={setRules} title="Ludo rules">
         <ul className="list-disc space-y-1 pl-5 text-sm">
           {ludoRules(view.state.settings).map((line) => (
@@ -333,7 +353,7 @@ function ResultBody({
       <ol className="space-y-1">
         {standings(view.state).map((entry) => (
           <li key={entry.color}>
-            {entry.rank ? ordinal(entry.rank) : '–'} ·{' '}
+            {entry.rank ? ordinal(entry.rank) : entry.left ? 'Left' : '–'} ·{' '}
             {seatName(view.seats[entry.seat]!, entry.color)}
           </li>
         ))}

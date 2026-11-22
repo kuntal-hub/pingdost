@@ -23,7 +23,6 @@ import {
   InfoIcon,
   MedalIcon,
   RotateCcwIcon,
-  Trash2Icon,
   FlagIcon,
   TrophyIcon,
   UsersRoundIcon,
@@ -56,6 +55,7 @@ import {
   type TurnView,
 } from '@pingdost/games';
 
+import { confirmQuit } from '../confirm-quit';
 import {
   ChessMoves,
   PlayersStrip,
@@ -183,6 +183,7 @@ function TurnSoloGameView({
   const seatName = (seat: number) =>
     seat === view.you ? 'You' : game.seats.length === 2 ? 'Computer' : `Computer ${seat}`;
   const over = view.waiting === 'over';
+  const chess = rules.id === 'chess';
   const playWithFriends = () =>
     router.push({ pathname: '/game/pick-chat', params: { game: rules.id } });
 
@@ -264,9 +265,15 @@ function TurnSoloGameView({
           },
           {
             label: 'Play with friends',
-            detail: 'Invite someone in a chat',
+            detail: over ? 'Invite someone in a chat' : 'Ends this game as a loss',
             icon: UsersRoundIcon,
-            onPress: playWithFriends,
+            onPress: over
+              ? playWithFriends
+              : () =>
+                  confirmQuit('Play with friends?', 'End and invite', () => {
+                    controller.resign();
+                    playWithFriends();
+                  }),
           },
           { label: 'Rules', icon: InfoIcon, onPress: () => setRulesOpen(true) },
           {
@@ -274,26 +281,22 @@ function TurnSoloGameView({
             icon: Volume2Icon,
             onPress: () => useGames.getState().setSounds(!sounds),
           },
-          ...(rules.id === 'chess' && !over
-            ? [
+          ...(over
+            ? []
+            : [
                 {
-                  label: 'Resign',
-                  detail: 'The computer wins this game',
+                  label: chess ? 'Resign' : 'End this game',
+                  detail: chess ? 'The computer wins this game' : 'Counts as a loss',
                   icon: FlagIcon,
                   destructive: true,
-                  onPress: () => controller.resign(),
+                  onPress: () =>
+                    confirmQuit(
+                      chess ? 'Resign?' : 'End this game?',
+                      chess ? 'Resign' : 'End game',
+                      () => controller.resign(),
+                    ),
                 },
-              ]
-            : []),
-          {
-            label: 'End this game',
-            icon: Trash2Icon,
-            destructive: true,
-            onPress: () => {
-              useGames.getState().clearTurnSolo(rules.id);
-              router.back();
-            },
-          },
+              ]),
         ]}
       />
       <RulesSheet

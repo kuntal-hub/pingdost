@@ -4,6 +4,7 @@
 // screen can save it.
 import type { Random } from './random';
 import {
+  forfeitTurn,
   NORMAL_TURN_PACE,
   type TurnCore,
   type TurnPace,
@@ -113,18 +114,30 @@ export class TurnController<S extends TurnCore, M, Settings> {
     this.#rollFor(you);
   }
 
-  /** The user gives up (Chess): the game ends as if they had left. */
+  /**
+   * The user quits before the end (Chess: resigns), which counts as a loss: the game ends at
+   * once with them last (`onOver` runs before this returns, so the screen may leave right after).
+   */
   resign(): void {
     const { state, you } = this.#view;
-    if (state.ranks) return;
-    this.#show('leave', you, state, this.#rules.leave(state, you));
+    if (state.ranks || this.#disposed) return;
+    this.#clearTimers();
+    const next = forfeitTurn(this.#rules, state, you);
+    const step: TurnStep<S, M> = { kind: 'leave', seat: you, before: state, state: next };
+    this.#set({ state: next, last: { ...step, id: ++this.#counter } });
+    this.#options.onState?.(next);
+    this.#next();
   }
 
   dispose(): void {
     this.#disposed = true;
+    this.#clearTimers();
+    this.#listeners.clear();
+  }
+
+  #clearTimers(): void {
     for (const timer of this.#timers) clearTimeout(timer);
     this.#timers.clear();
-    this.#listeners.clear();
   }
 
   #later(ms: number, run: () => void): void {

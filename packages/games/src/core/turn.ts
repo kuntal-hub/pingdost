@@ -327,6 +327,28 @@ export function leaveSeat<S extends TurnCore>(
   return next;
 }
 
+/**
+ * The user quits a solo game before the end, which counts as a loss: the game ends now with
+ * them last. If the rules would play on without them, the players still in share first place.
+ */
+export function forfeitTurn<S extends TurnCore, M, Settings>(
+  rules: TurnRules<S, M, Settings>,
+  state: S,
+  seat: number,
+): S {
+  if (state.ranks) return state;
+  const next = rules.leave(state, seat);
+  if (next.ranks) return next;
+  const gone: S = next.left[seat]
+    ? next
+    : {
+        ...next,
+        left: next.left.map((l, i) => l || i === seat),
+        leftOrder: [...next.leftOrder, seat],
+      };
+  return { ...gone, ranks: placesFrom(gone.seats, [activeSeats(gone)], gone.leftOrder) };
+}
+
 /** A missed turn: the next seat plays. */
 export function passTurn<S extends TurnCore>(state: S): S {
   if (state.ranks) return state;

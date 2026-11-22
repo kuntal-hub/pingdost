@@ -3,11 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seededRandom } from './random';
 import { FAST_TURN_PACE, type TurnCore } from './turn';
 import { TurnController } from './turn-controller';
-import { turnSoloStatus } from './turn-labels';
+import { isDraw, turnResultLine, turnSoloStatus } from './turn-labels';
 import { createTurnSolo, normalizeTurnSoloOptions, restoreTurnSolo } from './turn-solo';
 import { DOTS_AND_BOXES } from '../dots-and-boxes/rules';
 import { SNAKES_AND_LADDERS } from '../snakes-and-ladders/rules';
 import { TIC_TAC_TOE, type TicTacToeMove, type TicTacToeState } from '../tic-tac-toe/rules';
+import { TURN_GAME_IDS, turnRules } from '../turn-games';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -84,6 +85,65 @@ describe('solo turn games', () => {
     expect(controller.getView().waiting).toBe('over');
     expect(controller.getView().last?.kind).toBe('roll');
     controller.dispose();
+  });
+
+  it('quitting ends the game at once as a loss; the computers still in share first', async () => {
+    const solo = createTurnSolo(
+      DOTS_AND_BOXES,
+      { computers: 2, level: 'easy', settings: {} },
+      1,
+      1,
+    );
+    const saved: TurnCore[] = [];
+    const over = vi.fn();
+    const controller = new TurnController({
+      rules: DOTS_AND_BOXES,
+      state: solo.state as never,
+      seats: solo.seats,
+      level: 'easy',
+      random: seededRandom(4),
+      pace: FAST_TURN_PACE,
+      onState: (state) => saved.push(state),
+      onOver: over,
+    });
+    // A computer player is thinking: quitting stops its turn.
+    expect(controller.getView().waiting).toBe('them');
+    controller.resign();
+    expect(over).toHaveBeenCalledTimes(1);
+    expect(over.mock.calls[0]![0]).toBe(3);
+    const view = controller.getView();
+    expect(view.waiting).toBe('over');
+    expect(view.state.ranks).toEqual([3, 1, 1]);
+    expect(view.last?.kind).toBe('leave');
+    expect(turnSoloStatus(DOTS_AND_BOXES, view)).toBe('You left the game');
+    expect(saved.at(-1)).toEqual(view.state);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(controller.getView().state).toBe(view.state);
+    controller.resign();
+    expect(over).toHaveBeenCalledTimes(1);
+    controller.dispose();
+  });
+
+  it('with friends, the last player in wins when everyone else leaves (every turn game)', () => {
+    for (const id of TURN_GAME_IDS) {
+      const rules = turnRules(id);
+      const seats = Math.min(rules.maxPlayers, 4);
+      let state = rules.setup(seats, rules.defaultSettings, 0);
+      if (id === 'call-bridge') {
+        // Call Bridge needs four: the first leave ends it, the leaver last.
+        state = rules.leave(state, 1);
+        expect(state.ranks, id).not.toBeNull();
+        expect(state.ranks![1], id).toBe(4);
+        continue;
+      }
+      for (let seat = 1; seat < seats; seat++) {
+        expect(state.ranks, `${id} before seat ${seat} leaves`).toBeNull();
+        state = rules.leave(state, seat);
+      }
+      expect(state.ranks?.[0], id).toBe(1);
+      expect(isDraw(state), id).toBe(false);
+      expect(turnResultLine(state, 0, String), id).toBe('You won!');
+    }
   });
 
   it('saves and restores solo games; options stay in range', () => {

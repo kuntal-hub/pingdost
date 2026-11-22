@@ -133,7 +133,9 @@ function Setup({ game }: { game: TurnGameId }) {
         Start game
       </Button>
       {saved && !saved.state.ranks && (
-        <p className="text-center text-sm text-muted">This replaces your unfinished game.</p>
+        <p className="text-center text-sm text-muted">
+          Starting counts your unfinished game as a loss.
+        </p>
       )}
       <p className="text-xs text-muted">
         Computer players are only for games on your own; games with friends are people only. Games

@@ -155,7 +155,9 @@ export function LudoSetupPage() {
           Start game
         </Button>
         {unfinished && (
-          <p className="text-center text-sm text-muted">This replaces your unfinished game.</p>
+          <p className="text-center text-sm text-muted">
+            Starting counts your unfinished game as a loss.
+          </p>
         )}
       </div>
       <p className="text-xs text-muted">

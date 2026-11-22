@@ -5,6 +5,7 @@ import { YARD } from './board';
 import { chooseLudoToken } from './bot';
 import {
   distinctTokens,
+  forfeitLudo,
   legalTokens,
   move,
   roll,
@@ -117,11 +118,29 @@ export class LudoController {
     this.#move(token);
   }
 
+  /**
+   * The user quits before the end, which counts as a loss: the game ends at once with them last
+   * (`onOver` runs before this returns, so the screen may leave right after).
+   */
+  resign(): void {
+    const { state, you } = this.#view;
+    if (state.phase === 'over' || this.#disposed) return;
+    this.#clearTimers();
+    const next = forfeitLudo(state, you);
+    this.#update({ state: next });
+    this.#options.onState?.(next);
+    this.#settle();
+  }
+
   dispose(): void {
     this.#disposed = true;
+    this.#clearTimers();
+    this.#listeners.clear();
+  }
+
+  #clearTimers(): void {
     for (const timer of this.#timers) clearTimeout(timer);
     this.#timers.clear();
-    this.#listeners.clear();
   }
 
   get #pace(): LudoPace {

@@ -29,6 +29,13 @@ Built 2026-11-21 (ADR 0049).
 - [x] Checks: package tests (52; stacks, sounds, restore), both apps' checks (12/12 turbo tasks), Chrome (the new look, a tumble caught mid-roll, a stack of 3 with its badge, colors side by side on a star, sounds rendered through Web Audio) and the emulator (the new look, rolls, the extra roll after a 6, the WAVs written to the cache).
   - **Open (user):** hearing the sounds and feeling the hops on a real phone.
 
+## Follow-up: quitting a solo game is a loss (rules change 2026-11-22; ADR 0049 amendment)
+Covers every solo game (Ludo and the turn games of Phases 43–47), on both apps.
+- [x] `LudoController.resign()` (`forfeitLudo`) and `TurnController.resign()` (`forfeitTurn`) end the game at once with the user last; `onOver` runs before `resign` returns.
+- [x] Menus: "End this game" (Chess: "Resign") and "Play with friends" during a game ask first ("An unfinished game counts as a loss"); "End this game" is hidden once the game is over. Setup: "Starting counts your unfinished game as a loss"; the stores record the loss when a new game replaces an unfinished one. Back, closing the app or a call still only pause.
+- [x] Checks: package tests (quit mid-turn for Ludo and Dots and Boxes), games/web/mobile typecheck, lint and unit tests.
+  - **Open (user):** quit a game on the phone and in Chrome; the Games tab's record shows one more game and no win.
+
 ## Done when
 - [x] `pnpm --filter @pingdost/games test`, `pnpm --filter @pingdost/ui-tokens test`, mobile and web typecheck, lint and test; prettier clean (12/12 turbo tasks, 2026-11-21).
 - [x] Web dev page in Chrome: full games against 1 and 3 computer players, each difficulty; Motion Off. (Hard × 3 classic, Easy × 1 and Medium × 1 quick; a reload mid-game and on the result.)

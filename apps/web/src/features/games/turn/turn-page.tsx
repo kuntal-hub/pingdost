@@ -6,7 +6,6 @@ import {
   Info,
   Medal,
   RotateCcw,
-  Trash2,
   Flag,
   Trophy,
   UsersRound,
@@ -49,6 +48,7 @@ import {
 } from '@pingdost/games';
 
 import { GAME_ICONS } from '../game-icons';
+import { QuitDialog, type QuitAsk } from '../quit-dialog';
 import { useGames } from '../store';
 import { TurnBoard } from './boards';
 import {
@@ -122,6 +122,7 @@ function TurnSoloGameView({
   );
   const [rulesOpen, setRulesOpen] = useState(false);
   const [resultSeen, setResultSeen] = useState(false);
+  const [quit, setQuit] = useState<QuitAsk | null>(null);
   const latest = useRef(newestState(game));
   const name = catalogEntry(rules.id).name;
 
@@ -161,6 +162,7 @@ function TurnSoloGameView({
   const seatName = (seat: number) =>
     seat === view.you ? 'You' : game.seats.length === 2 ? 'Computer' : `Computer ${seat}`;
   const over = view.waiting === 'over';
+  const chess = rules.id === 'chess';
   const friends = `/games/friends/${rules.id}`;
 
   return (
@@ -183,7 +185,17 @@ function TurnSoloGameView({
             {
               label: 'Play with friends',
               icon: UsersRound,
-              onSelect: () => void navigate(friends),
+              onSelect: over
+                ? () => void navigate(friends)
+                : () =>
+                    setQuit({
+                      title: 'Play with friends?',
+                      confirm: 'End and invite',
+                      run: () => {
+                        controller.resign();
+                        void navigate(friends);
+                      },
+                    }),
             },
             { label: 'Rules', icon: Info, onSelect: () => setRulesOpen(true) },
             {
@@ -191,25 +203,21 @@ function TurnSoloGameView({
               icon: sounds ? VolumeX : Volume2,
               onSelect: () => useGames.getState().setSounds(!sounds),
             },
-            ...(rules.id === 'chess' && !over
-              ? [
+            ...(over
+              ? []
+              : [
                   {
-                    label: 'Resign',
+                    label: chess ? 'Resign' : 'End this game',
                     icon: Flag,
                     destructive: true,
-                    onSelect: () => controller.resign(),
+                    onSelect: () =>
+                      setQuit({
+                        title: chess ? 'Resign?' : 'End this game?',
+                        confirm: chess ? 'Resign' : 'End game',
+                        run: () => controller.resign(),
+                      }),
                   },
-                ]
-              : []),
-            {
-              label: 'End this game',
-              icon: Trash2,
-              destructive: true,
-              onSelect: () => {
-                useGames.getState().clearTurnSolo(rules.id);
-                void navigate('/games');
-              },
-            },
+                ]),
           ]}
         />
       </div>
@@ -264,6 +272,7 @@ function TurnSoloGameView({
           See the board
         </Button>
       </ResultDialog>
+      <QuitDialog ask={quit} onClose={() => setQuit(null)} />
       <RulesDialog
         rules={rules}
         settings={game.options.settings}

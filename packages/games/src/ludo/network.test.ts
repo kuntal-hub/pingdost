@@ -347,6 +347,42 @@ describe('Ludo with friends: the fold and the controller', () => {
     for (const { controller: c } of table.controllers) c.dispose();
   });
 
+  it('when everyone else leaves, the one still in wins at once, without playing on', async () => {
+    const { table } = setUp([alice, bob, carol]);
+    const [a, b, c] = table.controllers.map((x) => x.controller);
+    b!.join();
+    c!.join();
+    await vi.advanceTimersByTimeAsync(10);
+    const game = a!.getView().game;
+    expect(game.phase).toBe('playing');
+    const stayerSeat = game.state!.current;
+    const stayer = game.seats[stayerSeat]!;
+    const others = table.controllers.filter((x) => x.ref.userId !== stayer.userId);
+
+    // One leaves during the stayer's turn: two are still in, so the game goes on.
+    others[0]!.controller.leave();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(a!.getView().game.phase).toBe('playing');
+    expect(a!.getView().game.entries).toHaveLength(0);
+
+    // The second leaves too: the stayer wins now, with no roll of theirs.
+    others[1]!.controller.leave();
+    await vi.advanceTimersByTimeAsync(10);
+    for (const { controller } of table.controllers) {
+      const after = controller.getView().game;
+      expect(after.phase).toBe('over');
+      expect(after.desync).toBe(false);
+      expect(after.entries.map((e) => e.kind)).toEqual(['leave', 'leave']);
+      expect(after.state!.players[stayerSeat]!.rank).toBe(1);
+    }
+    const end = a!.getView().game.state!;
+    expect(end.players.filter((p) => p.left)).toHaveLength(2);
+    // Any order: the same end.
+    const refolded = foldLudoGame(table.gameId, [...table.events].reverse(), sha256);
+    expect(canonicalLudo(refolded.state!)).toBe(canonicalLudo(end));
+    for (const { controller } of table.controllers) controller.dispose();
+  });
+
   it('keeps one seat per person, rejects a start that changes a seat, and ends on the host', async () => {
     const { table } = setUp([alice, bob, carol], 4);
     const [a, b, c] = table.controllers.map((x) => x.controller);

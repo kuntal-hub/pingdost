@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { YARD } from './board';
 import { chooseLudoToken } from './bot';
 import { FAST_PACE, LudoController } from './controller';
+import { ludoStatus } from './labels';
 import type { LudoState } from './rules';
 import { createLudoSolo, DEFAULT_LUDO_SOLO, restoreLudoSolo } from './solo';
 import { seededRandom } from '../core/random';
@@ -43,6 +44,46 @@ describe('LudoController', () => {
     expect(over).toHaveBeenCalledTimes(1);
     expect(over.mock.calls[0]![0]).toBeGreaterThanOrEqual(1);
     expect(saved.at(-1)!.phase).toBe('over');
+    controller.dispose();
+  });
+
+  it('quitting ends the game at once as a loss: the user last, the others by how far they came', () => {
+    const solo = createLudoSolo({ ...DEFAULT_LUDO_SOLO, computers: 3 }, 0);
+    const saved: LudoState[] = [];
+    const over = vi.fn();
+    const controller = new LudoController({
+      state: solo.state,
+      seats: solo.seats,
+      level: 'easy',
+      random: seededRandom(8),
+      pace: FAST_PACE,
+      onState: (state) => saved.push(state),
+      onOver: over,
+    });
+    // Play until a computer player has the turn, then quit in the middle of it.
+    for (let i = 0; i < 500; i++) {
+      const view = controller.getView();
+      if (view.state.current !== view.you) break;
+      if (view.waiting === 'you-roll') controller.roll();
+      else if (view.waiting === 'you-move') controller.move(view.movable[0]!);
+      else vi.advanceTimersByTime(50);
+    }
+    expect(controller.getView().state.current).not.toBe(controller.getView().you);
+    controller.resign();
+    expect(over).toHaveBeenCalledTimes(1);
+    expect(over.mock.calls[0]![0]).toBe(4);
+    const view = controller.getView();
+    expect(view.waiting).toBe('over');
+    expect(view.state.players[view.you]!.left).toBe(true);
+    expect(view.state.players.map((p) => p.rank).sort()).toEqual([1, 2, 3, null]);
+    expect(ludoStatus(view)).toBe('You left the game');
+    expect(saved.at(-1)).toEqual(view.state);
+    expect(restoreLudoSolo({ ...solo, state: view.state })?.state.phase).toBe('over');
+    // No computer turn runs after the end, and quitting again does nothing.
+    vi.advanceTimersByTime(10_000);
+    expect(controller.getView().state).toBe(view.state);
+    controller.resign();
+    expect(over).toHaveBeenCalledTimes(1);
     controller.dispose();
   });
 

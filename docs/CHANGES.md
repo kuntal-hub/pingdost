@@ -4,6 +4,12 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-22 — Rules change: leaving a game (ADR 0049 amendment)
+1. **With friends, when everyone else has left, the last player in wins and the game ends at once.** Every turn game already worked this way. Ludo had a gap: a leave took effect only at the leaver's own turn, so the last player had to finish their turn first. Now it ends at once. In Ludo with "play on for places", a player who already finished keeps their place, so the last one in takes the best place still open. Call Bridge is unchanged: it needs four players, so the first leaver already ends it (placed by the totals so far, the leaver last).
+   - *Affects:* 42 (Ludo fold), 43–47 (already so; now tested).
+2. **Solo: quitting an unfinished game counts as a loss and ends it.** "End this game" (Chess: "Resign"), "Play with friends" during a game, and starting a new game over an unfinished one ask first, then count a loss in the stats. The game ends with you last ("You left the game") and stays saved as finished. Leaving the screen, closing the app or a phone call still only pause the game (the user's choice).
+   - *Affects:* 41, 43–47 (solo screens on phone and web, the controllers, the stores).
+
 ### 2026-11-22 — Phase 47 built: Poker (ADR 0053)
 1. **Poker on phone and web:** no-limit Texas Hold'em for 2 to 6 players with **play chips only** (none are sold, cashed out or exchanged; no prizes, no ads). Starting chips 500 / 1,000 / 2,000 / 5,000; blinds 10/20 that double every 10 hands unless the host fixes them. The last player with chips wins. Solo against Easy / Medium / Hard computer players; a solo game ends when you run out of chips.
    - *Affects:* 47.

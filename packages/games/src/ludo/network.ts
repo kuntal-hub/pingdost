@@ -8,7 +8,8 @@
 //   or a move; after its timer anyone else seated may fill a roll slot with a skip or a move slot
 //   with the move the computer would make (a proxy move). If a slot has several candidates, the
 //   lowest event ID wins (receivers cannot check anyone's clock).
-// - Three skips in a row and the player is out. A leave takes effect at the leaver's next slot.
+// - Three skips in a row and the player is out. A leave takes effect at the leaver's next slot,
+//   or at once when the leaves in hand would leave one player in: that player wins (2026-11-22).
 //   The host's `end` stops the game for everyone; later events are ignored.
 // - Dice: `fair-dice.ts`. Moves and skips carry the resulting state's hash, so a desync shows.
 import { bytesToUuid, GameType, type Game } from '@pingdost/protocol';
@@ -17,6 +18,7 @@ import { LUDO_COLORS, type LudoColor } from './board';
 import { chooseLudoToken } from './bot';
 import {
   DEFAULT_LUDO_SETTINGS,
+  isActive,
   leave,
   legalTokens,
   move,
@@ -278,6 +280,26 @@ export function foldLudoGame(
   let index = 0;
 
   while (state.phase !== 'over') {
+    // Everyone else has left: the one still in wins now instead of playing on until the
+    // leavers' turns come round.
+    const lastOne = leavesToLastOne();
+    if (lastOne.length > 0) {
+      for (const e of lastOne) {
+        used.add(e.eventId);
+        const next = leave(state, seatOf(e));
+        game.entries.push({
+          kind: 'leave',
+          state: next,
+          eventId: e.eventId,
+          seat: state.current,
+          by: { userId: e.userId, deviceId: e.deviceId },
+          receivedAt: e.receivedAt,
+        });
+        game.since = Math.max(game.since, e.receivedAt);
+        state = next;
+      }
+      break;
+    }
     const seat = state.current;
     const player = seats[seat]!;
     const candidates = [
@@ -301,6 +323,23 @@ export function foldLudoGame(
     game.since = Math.max(game.since, chosen.receivedAt);
     index = entry.state.turns !== state.turns ? 0 : index + 1;
     state = entry.state;
+  }
+
+  // The leaves now in effect (one per seat, lowest event ID first) if they would leave exactly
+  // one player in; otherwise none.
+  function leavesToLastOne(): Decoded[] {
+    const pending = new Map<number, Decoded>();
+    for (const e of leaves) {
+      const seat = seatOf(e);
+      if (used.has(e.eventId) || e.game.turn > state.turns || !isActive(state.players[seat]!)) {
+        continue;
+      }
+      const known = pending.get(seat);
+      if (!known || e.eventId < known.eventId) pending.set(seat, e);
+    }
+    const staying = state.players.filter((p, seat) => isActive(p) && !pending.has(seat));
+    if (pending.size === 0 || staying.length !== 1) return [];
+    return [...pending.values()].sort((a, b) => (a.eventId < b.eventId ? -1 : 1));
   }
 
   function acceptable(e: Decoded): boolean {

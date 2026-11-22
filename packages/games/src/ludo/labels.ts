@@ -38,6 +38,7 @@ export function ludoStatus(view: LudoView): string {
   const mine = state.current === you;
   switch (waiting) {
     case 'over': {
+      if (state.players[you]!.left) return 'You left the game';
       const place = state.players[you]!.rank ?? state.players.length;
       return place === 1 ? 'You won!' : `You finished ${ordinal(place)}`;
     }

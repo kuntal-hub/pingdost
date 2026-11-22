@@ -249,7 +249,7 @@ export function TurnSetupScreen({ game }: { game: TurnGameId }) {
           />
           {unfinished && (
             <Text className="px-2 text-center text-sm text-muted">
-              This replaces your unfinished game.
+              Starting counts your unfinished game as a loss.
             </Text>
           )}
         </View>

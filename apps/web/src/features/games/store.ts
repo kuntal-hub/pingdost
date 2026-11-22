@@ -124,6 +124,11 @@ export const useGames = create<GamesState>()((set, get) => ({
   ...initial(),
 
   startSolo(options) {
+    // Replacing an unfinished game quits it: a loss.
+    const replaced = get().solo;
+    if (replaced && replaced.state.phase !== 'over') {
+      get().record('ludo', { solo: replaced.options.level }, false);
+    }
     const solo = createLudoSolo(options, Date.now());
     set({ solo, ludoSetup: solo.options });
     write(SOLO_KEY, solo);
@@ -145,6 +150,10 @@ export const useGames = create<GamesState>()((set, get) => ({
   },
 
   startTurnSolo(game, options, first = 0) {
+    const replaced = get().turnSolo[game];
+    if (replaced && replaced.state.ranks === null) {
+      get().record(game, { solo: replaced.options.level }, false);
+    }
     const solo = createTurnSolo(turnRules(game), options, Date.now(), first);
     set({
       turnSolo: { ...get().turnSolo, [game]: solo },
