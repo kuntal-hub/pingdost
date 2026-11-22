@@ -38,6 +38,8 @@ enum GameType {
   GAME_TYPE_CONNECT_FOUR = 3;
   GAME_TYPE_DOTS_AND_BOXES = 4;
   GAME_TYPE_SNAKES_AND_LADDERS = 5;
+  // Phase 44.
+  GAME_TYPE_CHESS = 6;
 }
 
 // Opens a game in the chat; it shows as an invitation card. The creator (host) takes the
@@ -53,6 +55,7 @@ message GameCreate {
     ConnectFourSettings connect_four = 7;
     DotsSettings dots = 8;
     SnakesSettings snakes = 9;
+    ChessSettings chess = 10;
   }
   // The host's seat: see `GameJoin`.
   bytes anchor = 4;
@@ -87,6 +90,11 @@ message SnakesSettings {
   bool six_rolls_again = 1;
   // A roll past 100 bounces back by the squares left over.
   bool bounce_back = 2;
+}
+
+message ChessSettings {
+  // The host's side: 0 drawn from the seats' salts, 1 White, 2 Black. White moves first.
+  uint32 host_side = 1;
 }
 
 // Takes a seat. `anchor` ends the seat's hash chain of roll secrets (32 bytes): every secret
@@ -133,6 +141,7 @@ message GameMove {
     TicTacToeMove tic_tac_toe = 4;
     ConnectFourMove connect_four = 5;
     DotsMove dots = 6;
+    ChessMove chess = 7;
   }
 }
 
@@ -150,6 +159,18 @@ message DotsMove {
   // The line drawn: the rows of horizontal lines first (size + 1 rows of `size`, top to
   // bottom, left to right), then the vertical ones (size rows of size + 1).
   uint32 line = 1;
+}
+
+// Squares are 0 to 63: a1 = 0, h1 = 7, a8 = 56. Chess has no timers, so no proxy moves.
+message ChessMove {
+  uint32 from = 1;
+  uint32 to = 2;
+  // A pawn reaching the last rank: 2 knight, 3 bishop, 4 rook, 5 queen (0 otherwise).
+  uint32 promotion = 3;
+  // The mover offers a draw along with this move.
+  bool offer_draw = 4;
+  // Instead of a move: take the draw the other player offered with their last move.
+  bool accept_draw = 5;
 }
 
 // Another player skips a turn whose roll never came (the roller's app was closed).

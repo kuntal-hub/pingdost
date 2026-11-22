@@ -679,6 +679,35 @@
       "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDN6gwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIIBNgoQAZLxoAAAcACAAAAAAAAAoxAEQiASECVEY4KhwN/+HTxbepm41/YaCCZFZIOiweD/KgIIAw=="
     },
     {
+      "name": "content/game-move-chess",
+      "type": "pingdost.v1.Content",
+      "json": {
+        "header": {
+          "version": 1,
+          "messageId": "AZLxoAAAcACAAAAAAAAAAQ==",
+          "conversationId": "AZLxoAAAcACAAAAAAAAAYQ==",
+          "senderUserId": "AZLxoAAAcACAAAAAAAAAoQ==",
+          "sentAtMs": "1760000000000"
+        },
+        "padding": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "game": {
+          "gameId": "AZLxoAAAcACAAAAAAAAApA==",
+          "turn": 40,
+          "move": {
+            "salt": "J0ZlhKPC4QAfPl18m7rZ+A==",
+            "stateHash": "KEdmhaTD4gE=",
+            "chess": {
+              "from": 52,
+              "to": 60,
+              "promotion": 5,
+              "offerDraw": true
+            }
+          }
+        }
+      },
+      "binary": "Cj8IARIQAZLxoAAAcACAAAAAAAAAARoQAZLxoAAAcACAAAAAAAAAYSIQAZLxoAAAcACAAAAAAAAAoSiAgLPBnDN6fgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIIBPAoQAZLxoAAAcACAAAAAAAAApBAoQiYSECdGZYSjwuEAHz5dfJu62fgaCChHZoWkw+IBOggINBA8GAUgAQ=="
+    },
+    {
       "name": "client-frame/auth",
       "type": "pingdost.v1.ClientFrame",
       "json": {

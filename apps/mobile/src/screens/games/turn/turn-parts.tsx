@@ -9,9 +9,11 @@ import { haptic } from '@/theme/motion';
 import { useTheme } from '@/theme/theme-root';
 import {
   isDraw,
+  KING,
   snakesPath,
   turnSeatColor,
   type AnyTurnRules,
+  type ChessState,
   type DotsState,
   type SnakesState,
   type TurnCore,
@@ -23,6 +25,7 @@ import {
 import { gameBoardColors } from '@pingdost/ui-tokens';
 
 import type { TurnBoardProps } from './board-props';
+import { ChessBoard, ChessPiece } from './chess-board';
 import { ConnectFourBoard } from './connect-four-board';
 import { DotsBoard } from './dots-board';
 import { SnakesBoard } from './snakes-board';
@@ -36,6 +39,7 @@ const BOARDS = {
   'connect-four': ConnectFourBoard,
   'dots-and-boxes': DotsBoard,
   'snakes-and-ladders': SnakesBoard,
+  chess: ChessBoard,
 } as unknown as Record<TurnGameId, ComponentType<TurnBoardProps>>;
 
 export function TurnBoard({ rules, ...props }: TurnBoardProps & { rules: AnyTurnRules }) {
@@ -99,24 +103,28 @@ export function PlayersStrip({
               borderColor: active ? look.ring : 'transparent',
             }}
           >
-            <View
-              className="items-center justify-center rounded-full"
-              style={{
-                width: 28,
-                height: 28,
-                backgroundColor: look.fill,
-                borderWidth: 2,
-                borderColor: look.ring,
-              }}
-            >
-              {rules.id === 'tic-tac-toe' ? (
-                <Text className="text-sm font-bold" style={{ color: look.on }}>
-                  {side}
-                </Text>
-              ) : (
-                <ShapeGlyph color={color} size={14} fill={look.on} />
-              )}
-            </View>
+            {rules.id === 'chess' ? (
+              <ChessPiece piece={side === 'White' ? KING : -KING} size={30} colors={colors.chess} />
+            ) : (
+              <View
+                className="items-center justify-center rounded-full"
+                style={{
+                  width: 28,
+                  height: 28,
+                  backgroundColor: look.fill,
+                  borderWidth: 2,
+                  borderColor: look.ring,
+                }}
+              >
+                {rules.id === 'tic-tac-toe' ? (
+                  <Text className="text-sm font-bold" style={{ color: look.on }}>
+                    {side}
+                  </Text>
+                ) : (
+                  <ShapeGlyph color={color} size={14} fill={look.on} />
+                )}
+              </View>
+            )}
             <View className="min-w-0 flex-1">
               <Text numberOfLines={1} className="text-sm font-bold text-foreground">
                 {names(seat)}
@@ -138,6 +146,25 @@ export function PlayersStrip({
         );
       })}
     </View>
+  );
+}
+
+/** Chess: the moves so far in SAN, the newest last (a row that scrolls). */
+export function ChessMoves({ state }: { state: ChessState }) {
+  if (state.san.length === 0) return null;
+  const pairs: string[] = [];
+  for (let i = 0; i < state.san.length; i += 2) {
+    pairs.push(`${i / 2 + 1}. ${state.san[i]}${state.san[i + 1] ? `  ${state.san[i + 1]}` : ''}`);
+  }
+  return (
+    <Text
+      accessibilityLabel={`Moves: ${state.san.join(', ')}`}
+      numberOfLines={1}
+      ellipsizeMode="head"
+      className="max-w-full px-4 text-sm text-muted"
+    >
+      {pairs.slice(-4).join('   ')}
+    </Text>
   );
 }
 

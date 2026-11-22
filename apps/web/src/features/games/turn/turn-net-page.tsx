@@ -4,6 +4,7 @@
 import {
   DoorOpen,
   EllipsisVertical,
+  Flag,
   Info,
   MessageCircle,
   OctagonX,
@@ -22,7 +23,9 @@ import {
   catalogEntry,
   FAST_TURN_PACE,
   NORMAL_TURN_PACE,
+  chessInCheck,
   turnNetStatus,
+  type ChessState,
   type AnyTurnRules,
 } from '@pingdost/games';
 
@@ -40,7 +43,14 @@ import { useNow, useTurnNetGame } from '../network';
 import { useGames } from '../store';
 import { TurnBoard } from './boards';
 import { ResultDialog, RulesDialog } from './turn-page';
-import { PlayersStrip, TurnDie, useMotionLevel, useTurnKeys, useTurnSounds } from './turn-parts';
+import {
+  ChessMoves,
+  PlayersStrip,
+  TurnDie,
+  useMotionLevel,
+  useTurnKeys,
+  useTurnSounds,
+} from './turn-parts';
 
 export function TurnNetPage({ gameId, rules }: { gameId: string; rules: AnyTurnRules }) {
   const [params, setParams] = useSearchParams();
@@ -53,8 +63,13 @@ export function TurnNetPage({ gameId, rules }: { gameId: string; rules: AnyTurnR
   const { controller, view, record } = useTurnNetGame(gameId, rules, pace);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [resultSeen, setResultSeen] = useState(false);
+  // Chess: offer a draw along with the next move.
+  const [offerDraw, setOfferDraw] = useState(false);
   const entry = catalogEntry(rules.id);
   const state = view?.state ?? null;
+  const chessState = rules.id === 'chess' && state ? (state as ChessState) : null;
+  const turn = view?.game.turn;
+  useEffect(() => setOfferDraw(false), [turn]);
   useTurnSounds(
     rules,
     view && state ? { state, you: view.you, waiting: view.waiting, last: view.last } : null,
@@ -132,8 +147,8 @@ export function TurnNetPage({ gameId, rules }: { gameId: string; rules: AnyTurnR
             ...(live && inGame && !left
               ? [
                   {
-                    label: 'Leave the game',
-                    icon: DoorOpen,
+                    label: rules.id === 'chess' && playing ? 'Resign' : 'Leave the game',
+                    icon: rules.id === 'chess' && playing ? Flag : DoorOpen,
                     destructive: true,
                     onSelect: () => controller.leave(),
                   },
@@ -179,7 +194,13 @@ export function TurnNetPage({ gameId, rules }: { gameId: string; rules: AnyTurnR
               you={view.you}
               legal={view.legal}
               last={view.last}
-              onMove={(move) => controller.move(move)}
+              onMove={(move) =>
+                controller.move(
+                  offerDraw && rules.id === 'chess'
+                    ? { ...(move as object), offerDraw: true }
+                    : move,
+                )
+              }
               dark={dark}
               animate={motion === 'full'}
               pace={pace}
@@ -198,7 +219,20 @@ export function TurnNetPage({ gameId, rules }: { gameId: string; rules: AnyTurnR
           <div className="flex min-h-10 flex-col items-center gap-1">
             <p aria-live="polite" className="text-center font-bold">
               {status}
+              {chessState && chessInCheck(chessState) ? ' · Check' : ''}
             </p>
+            {chessState && <ChessMoves state={chessState} />}
+            {chessState && (
+              <DrawOffer
+                state={chessState}
+                you={view.you}
+                yourTurn={view.waiting === 'you'}
+                offerName={chessState.drawOffer !== null ? seatName(chessState.drawOffer) : ''}
+                armed={offerDraw}
+                onArm={setOfferDraw}
+                onAccept={() => controller.move({ acceptDraw: true })}
+              />
+            )}
             {view.you < 0 && <p className="text-center text-xs text-muted">You are watching.</p>}
             {view.locked && (
               <p className="text-center text-xs text-muted">
@@ -260,5 +294,45 @@ export function TurnNetPage({ gameId, rules }: { gameId: string; rules: AnyTurnR
         extra={timerLine}
       />
     </div>
+  );
+}
+
+/** Chess: take a draw the other player offered, or offer one with your next move. */
+function DrawOffer({
+  state,
+  you,
+  yourTurn,
+  offerName,
+  armed,
+  onArm,
+  onAccept,
+}: {
+  state: ChessState;
+  you: number;
+  yourTurn: boolean;
+  offerName: string;
+  armed: boolean;
+  onArm: (armed: boolean) => void;
+  onAccept: () => void;
+}) {
+  if (you < 0 || state.ranks) return null;
+  const offered = state.drawOffer !== null && state.drawOffer !== you;
+  if (offered && yourTurn) {
+    return (
+      <p className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-2 text-sm">
+        {offerName} offers a draw
+        <Button variant="secondary" onClick={onAccept}>
+          Accept
+        </Button>
+      </p>
+    );
+  }
+  if (state.drawOffer === you) return <p className="text-xs text-muted">You offered a draw.</p>;
+  if (!yourTurn) return null;
+  return (
+    <label className="flex cursor-pointer items-center gap-2 text-sm">
+      <input type="checkbox" checked={armed} onChange={(event) => onArm(event.target.checked)} />
+      Offer a draw with my next move
+    </label>
   );
 }

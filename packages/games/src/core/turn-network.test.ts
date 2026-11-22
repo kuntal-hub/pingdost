@@ -16,6 +16,7 @@ import {
   turnStateHash,
   type TurnNetGame,
 } from './turn-network';
+import { CHESS, type ChessState } from '../chess/rules';
 import { CONNECT_FOUR, type ConnectFourState } from '../connect-four/rules';
 import { DOTS_AND_BOXES } from '../dots-and-boxes/rules';
 import type { GameEventInit, GameSendOptions } from '../ludo/network-controller';
@@ -327,6 +328,41 @@ describe('turn games with friends', () => {
     const skipped = second.table.fold();
     expect(skipped.entries[0]?.kind).toBe('skip');
     expect(skipped.desync).toBe(false);
+  });
+
+  it('Chess: no timers, a draw offered with a move and taken, the host picks a side', async () => {
+    const { table, controllers } = await setUp(CHESS, [alice, bob], { hostSide: 'black' });
+    const started = table.fold();
+    const state = started.state as ChessState;
+    // The host (Alice, seat 0) asked for Black.
+    expect(state.white).toBe(1);
+    expect(state.current).toBe(1);
+    // Nobody plays for anyone: long past any timer, nothing happens.
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(table.fold().entries).toHaveLength(0);
+    controllers[1]!.move({ from: 12, to: 28, offerDraw: true });
+    await vi.advanceTimersByTimeAsync(0);
+    expect((table.fold().state as ChessState).drawOffer).toBe(1);
+    controllers[0]!.move({ acceptDraw: true });
+    await vi.advanceTimersByTimeAsync(0);
+    const game = table.fold();
+    expect(game.phase).toBe('over');
+    expect((game.state as ChessState).end).toBe('agreed');
+    expect(game.desync).toBe(false);
+    expect(turnGameSummary(CHESS, game, alice).text).toBe("It's a draw");
+  });
+
+  it('Chess: resigning is a leave, at once, whoever is to move', async () => {
+    const { table, controllers } = await setUp(CHESS, [alice, bob], { hostSide: 'white' });
+    controllers[0]!.move({ from: 12, to: 28 });
+    await vi.advanceTimersByTimeAsync(0);
+    // It is Black's turn; White resigns anyway.
+    controllers[0]!.leave();
+    await vi.advanceTimersByTimeAsync(0);
+    const game = table.fold();
+    expect(game.phase).toBe('over');
+    expect((game.state as ChessState).end).toBe('resigned');
+    expect(game.state!.ranks).toEqual([2, 1]);
   });
 
   it('the host can end the game for everyone', async () => {

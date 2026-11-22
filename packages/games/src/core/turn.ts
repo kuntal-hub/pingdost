@@ -16,7 +16,8 @@ import type { Random } from './random';
 import type { BotLevel } from './types';
 
 /** The games built on this frame. */
-export type TurnGameId = 'tic-tac-toe' | 'connect-four' | 'dots-and-boxes' | 'snakes-and-ladders';
+export type TurnGameId =
+  'tic-tac-toe' | 'connect-four' | 'dots-and-boxes' | 'snakes-and-ladders' | 'chess';
 
 /** What every turn game's state has. States are plain JSON (saved, folded, compared). */
 export interface TurnCore {
@@ -151,7 +152,8 @@ export function isTurnGameId(id: string): id is TurnGameId {
     id === 'tic-tac-toe' ||
     id === 'connect-four' ||
     id === 'dots-and-boxes' ||
-    id === 'snakes-and-ladders'
+    id === 'snakes-and-ladders' ||
+    id === 'chess'
   );
 }
 

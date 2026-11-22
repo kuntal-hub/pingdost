@@ -4,6 +4,7 @@ import { Toggle } from '@/components/ui/input';
 import {
   DOTS_SIZES,
   type AnyTurnRules,
+  type ChessSettings,
   type DotsSettings,
   type SnakesSettings,
 } from '@pingdost/games';
@@ -29,6 +30,25 @@ export function TurnSettingsEditor({
           onChange={(size) => onChange({ ...value, size: Number(size) })}
         />
         <p className="text-sm text-muted">Boxes per side. Bigger boards take longer.</p>
+      </section>
+    );
+  }
+  if (rules.id === 'chess') {
+    const value = settings as ChessSettings;
+    return (
+      <section className="flex flex-col gap-2">
+        <h3 className="font-bold text-muted">Your side</h3>
+        <Segmented
+          label="Your side"
+          options={[
+            { id: 'white', label: 'White' },
+            { id: 'random', label: 'Random' },
+            { id: 'black', label: 'Black' },
+          ]}
+          value={value.hostSide}
+          onChange={(hostSide) => onChange({ ...value, hostSide })}
+        />
+        <p className="text-sm text-muted">White moves first.</p>
       </section>
     );
   }

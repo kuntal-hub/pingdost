@@ -4,6 +4,14 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-22 — Phase 44 built: Chess (ADR 0051)
+1. **Chess on phone and web**, solo at Easy / Medium / Hard (the user picks White, Black or random) and with a friend in a chat (the host picks a side, or it is drawn). No clocks, as planned.
+   - *Affects:* 44.
+2. **Draws end the game by themselves:** threefold repetition, fifty moves without a capture or pawn move, and positions where nobody can mate (no claim button). A player can offer a draw with a move; the other accepts on their turn or plays on. Resigning ends the game at once.
+   - *Affects:* 44.
+3. **No new dependency:** PingDost's own move generator (perft-tested) and piece art drawn in code. Additive wire change: `GameType.CHESS`, `ChessSettings`, `ChessMove`.
+   - *Affects:* 44.
+
 ### 2026-11-22 — Phase 43 built: quick games, decisions taken while building (ADR 0049 third amendment)
 1. **Four quick games** on phone and web: Tic-Tac-Toe and Connect Four (2 players), Dots and Boxes (2–4, boards 3×3 to 6×6) and Snakes and Ladders (2–4, toggles: a 6 rolls again, bounce back from 100). Solo play against 1 to (players − 1) computer players at Easy / Medium / Hard; Snakes and Ladders has no levels (the dice decide).
    - *Affects:* 43.

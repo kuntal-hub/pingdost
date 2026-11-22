@@ -51,6 +51,30 @@ export interface GameBoardColors {
   snakes: readonly [string, string, string];
   /** Dots and Boxes: the dots, and lines not drawn yet (hints). */
   dot: string;
+  /** Phase 44. */
+  chess: ChessColors;
+}
+
+export interface ChessPieceLook {
+  fill: string;
+  /** The outline: readable (3:1) on both square colors. */
+  edge: string;
+  /** Inner lines and the eye. */
+  detail: string;
+}
+
+export interface ChessColors {
+  light: string;
+  dark: string;
+  /** File and rank letters on the board's edge (4.5:1 on both square colors). */
+  coord: string;
+  /** Tints over a square (with alpha): the last move, the picked piece, a legal target, check. */
+  lastMove: string;
+  selected: string;
+  hint: string;
+  check: string;
+  white: ChessPieceLook;
+  black: ChessPieceLook;
 }
 
 // Vivid, Ludo-style colors (the user's list, ADR 0050).
@@ -98,6 +122,17 @@ const LIGHT: GameBoardColors = {
   ladder: '#93520F',
   snakes: ['#0B8A5F', '#8B3FD9', '#D44A12'],
   dot: '#334155',
+  chess: {
+    light: '#E8EDF5',
+    dark: '#8FA4C4',
+    coord: '#1D2A40',
+    lastMove: 'rgba(246, 205, 70, 0.55)',
+    selected: 'rgba(52, 120, 246, 0.42)',
+    hint: 'rgba(15, 23, 42, 0.32)',
+    check: 'rgba(239, 43, 45, 0.7)',
+    white: { fill: '#FFFFFF', edge: '#1F2329', detail: '#1F2329' },
+    black: { fill: '#2A2F37', edge: '#0E1013', detail: '#E8EDF5' },
+  },
 };
 
 const DARK: GameBoardColors = {
@@ -144,6 +179,17 @@ const DARK: GameBoardColors = {
   ladder: '#E0A458',
   snakes: ['#34D399', '#C084FC', '#FB923C'],
   dot: '#CBD5E1',
+  chess: {
+    light: '#C3CDDC',
+    dark: '#7A90B2',
+    coord: '#121926',
+    lastMove: 'rgba(246, 205, 70, 0.5)',
+    selected: 'rgba(80, 145, 255, 0.45)',
+    hint: 'rgba(8, 12, 20, 0.36)',
+    check: 'rgba(255, 69, 69, 0.75)',
+    white: { fill: '#FFFFFF', edge: '#1F2329', detail: '#1F2329' },
+    black: { fill: '#2A2F37', edge: '#0E1013', detail: '#E8EDF5' },
+  },
 };
 
 /** The board and player colors for light or dark mode. */

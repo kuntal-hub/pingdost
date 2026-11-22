@@ -41,8 +41,9 @@ Copy `0000-template.md` to `NNNN-short-title.md`, using the next free number. St
 | [0034](0034-eas-android-dev-build.md) | Android dev builds from EAS Build (free tier): `eas.json`, root `.easignore`, prebuilt Rust `.so` uploaded | n.a. | Accepted |
 | [0035](0035-pop-design-system-and-appearance.md) | "Pop" design system: ten color schemes, user-configurable appearance kept on the device, Lucide icons, bundled OFL fonts, floating navigation | yes | Accepted |
 | [0036](0036-account-deletion.md) | Account deletion: email code, then every device revoked and its mailbox emptied, groups left, blocks, sessions, codes and the account record deleted (Play policy) | n.a. | Accepted |
-| [0049](0049-games-module.md) | Games module: games inside chats, E2EE game events, shared rules, commit-reveal dice, computer players only when alone (amended: turn timers, two-part turns) | 41, 42 | Accepted |
+| [0049](0049-games-module.md) | Games module: games inside chats, E2EE game events, shared rules, commit-reveal dice, computer players only when alone (amended: turn timers, two-part turns; Phase 43: one turn-game frame) | 41, 42, 43 | Accepted |
 | [0050](0050-ludo-look-and-feel.md) | Ludo look and feel: 3D pins, corner panels with dice, glowing yard, stacks, generated sounds, always 4 pieces | 41 | Accepted |
+| [0051](0051-chess.md) | Chess: own move generator (perft-tested), in-house pieces, slow play, draw offers with a move | 44 | Accepted |
 
 Supporting document: [crypto-license-matrix.md](crypto-license-matrix.md) (REQ §7.2 license/dependency matrix).
 

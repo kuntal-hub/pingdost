@@ -49,7 +49,7 @@ Status legend: ⬜ todo · 🔄 in progress · ✅ done · ⏸ deferred
 | 41 | [Games A: games core, Ludo vs computer, Games tab](phases/phase-41-games-core-ludo-solo.md) | 31 | ✅ |
 | 42 | [Games B: Ludo with friends in chats (E2EE moves, fair dice)](phases/phase-42-games-ludo-friends.md) | 41, 37, 17 | ✅ |
 | 43 | [Games C: quick games: Tic-Tac-Toe, Connect Four, Dots and Boxes, Snakes and Ladders](phases/phase-43-games-quick.md) | 42 | 🔄 |
-| 44 | [Games D: Chess](phases/phase-44-games-chess.md) | 42 | ⬜ |
+| 44 | [Games D: Chess](phases/phase-44-games-chess.md) | 42 | 🔄 |
 | 45 | [Games E: hidden hands (dealing) + UNO](phases/phase-45-games-hidden-hands-uno.md) | 42 | ⬜ |
 | 46 | [Games F: Call Bridge](phases/phase-46-games-call-bridge.md) | 45 | ⬜ |
 | 47 | [Games G: Poker (Texas Hold'em, chips only)](phases/phase-47-games-poker.md) | 45 | ⬜ |

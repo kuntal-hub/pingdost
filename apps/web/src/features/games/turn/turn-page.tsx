@@ -7,6 +7,7 @@ import {
   Medal,
   RotateCcw,
   Trash2,
+  Flag,
   Trophy,
   UsersRound,
   Volume2,
@@ -39,6 +40,8 @@ import {
   turnRules,
   turnSoloStatus,
   turnStandings,
+  chessInCheck,
+  type ChessState,
   type AnyTurnRules,
   type TurnCore,
   type TurnGameId,
@@ -48,7 +51,14 @@ import {
 import { GAME_ICONS } from '../game-icons';
 import { useGames } from '../store';
 import { TurnBoard } from './boards';
-import { PlayersStrip, TurnDie, useMotionLevel, useTurnKeys, useTurnSounds } from './turn-parts';
+import {
+  ChessMoves,
+  PlayersStrip,
+  TurnDie,
+  useMotionLevel,
+  useTurnKeys,
+  useTurnSounds,
+} from './turn-parts';
 
 export function TurnPage() {
   const { game = '' } = useParams();
@@ -181,6 +191,16 @@ function TurnSoloGameView({
               icon: sounds ? VolumeX : Volume2,
               onSelect: () => useGames.getState().setSounds(!sounds),
             },
+            ...(rules.id === 'chess' && !over
+              ? [
+                  {
+                    label: 'Resign',
+                    icon: Flag,
+                    destructive: true,
+                    onSelect: () => controller.resign(),
+                  },
+                ]
+              : []),
             {
               label: 'End this game',
               icon: Trash2,
@@ -219,7 +239,9 @@ function TurnSoloGameView({
       />
       <p aria-live="polite" className="min-h-6 text-center font-bold">
         {turnSoloStatus(rules, view)}
+        {rules.id === 'chess' && chessInCheck(view.state as ChessState) ? ' · Check' : ''}
       </p>
+      {rules.id === 'chess' && <ChessMoves state={view.state as ChessState} />}
 
       <ResultDialog
         open={over && !resultSeen}

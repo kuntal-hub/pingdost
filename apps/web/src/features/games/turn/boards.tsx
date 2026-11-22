@@ -38,6 +38,7 @@ import {
 } from '@pingdost/games';
 import { gameBoardColors } from '@pingdost/ui-tokens';
 
+import { ChessBoard } from './chess-board';
 import { ShapeGlyph } from '../shape';
 
 export interface TurnBoardProps<S extends TurnCore = TurnCore, M = unknown> {
@@ -565,6 +566,7 @@ const BOARDS = {
   'connect-four': ConnectFourBoard,
   'dots-and-boxes': DotsBoard,
   'snakes-and-ladders': SnakesBoard,
+  chess: ChessBoard,
 } as unknown as Record<AnyTurnRules['id'], (props: TurnBoardProps) => JSX.Element>;
 
 export function TurnBoard({ rules, ...props }: TurnBoardProps & { rules: AnyTurnRules }) {

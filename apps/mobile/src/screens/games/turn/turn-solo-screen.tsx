@@ -24,6 +24,7 @@ import {
   MedalIcon,
   RotateCcwIcon,
   Trash2Icon,
+  FlagIcon,
   TrophyIcon,
   UsersRoundIcon,
   Volume2Icon,
@@ -46,6 +47,8 @@ import {
   turnRules,
   turnSoloStatus,
   turnStandings,
+  chessInCheck,
+  type ChessState,
   type AnyTurnRules,
   type TurnCore,
   type TurnGameId,
@@ -53,7 +56,14 @@ import {
   type TurnView,
 } from '@pingdost/games';
 
-import { PlayersStrip, TurnBoard, turnBoardWidth, TurnDie, useTurnFeedback } from './turn-parts';
+import {
+  ChessMoves,
+  PlayersStrip,
+  TurnBoard,
+  turnBoardWidth,
+  TurnDie,
+  useTurnFeedback,
+} from './turn-parts';
 
 export function TurnSoloScreen({ game: id }: { game: TurnGameId }) {
   const loaded = useGames((state) => state.loaded);
@@ -225,7 +235,9 @@ function TurnSoloGameView({
           className="min-h-[24px] text-center text-base font-bold text-foreground"
         >
           {turnSoloStatus(rules, view)}
+          {rules.id === 'chess' && chessInCheck(view.state as ChessState) ? ' · Check' : ''}
         </Text>
+        {rules.id === 'chess' && <ChessMoves state={view.state as ChessState} />}
       </View>
 
       {over && !resultSeen && (
@@ -261,6 +273,17 @@ function TurnSoloGameView({
             icon: Volume2Icon,
             onPress: () => useGames.getState().setSounds(!sounds),
           },
+          ...(rules.id === 'chess' && !over
+            ? [
+                {
+                  label: 'Resign',
+                  detail: 'The computer wins this game',
+                  icon: FlagIcon,
+                  destructive: true,
+                  onPress: () => controller.resign(),
+                },
+              ]
+            : []),
           {
             label: 'End this game',
             icon: Trash2Icon,

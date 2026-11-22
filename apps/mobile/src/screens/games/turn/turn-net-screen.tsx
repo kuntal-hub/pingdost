@@ -8,9 +8,11 @@ import { useWindowDimensions, View } from 'react-native';
 
 import { ActionSheet, type SheetAction } from '@/components/action-sheet';
 import { Button } from '@/components/button';
+import { Chip } from '@/components/controls';
 import { EmptyState } from '@/components/feedback';
 import {
   DoorOpenIcon,
+  FlagIcon,
   EllipsisVerticalIcon,
   GAME_ICONS,
   InfoIcon,
@@ -31,11 +33,20 @@ import {
   catalogEntry,
   FAST_TURN_PACE,
   NORMAL_TURN_PACE,
+  chessInCheck,
   turnNetStatus,
   type AnyTurnRules,
+  type ChessState,
 } from '@pingdost/games';
 
-import { PlayersStrip, TurnBoard, turnBoardWidth, TurnDie, useTurnFeedback } from './turn-parts';
+import {
+  ChessMoves,
+  PlayersStrip,
+  TurnBoard,
+  turnBoardWidth,
+  TurnDie,
+  useTurnFeedback,
+} from './turn-parts';
 import { ResultPanel, RulesSheet } from './turn-solo-screen';
 import {
   ChatButton,
@@ -67,8 +78,14 @@ export function TurnNetScreen({
   const [menu, setMenu] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [resultSeen, setResultSeen] = useState(false);
+  // Chess: offer a draw along with the next move.
+  const [offerDraw, setOfferDraw] = useState(false);
   const entry = catalogEntry(rules.id);
   const state = view?.state ?? null;
+  const chessState = rules.id === 'chess' && state ? (state as ChessState) : null;
+  // A move made: the draw offer went with it (or the turn passed); start unarmed.
+  const turn = view?.game.turn;
+  useEffect(() => setOfferDraw(false), [turn]);
   useTurnFeedback(
     rules,
     view && state ? { state, you: view.you, waiting: view.waiting, last: view.last } : null,
@@ -145,15 +162,16 @@ export function TurnNetScreen({
     },
   ];
   if (live && inGame && !left) {
+    const chessGame = rules.id === 'chess' && game.phase === 'playing';
     actions.push({
-      label: 'Leave the game',
+      label: chessGame ? 'Resign' : 'Leave the game',
       detail:
         game.phase === 'lobby'
           ? 'You leave the lobby'
           : game.seats.length === 2
             ? 'The other player wins'
             : 'The others play on',
-      icon: DoorOpenIcon,
+      icon: chessGame ? FlagIcon : DoorOpenIcon,
       destructive: true,
       onPress: () => controller.leave(),
     });
@@ -216,7 +234,11 @@ export function TurnNetScreen({
             you={view.you}
             legal={view.legal}
             last={view.last}
-            onMove={(move) => controller.move(move)}
+            onMove={(move) =>
+              controller.move(
+                offerDraw && rules.id === 'chess' ? { ...(move as object), offerDraw: true } : move,
+              )
+            }
             size={size}
             dark={dark}
             moves={moves}
@@ -238,7 +260,20 @@ export function TurnNetScreen({
               className="text-center text-base font-bold text-foreground"
             >
               {status}
+              {chessState && chessInCheck(chessState) ? ' · Check' : ''}
             </Text>
+            {chessState && <ChessMoves state={chessState} />}
+            {chessState && (
+              <DrawOffer
+                state={chessState}
+                you={view.you}
+                yourTurn={view.waiting === 'you'}
+                offerName={chessState.drawOffer !== null ? seatName(chessState.drawOffer) : ''}
+                armed={offerDraw}
+                onArm={setOfferDraw}
+                onAccept={() => controller.move({ acceptDraw: true })}
+              />
+            )}
             {view.you < 0 && (
               <Text className="text-center text-xs text-muted">You are watching.</Text>
             )}
@@ -295,5 +330,46 @@ export function TurnNetScreen({
         extra={timerLine}
       />
     </View>
+  );
+}
+
+/** Chess: take a draw the other player offered, or offer one with your next move. */
+function DrawOffer({
+  state,
+  you,
+  yourTurn,
+  offerName,
+  armed,
+  onArm,
+  onAccept,
+}: {
+  state: ChessState;
+  you: number;
+  yourTurn: boolean;
+  offerName: string;
+  armed: boolean;
+  onArm: (armed: boolean) => void;
+  onAccept: () => void;
+}) {
+  if (you < 0 || state.ranks) return null;
+  const offered = state.drawOffer !== null && state.drawOffer !== you;
+  if (offered && yourTurn) {
+    return (
+      <View className="flex-row items-center gap-3 rounded-2xl bg-surface px-4 py-2">
+        <Text className="text-sm text-foreground">{offerName} offers a draw</Text>
+        <Button label="Accept" variant="secondary" onPress={onAccept} />
+      </View>
+    );
+  }
+  if (state.drawOffer === you) {
+    return <Text className="text-xs text-muted">You offered a draw.</Text>;
+  }
+  if (!yourTurn) return null;
+  return (
+    <Chip
+      label={armed ? 'Draw offered with your next move' : 'Offer a draw'}
+      selected={armed}
+      onPress={() => onArm(!armed)}
+    />
   );
 }

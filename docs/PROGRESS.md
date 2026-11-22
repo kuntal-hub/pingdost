@@ -17,6 +17,31 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-22 — Phase 44: Chess — 🔄 code done, browser and phone runs open
+**Done:** details in the phase file's "As built" and ADR 0051.
+- `@pingdost/games`: own 0x88 move generator (perft matches five standard positions), rules with SAN, automatic draws (threefold, fifty moves, material), draw offers with a move, resign; an async alpha-beta computer player (Easy/Medium/Hard, time budget, yields between root moves); in-house piece shapes. `TurnController.resign()`.
+- Wire: `GameType.CHESS`, `ChessSettings`, `ChessMove`; vector. Engine type name, chat-core card text. ui-tokens `chess` colors (contrast-tested).
+- Both apps: chess boards (tap or drag, hints, last move, check, promotion picker, turned for Black, sliding piece), side picker in setup and invitations, Resign, Offer a draw / Accept in friend games, the moves in SAN.
+- Sim peer `!chess`; `games.int.test.ts` plays Chess through the real server.
+
+**Remaining:**
+- [ ] Web (Chrome) and phone: Chess solo at each level (try a promotion, castling, and Resign), and a friend game with `sim-client peer` (`!chess`), including a draw offer.
+- [ ] Phase 43's browser and phone runs (below) are still open too.
+
+**Deviations / decisions:** ADR 0051; CHANGES 2026-11-22 (Phase 44).
+- Own move generator and own piece art (no dependency). Draws by repetition, fifty moves and material are automatic.
+
+**Verification results:**
+- Repo-wide: typecheck 22/22, `turbo run test` 18/18 (games 14 files including chess 16 tests in about 3 s; protocol 131; ui-tokens 773), lint of every changed package, `pnpm format:check` clean.
+- `games.int.test.ts`: 6 passed (Ludo ×3, Connect Four, Chess with a resignation, Snakes and Ladders), about 55 s.
+- **Not run:** the full server integration suite (no server code changed; the wire change is additive and the games file passes), Metro bundling of the chess screens (Metro was stopped for low memory earlier), and any browser or phone run (no Chrome extension, no device).
+
+**Known issues / tech debt:**
+- Hermes is slower than V8: Hard reaches fewer plies on a phone within its 1.6 s.
+- The chess search has no transposition table (fine for these levels).
+
+**Next:** the open device checks of 43 and 44, then Phase 45 (hidden hands and UNO; its ADR decides dealing).
+
 ## 2026-11-22 — Phase 43: quick games (Tic-Tac-Toe, Connect Four, Dots and Boxes, Snakes and Ladders) — 🔄 code done, browser and phone runs open
 **Done:** details in the phase file's "As built" and ADR 0049's third amendment.
 - `@pingdost/games`: one frame for turn games (`TurnRules`, solo and friend controllers, fold with steps, proxy moves, skips, leaves), the four games with bots (Easy/Medium/Hard; none for Snakes and Ladders) and tests; the lobby moved to `core/net.ts` (Ludo uses it).

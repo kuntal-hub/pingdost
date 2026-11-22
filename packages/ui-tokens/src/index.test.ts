@@ -221,6 +221,30 @@ describe('color schemes', () => {
     }
   });
 
+  // Chess (Phase 44): every piece's outline reads on both squares, black pieces stand out from
+  // the dark squares, the coordinates are readable text, and the two squares differ.
+  it('keeps the chess board readable', () => {
+    for (const dark of [false, true]) {
+      const { chess } = gameBoardColors(dark);
+      const label = dark ? 'dark' : 'light';
+      for (const square of [chess.light, chess.dark]) {
+        expect(contrast(chess.white.edge, square), `${label} white edge`).toBeGreaterThanOrEqual(
+          UI,
+        );
+        expect(contrast(chess.black.edge, square), `${label} black edge`).toBeGreaterThanOrEqual(
+          UI,
+        );
+        expect(contrast(chess.black.fill, square), `${label} black fill`).toBeGreaterThanOrEqual(
+          UI,
+        );
+        expect(contrast(chess.coord, square), `${label} coordinates`).toBeGreaterThanOrEqual(AA);
+      }
+      expect(contrast(chess.white.detail, chess.white.fill)).toBeGreaterThanOrEqual(UI);
+      expect(contrast(chess.black.detail, chess.black.fill)).toBeGreaterThanOrEqual(UI);
+      expect(colorDistance(chess.light, chess.dark), `${label} squares`).toBeGreaterThan(20);
+    }
+  });
+
   it('keeps avatar initials readable and stable', () => {
     for (const seed of ['Ana', 'kuntal', 'Group of friends', '@x', 'न', 'long name here']) {
       const { from, to, on } = avatarColors(seed);

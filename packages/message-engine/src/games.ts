@@ -19,6 +19,8 @@ export function gameTypeName(type: GameType): string {
       return 'dots-and-boxes';
     case GameType.SNAKES_AND_LADDERS:
       return 'snakes-and-ladders';
+    case GameType.CHESS:
+      return 'chess';
     default:
       return 'unknown';
   }

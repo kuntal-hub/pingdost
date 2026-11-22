@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file pingdost/v1/games.proto.
  */
 export const file_pingdost_v1_games: GenFile = /*@__PURE__*/
-  fileDesc("ChdwaW5nZG9zdC92MS9nYW1lcy5wcm90bxILcGluZ2Rvc3QudjEipAMKBEdhbWUSDwoHZ2FtZV9pZBgBIAEoDBIMCgR0dXJuGAIgASgNEg0KBWluZGV4GAMgASgNEikKBmNyZWF0ZRgEIAEoCzIXLnBpbmdkb3N0LnYxLkdhbWVDcmVhdGVIABIlCgRqb2luGAUgASgLMhUucGluZ2Rvc3QudjEuR2FtZUpvaW5IABInCgVzdGFydBgGIAEoCzIWLnBpbmdkb3N0LnYxLkdhbWVTdGFydEgAEiUKBHJvbGwYByABKAsyFS5waW5nZG9zdC52MS5HYW1lUm9sbEgAEiUKBG1vdmUYCCABKAsyFS5waW5nZG9zdC52MS5HYW1lTW92ZUgAEiUKBHNraXAYCSABKAsyFS5waW5nZG9zdC52MS5HYW1lU2tpcEgAEicKBWxlYXZlGAogASgLMhYucGluZ2Rvc3QudjEuR2FtZUxlYXZlSAASIwoDZW5kGAsgASgLMhQucGluZ2Rvc3QudjEuR2FtZUVuZEgAEicKBWVtb3RlGAwgASgLMhYucGluZ2Rvc3QudjEuR2FtZUVtb3RlSABCBwoFZXZlbnQi5gIKCkdhbWVDcmVhdGUSIwoEdHlwZRgBIAEoDjIVLnBpbmdkb3N0LnYxLkdhbWVUeXBlEhMKC21heF9wbGF5ZXJzGAIgASgNEikKBGx1ZG8YAyABKAsyGS5waW5nZG9zdC52MS5MdWRvU2V0dGluZ3NIABI1Cgt0aWNfdGFjX3RvZRgGIAEoCzIeLnBpbmdkb3N0LnYxLlRpY1RhY1RvZVNldHRpbmdzSAASOAoMY29ubmVjdF9mb3VyGAcgASgLMiAucGluZ2Rvc3QudjEuQ29ubmVjdEZvdXJTZXR0aW5nc0gAEikKBGRvdHMYCCABKAsyGS5waW5nZG9zdC52MS5Eb3RzU2V0dGluZ3NIABItCgZzbmFrZXMYCSABKAsyGy5waW5nZG9zdC52MS5TbmFrZXNTZXR0aW5nc0gAEg4KBmFuY2hvchgEIAEoDBIMCgRzYWx0GAUgASgMQgoKCHNldHRpbmdzIlgKDEx1ZG9TZXR0aW5ncxIXCg9hbnlfcm9sbF9zdGFydHMYASABKAgSEQoJYmxvY2thZGVzGAIgASgIEhwKFHN0b3BfYXRfZmlyc3Rfd2lubmVyGAMgASgIIhMKEVRpY1RhY1RvZVNldHRpbmdzIhUKE0Nvbm5lY3RGb3VyU2V0dGluZ3MiHAoMRG90c1NldHRpbmdzEgwKBHNpemUYASABKA0iPgoOU25ha2VzU2V0dGluZ3MSFwoPc2l4X3JvbGxzX2FnYWluGAEgASgIEhMKC2JvdW5jZV9iYWNrGAIgASgIIigKCEdhbWVKb2luEg4KBmFuY2hvchgBIAEoDBIMCgRzYWx0GAIgASgMIjEKCUdhbWVTdGFydBIkCgVzZWF0cxgBIAMoCzIVLnBpbmdkb3N0LnYxLkdhbWVTZWF0IlsKCEdhbWVTZWF0Eg8KB3VzZXJfaWQYASABKAwSEQoJZGV2aWNlX2lkGAIgASgMEg0KBWNvbG9yGAMgASgNEg4KBmFuY2hvchgEIAEoDBIMCgRzYWx0GAUgASgMIjwKCEdhbWVSb2xsEg4KBnJldmVhbBgBIAEoDBIMCgRzYWx0GAIgASgMEhIKCnN0YXRlX2hhc2gYAyABKAwi0wEKCEdhbWVNb3ZlEg0KBXRva2VuGAEgASgNEgwKBHNhbHQYAiABKAwSEgoKc3RhdGVfaGFzaBgDIAEoDBIxCgt0aWNfdGFjX3RvZRgEIAEoCzIaLnBpbmdkb3N0LnYxLlRpY1RhY1RvZU1vdmVIABI0Cgxjb25uZWN0X2ZvdXIYBSABKAsyHC5waW5nZG9zdC52MS5Db25uZWN0Rm91ck1vdmVIABIlCgRkb3RzGAYgASgLMhUucGluZ2Rvc3QudjEuRG90c01vdmVIAEIGCgRwbGF5Ih0KDVRpY1RhY1RvZU1vdmUSDAoEY2VsbBgBIAEoDSIhCg9Db25uZWN0Rm91ck1vdmUSDgoGY29sdW1uGAEgASgNIhgKCERvdHNNb3ZlEgwKBGxpbmUYASABKA0iLAoIR2FtZVNraXASDAoEc2FsdBgBIAEoDBISCgpzdGF0ZV9oYXNoGAIgASgMIgsKCUdhbWVMZWF2ZSIJCgdHYW1lRW5kIhoKCUdhbWVFbW90ZRINCgVlbW9qaRgBIAEoCSqwAQoIR2FtZVR5cGUSGQoVR0FNRV9UWVBFX1VOU1BFQ0lGSUVEEAASEgoOR0FNRV9UWVBFX0xVRE8QARIZChVHQU1FX1RZUEVfVElDX1RBQ19UT0UQAhIaChZHQU1FX1RZUEVfQ09OTkVDVF9GT1VSEAMSHAoYR0FNRV9UWVBFX0RPVFNfQU5EX0JPWEVTEAQSIAocR0FNRV9UWVBFX1NOQUtFU19BTkRfTEFEREVSUxAFYgZwcm90bzM");
+  fileDesc("ChdwaW5nZG9zdC92MS9nYW1lcy5wcm90bxILcGluZ2Rvc3QudjEipAMKBEdhbWUSDwoHZ2FtZV9pZBgBIAEoDBIMCgR0dXJuGAIgASgNEg0KBWluZGV4GAMgASgNEikKBmNyZWF0ZRgEIAEoCzIXLnBpbmdkb3N0LnYxLkdhbWVDcmVhdGVIABIlCgRqb2luGAUgASgLMhUucGluZ2Rvc3QudjEuR2FtZUpvaW5IABInCgVzdGFydBgGIAEoCzIWLnBpbmdkb3N0LnYxLkdhbWVTdGFydEgAEiUKBHJvbGwYByABKAsyFS5waW5nZG9zdC52MS5HYW1lUm9sbEgAEiUKBG1vdmUYCCABKAsyFS5waW5nZG9zdC52MS5HYW1lTW92ZUgAEiUKBHNraXAYCSABKAsyFS5waW5nZG9zdC52MS5HYW1lU2tpcEgAEicKBWxlYXZlGAogASgLMhYucGluZ2Rvc3QudjEuR2FtZUxlYXZlSAASIwoDZW5kGAsgASgLMhQucGluZ2Rvc3QudjEuR2FtZUVuZEgAEicKBWVtb3RlGAwgASgLMhYucGluZ2Rvc3QudjEuR2FtZUVtb3RlSABCBwoFZXZlbnQikwMKCkdhbWVDcmVhdGUSIwoEdHlwZRgBIAEoDjIVLnBpbmdkb3N0LnYxLkdhbWVUeXBlEhMKC21heF9wbGF5ZXJzGAIgASgNEikKBGx1ZG8YAyABKAsyGS5waW5nZG9zdC52MS5MdWRvU2V0dGluZ3NIABI1Cgt0aWNfdGFjX3RvZRgGIAEoCzIeLnBpbmdkb3N0LnYxLlRpY1RhY1RvZVNldHRpbmdzSAASOAoMY29ubmVjdF9mb3VyGAcgASgLMiAucGluZ2Rvc3QudjEuQ29ubmVjdEZvdXJTZXR0aW5nc0gAEikKBGRvdHMYCCABKAsyGS5waW5nZG9zdC52MS5Eb3RzU2V0dGluZ3NIABItCgZzbmFrZXMYCSABKAsyGy5waW5nZG9zdC52MS5TbmFrZXNTZXR0aW5nc0gAEisKBWNoZXNzGAogASgLMhoucGluZ2Rvc3QudjEuQ2hlc3NTZXR0aW5nc0gAEg4KBmFuY2hvchgEIAEoDBIMCgRzYWx0GAUgASgMQgoKCHNldHRpbmdzIlgKDEx1ZG9TZXR0aW5ncxIXCg9hbnlfcm9sbF9zdGFydHMYASABKAgSEQoJYmxvY2thZGVzGAIgASgIEhwKFHN0b3BfYXRfZmlyc3Rfd2lubmVyGAMgASgIIhMKEVRpY1RhY1RvZVNldHRpbmdzIhUKE0Nvbm5lY3RGb3VyU2V0dGluZ3MiHAoMRG90c1NldHRpbmdzEgwKBHNpemUYASABKA0iPgoOU25ha2VzU2V0dGluZ3MSFwoPc2l4X3JvbGxzX2FnYWluGAEgASgIEhMKC2JvdW5jZV9iYWNrGAIgASgIIiIKDUNoZXNzU2V0dGluZ3MSEQoJaG9zdF9zaWRlGAEgASgNIigKCEdhbWVKb2luEg4KBmFuY2hvchgBIAEoDBIMCgRzYWx0GAIgASgMIjEKCUdhbWVTdGFydBIkCgVzZWF0cxgBIAMoCzIVLnBpbmdkb3N0LnYxLkdhbWVTZWF0IlsKCEdhbWVTZWF0Eg8KB3VzZXJfaWQYASABKAwSEQoJZGV2aWNlX2lkGAIgASgMEg0KBWNvbG9yGAMgASgNEg4KBmFuY2hvchgEIAEoDBIMCgRzYWx0GAUgASgMIjwKCEdhbWVSb2xsEg4KBnJldmVhbBgBIAEoDBIMCgRzYWx0GAIgASgMEhIKCnN0YXRlX2hhc2gYAyABKAwi/AEKCEdhbWVNb3ZlEg0KBXRva2VuGAEgASgNEgwKBHNhbHQYAiABKAwSEgoKc3RhdGVfaGFzaBgDIAEoDBIxCgt0aWNfdGFjX3RvZRgEIAEoCzIaLnBpbmdkb3N0LnYxLlRpY1RhY1RvZU1vdmVIABI0Cgxjb25uZWN0X2ZvdXIYBSABKAsyHC5waW5nZG9zdC52MS5Db25uZWN0Rm91ck1vdmVIABIlCgRkb3RzGAYgASgLMhUucGluZ2Rvc3QudjEuRG90c01vdmVIABInCgVjaGVzcxgHIAEoCzIWLnBpbmdkb3N0LnYxLkNoZXNzTW92ZUgAQgYKBHBsYXkiHQoNVGljVGFjVG9lTW92ZRIMCgRjZWxsGAEgASgNIiEKD0Nvbm5lY3RGb3VyTW92ZRIOCgZjb2x1bW4YASABKA0iGAoIRG90c01vdmUSDAoEbGluZRgBIAEoDSJhCglDaGVzc01vdmUSDAoEZnJvbRgBIAEoDRIKCgJ0bxgCIAEoDRIRCglwcm9tb3Rpb24YAyABKA0SEgoKb2ZmZXJfZHJhdxgEIAEoCBITCgthY2NlcHRfZHJhdxgFIAEoCCIsCghHYW1lU2tpcBIMCgRzYWx0GAEgASgMEhIKCnN0YXRlX2hhc2gYAiABKAwiCwoJR2FtZUxlYXZlIgkKB0dhbWVFbmQiGgoJR2FtZUVtb3RlEg0KBWVtb2ppGAEgASgJKsUBCghHYW1lVHlwZRIZChVHQU1FX1RZUEVfVU5TUEVDSUZJRUQQABISCg5HQU1FX1RZUEVfTFVETxABEhkKFUdBTUVfVFlQRV9USUNfVEFDX1RPRRACEhoKFkdBTUVfVFlQRV9DT05ORUNUX0ZPVVIQAxIcChhHQU1FX1RZUEVfRE9UU19BTkRfQk9YRVMQBBIgChxHQU1FX1RZUEVfU05BS0VTX0FORF9MQURERVJTEAUSEwoPR0FNRV9UWVBFX0NIRVNTEAZiBnByb3RvMw");
 
 /**
  * @generated from message pingdost.v1.Game
@@ -164,6 +164,12 @@ export type GameCreate = Message<"pingdost.v1.GameCreate"> & {
      */
     value: SnakesSettings;
     case: "snakes";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.ChessSettings chess = 10;
+     */
+    value: ChessSettings;
+    case: "chess";
   } | { case: undefined; value?: undefined };
 
   /**
@@ -300,6 +306,25 @@ export const SnakesSettingsSchema: GenMessage<SnakesSettings> = /*@__PURE__*/
   messageDesc(file_pingdost_v1_games, 6);
 
 /**
+ * @generated from message pingdost.v1.ChessSettings
+ */
+export type ChessSettings = Message<"pingdost.v1.ChessSettings"> & {
+  /**
+   * The host's side: 0 drawn from the seats' salts, 1 White, 2 Black. White moves first.
+   *
+   * @generated from field: uint32 host_side = 1;
+   */
+  hostSide: number;
+};
+
+/**
+ * Describes the message pingdost.v1.ChessSettings.
+ * Use `create(ChessSettingsSchema)` to create a new message.
+ */
+export const ChessSettingsSchema: GenMessage<ChessSettings> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 7);
+
+/**
  * Takes a seat. `anchor` ends the seat's hash chain of roll secrets (32 bytes): every secret
  * is fixed before anyone else's randomness exists. `salt` (16 bytes) feeds other players' rolls.
  *
@@ -322,7 +347,7 @@ export type GameJoin = Message<"pingdost.v1.GameJoin"> & {
  * Use `create(GameJoinSchema)` to create a new message.
  */
 export const GameJoinSchema: GenMessage<GameJoin> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 7);
+  messageDesc(file_pingdost_v1_games, 8);
 
 /**
  * The host starts the game: these seats, in turn order. Self-contained, so a client that
@@ -342,7 +367,7 @@ export type GameStart = Message<"pingdost.v1.GameStart"> & {
  * Use `create(GameStartSchema)` to create a new message.
  */
 export const GameStartSchema: GenMessage<GameStart> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 8);
+  messageDesc(file_pingdost_v1_games, 9);
 
 /**
  * @generated from message pingdost.v1.GameSeat
@@ -382,7 +407,7 @@ export type GameSeat = Message<"pingdost.v1.GameSeat"> & {
  * Use `create(GameSeatSchema)` to create a new message.
  */
 export const GameSeatSchema: GenMessage<GameSeat> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 9);
+  messageDesc(file_pingdost_v1_games, 10);
 
 /**
  * A roll by the seat whose turn it is. `reveal` is the next secret of its chain (32 bytes);
@@ -415,7 +440,7 @@ export type GameRoll = Message<"pingdost.v1.GameRoll"> & {
  * Use `create(GameRollSchema)` to create a new message.
  */
 export const GameRollSchema: GenMessage<GameRoll> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 10);
+  messageDesc(file_pingdost_v1_games, 11);
 
 /**
  * A move. Ludo: the piece moved after a roll (`token`). The other games: `play`. Sent by the
@@ -461,6 +486,12 @@ export type GameMove = Message<"pingdost.v1.GameMove"> & {
      */
     value: DotsMove;
     case: "dots";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.ChessMove chess = 7;
+     */
+    value: ChessMove;
+    case: "chess";
   } | { case: undefined; value?: undefined };
 };
 
@@ -469,7 +500,7 @@ export type GameMove = Message<"pingdost.v1.GameMove"> & {
  * Use `create(GameMoveSchema)` to create a new message.
  */
 export const GameMoveSchema: GenMessage<GameMove> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 11);
+  messageDesc(file_pingdost_v1_games, 12);
 
 /**
  * @generated from message pingdost.v1.TicTacToeMove
@@ -488,7 +519,7 @@ export type TicTacToeMove = Message<"pingdost.v1.TicTacToeMove"> & {
  * Use `create(TicTacToeMoveSchema)` to create a new message.
  */
 export const TicTacToeMoveSchema: GenMessage<TicTacToeMove> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 12);
+  messageDesc(file_pingdost_v1_games, 13);
 
 /**
  * @generated from message pingdost.v1.ConnectFourMove
@@ -507,7 +538,7 @@ export type ConnectFourMove = Message<"pingdost.v1.ConnectFourMove"> & {
  * Use `create(ConnectFourMoveSchema)` to create a new message.
  */
 export const ConnectFourMoveSchema: GenMessage<ConnectFourMove> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 13);
+  messageDesc(file_pingdost_v1_games, 14);
 
 /**
  * @generated from message pingdost.v1.DotsMove
@@ -527,7 +558,52 @@ export type DotsMove = Message<"pingdost.v1.DotsMove"> & {
  * Use `create(DotsMoveSchema)` to create a new message.
  */
 export const DotsMoveSchema: GenMessage<DotsMove> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 14);
+  messageDesc(file_pingdost_v1_games, 15);
+
+/**
+ * Squares are 0 to 63: a1 = 0, h1 = 7, a8 = 56. Chess has no timers, so no proxy moves.
+ *
+ * @generated from message pingdost.v1.ChessMove
+ */
+export type ChessMove = Message<"pingdost.v1.ChessMove"> & {
+  /**
+   * @generated from field: uint32 from = 1;
+   */
+  from: number;
+
+  /**
+   * @generated from field: uint32 to = 2;
+   */
+  to: number;
+
+  /**
+   * A pawn reaching the last rank: 2 knight, 3 bishop, 4 rook, 5 queen (0 otherwise).
+   *
+   * @generated from field: uint32 promotion = 3;
+   */
+  promotion: number;
+
+  /**
+   * The mover offers a draw along with this move.
+   *
+   * @generated from field: bool offer_draw = 4;
+   */
+  offerDraw: boolean;
+
+  /**
+   * Instead of a move: take the draw the other player offered with their last move.
+   *
+   * @generated from field: bool accept_draw = 5;
+   */
+  acceptDraw: boolean;
+};
+
+/**
+ * Describes the message pingdost.v1.ChessMove.
+ * Use `create(ChessMoveSchema)` to create a new message.
+ */
+export const ChessMoveSchema: GenMessage<ChessMove> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 16);
 
 /**
  * Another player skips a turn whose roll never came (the roller's app was closed).
@@ -551,7 +627,7 @@ export type GameSkip = Message<"pingdost.v1.GameSkip"> & {
  * Use `create(GameSkipSchema)` to create a new message.
  */
 export const GameSkipSchema: GenMessage<GameSkip> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 15);
+  messageDesc(file_pingdost_v1_games, 17);
 
 /**
  * The sender leaves; it takes effect at their next turn.
@@ -566,7 +642,7 @@ export type GameLeave = Message<"pingdost.v1.GameLeave"> & {
  * Use `create(GameLeaveSchema)` to create a new message.
  */
 export const GameLeaveSchema: GenMessage<GameLeave> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 16);
+  messageDesc(file_pingdost_v1_games, 18);
 
 /**
  * The host ends the game for everyone (or cancels it before the start).
@@ -581,7 +657,7 @@ export type GameEnd = Message<"pingdost.v1.GameEnd"> & {
  * Use `create(GameEndSchema)` to create a new message.
  */
 export const GameEndSchema: GenMessage<GameEnd> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 17);
+  messageDesc(file_pingdost_v1_games, 19);
 
 /**
  * A quick reaction shown over the board for a moment. One emoji.
@@ -600,7 +676,7 @@ export type GameEmote = Message<"pingdost.v1.GameEmote"> & {
  * Use `create(GameEmoteSchema)` to create a new message.
  */
 export const GameEmoteSchema: GenMessage<GameEmote> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 18);
+  messageDesc(file_pingdost_v1_games, 20);
 
 /**
  * @generated from enum pingdost.v1.GameType
@@ -637,6 +713,13 @@ export enum GameType {
    * @generated from enum value: GAME_TYPE_SNAKES_AND_LADDERS = 5;
    */
   SNAKES_AND_LADDERS = 5,
+
+  /**
+   * Phase 44.
+   *
+   * @generated from enum value: GAME_TYPE_CHESS = 6;
+   */
+  CHESS = 6,
 }
 
 /**

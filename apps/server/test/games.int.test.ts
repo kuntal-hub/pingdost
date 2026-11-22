@@ -17,6 +17,7 @@ import {
   SNAKES_AND_LADDERS,
   ZERO_TURN_PACE,
   type LudoNetView,
+  type ChessState,
   type LudoPace,
   type SnakesState,
 } from '@pingdost/games';
@@ -137,6 +138,30 @@ describe('Quick games with friends through the server (Phase 43)', () => {
     );
     expect(a.game.entries.every((e) => e.kind === 'move')).toBe(true);
   }, 120_000);
+
+  it('plays Chess one to one (Phase 44): moves in SAN on both sides, then a resignation', async () => {
+    const alice = await sim();
+    const bob = await sim([alice]);
+    const ga = play(alice);
+    const gb = play(bob);
+    const { conversationId } = await alice.engine.openDirectConversation(bob.userId);
+    const gameId = await ga.createTurn(conversationId, 'chess', {
+      settings: { hostSide: 'white' },
+    });
+    await ga.untilTurn(gameId, (v) => v.game.entries.length >= 8, 90_000);
+    ga.turnController(gameId)!.leave();
+    const a = await ga.untilTurn(gameId, (v) => v.game.phase === 'over', 30_000);
+    const b = await gb.untilTurn(
+      gameId,
+      (v) => v.game.phase === 'over' && v.game.entries.length === a.game.entries.length,
+      30_000,
+    );
+    const [sa, sb] = [a.game.state as ChessState, b.game.state as ChessState];
+    expect(sa.end).toBe('resigned');
+    expect(sb.san).toEqual(sa.san);
+    expect(sa.white).toBe(0);
+    expect(a.game.desync || b.game.desync).toBe(false);
+  }, 150_000);
 
   it('plays Snakes and Ladders in a group of three with fair dice', async () => {
     const alice = await sim();

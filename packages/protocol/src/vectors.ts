@@ -510,6 +510,26 @@ export function createVectors(): ProtocolVectors {
         },
       }),
     ),
+    // Phase 44: a chess move that promotes and offers a draw.
+    vector(
+      'content/game-move-chess',
+      ContentSchema,
+      content({
+        case: 'game',
+        value: {
+          gameId: id(0xa4),
+          turn: 40,
+          event: {
+            case: 'move',
+            value: {
+              salt: filler(16, 39),
+              stateHash: filler(8, 40),
+              play: { case: 'chess', value: { from: 52, to: 60, promotion: 5, offerDraw: true } },
+            },
+          },
+        },
+      }),
+    ),
 
     // ClientFrame, one per body.
     vector(

@@ -37,6 +37,11 @@ const LEVEL_DETAIL: Partial<Record<TurnGameId, Record<BotLevel, string>>> = {
     medium: 'Takes every box and never gives one away early.',
     hard: 'Fights for the last safe line and keeps control of long chains.',
   },
+  chess: {
+    easy: 'Looks one move ahead and often picks a weaker move.',
+    medium: 'Looks about three moves ahead.',
+    hard: 'Thinks up to a second and a half per move, as deep as it can.',
+  },
 };
 
 export function TurnSetupPage() {

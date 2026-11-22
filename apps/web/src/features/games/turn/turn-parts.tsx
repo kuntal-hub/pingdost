@@ -6,9 +6,11 @@ import { cn } from '@/lib/cn';
 import { useAppearance } from '@/theme';
 import {
   isDraw,
+  KING,
   snakesPath,
   turnSeatColor,
   type AnyTurnRules,
+  type ChessState,
   type DotsState,
   type SnakesState,
   type TurnCore,
@@ -18,6 +20,7 @@ import {
 } from '@pingdost/games';
 import { gameBoardColors } from '@pingdost/ui-tokens';
 
+import { ChessPieceIcon } from './chess-board';
 import { Dice } from '../ludo/dice';
 import { ShapeIcon } from '../shape';
 import { playGameSound } from '../sounds';
@@ -75,17 +78,25 @@ export function PlayersStrip({
             )}
             style={active ? { borderColor: look.ring } : undefined}
           >
-            <span
-              aria-hidden
-              className="flex size-7 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold"
-              style={{ backgroundColor: look.fill, borderColor: look.ring, color: look.on }}
-            >
-              {rules.id === 'tic-tac-toe' ? (
-                side
-              ) : (
-                <ShapeIcon color={color} size={14} fill={look.on} />
-              )}
-            </span>
+            {rules.id === 'chess' ? (
+              <ChessPieceIcon
+                piece={side === 'White' ? KING : -KING}
+                colors={colors.chess}
+                size={30}
+              />
+            ) : (
+              <span
+                aria-hidden
+                className="flex size-7 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold"
+                style={{ backgroundColor: look.fill, borderColor: look.ring, color: look.on }}
+              >
+                {rules.id === 'tic-tac-toe' ? (
+                  side
+                ) : (
+                  <ShapeIcon color={color} size={14} fill={look.on} />
+                )}
+              </span>
+            )}
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-bold">{names(seat)}</span>
               {detail && <span className="block text-xs text-muted">{detail}</span>}
@@ -102,6 +113,23 @@ export function PlayersStrip({
         );
       })}
     </ul>
+  );
+}
+
+/** Chess: the last moves in SAN. */
+export function ChessMoves({ state }: { state: ChessState }) {
+  if (state.san.length === 0) return null;
+  const pairs: string[] = [];
+  for (let i = 0; i < state.san.length; i += 2) {
+    pairs.push(`${i / 2 + 1}. ${state.san[i]}${state.san[i + 1] ? `  ${state.san[i + 1]}` : ''}`);
+  }
+  return (
+    <p
+      aria-label={`Moves: ${state.san.join(', ')}`}
+      className="max-w-full truncate text-sm text-muted"
+    >
+      {pairs.slice(-6).join('   ')}
+    </p>
   );
 }
 

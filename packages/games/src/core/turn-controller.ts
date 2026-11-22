@@ -113,6 +113,13 @@ export class TurnController<S extends TurnCore, M, Settings> {
     this.#rollFor(you);
   }
 
+  /** The user gives up (Chess): the game ends as if they had left. */
+  resign(): void {
+    const { state, you } = this.#view;
+    if (state.ranks) return;
+    this.#show('leave', you, state, this.#rules.leave(state, you));
+  }
+
   dispose(): void {
     this.#disposed = true;
     for (const timer of this.#timers) clearTimeout(timer);

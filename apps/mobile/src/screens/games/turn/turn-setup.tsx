@@ -19,6 +19,7 @@ import {
   turnRules,
   type AnyTurnRules,
   type BotLevel,
+  type ChessSettings,
   type DotsSettings,
   type SnakesSettings,
   type TurnGameId,
@@ -42,6 +43,11 @@ const LEVEL_DETAIL: Partial<Record<TurnGameId, Record<BotLevel, string>>> = {
     easy: 'Often hands boxes over.',
     medium: 'Takes every box and never gives one away early.',
     hard: 'Fights for the last safe line and keeps control of long chains.',
+  },
+  chess: {
+    easy: 'Looks one move ahead and often picks a weaker move.',
+    medium: 'Looks about three moves ahead.',
+    hard: 'Thinks up to a second and a half per move, as deep as it can.',
   },
 };
 
@@ -69,6 +75,27 @@ export function TurnSettingsEditor({
           onChange={(size) => onChange({ ...value, size: Number(size) })}
         />
         <Text className="px-2 text-sm text-muted">Boxes per side. Bigger boards take longer.</Text>
+      </View>
+    );
+  }
+  if (rules.id === 'chess') {
+    const value = settings as ChessSettings;
+    return (
+      <View className="gap-2">
+        <Text accessibilityRole="header" className="px-2 font-bold text-muted">
+          Your side
+        </Text>
+        <Segmented
+          accessibilityLabel="Your side"
+          options={[
+            { id: 'white', label: 'White' },
+            { id: 'random', label: 'Random' },
+            { id: 'black', label: 'Black' },
+          ]}
+          value={value.hostSide}
+          onChange={(hostSide) => onChange({ ...value, hostSide })}
+        />
+        <Text className="px-2 text-sm text-muted">White moves first.</Text>
       </View>
     );
   }

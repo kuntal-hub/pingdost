@@ -67,7 +67,7 @@ export const GAME_CATALOG: readonly CatalogEntry[] = [
     minPlayers: 2,
     maxPlayers: 2,
     icon: 'chess',
-    available: false,
+    available: true,
   },
   {
     id: 'uno',

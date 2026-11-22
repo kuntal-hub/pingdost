@@ -1,4 +1,5 @@
 // Every turn game by its catalog ID (Phase 43). The apps pick a game's rules from here.
+import { CHESS, type ChessState } from './chess/rules';
 import { CONNECT_FOUR, connectFourColor, type ConnectFourState } from './connect-four/rules';
 import type { AnyTurnRules, TurnCore, TurnGameId } from './core/turn';
 import { DOTS_AND_BOXES, DOTS_COLORS } from './dots-and-boxes/rules';
@@ -10,6 +11,7 @@ export const TURN_GAMES: Readonly<Record<TurnGameId, AnyTurnRules>> = {
   'connect-four': CONNECT_FOUR,
   'dots-and-boxes': DOTS_AND_BOXES,
   'snakes-and-ladders': SNAKES_AND_LADDERS,
+  chess: CHESS,
 };
 
 export const TURN_GAME_IDS = Object.keys(TURN_GAMES) as TurnGameId[];
@@ -34,5 +36,8 @@ export function turnSeatColor(id: TurnGameId, state: TurnCore, seat: number): Se
       return DOTS_COLORS[seat] ?? 'red';
     case 'snakes-and-ladders':
       return SNAKES_COLORS[seat] ?? 'red';
+    case 'chess':
+      // Chess sides are White and Black; the apps draw a king. Blue and red only tint the strip.
+      return seat === (state as ChessState).white ? 'blue' : 'red';
   }
 }
