@@ -216,6 +216,20 @@ describe('color schemes', () => {
           ).toBeGreaterThanOrEqual(UI);
         }
       }
+      // The finishing square: its trophy and number read, every piece reads on it, and it is a
+      // different color from the squares around it, not a shade of them.
+      expect(contrast(board.goalInk, board.goal), `${label} goal ink`).toBeGreaterThanOrEqual(AA);
+      for (const color of gamePlayerColors) {
+        expect(
+          contrast(board.players[color].ring, board.goal),
+          `${label} ${color} on the goal`,
+        ).toBeGreaterThanOrEqual(UI);
+      }
+      for (const cell of [board.cell, board.cellAlt]) {
+        expect(colorDistance(board.goal, cell), `${label} goal square`).toBeGreaterThanOrEqual(
+          DIFFERENT_AT_A_GLANCE,
+        );
+      }
       expect(contrast(board.frame, board.board), `${label} frame`).toBeGreaterThanOrEqual(UI);
       expect(contrast(board.dot, board.board), `${label} dot`).toBeGreaterThanOrEqual(UI);
     }

@@ -1,7 +1,11 @@
 // Player panels in the board's corners (ADR 0050): each player sits by their own yard with
-// their own die. The active player's panel glows and holds the big die; the user (always bottom
-// left) rolls by tapping theirs. In games with friends the panel shows the person's name, and a
-// ring around the active player's avatar runs down their 30 s (Phase 42).
+// their own die. The active player's panel is outlined and tinted in their color and holds the
+// big die; the user (always bottom left) rolls by tapping theirs. In games with friends the panel
+// shows the person's name, and on the user's own turn a ring around their avatar runs down the
+// 30 s (Phase 42; other players' clocks are not shown).
+//
+// The avatar and the die sit in fixed slots that hold the ring and the die's tumble, so nothing
+// moves when a turn starts and nothing reaches the panel's border.
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
@@ -37,12 +41,21 @@ interface PanelProps {
   onRoll: () => void;
   /** The person's name (games with friends); the color's name otherwise. */
   name?: string;
-  /** The share of the turn's time left, 0–1, while this player is on the clock. */
+  /** The share of the turn's time left, 0–1: only on the user's own panel during their turn. */
   timeLeft?: number | null;
 }
 
-/** The ring's circumference (radius 24). */
-const RING = 2 * Math.PI * 24;
+/** The avatar's slot: the avatar plus room for the turn's ring around it. */
+const AVATAR_SLOT = 44;
+const AVATAR = 32;
+/** The ring ends at the slot's edge and leaves 3 px between itself and the avatar. */
+const RING_STROKE = 3;
+const RING_RADIUS = AVATAR_SLOT / 2 - RING_STROKE / 2;
+const RING = 2 * Math.PI * RING_RADIUS;
+/** The die's slot: with the panel's padding it holds the active die's tumble (dice.tsx). */
+const DIE_SLOT = 50;
+const DIE_ACTIVE = 40;
+const DIE_IDLE = 30;
 
 export function PlayerPanel({
   view,
@@ -75,35 +88,53 @@ export function PlayerPanel({
 
   const avatar = (
     <View
-      className="items-center justify-center rounded-full"
       style={{
-        width: 40,
-        height: 40,
-        backgroundImage: `linear-gradient(145deg, ${look.light}, ${look.fill} 55%, ${look.dark})`,
-        borderWidth: 2,
-        borderColor: look.ring,
+        width: AVATAR_SLOT,
+        height: AVATAR_SLOT,
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      <ShapeGlyph color={player.color} size={18} fill={look.on} />
       {timeLeft != null && (
+        // A sibling of the avatar in the same square, so both share one center.
         <Svg
-          width={52}
-          height={52}
-          viewBox="0 0 52 52"
-          style={{ position: 'absolute', left: -8, top: -8, transform: [{ rotate: '-90deg' }] }}
+          width={AVATAR_SLOT}
+          height={AVATAR_SLOT}
+          style={{ position: 'absolute', left: 0, top: 0, transform: [{ rotate: '-90deg' }] }}
         >
           <Circle
-            cx={26}
-            cy={26}
-            r={24}
+            cx={AVATAR_SLOT / 2}
+            cy={AVATAR_SLOT / 2}
+            r={RING_RADIUS}
+            fill="none"
+            stroke={look.ring}
+            strokeOpacity={0.18}
+            strokeWidth={RING_STROKE}
+          />
+          <Circle
+            cx={AVATAR_SLOT / 2}
+            cy={AVATAR_SLOT / 2}
+            r={RING_RADIUS}
             fill="none"
             stroke={timeLeft < 0.25 ? palette.danger : look.ring}
-            strokeWidth={3.5}
+            strokeWidth={RING_STROKE}
             strokeLinecap="round"
             strokeDasharray={`${Math.max(0, timeLeft) * RING} ${RING}`}
           />
         </Svg>
       )}
+      <View
+        className="items-center justify-center rounded-full"
+        style={{
+          width: AVATAR,
+          height: AVATAR,
+          backgroundImage: `linear-gradient(145deg, ${look.light}, ${look.fill} 55%, ${look.dark})`,
+          borderWidth: 2,
+          borderColor: look.ring,
+        }}
+      >
+        <ShapeGlyph color={player.color} size={15} fill={look.on} />
+      </View>
     </View>
   );
   const label = (
@@ -120,7 +151,9 @@ export function PlayerPanel({
     </View>
   );
   const die = (
-    <View style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={{ width: DIE_SLOT, height: DIE_SLOT, alignItems: 'center', justifyContent: 'center' }}
+    >
       <Dice
         value={lastDie}
         rolling={rolling}
@@ -128,7 +161,7 @@ export function PlayerPanel({
         look={look}
         ready={ready}
         onRoll={onRoll}
-        size={active ? 46 : 34}
+        size={active ? DIE_ACTIVE : DIE_IDLE}
         moves={moves}
         duration={rollMs}
         idle={!active}
@@ -139,12 +172,16 @@ export function PlayerPanel({
   return (
     <Animated.View
       accessibilityLabel={`${name}${kind === 'computer' ? `, computer, ${BOT_LEVEL_NAMES[level]}` : ''}, ${status}${active ? ', playing now' : ''}`}
-      className={`flex-row items-center gap-2 rounded-2xl bg-surface p-1.5 ${left ? '' : 'flex-row-reverse'}`}
+      // p-2, not p-1.5: 1.5 is not on the phone's spacing scale and gave no padding at all.
+      className={`flex-row items-center gap-1 rounded-2xl bg-surface p-2 ${left ? '' : 'flex-row-reverse'}`}
       style={{
         width,
         borderWidth: 2,
         borderColor: active ? look.ring : 'transparent',
-        boxShadow: active ? `0 0 14px 2px ${look.fill}` : undefined,
+        // A light wash of the player's color inside the outline, and a soft glow that stays
+        // within the gap around the panel.
+        backgroundImage: active ? `linear-gradient(${look.fill}1F, ${look.fill}1F)` : undefined,
+        boxShadow: active ? `0 0 8px ${look.fill}66` : undefined,
         transitionProperty: ['borderColor'],
         transitionDuration: moves ? 200 : 0,
       }}

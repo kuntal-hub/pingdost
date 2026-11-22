@@ -1,5 +1,6 @@
 // Snakes and Ladders on the phone (Phase 43): a checkered 10 by 10 board with numbered squares,
-// ladders and snakes drawn in code (PingDost's own layout), and a piece per player. Pieces start
+// the goal (square 100) in gold with a trophy, ladders and snakes drawn in code (PingDost's own
+// layout, the same in every game), and a piece per player. Pieces start
 // below the board; after a roll the mover's piece hops square by square, then climbs or slides.
 import { memo } from 'react';
 import { View } from 'react-native';
@@ -12,6 +13,9 @@ import {
   SNAKES,
   SNAKES_COLOR_NAMES,
   SNAKES_COLORS,
+  SNAKES_FINISH,
+  SNAKES_GOAL_LAYOUT,
+  SNAKES_TROPHY,
   snakesPath,
   snakesSquareAt,
   type SnakesState,
@@ -21,9 +25,56 @@ import { gameBoardColors } from '@pingdost/ui-tokens';
 import type { TurnBoardProps } from './board-props';
 import { ShapeGlyph } from '../shape';
 
+/** The board's rounded corners. */
+const BOARD_RADIUS = 14;
+
 function center(square: number, cell: number) {
   const { row, col } = snakesSquareAt(square);
   return { x: col * cell + cell / 2, y: row * cell + cell / 2 };
+}
+
+/** Square 100, the goal: a gold square with a frame, a trophy and its number. */
+function Goal({ x, y, cell, dark }: { x: number; y: number; cell: number; dark: boolean }) {
+  const colors = gameBoardColors(dark);
+  const { trophy, number, frame } = SNAKES_GOAL_LAYOUT;
+  const inset = frame.inset * cell;
+  const scale = (trophy.size * cell) / SNAKES_TROPHY.box;
+  return (
+    <G>
+      <Rect x={x} y={y} width={cell} height={cell} fill={colors.goal} />
+      <Rect
+        x={x + inset}
+        y={y + inset}
+        width={cell - 2 * inset}
+        height={cell - 2 * inset}
+        rx={Math.max(0, BOARD_RADIUS - inset)}
+        fill="none"
+        stroke={colors.goalInk}
+        strokeWidth={frame.width * cell}
+      />
+      <G transform={`translate(${x + trophy.x * cell} ${y + trophy.y * cell}) scale(${scale})`}>
+        <Path d={SNAKES_TROPHY.fill} fill={colors.goalInk} />
+        <Path
+          d={SNAKES_TROPHY.handles}
+          fill="none"
+          stroke={colors.goalInk}
+          strokeWidth={SNAKES_TROPHY.handleWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </G>
+      <SvgText
+        x={x + number.x * cell}
+        y={y + number.y * cell}
+        fontSize={number.size * cell}
+        fontWeight="bold"
+        textAnchor="middle"
+        fill={colors.goalInk}
+      >
+        {SNAKES_FINISH}
+      </SvgText>
+    </G>
+  );
 }
 
 /** The whole board as one drawing, drawn again only when its size or the theme changes. */
@@ -35,6 +86,9 @@ const Board = memo(function Board({ size, dark }: { size: number; dark: boolean 
       {Array.from({ length: 100 }, (_, i) => {
         const square = i + 1;
         const { row, col } = snakesSquareAt(square);
+        if (square === SNAKES_FINISH) {
+          return <Goal key={square} x={col * cell} y={row * cell} cell={cell} dark={dark} />;
+        }
         return (
           <G key={square}>
             <Rect
@@ -172,7 +226,7 @@ export function SnakesBoard({
   const mover = last?.kind === 'roll' && last.die !== undefined ? last.seat : -1;
   return (
     <View style={{ width: size, height: size + strip }}>
-      <View style={{ borderRadius: 14, overflow: 'hidden' }}>
+      <View style={{ borderRadius: BOARD_RADIUS, overflow: 'hidden' }}>
         <Board size={size} dark={dark} />
       </View>
       <Text

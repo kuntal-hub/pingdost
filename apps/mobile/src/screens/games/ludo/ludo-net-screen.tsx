@@ -292,7 +292,8 @@ function Table({
         width={panelWidth}
         onRoll={onRoll}
         name={nameOf(game.seats[seat]!.userId)}
-        timeLeft={seat === board.state.current && !over ? timeLeft : null}
+        // The clock shows only to the player whose turn it is, on their own panel.
+        timeLeft={seat === view.you && seat === board.state.current && !over ? timeLeft : null}
       />
     );
   };

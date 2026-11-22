@@ -49,6 +49,12 @@ export interface GameBoardColors {
   ladder: string;
   /** Snakes, each readable on both cell colors. */
   snakes: readonly [string, string, string];
+  /**
+   * Snakes and Ladders: the finishing square (100), which stands out from the cells and keeps
+   * every piece's edge readable, and the trophy, number and frame drawn on it (4.5:1).
+   */
+  goal: string;
+  goalInk: string;
   /** Dots and Boxes: the dots, and lines not drawn yet (hints). */
   dot: string;
   /** Phase 44. */
@@ -172,6 +178,8 @@ const LIGHT: GameBoardColors = {
   frame: '#2457D6',
   ladder: '#93520F',
   snakes: ['#0B8A5F', '#8B3FD9', '#D44A12'],
+  goal: '#FFD54A',
+  goalInk: '#5A3E00',
   dot: '#334155',
   chess: {
     light: '#E8EDF5',
@@ -231,6 +239,8 @@ const DARK: GameBoardColors = {
   frame: '#3A64C8',
   ladder: '#E0A458',
   snakes: ['#34D399', '#C084FC', '#FB923C'],
+  goal: '#4A3A0E',
+  goalInk: '#FFD54A',
   dot: '#CBD5E1',
   chess: {
     light: '#C3CDDC',

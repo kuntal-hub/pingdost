@@ -1,7 +1,6 @@
 // The die (ADR 0050): a shaded cube in the roller's color that tumbles for the whole roll
 // (`pd-tumble`), then settles; it beckons when it is the user's roll and is the roll button.
-import { useEffect, useState } from 'react';
-
+// While it tumbles it shows no pips: the number appears only once it lands.
 import { cn } from '@/lib/cn';
 import type { GamePlayerLook } from '@pingdost/ui-tokens';
 
@@ -42,20 +41,23 @@ export function Dice({
   idle = false,
   onRoll,
 }: DiceProps) {
-  const [spinFace, setSpinFace] = useState(1);
-  useEffect(() => {
-    if (!rolling || !animate) return;
-    const timer = setInterval(() => setSpinFace(1 + Math.floor(Math.random() * 6)), 70);
-    return () => clearInterval(timer);
-  }, [rolling, animate]);
-  const face = rolling && animate ? spinFace : (value ?? 6);
+  // No pips while rolling: the result shows only when the die has landed.
+  const pips: readonly number[] = rolling ? [] : PIPS[value ?? 6]!;
   const pip = Math.round(size * 0.17);
   return (
     <button
       type="button"
       key={rolling ? `rolling${rollId}` : `face${rollId}`}
       disabled={!ready}
-      aria-label={ready ? 'Roll the dice (Space)' : value ? `The dice shows ${value}` : 'Dice'}
+      aria-label={
+        ready
+          ? 'Roll the dice (Space)'
+          : rolling
+            ? 'Rolling the dice'
+            : value
+              ? `The dice shows ${value}`
+              : 'Dice'
+      }
       aria-busy={rolling}
       onClick={onRoll}
       className={cn(
@@ -83,8 +85,8 @@ export function Dice({
           style={{
             width: pip,
             height: pip,
-            backgroundColor: PIPS[face]!.includes(cell) ? look.on : 'transparent',
-            boxShadow: PIPS[face]!.includes(cell)
+            backgroundColor: pips.includes(cell) ? look.on : 'transparent',
+            boxShadow: pips.includes(cell)
               ? `inset 0 ${pip * 0.15}px ${pip * 0.2}px rgb(0 0 0 / 0.35)`
               : undefined,
           }}

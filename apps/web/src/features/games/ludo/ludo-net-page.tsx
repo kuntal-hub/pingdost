@@ -324,7 +324,12 @@ function Table({
         lastDie={lastDice[seat] ?? null}
         onRoll={onRoll}
         name={nameOf(info.userId)}
-        timeLeft={seat === board.state.current && board.waiting !== 'over' ? timeLeft : null}
+        // The clock shows only to the player whose turn it is, on their own panel.
+        timeLeft={
+          seat === view.you && seat === board.state.current && board.waiting !== 'over'
+            ? timeLeft
+            : null
+        }
       />
     );
   };

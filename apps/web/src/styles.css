@@ -527,24 +527,26 @@ h2 {
   }
 }
 
+/* Small hops, the highest on square angles, so the spinning die stays inside the player panel
+   (at most 13 px past its edge; see the phone's dice.tsx, which has the same keyframes). */
 @keyframes pd-tumble {
   0% {
     transform: translateY(0) rotate(0deg) scale(1);
   }
-  20% {
-    transform: translateY(-22px) rotate(160deg) scale(1.14);
+  18% {
+    transform: translateY(-4px) rotate(180deg) scale(1.04);
   }
-  42% {
-    transform: translateY(0) rotate(310deg) scale(0.92);
+  40% {
+    transform: translateY(0) rotate(330deg) scale(0.96);
   }
-  60% {
-    transform: translateY(-10px) rotate(420deg) scale(1.06);
+  58% {
+    transform: translateY(-3px) rotate(450deg) scale(1.02);
   }
-  78% {
-    transform: translateY(0) rotate(520deg) scale(0.97);
+  76% {
+    transform: translateY(0) rotate(560deg) scale(0.98);
   }
   90% {
-    transform: translateY(-3px) rotate(700deg) scale(1.01);
+    transform: translateY(-1px) rotate(690deg) scale(1);
   }
   100% {
     transform: translateY(0) rotate(720deg) scale(1);

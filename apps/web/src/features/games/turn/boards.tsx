@@ -21,6 +21,9 @@ import {
   SNAKES,
   SNAKES_COLOR_NAMES,
   SNAKES_COLORS,
+  SNAKES_FINISH,
+  SNAKES_GOAL_LAYOUT,
+  SNAKES_TROPHY,
   snakesPath,
   snakesSquareAt,
   ticTacToeMark,
@@ -387,10 +390,58 @@ export function DotsBoard({
 }
 
 const CELL = 100;
+/** The board's rounded corners (`pd-snakes-clip`). */
+const BOARD_RADIUS = 24;
 
 function center(square: number) {
   const { row, col } = snakesSquareAt(square);
   return { x: col * CELL + CELL / 2, y: row * CELL + CELL / 2 };
+}
+
+/** Square 100, the goal: a gold square with a frame, a trophy and its number. */
+function SnakesGoal({ x, y, dark }: { x: number; y: number; dark: boolean }) {
+  const colors = gameBoardColors(dark);
+  const { trophy, number, frame } = SNAKES_GOAL_LAYOUT;
+  const inset = frame.inset * CELL;
+  return (
+    <g>
+      <rect x={x} y={y} width={CELL} height={CELL} fill={colors.goal} />
+      <rect
+        x={x + inset}
+        y={y + inset}
+        width={CELL - 2 * inset}
+        height={CELL - 2 * inset}
+        rx={BOARD_RADIUS - inset}
+        fill="none"
+        stroke={colors.goalInk}
+        strokeWidth={frame.width * CELL}
+      />
+      <g
+        transform={`translate(${x + trophy.x * CELL} ${y + trophy.y * CELL}) scale(${(trophy.size * CELL) / SNAKES_TROPHY.box})`}
+        fill={colors.goalInk}
+        stroke={colors.goalInk}
+      >
+        <path d={SNAKES_TROPHY.fill} stroke="none" />
+        <path
+          d={SNAKES_TROPHY.handles}
+          fill="none"
+          strokeWidth={SNAKES_TROPHY.handleWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+      <text
+        x={x + number.x * CELL}
+        y={y + number.y * CELL}
+        fontSize={number.size * CELL}
+        fontWeight={700}
+        textAnchor="middle"
+        fill={colors.goalInk}
+      >
+        {SNAKES_FINISH}
+      </text>
+    </g>
+  );
 }
 
 /** The board itself, drawn again only when the theme changes. */
@@ -401,6 +452,9 @@ const SnakesBoardArt = memo(function SnakesBoardArt({ dark }: { dark: boolean })
       {Array.from({ length: 100 }, (_, i) => {
         const square = i + 1;
         const { row, col } = snakesSquareAt(square);
+        if (square === SNAKES_FINISH) {
+          return <SnakesGoal key={square} x={col * CELL} y={row * CELL} dark={dark} />;
+        }
         return (
           <g key={square}>
             <rect
@@ -536,7 +590,7 @@ export function SnakesBoard({
       aria-label="Snakes and Ladders board"
     >
       <clipPath id="pd-snakes-clip">
-        <rect width={1000} height={1000} rx={24} />
+        <rect width={1000} height={1000} rx={BOARD_RADIUS} />
       </clipPath>
       <g clipPath="url(#pd-snakes-clip)">
         <SnakesBoardArt dark={dark} />

@@ -35,6 +35,7 @@ export * from './ludo/solo';
 export * from './poker/bot';
 export * from './poker/hands';
 export * from './poker/rules';
+export * from './snakes-and-ladders/drawing';
 export * from './snakes-and-ladders/rules';
 export * from './tic-tac-toe/rules';
 export * from './turn-games';

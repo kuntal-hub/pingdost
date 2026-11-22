@@ -1,6 +1,7 @@
 // The die (ADR 0050): a shaded cube in the roller's color that tumbles for the whole roll (two
-// turns with bounces, faces flicking), then settles. It is the roll button on the user's turn.
-import { useEffect, useState } from 'react';
+// turns with small hops), then settles. It is the roll button on the user's turn. While it
+// tumbles it shows no pips: the number appears only once it lands, so no passing face reads as
+// the result.
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -43,13 +44,16 @@ const PIPS: Record<number, readonly (readonly [number, number])[]> = {
   ],
 };
 
+// The hops stay small and the highest ones fall on square angles, so the spinning die never
+// leaves its slot in the player panel (`DIE_SLOT` in panels.tsx: at most 13 px past its edge,
+// where the panel's border starts). Keep in step with `pd-tumble` in the web app's styles.css.
 const TUMBLE = {
   '0%': { transform: [{ translateY: 0 }, { rotate: '0deg' }, { scale: 1 }] },
-  '20%': { transform: [{ translateY: -22 }, { rotate: '160deg' }, { scale: 1.14 }] },
-  '42%': { transform: [{ translateY: 0 }, { rotate: '310deg' }, { scale: 0.92 }] },
-  '60%': { transform: [{ translateY: -10 }, { rotate: '420deg' }, { scale: 1.06 }] },
-  '78%': { transform: [{ translateY: 0 }, { rotate: '520deg' }, { scale: 0.97 }] },
-  '90%': { transform: [{ translateY: -3 }, { rotate: '700deg' }, { scale: 1.01 }] },
+  '18%': { transform: [{ translateY: -4 }, { rotate: '180deg' }, { scale: 1.04 }] },
+  '40%': { transform: [{ translateY: 0 }, { rotate: '330deg' }, { scale: 0.96 }] },
+  '58%': { transform: [{ translateY: -3 }, { rotate: '450deg' }, { scale: 1.02 }] },
+  '76%': { transform: [{ translateY: 0 }, { rotate: '560deg' }, { scale: 0.98 }] },
+  '90%': { transform: [{ translateY: -1 }, { rotate: '690deg' }, { scale: 1 }] },
   '100%': { transform: [{ translateY: 0 }, { rotate: '720deg' }, { scale: 1 }] },
 };
 const SETTLE = {
@@ -93,14 +97,8 @@ export function Dice({
   duration,
   idle = false,
 }: DiceProps) {
-  const [spinFace, setSpinFace] = useState(1);
-  useEffect(() => {
-    if (!rolling || !moves) return;
-    const timer = setInterval(() => setSpinFace(1 + Math.floor(Math.random() * 6)), 70);
-    return () => clearInterval(timer);
-  }, [rolling, moves]);
-
-  const face = rolling && moves ? spinFace : (value ?? 6);
+  // No pips while rolling: the result shows only when the die has landed.
+  const pips: readonly (readonly [number, number])[] = rolling ? [] : PIPS[value ?? 6]!;
   const pip = size * 0.17;
   const animation = rolling
     ? moves
@@ -123,7 +121,15 @@ export function Dice({
 
   return (
     <Tap
-      accessibilityLabel={ready ? 'Roll the dice' : value ? `The dice shows ${value}` : 'Dice'}
+      accessibilityLabel={
+        ready
+          ? 'Roll the dice'
+          : rolling
+            ? 'Rolling the dice'
+            : value
+              ? `The dice shows ${value}`
+              : 'Dice'
+      }
       accessibilityState={{ disabled: !ready, busy: rolling }}
       disabled={!ready}
       feedback="light"
@@ -142,12 +148,13 @@ export function Dice({
           borderColor: look.ring,
           boxShadow: `0 ${size * 0.08}px ${size * 0.14}px rgba(0, 0, 0, 0.35), inset 0 ${-size * 0.06}px 0 ${look.dark}`,
           padding: size * 0.15,
-          opacity: idle ? 0.55 : 1,
+          // Without motion a roll is a dimmed blank die until the number shows.
+          opacity: idle ? 0.55 : rolling && !moves ? 0.6 : 1,
           ...animation,
         }}
       >
         <View style={{ flex: 1 }}>
-          {PIPS[face]!.map(([column, row], i) => (
+          {pips.map(([column, row], i) => (
             <View
               key={i}
               style={{
