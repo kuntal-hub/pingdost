@@ -25,16 +25,21 @@ export interface TurnSoloGame {
 }
 
 export function defaultTurnSoloOptions(rules: AnyTurnRules): TurnSoloOptions {
-  return { computers: 1, level: 'medium', settings: rules.defaultSettings };
+  return {
+    computers: Math.max(1, rules.minPlayers - 1),
+    level: 'medium',
+    settings: rules.defaultSettings,
+  };
 }
 
 export function normalizeTurnSoloOptions(rules: AnyTurnRules, raw: unknown): TurnSoloOptions {
   const value = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
   const most = rules.maxPlayers - 1;
+  const least = Math.max(1, rules.minPlayers - 1);
   const computers =
     typeof value.computers === 'number' && Number.isInteger(value.computers)
-      ? Math.min(most, Math.max(1, value.computers))
-      : 1;
+      ? Math.min(most, Math.max(least, value.computers))
+      : least;
   const level = BOT_LEVELS.includes(value.level as BotLevel) ? (value.level as BotLevel) : 'medium';
   return { computers, level, settings: rules.normalizeSettings(value.settings) };
 }

@@ -2,7 +2,15 @@ import { createHash } from 'node:crypto';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { create, encodeGame, GameSchema, toBase64, uuidToBytes } from '@pingdost/protocol';
+import {
+  create,
+  decodeGame,
+  encodeGame,
+  fromBase64,
+  GameSchema,
+  toBase64,
+  uuidToBytes,
+} from '@pingdost/protocol';
 
 import type { GameEventLike, GamePlayerRef } from './net';
 import { seededRandom } from './random';
@@ -16,6 +24,7 @@ import {
   turnStateHash,
   type TurnNetGame,
 } from './turn-network';
+import { CALL_BRIDGE, type BridgeState } from '../call-bridge/rules';
 import { CHESS, type ChessState } from '../chess/rules';
 import { CONNECT_FOUR, type ConnectFourState } from '../connect-four/rules';
 import { DOTS_AND_BOXES } from '../dots-and-boxes/rules';
@@ -48,10 +57,17 @@ class Table {
   gameId = '';
   /** Devices whose events are held back (offline), and the events they sent. */
   offline = new Set<string>();
+  /** Private events (ADR 0052), by the device they went to. */
+  readonly privateTo = new Map<string, GameEventLike[]>();
 
   constructor(readonly rules: AnyTurnRules) {}
 
-  record(from: GamePlayerRef, init: GameEventInit, eventId = nextId()): GameEventLike {
+  record(
+    from: GamePlayerRef,
+    init: GameEventInit,
+    eventId = nextId(),
+    to?: GamePlayerRef,
+  ): GameEventLike {
     const game = create(GameSchema, init);
     if (game.event.case === 'create') {
       this.gameId = eventId;
@@ -67,6 +83,10 @@ class Table {
       receivedAt: now,
       payload: toBase64(encodeGame(game)),
     };
+    if (to) {
+      this.privateTo.set(to.deviceId, [...(this.privateTo.get(to.deviceId) ?? []), event]);
+      return event;
+    }
     this.events.push(event);
     return event;
   }
@@ -78,7 +98,7 @@ class Table {
       randomBytes: seededBytes(seed),
       send: async (init: GameEventInit, options?: GameSendOptions) => {
         if (options?.seatSeed) this.seeds.set(ref.deviceId, options.seatSeed);
-        this.record(ref, init);
+        this.record(ref, init, nextId(), options?.to);
         await Promise.resolve();
         this.deliver();
       },
@@ -86,7 +106,14 @@ class Table {
   }
 
   deliver(): void {
-    for (const { controller } of this.controllers) controller.update([...this.events]);
+    for (const { ref, controller } of this.controllers) controller.update(this.eventsFor(ref));
+  }
+
+  /** What one device has: the shared events and the private ones sent to it. */
+  eventsFor(ref: GamePlayerRef): GameEventLike[] {
+    return [...this.events, ...(this.privateTo.get(ref.deviceId) ?? [])].sort((a, b) =>
+      a.eventId < b.eventId ? -1 : 1,
+    );
   }
 
   fold(): TurnNetGame<TurnCore, unknown, unknown> {
@@ -97,7 +124,7 @@ class Table {
     const controller = new TurnNetController({
       rules: this.rules,
       gameId: this.gameId,
-      events: [...this.events],
+      events: this.eventsFor(ref),
       seatSeed: this.seeds.get(ref.deviceId) ?? null,
       port: this.port(ref, seed),
       pace: ZERO_TURN_PACE,
@@ -413,6 +440,47 @@ describe('turn games with friends', () => {
     );
     expect(plays.length).toBeGreaterThan(0);
   }, 60_000);
+
+  it('Call Bridge: four players, a rotating dealer, private hands, five rounds', async () => {
+    const dave = player(4);
+    const { table, controllers } = await setUp(CALL_BRIDGE, [alice, bob, carol, dave]);
+    const random = seededRandom(21);
+    let checkedHidden = false;
+    for (let i = 0; i < 4_000 && table.fold().phase === 'playing'; i++) {
+      let acted = false;
+      for (const { controller } of table.controllers) {
+        const view = controller.getView();
+        if (view.waiting !== 'you' || !view.state || view.legal.length === 0) continue;
+        controller.move(await CALL_BRIDGE.bot(view.state as BridgeState, 'medium', random));
+        acted = true;
+      }
+      const shared = table.fold().state as BridgeState | null;
+      if (shared?.phase === 'play') {
+        // While a round is played, the shared state holds no card that hasn't been played.
+        expect(shared.hands.flat().every((c) => c.card === -1)).toBe(true);
+        checkedHidden = true;
+      }
+      await vi.advanceTimersByTimeAsync(acted ? 1 : 10);
+    }
+    const game = table.fold();
+    expect(checkedHidden).toBe(true);
+    expect(game.phase).toBe('over');
+    expect(game.desync).toBe(false);
+    const state = game.state as BridgeState;
+    expect(state.history).toHaveLength(5);
+    expect(state.badDeal).toBe(false);
+    expect(state.history.every((r) => r.revoked.length === 0)).toBe(true);
+    expect(new Set(state.history.map((r) => r.dealer)).size).toBe(4);
+    // Hands went privately: each device got only its own deals, never anyone else's.
+    for (const ref of [alice, bob, carol, dave]) {
+      for (const e of table.privateTo.get(ref.deviceId) ?? [])
+        expect(e.senderDeviceId).not.toBe(ref.deviceId);
+    }
+    expect(table.events.some((e) => decodeGame(fromBase64(e.payload)).event.case === 'deal')).toBe(
+      false,
+    );
+    expect(controllers).toHaveLength(4);
+  }, 120_000);
 
   it('the host can end the game for everyone', async () => {
     const { table, controllers } = await setUp(CONNECT_FOUR, [alice, bob]);

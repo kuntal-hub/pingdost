@@ -355,5 +355,5 @@ export const CHESS: TurnRules<ChessState, ChessMove, ChessSettings> = {
     'No clock: games with friends are played at your own pace.',
   ],
   resultDetail: (state) => (state.end ? END_TEXT[state.end] : null),
-  stepMs: (step, pace) => (step.kind === 'leave' ? pace.read : pace.step + 60),
+  stepMs: (step, pace) => (step.kind === 'leave' ? pace.read : pace.step * 1.15),
 };

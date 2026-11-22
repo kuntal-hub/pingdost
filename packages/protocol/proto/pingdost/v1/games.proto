@@ -44,6 +44,8 @@ enum GameType {
   GAME_TYPE_CHESS = 6;
   // Phase 45: a shedding card game (match color or number).
   GAME_TYPE_LAST_CARD = 7;
+  // Phase 46: 4 players, calls, spades as trumps, 5 rounds.
+  GAME_TYPE_CALL_BRIDGE = 8;
 }
 
 // Opens a game in the chat; it shows as an invitation card. The creator (host) takes the
@@ -61,6 +63,7 @@ message GameCreate {
     SnakesSettings snakes = 9;
     ChessSettings chess = 10;
     LastCardSettings last_card = 12;
+    CallBridgeSettings call_bridge = 13;
   }
   // The host's seat: see `GameJoin`.
   bytes anchor = 4;
@@ -155,6 +158,7 @@ message GameMove {
     DotsMove dots = 6;
     ChessMove chess = 7;
     LastCardMove last_card = 8;
+    CallBridgeMove call_bridge = 9;
   }
 }
 
@@ -227,4 +231,22 @@ message LastCardMove {
   // absent player's turn played for them).
   bool draw = 6;
   bool pass = 7;
+}
+
+// No options yet: 5 rounds, calls 1 to 13, spades always trumps.
+message CallBridgeSettings {}
+
+// One step of a round (ADR 0052). The dealer's app deals (`commitments`) and, once the last
+// trick is taken, shows its secret (`reveal`); players call, then play cards with their nonce.
+message CallBridgeMove {
+  // A call: 1 to 13 tricks (0: not a call).
+  uint32 call = 1;
+  // A card played: its position in the dealt deck (0 to 51), the card plus one (1 to 52:
+  // spades, hearts, diamonds, clubs; 2 up to ace) and its 16-byte nonce.
+  uint32 position = 2;
+  uint32 card = 3;
+  bytes nonce = 4;
+  // The dealer: a 16-byte commitment per position (832 bytes), then the round's secret.
+  bytes commitments = 5;
+  bytes reveal = 6;
 }

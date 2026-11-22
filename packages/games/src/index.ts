@@ -1,6 +1,8 @@
 // @pingdost/games (ADR 0049): game rules, computer players and game state for the phone and
 // the web. Pure TypeScript: no React, no platform code, no network.
 export * from './any-game';
+export * from './call-bridge/drawing';
+export * from './call-bridge/rules';
 export * from './chess/bot';
 export * from './chess/drawing';
 export * from './chess/position';

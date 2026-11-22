@@ -53,7 +53,9 @@ export function StartGameDialog({
   const [players, setPlayers] = useState(4);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const entry = PLAYABLE.find((e) => e.id === game)!;
+  // A game for four needs a group.
+  const choices = PLAYABLE.filter((e) => isGroup || e.minPlayers <= 2);
+  const entry = choices.find((e) => e.id === game) ?? choices[0]!;
   const rules = isTurnGameId(game) ? turnRules(game) : null;
   const seats = Math.min(entry.maxPlayers, Math.max(entry.minPlayers, players));
   const ludo = settings as LudoSettings;
@@ -65,7 +67,13 @@ export function StartGameDialog({
     setBusy(true);
     setError(undefined);
     try {
-      const gameId = await startGame(client, conversationId, game, settings, isGroup ? seats : 2);
+      const gameId = await startGame(
+        client,
+        conversationId,
+        entry.id as Playable,
+        entry.id === game ? settings : settingsFor(entry.id as Playable),
+        isGroup ? seats : 2,
+      );
       onOpenChange(false);
       void navigate(`/games/play/${gameId}`);
     } catch {
@@ -89,7 +97,7 @@ export function StartGameDialog({
       <section className="flex flex-col gap-2">
         <h3 className="font-bold text-muted">Game</h3>
         <div role="radiogroup" aria-label="Game" className="grid grid-cols-3 gap-2">
-          {PLAYABLE.map((option) => {
+          {choices.map((option) => {
             const Glyph = GAME_ICONS[option.icon];
             const selected = option.id === game;
             return (

@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CryptoProvider } from '@pingdost/crypto';
 import {
   canonicalLudo,
+  type BridgeState,
   CONNECT_FOUR,
   SNAKES_AND_LADDERS,
   ZERO_TURN_PACE,
@@ -22,7 +23,7 @@ import {
   type LudoPace,
   type SnakesState,
 } from '@pingdost/games';
-import { fromBase64, GameType } from '@pingdost/protocol';
+import { decodeGame, fromBase64, GameType } from '@pingdost/protocol';
 import {
   capturingSocket,
   containsMarker,
@@ -197,6 +198,37 @@ describe('Quick games with friends through the server (Phase 43)', () => {
       );
     }
   }, 180_000);
+
+  it('plays Call Bridge in a group of four (Phase 46): a rotating dealer deals privately', async () => {
+    const alice = await sim();
+    const bob = await sim([alice]);
+    const carol = await sim([alice, bob]);
+    const dave = await sim([alice, bob, carol]);
+    const { conversationId: groupId } = await alice.engine.createGroup({
+      name: 'Bridge',
+      memberUserIds: [bob.userId, carol.userId, dave.userId],
+    });
+    const players = [play(alice), play(bob), play(carol), play(dave)];
+    const gameId = await players[0]!.createTurn(groupId, 'call-bridge', { maxPlayers: 4 });
+    // Two rounds through the server are enough: two dealers deal, show their deals, and score.
+    const a = await players[0]!.untilTurn(
+      gameId,
+      (v) => (v.game.state as BridgeState | null)?.history.length === 2,
+      150_000,
+    );
+    const state = a.game.state as BridgeState;
+    expect(state.badDeal).toBe(false);
+    expect(state.history.every((r) => r.tricks.reduce((x, y) => x + y, 0) === 13)).toBe(true);
+    expect(new Set(state.history.map((r) => r.dealer)).size).toBe(2);
+    expect(a.game.desync).toBe(false);
+    // Each device received hands only from the dealers, and never its own as a private event.
+    for (const client of [alice, bob, carol, dave]) {
+      const events = await client.engine.listGameEvents(gameId);
+      const deals = events.filter((e) => decodeGame(fromBase64(e.payload)).event.case === 'deal');
+      expect(deals.every((e) => e.senderDeviceId !== client.deviceId)).toBe(true);
+    }
+    players[0]!.turnController(gameId)!.end();
+  }, 200_000);
 
   it('plays Snakes and Ladders in a group of three with fair dice', async () => {
     const alice = await sim();

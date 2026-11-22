@@ -59,7 +59,9 @@ export function StartGameScreen({
       .then(() => setSettings(settingsFor(game)));
     // Only the first load; later picks set their own settings.
   }, [loaded]);
-  const entry = PLAYABLE.find((e) => e.id === game)!;
+  // A game for four needs a group.
+  const choices = PLAYABLE.filter((e) => isGroup || e.minPlayers <= 2);
+  const entry = choices.find((e) => e.id === game) ?? choices[0]!;
   const rules = isTurnGameId(game) ? turnRules(game) : null;
   const seats = Math.min(entry.maxPlayers, Math.max(entry.minPlayers, players));
   const pick = (next: Playable) => {
@@ -72,7 +74,13 @@ export function StartGameScreen({
     setBusy(true);
     setError(undefined);
     try {
-      const gameId = await startGame(runtime, conversationId, game, settings, isGroup ? seats : 2);
+      const gameId = await startGame(
+        runtime,
+        conversationId,
+        entry.id as Playable,
+        entry.id === game ? settings : settingsFor(entry.id as Playable),
+        isGroup ? seats : 2,
+      );
       router.replace({ pathname: '/game/[gameId]', params: { gameId } });
     } catch {
       setError('The invitation could not be sent. Try again.');
@@ -92,7 +100,7 @@ export function StartGameScreen({
             Game
           </Text>
           <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2">
-            {PLAYABLE.map((option) => {
+            {choices.map((option) => {
               const selected = option.id === game;
               return (
                 <Tap

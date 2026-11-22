@@ -49,7 +49,11 @@ export function PickChatScreen({ game }: { game: GameId }) {
   const { entries } = useConversations();
   const chats = entries
     .map((e) => e.conversation)
-    .filter((c) => !c.archived && (c.kind === 'group' || c.peerUserId));
+    // A game for four needs a group.
+    .filter(
+      (c) =>
+        !c.archived && (c.kind === 'group' || (c.peerUserId && catalogEntry(game).minPlayers <= 2)),
+    );
   if (chats.length === 0) {
     return (
       <View className="flex-1 bg-background">

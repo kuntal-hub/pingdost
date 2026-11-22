@@ -10,6 +10,7 @@ import {
   snakesPath,
   turnSeatColor,
   type AnyTurnRules,
+  type BridgeState,
   type ChessState,
   type DotsState,
   type LastCardState,
@@ -36,6 +37,12 @@ function seatDetail(rules: AnyTurnRules, state: TurnCore, seat: number): string 
   if (rules.id === 'dots-and-boxes') {
     const score = (state as DotsState).scores[seat] ?? 0;
     return `${score} ${score === 1 ? 'box' : 'boxes'}`;
+  }
+  if (rules.id === 'call-bridge') {
+    const s = state as BridgeState;
+    const total = (s.scores[seat]! / 10).toFixed(1);
+    const call = s.calls[seat]!;
+    return call > 0 ? `${total} · took ${s.tricks[seat]}/${call}` : `${total} points`;
   }
   if (rules.id === 'last-card') {
     const count = (state as LastCardState).hands[seat]?.length ?? 0;

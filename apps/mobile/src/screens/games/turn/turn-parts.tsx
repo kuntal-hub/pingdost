@@ -13,6 +13,7 @@ import {
   snakesPath,
   turnSeatColor,
   type AnyTurnRules,
+  type BridgeState,
   type ChessState,
   type DotsState,
   type LastCardState,
@@ -26,6 +27,7 @@ import {
 import { gameBoardColors } from '@pingdost/ui-tokens';
 
 import type { TurnBoardProps } from './board-props';
+import { CallBridgeBoard } from './call-bridge-board';
 import { ChessBoard, ChessPiece } from './chess-board';
 import { ConnectFourBoard } from './connect-four-board';
 import { DotsBoard } from './dots-board';
@@ -43,6 +45,7 @@ const BOARDS = {
   'snakes-and-ladders': SnakesBoard,
   chess: ChessBoard,
   'last-card': LastCardBoard,
+  'call-bridge': CallBridgeBoard,
 } as unknown as Record<TurnGameId, ComponentType<TurnBoardProps>>;
 
 export function TurnBoard({ rules, ...props }: TurnBoardProps & { rules: AnyTurnRules }) {
@@ -59,7 +62,9 @@ export function turnBoardWidth(rules: AnyTurnRules, width: number, height: numbe
         ? 0.9
         : rules.id === 'last-card'
           ? 0.75
-          : 1;
+          : rules.id === 'call-bridge'
+            ? 0.95
+            : 1;
   return Math.floor(Math.max(220, Math.min(width - 24, (height - 330) / tall, 520)));
 }
 
@@ -68,6 +73,12 @@ function seatDetail(rules: AnyTurnRules, state: TurnCore, seat: number): string 
   if (rules.id === 'dots-and-boxes') {
     const score = (state as DotsState).scores[seat] ?? 0;
     return `${score} ${score === 1 ? 'box' : 'boxes'}`;
+  }
+  if (rules.id === 'call-bridge') {
+    const s = state as BridgeState;
+    const total = (s.scores[seat]! / 10).toFixed(1);
+    const call = s.calls[seat]!;
+    return call > 0 ? `${total} · took ${s.tricks[seat]}/${call}` : `${total} points`;
   }
   if (rules.id === 'last-card') {
     const count = (state as LastCardState).hands[seat]?.length ?? 0;

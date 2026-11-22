@@ -31,7 +31,7 @@
  * Games (Phases 42–43, ADR 0049): it joins every game it is invited to and plays its own turns
  * with the Medium computer's moves. `!ludo` makes it start a Ludo game in that chat (`!ludo 4`
  * in a group: up to 4 players); `!ttt`, `!c4`, `!dots [2-4] [3-6]`, `!snakes [2-4]`, `!chess` and
- * `!lastcard [2-4]` start the other games.
+ * `!lastcard [2-4]` and `!bridge` (a group of four) start the other games.
  * `--games false` turns this off.
  */
 import { parseArgs } from 'node:util';
@@ -47,7 +47,13 @@ import { simGames, type SimGames } from './games';
 
 const QUICK_GAMES: Record<
   string,
-  'tic-tac-toe' | 'connect-four' | 'dots-and-boxes' | 'snakes-and-ladders' | 'chess' | 'last-card'
+  | 'tic-tac-toe'
+  | 'connect-four'
+  | 'dots-and-boxes'
+  | 'snakes-and-ladders'
+  | 'chess'
+  | 'last-card'
+  | 'call-bridge'
 > = {
   ttt: 'tic-tac-toe',
   c4: 'connect-four',
@@ -55,6 +61,7 @@ const QUICK_GAMES: Record<
   snakes: 'snakes-and-ladders',
   chess: 'chess',
   lastcard: 'last-card',
+  bridge: 'call-bridge',
 };
 
 const { values } = parseArgs({
@@ -127,7 +134,7 @@ async function main(): Promise<void> {
   if (values.games !== 'false') {
     games = simGames(peer, crypto, { thinkMs: 700, log: (line) => console.log(line) });
     console.log(
-      'plays games: joins invitations; `!ludo [2-4]`, `!ttt`, `!c4`, `!dots [2-4] [3-6]`, `!snakes [2-4]`, `!chess`, `!lastcard [2-4]` start one',
+      'plays games: joins invitations; `!ludo [2-4]`, `!ttt`, `!c4`, `!dots [2-4] [3-6]`, `!snakes [2-4]`, `!chess`, `!lastcard [2-4]`, `!bridge` (a group of four) start one',
     );
   }
 
@@ -240,9 +247,10 @@ async function main(): Promise<void> {
             continue;
           }
           // Phase 43: `!ttt`, `!c4`, `!dots [2-4] [3-6]` (players, boxes per side), `!snakes [2-4]`.
-          const quick = /^!(ttt|c4|dots|snakes|chess|lastcard)(?:\s+([2-4]))?(?:\s+([3-6]))?/.exec(
-            message.body,
-          );
+          const quick =
+            /^!(ttt|c4|dots|snakes|chess|lastcard|bridge)(?:\s+([2-4]))?(?:\s+([3-6]))?/.exec(
+              message.body,
+            );
           if (quick && games) {
             const type = QUICK_GAMES[quick[1]!]!;
             const settings =

@@ -15,7 +15,9 @@ export function PickChatPage() {
   const { entries, loading } = useConversations();
   const names = useNames();
   const chats = entries.filter(
-    ({ conversation: c }) => !c.archived && (c.kind === 'group' || c.peerUserId),
+    // A game for four needs a group.
+    ({ conversation: c }) =>
+      !c.archived && (c.kind === 'group' || (c.peerUserId && catalogEntry(type).minPlayers <= 2)),
   );
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 p-4 md:p-6">

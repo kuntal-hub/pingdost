@@ -23,6 +23,8 @@ export function gameTypeName(type: GameType): string {
       return 'chess';
     case GameType.LAST_CARD:
       return 'last-card';
+    case GameType.CALL_BRIDGE:
+      return 'call-bridge';
     default:
       return 'unknown';
   }

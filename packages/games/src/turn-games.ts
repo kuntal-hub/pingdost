@@ -1,4 +1,5 @@
 // Every turn game by its catalog ID (Phase 43). The apps pick a game's rules from here.
+import { CALL_BRIDGE } from './call-bridge/rules';
 import { CHESS, type ChessState } from './chess/rules';
 import { CONNECT_FOUR, connectFourColor, type ConnectFourState } from './connect-four/rules';
 import type { AnyTurnRules, TurnCore, TurnGameId } from './core/turn';
@@ -14,6 +15,7 @@ export const TURN_GAMES: Readonly<Record<TurnGameId, AnyTurnRules>> = {
   'snakes-and-ladders': SNAKES_AND_LADDERS,
   chess: CHESS,
   'last-card': LAST_CARD,
+  'call-bridge': CALL_BRIDGE,
 };
 
 export const TURN_GAME_IDS = Object.keys(TURN_GAMES) as TurnGameId[];
@@ -36,6 +38,7 @@ export function turnSeatColor(id: TurnGameId, state: TurnCore, seat: number): Se
       return connectFourColor(state as ConnectFourState, seat);
     case 'dots-and-boxes':
     case 'last-card':
+    case 'call-bridge':
       return DOTS_COLORS[seat] ?? 'red';
     case 'snakes-and-ladders':
       return SNAKES_COLORS[seat] ?? 'red';

@@ -672,7 +672,7 @@ export const LAST_CARD: TurnRules<LastCardState, LastCardMove, LastCardSettings>
       losers.map((s) => `${SEAT_COLOR_NAMES[s]} ${state.hands[s]!.length} left`).join(' · ') || null
     );
   },
-  stepMs: (step, pace) => (step.kind === 'leave' ? pace.read : pace.step + 120),
+  stepMs: (step, pace) => (step.kind === 'leave' ? pace.read : pace.step * 1.35),
   hidden: {
     seatData: lastCardSeatData,
     setupNet,

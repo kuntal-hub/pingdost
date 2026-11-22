@@ -4,6 +4,14 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-22 — Phase 46 built: Call Bridge (ADR 0052)
+1. **Call Bridge on phone and web:** 4 players, calls 1–13, follow suit or else trump, spades always trumps, 5 rounds; the call plus a tenth per extra trick, or minus the call. Solo with three computer players at Easy / Medium / Hard; with friends in a group of four.
+   - *Affects:* 46.
+2. **No timers** (slow play, like Chess): leaving ends the game for everyone, placed by the totals so far. A revoke found when the deal is shown costs the revoker their call for the round.
+   - *Affects:* 46.
+3. **Additive wire change:** `GameType.CALL_BRIDGE`, `CallBridgeSettings`, `CallBridgeMove`.
+   - *Affects:* 46.
+
 ### 2026-11-22 — Phase 45 built: hidden hands and Last Card (ADR 0052)
 1. **"UNO" is built as "Last Card"**: the same kind of shedding game (match color or number, skip, reverse, draw two, wild, wild draw four, a call with one card left), under a generic name and with PingDost's own card design, because UNO is a trademarked game. The catalog entry is renamed; you can choose another name.
    - *Affects:* 45, ROADMAP, the Games tab.

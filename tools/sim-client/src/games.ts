@@ -139,6 +139,8 @@ export function simGames(
       if (options.autoJoin !== false && view.canJoin) controller.join();
       const state = view.state;
       if (options.play === false || !state || view.waiting !== 'you') return;
+      // Hidden hands: wait until this seat's cards have arrived (a private deal travels apart).
+      if (!rules.dice && view.legal.length === 0) return;
       if (acting === state.turns) return;
       acting = state.turns;
       setTimeout(() => {

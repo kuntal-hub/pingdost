@@ -67,6 +67,10 @@ export interface CardColors {
   wild: string;
   /** The lighter disc in the middle of a face. */
   shine: string;
+  /** Phase 46: the face of a playing card, and its red and black suits. */
+  face: string;
+  red: string;
+  black: string;
 }
 
 const CARDS: CardColors = {
@@ -75,6 +79,9 @@ const CARDS: CardColors = {
   edge: '#F4F6FA',
   wild: '#1B1F27',
   shine: 'rgba(255, 255, 255, 0.22)',
+  face: '#FFFFFF',
+  red: '#C8141C',
+  black: '#16191F',
 };
 
 export interface ChessPieceLook {

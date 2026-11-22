@@ -221,6 +221,17 @@ describe('color schemes', () => {
     }
   });
 
+  // Cards (Phases 45–46): suits read as text on a card's face; the white edge stands out from a
+  // wild card and a card's back.
+  it('keeps playing cards readable', () => {
+    const { cards } = gameBoardColors(false);
+    expect(contrast(cards.red, cards.face)).toBeGreaterThanOrEqual(AA);
+    expect(contrast(cards.black, cards.face)).toBeGreaterThanOrEqual(AA);
+    expect(contrast(cards.edge, cards.wild)).toBeGreaterThanOrEqual(UI);
+    expect(contrast(cards.edge, cards.back)).toBeGreaterThanOrEqual(UI);
+    expect(gameBoardColors(true).cards).toEqual(cards);
+  });
+
   // Chess (Phase 44): every piece's outline reads on both squares, black pieces stand out from
   // the dark squares, the coordinates are readable text, and the two squares differ.
   it('keeps the chess board readable', () => {

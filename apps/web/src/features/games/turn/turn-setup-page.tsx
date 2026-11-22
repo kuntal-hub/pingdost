@@ -42,6 +42,11 @@ const LEVEL_DETAIL: Partial<Record<TurnGameId, Record<BotLevel, string>>> = {
     medium: 'Saves wilds, and hits the next player when they are close to out.',
     hard: 'Also keeps to its strongest color and plays draw four early on a threat.',
   },
+  'call-bridge': {
+    easy: 'Plays any card it may and calls loosely.',
+    medium: 'Calls from its high cards and trumps, and wins tricks only when it needs them.',
+    hard: 'Plays out sample deals of the unseen cards to pick each card.',
+  },
   chess: {
     easy: 'Looks one move ahead and often picks a weaker move.',
     medium: 'Looks about three moves ahead.',
@@ -64,18 +69,19 @@ function Setup({ game }: { game: TurnGameId }) {
     turnSetupOf(useGames.getState(), game),
   );
   const most = rules.maxPlayers - 1;
+  const least = Math.max(1, rules.minPlayers - 1);
   const detail = LEVEL_DETAIL[game]?.[options.level];
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5 p-4 md:p-6">
       <h1 className="font-display text-2xl font-extrabold">Play {catalogEntry(game).name}</h1>
-      {most > 1 && (
+      {most > least && (
         <section className="flex flex-col gap-2">
           <h2 className="font-bold text-muted">Computer players</h2>
           <Segmented
             label="Computer players"
-            options={Array.from({ length: most }, (_, i) => ({
-              id: String(i + 1),
-              label: String(i + 1),
+            options={Array.from({ length: most - least + 1 }, (_, i) => ({
+              id: String(i + least),
+              label: String(i + least),
             }))}
             value={String(options.computers)}
             onChange={(id) => setOptions({ ...options, computers: Number(id) })}

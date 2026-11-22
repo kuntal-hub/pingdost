@@ -17,6 +17,26 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-22 — Phase 46: Call Bridge — 🔄 code done, browser and phone runs open
+**Done:** details in the phase file and ADR 0052.
+- Rules (calls, follow suit or trump, spades trumps, scoring in tenths, five rounds, rotating dealer), computer players (call estimates; Medium heuristics; Hard samples hidden hands), the dealer's private deals, per-card proofs, and the end-of-round reveal with deal and revoke checks.
+- Tables on phone and web (trick by seat, sorted hand, call picker, scores); suit shapes and card colors in ui-tokens; four-player games offered only in groups; solo with exactly three computer players.
+- Sim peer `!bridge`; sim players wait until their private hand has arrived.
+
+**Remaining:**
+- [ ] Web and phone: Call Bridge solo at each level, and a friend game in a group of four with three `sim-client peer`s (`!bridge`).
+- [ ] The open runs of Phases 43–45.
+
+**Deviations / decisions:** CHANGES 2026-11-22 (Phase 46): no timers; leaving ends the game; a revoke costs the call.
+
+**Verification results:**
+- Repo-wide: typecheck 22/22, lint 22/22, `turbo run test` 18/18 (games 134 tests in about 90 s, including Call Bridge 8 and a four-player five-round game over the fold), format clean.
+- `games.int.test.ts`: Call Bridge (two rounds, four sim clients, private deals over Olm, deals checked) and Last Card pass through the real server.
+- Fixed on the way: step pauses now scale with the pace (a fixed 900 ms trick pause ignored Motion Off and the tests' zero pace).
+- **Not run:** Metro bundling and any browser or phone run.
+
+**Next:** the open device runs of 43–46, then Phase 47 (Poker, on the rotating dealer).
+
 ## 2026-11-22 — Phase 45: hidden hands + Last Card (UNO-style) — 🔄 code done, browser and phone runs open
 **Done:** details in the phase file and ADR 0052.
 - Dealing: Last Card self-deals (each seat commits to 128 draw secrets at join; cards revealed with their secret and checked); a rotating dealer is designed for Call Bridge and Poker. Engine: private `deal` events to one device over Olm (`sendGameEvent(…, { to })`), kept by receivers as game events only, accepted from group co-members outside the circle.
