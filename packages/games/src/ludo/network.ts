@@ -11,7 +11,7 @@
 // - Three skips in a row and the player is out. A leave takes effect at the leaver's next slot.
 //   The host's `end` stops the game for everyone; later events are ignored.
 // - Dice: `fair-dice.ts`. Moves and skips carry the resulting state's hash, so a desync shows.
-import { bytesToUuid, decodeGame, fromBase64, GameType, type Game } from '@pingdost/protocol';
+import { bytesToUuid, GameType, type Game } from '@pingdost/protocol';
 
 import { LUDO_COLORS, type LudoColor } from './board';
 import { chooseLudoToken } from './bot';
@@ -36,30 +36,20 @@ import {
   stateHash,
   type Sha256,
 } from '../core/fair-dice';
+import {
+  decodeGameEvents,
+  foldLobby,
+  gameEmotes,
+  samePlayer as same,
+  type DecodedGameEvent as Decoded,
+  type NetEmote,
+  type GameEventLike,
+  type GamePlayerRef,
+  type LobbyEntry,
+} from '../core/net';
 import { seededRandom } from '../core/random';
 
-/** A stored game event (the engine's `GameEventRecord` has this shape). */
-export interface GameEventLike {
-  eventId: string;
-  gameId: string;
-  senderUserId: string;
-  senderDeviceId: string;
-  sentAt: number;
-  receivedAt: number;
-  /** The `Game` message, protobuf in base64. */
-  payload: string;
-}
-
-export interface GamePlayerRef {
-  userId: string;
-  deviceId: string;
-}
-
-export interface LudoLobbyEntry extends GamePlayerRef {
-  eventId: string;
-  anchor: Uint8Array;
-  salt: Uint8Array;
-}
+export type LudoLobbyEntry = LobbyEntry;
 
 export interface LudoNetSeat extends GamePlayerRef {
   color: LudoColor;
@@ -82,11 +72,7 @@ export interface LudoNetEntry {
   move?: MoveResult;
 }
 
-export interface LudoEmote extends GamePlayerRef {
-  eventId: string;
-  emoji: string;
-  receivedAt: number;
-}
+export type LudoEmote = NetEmote;
 
 /**
  * `missing`: the `create` has not arrived. `invalid`: the game cannot be played (a bad start).
@@ -169,40 +155,6 @@ export function ludoSettingsFromWire(game: Game): LudoSettings {
   };
 }
 
-interface Decoded {
-  eventId: string;
-  userId: string;
-  deviceId: string;
-  sentAt: number;
-  receivedAt: number;
-  game: Game;
-}
-
-function decodeAll(events: readonly GameEventLike[]): Decoded[] {
-  const seen = new Set<string>();
-  const out: Decoded[] = [];
-  for (const e of events) {
-    if (seen.has(e.eventId)) continue;
-    seen.add(e.eventId);
-    try {
-      out.push({
-        eventId: e.eventId,
-        userId: e.senderUserId,
-        deviceId: e.senderDeviceId,
-        sentAt: e.sentAt,
-        receivedAt: e.receivedAt,
-        game: decodeGame(fromBase64(e.payload)),
-      });
-    } catch {
-      // A malformed event never counts.
-    }
-  }
-  return out.sort((a, b) => (a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0));
-}
-
-const same = (a: GamePlayerRef, b: GamePlayerRef) =>
-  a.userId === b.userId && a.deviceId === b.deviceId;
-
 function emptyGame(gameId: string): LudoNetGame {
   return {
     gameId,
@@ -233,68 +185,25 @@ export function foldLudoGame(
   events: readonly GameEventLike[],
   sha256: Sha256,
 ): LudoNetGame {
-  const all = decodeAll(events);
+  const all = decodeGameEvents(events);
   const game = emptyGame(gameId);
-  game.emotes = all.flatMap((e) =>
-    e.game.event.case === 'emote'
-      ? [
-          {
-            eventId: e.eventId,
-            userId: e.userId,
-            deviceId: e.deviceId,
-            emoji: e.game.event.value.emoji,
-            receivedAt: e.receivedAt,
-          },
-        ]
-      : [],
-  );
+  game.emotes = gameEmotes(all);
 
-  const create = all.find((e) => e.eventId === gameId && e.game.event.case === 'create');
-  if (!create || create.game.event.case !== 'create') return game;
-  if (create.game.event.value.type !== GameType.LUDO) {
+  const folded = foldLobby(gameId, all);
+  if (!folded) return game;
+  const { create, end, live, start, lobby } = folded;
+  if (folded.body.type !== GameType.LUDO) {
     return { ...game, phase: 'invalid', invalid: 'not a Ludo game' };
   }
-  const host: GamePlayerRef = { userId: create.userId, deviceId: create.deviceId };
-  game.host = host;
-  game.maxPlayers = create.game.event.value.maxPlayers;
+  game.host = folded.host;
+  game.maxPlayers = folded.body.maxPlayers;
   game.settings = ludoSettingsFromWire(create.game);
   game.createdAt = create.sentAt;
-  const isHost = (e: Decoded) => same(e, host);
-  const end = all.find((e) => e.game.event.case === 'end' && isHost(e));
-  const cutoff = end?.eventId;
-  const live = cutoff === undefined ? all : all.filter((e) => e.eventId <= cutoff);
-
-  // The lobby: the host, then one join per person; a leave before the start takes it back.
-  const lobby: LudoLobbyEntry[] = [
-    {
-      ...host,
-      eventId: create.eventId,
-      anchor: create.game.event.value.anchor,
-      salt: create.game.event.value.salt,
-    },
-  ];
-  for (const e of live) {
-    if (e.game.event.case !== 'join') continue;
-    if (lobby.some((entry) => entry.userId === e.userId || entry.deviceId === e.deviceId)) continue;
-    lobby.push({
-      userId: e.userId,
-      deviceId: e.deviceId,
-      eventId: e.eventId,
-      anchor: e.game.event.value.anchor,
-      salt: e.game.event.value.salt,
-    });
-  }
-  const start = live.find((e) => e.game.event.case === 'start' && isHost(e));
+  game.lobby = lobby;
   if (!start || start.game.event.case !== 'start') {
-    const left = (entry: LudoLobbyEntry) =>
-      live.some(
-        (e) => e.game.event.case === 'leave' && same(e, entry) && e.eventId > entry.eventId,
-      );
-    game.lobby = lobby.filter((entry, i) => i === 0 || !left(entry));
-    game.phase = end || left(lobby[0]!) ? 'ended' : 'lobby';
+    game.phase = end || folded.hostLeft ? 'ended' : 'lobby';
     return game;
   }
-  game.lobby = lobby;
 
   // The seats, as the start fixed them.
   const wireSeats = start.game.event.value.seats;

@@ -470,6 +470,46 @@ export function createVectors(): ProtocolVectors {
         },
       }),
     ),
+    // Phase 43: a quick game's invitation and a move.
+    vector(
+      'content/game-dots',
+      ContentSchema,
+      content({
+        case: 'game',
+        value: {
+          gameId: id(0xa2),
+          event: {
+            case: 'create',
+            value: {
+              type: GameType.DOTS_AND_BOXES,
+              maxPlayers: 3,
+              settings: { case: 'dots', value: { size: 5 } },
+              anchor: filler(32, 35),
+              salt: filler(16, 36),
+            },
+          },
+        },
+      }),
+    ),
+    vector(
+      'content/game-move-connect-four',
+      ContentSchema,
+      content({
+        case: 'game',
+        value: {
+          gameId: id(0xa3),
+          turn: 4,
+          event: {
+            case: 'move',
+            value: {
+              salt: filler(16, 37),
+              stateHash: filler(8, 38),
+              play: { case: 'connectFour', value: { column: 3 } },
+            },
+          },
+        },
+      }),
+    ),
 
     // ClientFrame, one per body.
     vector(

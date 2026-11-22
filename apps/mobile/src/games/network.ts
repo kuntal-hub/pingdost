@@ -1,4 +1,4 @@
-// Games with friends on the phone (Phase 42, ADR 0049): hooks over the chat engine, the same
+// Games with friends on the phone (Phases 42–43, ADR 0049): hooks over the chat engine, the same
 // shape as the web's (`apps/web/src/features/games/network.ts`). Each game's events are folded
 // here (`@pingdost/games`); the engine stores and sends them, and keeps this device's seat
 // secret with the game in the encrypted database.
@@ -8,17 +8,27 @@ import { getCryptoContext } from '@/crypto/bootstrap';
 import { useChatRuntime } from '@/engine/hooks';
 import type { ChatRuntime } from '@/engine/runtime';
 import {
+  anyGameSummary,
   createLudoEvent,
-  foldLudoGame,
-  ludoGameSummary,
+  createTurnEvent,
+  foldAnyGame,
+  isTurnGameId,
   LudoNetController,
+  turnRules,
+  TurnNetController,
+  type AnyNetGame,
+  type AnyTurnRules,
+  type GameEventLike,
   type GameSummary,
-  type LudoNetGame,
   type LudoNetView,
   type LudoPace,
   type LudoSettings,
   type NameOf,
   type Sha256,
+  type TurnCore,
+  type TurnGameId,
+  type TurnNetView,
+  type TurnPace,
 } from '@pingdost/games';
 import type { GameRecord } from '@pingdost/message-engine';
 
@@ -41,22 +51,37 @@ export function useSha256(): Sha256 | undefined {
   return sha256;
 }
 
+/** Starts a game in a chat (an invitation card); returns its ID. */
+export async function startGame(
+  runtime: ChatRuntime,
+  conversationId: string,
+  type: 'ludo' | TurnGameId,
+  settings: unknown,
+  maxPlayers: number,
+): Promise<string> {
+  const { provider } = await getCryptoContext();
+  const sha256: Sha256 = (d) => provider.sha256(d);
+  const { event, seatSeed } =
+    type === 'ludo'
+      ? createLudoEvent(sha256, settings as LudoSettings, maxPlayers)
+      : createTurnEvent(turnRules(type), sha256, settings, maxPlayers);
+  const sent = await runtime.engine.sendGameEvent(conversationId, event, { seatSeed });
+  return sent.gameId;
+}
+
 /** Starts a Ludo game in a chat; returns its ID. */
-export async function startLudoGame(
+export function startLudoGame(
   runtime: ChatRuntime,
   conversationId: string,
   settings: LudoSettings,
   maxPlayers: number,
 ): Promise<string> {
-  const { provider } = await getCryptoContext();
-  const { event, seatSeed } = createLudoEvent((d) => provider.sha256(d), settings, maxPlayers);
-  const sent = await runtime.engine.sendGameEvent(conversationId, event, { seatSeed });
-  return sent.gameId;
+  return startGame(runtime, conversationId, 'ludo', settings, maxPlayers);
 }
 
 export interface GameEntry {
   record: GameRecord;
-  game: LudoNetGame;
+  folded: AnyNetGame | null;
   summary: GameSummary;
 }
 
@@ -74,12 +99,13 @@ export function useGameList(names?: NameOf): GameEntry[] {
       const records = await runtime.engine.listGames();
       const next = await Promise.all(
         records.map(async (record) => {
-          const game = foldLudoGame(
+          const folded = foldAnyGame(
+            record.gameType,
             record.gameId,
             await runtime.engine.listGameEvents(record.gameId),
             sha256,
           );
-          return { record, game, summary: ludoGameSummary(game, self, names) };
+          return { record, folded, summary: anyGameSummary(folded, self, names) };
         }),
       );
       if (live) setEntries(next);
@@ -103,17 +129,23 @@ export function useGameList(names?: NameOf): GameEntry[] {
   return entries;
 }
 
-/** One game's line for its card in the chat. */
-export function useGameSummary(gameId: string, names?: NameOf): GameSummary | null {
+/** One game folded, kept current: its card in the chat, the game route's choice of screen. */
+export function useGameEntry(gameId: string, names?: NameOf): GameEntry | null {
   const runtime = useChatRuntime();
   const sha256 = useSha256();
-  const [game, setGame] = useState<LudoNetGame | null>(null);
+  const [entry, setEntry] = useState<{ record: GameRecord; folded: AnyNetGame | null } | null>(
+    null,
+  );
   useEffect(() => {
     if (!runtime || !sha256) return;
     let live = true;
     const load = async () => {
-      const folded = foldLudoGame(gameId, await runtime.engine.listGameEvents(gameId), sha256);
-      if (live) setGame(folded);
+      const [record, events] = await Promise.all([
+        runtime.engine.getGame(gameId),
+        runtime.engine.listGameEvents(gameId),
+      ]);
+      if (!live || !record) return;
+      setEntry({ record, folded: foldAnyGame(record.gameType, gameId, events, sha256) });
     };
     void load();
     const off = runtime.engine.onGameEvent((event) => {
@@ -124,30 +156,67 @@ export function useGameSummary(gameId: string, names?: NameOf): GameSummary | nu
       off();
     };
   }, [runtime, sha256, gameId]);
-  if (!game || !runtime) return null;
-  return ludoGameSummary(game, { userId: runtime.userId, deviceId: runtime.deviceId }, names);
+  if (!entry || !runtime) return null;
+  const self = { userId: runtime.userId, deviceId: runtime.deviceId };
+  return { ...entry, summary: anyGameSummary(entry.folded, self, names) };
+}
+
+/** One game's line for its card in the chat. */
+export function useGameSummary(gameId: string, names?: NameOf): GameSummary | null {
+  return useGameEntry(gameId, names)?.summary ?? null;
+}
+
+/** The game's record (type, chat), kept current, for routing to its screen. */
+export function useGameRecord(gameId: string): GameRecord | null | undefined {
+  const runtime = useChatRuntime();
+  const [record, setRecord] = useState<GameRecord | null | undefined>(undefined);
+  useEffect(() => {
+    if (!runtime) return;
+    let live = true;
+    const load = async () => {
+      const found = await runtime.engine.getGame(gameId);
+      if (live) setRecord(found ?? null);
+    };
+    void load();
+    const off = runtime.engine.onGameEvent((event) => {
+      if (event.gameId === gameId) void load();
+    });
+    return () => {
+      live = false;
+      off();
+    };
+  }, [runtime, gameId]);
+  return record;
 }
 
 /**
- * A game with friends for its screen: the controller (created in an effect, so a discarded
- * render never starts timers), kept current by the game's events.
+ * A controller for a game with friends, created in an effect (so a discarded render never
+ * starts timers) and kept current by the game's events.
  */
-export function useLudoNetGame(
+interface NetController {
+  update(events: readonly GameEventLike[], seatSeed?: string | null): void;
+  dispose(): void;
+}
+
+function useNetController<C extends NetController>(
   gameId: string,
-  pace: LudoPace,
-  autoMove: boolean,
-): { controller: LudoNetController | null; view: LudoNetView | null; record: GameRecord | null } {
+  make: (args: {
+    runtime: ChatRuntime;
+    sha256: Sha256;
+    record: GameRecord;
+    events: Awaited<ReturnType<ChatRuntime['engine']['listGameEvents']>>;
+  }) => C,
+): { controller: C | null; record: GameRecord | null } {
   const runtime = useChatRuntime();
   const sha256 = useSha256();
-  const [controller, setController] = useState<LudoNetController | null>(null);
+  const [controller, setController] = useState<C | null>(null);
   const [record, setRecord] = useState<GameRecord | null>(null);
-  const latestPace = useLatest(pace);
-  const latestAutoMove = useLatest(autoMove);
+  const latestMake = useLatest(make);
 
   useEffect(() => {
     if (!runtime || !sha256) return;
     let live = true;
-    let created: LudoNetController | null = null;
+    let created: C | null = null;
     let reloads = Promise.resolve();
     const reload = () => {
       reloads = reloads
@@ -162,19 +231,7 @@ export function useLudoNetGame(
             created.update(events, stored.seatSeed);
             return;
           }
-          created = new LudoNetController({
-            gameId,
-            events,
-            seatSeed: stored.seatSeed,
-            pace: latestPace.current,
-            autoMove: latestAutoMove.current,
-            port: {
-              self: { userId: runtime.userId, deviceId: runtime.deviceId },
-              sha256,
-              send: (event, options) =>
-                runtime.engine.sendGameEvent(stored.conversationId, event, options),
-            },
-          });
+          created = latestMake.current({ runtime, sha256, record: stored, events });
           setController(created);
         })
         .catch(() => undefined);
@@ -190,15 +247,90 @@ export function useLudoNetGame(
       setController(null);
     };
   }, [runtime, sha256, gameId]);
-  useEffect(() => controller?.setPace(pace), [controller, pace]);
-  useEffect(() => controller?.setAutoMove(autoMove), [controller, autoMove]);
+  return { controller, record };
+}
 
+function useView<V>(
+  controller: {
+    subscribe(listener: () => void): () => void;
+    getView(): V;
+  } | null,
+): V | null {
   const subscribe = useCallback(
     (listener: () => void) => controller?.subscribe(listener) ?? (() => undefined),
     [controller],
   );
-  const view = useSyncExternalStore(subscribe, () => controller?.getView() ?? null);
-  return { controller, view, record };
+  return useSyncExternalStore(subscribe, () => controller?.getView() ?? null);
+}
+
+/** A Ludo game with friends for its screen. */
+export function useLudoNetGame(
+  gameId: string,
+  pace: LudoPace,
+  autoMove: boolean,
+): { controller: LudoNetController | null; view: LudoNetView | null; record: GameRecord | null } {
+  const latestPace = useLatest(pace);
+  const latestAutoMove = useLatest(autoMove);
+  const { controller, record } = useNetController(
+    gameId,
+    ({ runtime, sha256, record: stored, events }) =>
+      new LudoNetController({
+        gameId,
+        events,
+        seatSeed: stored.seatSeed,
+        pace: latestPace.current,
+        autoMove: latestAutoMove.current,
+        port: {
+          self: { userId: runtime.userId, deviceId: runtime.deviceId },
+          sha256,
+          send: (event, options) =>
+            runtime.engine.sendGameEvent(stored.conversationId, event, options),
+        },
+      }),
+  );
+  useEffect(() => controller?.setPace(pace), [controller, pace]);
+  useEffect(() => controller?.setAutoMove(autoMove), [controller, autoMove]);
+  return { controller, view: useView(controller), record };
+}
+
+export type AnyTurnNetController = TurnNetController<TurnCore, unknown, unknown>;
+export type AnyTurnNetView = TurnNetView<TurnCore, unknown, unknown>;
+
+/** A turn game with friends (Phase 43) for its screen. */
+export function useTurnNetGame(
+  gameId: string,
+  rules: AnyTurnRules,
+  pace: TurnPace,
+): {
+  controller: AnyTurnNetController | null;
+  view: AnyTurnNetView | null;
+  record: GameRecord | null;
+} {
+  const latestPace = useLatest(pace);
+  const { controller, record } = useNetController(
+    gameId,
+    ({ runtime, sha256, record: stored, events }) =>
+      new TurnNetController({
+        rules,
+        gameId,
+        events,
+        seatSeed: stored.seatSeed,
+        pace: latestPace.current,
+        port: {
+          self: { userId: runtime.userId, deviceId: runtime.deviceId },
+          sha256,
+          send: (event, options) =>
+            runtime.engine.sendGameEvent(stored.conversationId, event, options),
+        },
+      }),
+  );
+  useEffect(() => controller?.setPace(pace), [controller, pace]);
+  return { controller, view: useView(controller), record };
+}
+
+/** The rules of a turn game type, or null for Ludo and unknown types. */
+export function turnRulesOf(type: string | undefined): AnyTurnRules | null {
+  return type && isTurnGameId(type) ? turnRules(type) : null;
 }
 
 function useLatest<T>(value: T): { current: T } {

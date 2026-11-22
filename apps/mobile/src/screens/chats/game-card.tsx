@@ -1,13 +1,14 @@
-// A game invitation in a chat (Phase 42, ADR 0049): which game, how it stands, and a button to
-// join, play or watch. Its line updates as the game's events arrive.
+// A game invitation in a chat (Phases 42–43, ADR 0049): which game, how it stands, and a button
+// to join, play or watch. Its line updates as the game's events arrive.
 import { router } from 'expo-router';
 import { View } from 'react-native';
 
-import { DicesIcon, Icon } from '@/components/icon';
+import { DicesIcon, GAME_ICONS, Icon } from '@/components/icon';
 import { Tap } from '@/components/tap';
 import { Text } from '@/components/text';
 import { useGameSummary } from '@/games/network';
 import type { Names } from '@pingdost/chat-core';
+import { catalogEntry, gameTypeLabel, isPlayableGameType } from '@pingdost/games';
 import { readGameCard, type MessageRecord } from '@pingdost/message-engine';
 
 export function GameCard({
@@ -24,6 +25,8 @@ export function GameCard({
     id === names.selfUserId ? 'You' : names.name(id),
   );
   if (!card) return null;
+  const title = gameTypeLabel(card.type);
+  const icon = isPlayableGameType(card.type) ? GAME_ICONS[catalogEntry(card.type).icon] : DicesIcon;
   const action =
     summary?.state === 'invite'
       ? 'Join'
@@ -46,11 +49,11 @@ export function GameCard({
           outgoing ? 'bg-on-primary/15' : 'bg-raised'
         }`}
       >
-        <Icon icon={DicesIcon} size={24} color={outgoing ? 'on-primary' : 'accent'} />
+        <Icon icon={icon} size={24} color={outgoing ? 'on-primary' : 'accent'} />
       </View>
       <View className="min-w-0 flex-1">
         <Text className={`text-base font-bold ${outgoing ? 'text-on-primary' : 'text-foreground'}`}>
-          Ludo
+          {title}
         </Text>
         <Text
           numberOfLines={1}
@@ -61,7 +64,7 @@ export function GameCard({
       </View>
       <Tap
         accessibilityRole="button"
-        accessibilityLabel={`${action} Ludo`}
+        accessibilityLabel={`${action} ${title}`}
         feedback="light"
         onPress={open}
         className={`rounded-full px-4 py-2 ${outgoing ? 'bg-on-primary' : 'bg-primary'}`}

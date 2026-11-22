@@ -197,6 +197,30 @@ describe('color schemes', () => {
     expect(new Set(Object.values(gamePlayerShapes)).size).toBe(gamePlayerColors.length);
   });
 
+  // Phase 43 boards: ladders, snakes and square numbers read on both cell colors, the Connect
+  // Four frame stands out from its holes, the dots from the board.
+  it('keeps the quick-game boards readable', () => {
+    for (const dark of [false, true]) {
+      const board = gameBoardColors(dark);
+      const label = dark ? 'dark' : 'light';
+      for (const cell of [board.cell, board.cellAlt]) {
+        expect(contrast(board.label, cell), `${label} label`).toBeGreaterThanOrEqual(AA);
+        expect(contrast(board.ladder, cell), `${label} ladder`).toBeGreaterThanOrEqual(UI);
+        for (const snake of board.snakes) {
+          expect(contrast(snake, cell), `${label} snake ${snake}`).toBeGreaterThanOrEqual(UI);
+        }
+        for (const color of gamePlayerColors) {
+          expect(
+            contrast(board.players[color].ring, cell),
+            `${label} ${color}`,
+          ).toBeGreaterThanOrEqual(UI);
+        }
+      }
+      expect(contrast(board.frame, board.board), `${label} frame`).toBeGreaterThanOrEqual(UI);
+      expect(contrast(board.dot, board.board), `${label} dot`).toBeGreaterThanOrEqual(UI);
+    }
+  });
+
   it('keeps avatar initials readable and stable', () => {
     for (const seed of ['Ana', 'kuntal', 'Group of friends', '@x', 'न', 'long name here']) {
       const { from, to, on } = avatarColors(seed);

@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file pingdost/v1/games.proto.
  */
 export const file_pingdost_v1_games: GenFile = /*@__PURE__*/
-  fileDesc("ChdwaW5nZG9zdC92MS9nYW1lcy5wcm90bxILcGluZ2Rvc3QudjEipAMKBEdhbWUSDwoHZ2FtZV9pZBgBIAEoDBIMCgR0dXJuGAIgASgNEg0KBWluZGV4GAMgASgNEikKBmNyZWF0ZRgEIAEoCzIXLnBpbmdkb3N0LnYxLkdhbWVDcmVhdGVIABIlCgRqb2luGAUgASgLMhUucGluZ2Rvc3QudjEuR2FtZUpvaW5IABInCgVzdGFydBgGIAEoCzIWLnBpbmdkb3N0LnYxLkdhbWVTdGFydEgAEiUKBHJvbGwYByABKAsyFS5waW5nZG9zdC52MS5HYW1lUm9sbEgAEiUKBG1vdmUYCCABKAsyFS5waW5nZG9zdC52MS5HYW1lTW92ZUgAEiUKBHNraXAYCSABKAsyFS5waW5nZG9zdC52MS5HYW1lU2tpcEgAEicKBWxlYXZlGAogASgLMhYucGluZ2Rvc3QudjEuR2FtZUxlYXZlSAASIwoDZW5kGAsgASgLMhQucGluZ2Rvc3QudjEuR2FtZUVuZEgAEicKBWVtb3RlGAwgASgLMhYucGluZ2Rvc3QudjEuR2FtZUVtb3RlSABCBwoFZXZlbnQimwEKCkdhbWVDcmVhdGUSIwoEdHlwZRgBIAEoDjIVLnBpbmdkb3N0LnYxLkdhbWVUeXBlEhMKC21heF9wbGF5ZXJzGAIgASgNEikKBGx1ZG8YAyABKAsyGS5waW5nZG9zdC52MS5MdWRvU2V0dGluZ3NIABIOCgZhbmNob3IYBCABKAwSDAoEc2FsdBgFIAEoDEIKCghzZXR0aW5ncyJYCgxMdWRvU2V0dGluZ3MSFwoPYW55X3JvbGxfc3RhcnRzGAEgASgIEhEKCWJsb2NrYWRlcxgCIAEoCBIcChRzdG9wX2F0X2ZpcnN0X3dpbm5lchgDIAEoCCIoCghHYW1lSm9pbhIOCgZhbmNob3IYASABKAwSDAoEc2FsdBgCIAEoDCIxCglHYW1lU3RhcnQSJAoFc2VhdHMYASADKAsyFS5waW5nZG9zdC52MS5HYW1lU2VhdCJbCghHYW1lU2VhdBIPCgd1c2VyX2lkGAEgASgMEhEKCWRldmljZV9pZBgCIAEoDBINCgVjb2xvchgDIAEoDRIOCgZhbmNob3IYBCABKAwSDAoEc2FsdBgFIAEoDCIoCghHYW1lUm9sbBIOCgZyZXZlYWwYASABKAwSDAoEc2FsdBgCIAEoDCI7CghHYW1lTW92ZRINCgV0b2tlbhgBIAEoDRIMCgRzYWx0GAIgASgMEhIKCnN0YXRlX2hhc2gYAyABKAwiLAoIR2FtZVNraXASDAoEc2FsdBgBIAEoDBISCgpzdGF0ZV9oYXNoGAIgASgMIgsKCUdhbWVMZWF2ZSIJCgdHYW1lRW5kIhoKCUdhbWVFbW90ZRINCgVlbW9qaRgBIAEoCSo5CghHYW1lVHlwZRIZChVHQU1FX1RZUEVfVU5TUEVDSUZJRUQQABISCg5HQU1FX1RZUEVfTFVETxABYgZwcm90bzM");
+  fileDesc("ChdwaW5nZG9zdC92MS9nYW1lcy5wcm90bxILcGluZ2Rvc3QudjEipAMKBEdhbWUSDwoHZ2FtZV9pZBgBIAEoDBIMCgR0dXJuGAIgASgNEg0KBWluZGV4GAMgASgNEikKBmNyZWF0ZRgEIAEoCzIXLnBpbmdkb3N0LnYxLkdhbWVDcmVhdGVIABIlCgRqb2luGAUgASgLMhUucGluZ2Rvc3QudjEuR2FtZUpvaW5IABInCgVzdGFydBgGIAEoCzIWLnBpbmdkb3N0LnYxLkdhbWVTdGFydEgAEiUKBHJvbGwYByABKAsyFS5waW5nZG9zdC52MS5HYW1lUm9sbEgAEiUKBG1vdmUYCCABKAsyFS5waW5nZG9zdC52MS5HYW1lTW92ZUgAEiUKBHNraXAYCSABKAsyFS5waW5nZG9zdC52MS5HYW1lU2tpcEgAEicKBWxlYXZlGAogASgLMhYucGluZ2Rvc3QudjEuR2FtZUxlYXZlSAASIwoDZW5kGAsgASgLMhQucGluZ2Rvc3QudjEuR2FtZUVuZEgAEicKBWVtb3RlGAwgASgLMhYucGluZ2Rvc3QudjEuR2FtZUVtb3RlSABCBwoFZXZlbnQi5gIKCkdhbWVDcmVhdGUSIwoEdHlwZRgBIAEoDjIVLnBpbmdkb3N0LnYxLkdhbWVUeXBlEhMKC21heF9wbGF5ZXJzGAIgASgNEikKBGx1ZG8YAyABKAsyGS5waW5nZG9zdC52MS5MdWRvU2V0dGluZ3NIABI1Cgt0aWNfdGFjX3RvZRgGIAEoCzIeLnBpbmdkb3N0LnYxLlRpY1RhY1RvZVNldHRpbmdzSAASOAoMY29ubmVjdF9mb3VyGAcgASgLMiAucGluZ2Rvc3QudjEuQ29ubmVjdEZvdXJTZXR0aW5nc0gAEikKBGRvdHMYCCABKAsyGS5waW5nZG9zdC52MS5Eb3RzU2V0dGluZ3NIABItCgZzbmFrZXMYCSABKAsyGy5waW5nZG9zdC52MS5TbmFrZXNTZXR0aW5nc0gAEg4KBmFuY2hvchgEIAEoDBIMCgRzYWx0GAUgASgMQgoKCHNldHRpbmdzIlgKDEx1ZG9TZXR0aW5ncxIXCg9hbnlfcm9sbF9zdGFydHMYASABKAgSEQoJYmxvY2thZGVzGAIgASgIEhwKFHN0b3BfYXRfZmlyc3Rfd2lubmVyGAMgASgIIhMKEVRpY1RhY1RvZVNldHRpbmdzIhUKE0Nvbm5lY3RGb3VyU2V0dGluZ3MiHAoMRG90c1NldHRpbmdzEgwKBHNpemUYASABKA0iPgoOU25ha2VzU2V0dGluZ3MSFwoPc2l4X3JvbGxzX2FnYWluGAEgASgIEhMKC2JvdW5jZV9iYWNrGAIgASgIIigKCEdhbWVKb2luEg4KBmFuY2hvchgBIAEoDBIMCgRzYWx0GAIgASgMIjEKCUdhbWVTdGFydBIkCgVzZWF0cxgBIAMoCzIVLnBpbmdkb3N0LnYxLkdhbWVTZWF0IlsKCEdhbWVTZWF0Eg8KB3VzZXJfaWQYASABKAwSEQoJZGV2aWNlX2lkGAIgASgMEg0KBWNvbG9yGAMgASgNEg4KBmFuY2hvchgEIAEoDBIMCgRzYWx0GAUgASgMIjwKCEdhbWVSb2xsEg4KBnJldmVhbBgBIAEoDBIMCgRzYWx0GAIgASgMEhIKCnN0YXRlX2hhc2gYAyABKAwi0wEKCEdhbWVNb3ZlEg0KBXRva2VuGAEgASgNEgwKBHNhbHQYAiABKAwSEgoKc3RhdGVfaGFzaBgDIAEoDBIxCgt0aWNfdGFjX3RvZRgEIAEoCzIaLnBpbmdkb3N0LnYxLlRpY1RhY1RvZU1vdmVIABI0Cgxjb25uZWN0X2ZvdXIYBSABKAsyHC5waW5nZG9zdC52MS5Db25uZWN0Rm91ck1vdmVIABIlCgRkb3RzGAYgASgLMhUucGluZ2Rvc3QudjEuRG90c01vdmVIAEIGCgRwbGF5Ih0KDVRpY1RhY1RvZU1vdmUSDAoEY2VsbBgBIAEoDSIhCg9Db25uZWN0Rm91ck1vdmUSDgoGY29sdW1uGAEgASgNIhgKCERvdHNNb3ZlEgwKBGxpbmUYASABKA0iLAoIR2FtZVNraXASDAoEc2FsdBgBIAEoDBISCgpzdGF0ZV9oYXNoGAIgASgMIgsKCUdhbWVMZWF2ZSIJCgdHYW1lRW5kIhoKCUdhbWVFbW90ZRINCgVlbW9qaRgBIAEoCSqwAQoIR2FtZVR5cGUSGQoVR0FNRV9UWVBFX1VOU1BFQ0lGSUVEEAASEgoOR0FNRV9UWVBFX0xVRE8QARIZChVHQU1FX1RZUEVfVElDX1RBQ19UT0UQAhIaChZHQU1FX1RZUEVfQ09OTkVDVF9GT1VSEAMSHAoYR0FNRV9UWVBFX0RPVFNfQU5EX0JPWEVTEAQSIAocR0FNRV9UWVBFX1NOQUtFU19BTkRfTEFEREVSUxAFYgZwcm90bzM");
 
 /**
  * @generated from message pingdost.v1.Game
@@ -32,6 +32,7 @@ export type Game = Message<"pingdost.v1.Game"> & {
   /**
    * Turn events (`roll`, `move`, `skip`): the turn they belong to (0-based), and the roll
    * within that turn (0-based; a 6, a capture or a piece reaching home gives another roll).
+   * The other games count every move, roll and skip as a turn of its own (`index` 0).
    * `leave`: the turns the leaver had seen. Others: 0.
    *
    * @generated from field: uint32 turn = 2;
@@ -123,7 +124,8 @@ export type GameCreate = Message<"pingdost.v1.GameCreate"> & {
   type: GameType;
 
   /**
-   * 2 to 4 for Ludo; the game starts by itself when this many have joined.
+   * The table's size (Ludo, Dots and Boxes, Snakes and Ladders: 2 to 4; the others 2). The
+   * game starts by itself when this many have joined.
    *
    * @generated from field: uint32 max_players = 2;
    */
@@ -138,6 +140,30 @@ export type GameCreate = Message<"pingdost.v1.GameCreate"> & {
      */
     value: LudoSettings;
     case: "ludo";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.TicTacToeSettings tic_tac_toe = 6;
+     */
+    value: TicTacToeSettings;
+    case: "ticTacToe";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.ConnectFourSettings connect_four = 7;
+     */
+    value: ConnectFourSettings;
+    case: "connectFour";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.DotsSettings dots = 8;
+     */
+    value: DotsSettings;
+    case: "dots";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.SnakesSettings snakes = 9;
+     */
+    value: SnakesSettings;
+    case: "snakes";
   } | { case: undefined; value?: undefined };
 
   /**
@@ -196,6 +222,84 @@ export const LudoSettingsSchema: GenMessage<LudoSettings> = /*@__PURE__*/
   messageDesc(file_pingdost_v1_games, 2);
 
 /**
+ * Classic 3 by 3; no options yet. Who plays first comes from the seats' salts; they play X.
+ *
+ * @generated from message pingdost.v1.TicTacToeSettings
+ */
+export type TicTacToeSettings = Message<"pingdost.v1.TicTacToeSettings"> & {
+};
+
+/**
+ * Describes the message pingdost.v1.TicTacToeSettings.
+ * Use `create(TicTacToeSettingsSchema)` to create a new message.
+ */
+export const TicTacToeSettingsSchema: GenMessage<TicTacToeSettings> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 3);
+
+/**
+ * Classic 7 columns by 6 rows; no options yet. Who drops first comes from the seats' salts.
+ *
+ * @generated from message pingdost.v1.ConnectFourSettings
+ */
+export type ConnectFourSettings = Message<"pingdost.v1.ConnectFourSettings"> & {
+};
+
+/**
+ * Describes the message pingdost.v1.ConnectFourSettings.
+ * Use `create(ConnectFourSettingsSchema)` to create a new message.
+ */
+export const ConnectFourSettingsSchema: GenMessage<ConnectFourSettings> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 4);
+
+/**
+ * @generated from message pingdost.v1.DotsSettings
+ */
+export type DotsSettings = Message<"pingdost.v1.DotsSettings"> & {
+  /**
+   * Boxes per side, 3 to 6 (0: 4).
+   *
+   * @generated from field: uint32 size = 1;
+   */
+  size: number;
+};
+
+/**
+ * Describes the message pingdost.v1.DotsSettings.
+ * Use `create(DotsSettingsSchema)` to create a new message.
+ */
+export const DotsSettingsSchema: GenMessage<DotsSettings> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 5);
+
+/**
+ * Defaults are the classic rules: one roll a turn, and an exact roll to reach 100 (a roll
+ * past it does not move).
+ *
+ * @generated from message pingdost.v1.SnakesSettings
+ */
+export type SnakesSettings = Message<"pingdost.v1.SnakesSettings"> & {
+  /**
+   * A 6 gives another roll.
+   *
+   * @generated from field: bool six_rolls_again = 1;
+   */
+  sixRollsAgain: boolean;
+
+  /**
+   * A roll past 100 bounces back by the squares left over.
+   *
+   * @generated from field: bool bounce_back = 2;
+   */
+  bounceBack: boolean;
+};
+
+/**
+ * Describes the message pingdost.v1.SnakesSettings.
+ * Use `create(SnakesSettingsSchema)` to create a new message.
+ */
+export const SnakesSettingsSchema: GenMessage<SnakesSettings> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 6);
+
+/**
  * Takes a seat. `anchor` ends the seat's hash chain of roll secrets (32 bytes): every secret
  * is fixed before anyone else's randomness exists. `salt` (16 bytes) feeds other players' rolls.
  *
@@ -218,7 +322,7 @@ export type GameJoin = Message<"pingdost.v1.GameJoin"> & {
  * Use `create(GameJoinSchema)` to create a new message.
  */
 export const GameJoinSchema: GenMessage<GameJoin> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 3);
+  messageDesc(file_pingdost_v1_games, 7);
 
 /**
  * The host starts the game: these seats, in turn order. Self-contained, so a client that
@@ -238,7 +342,7 @@ export type GameStart = Message<"pingdost.v1.GameStart"> & {
  * Use `create(GameStartSchema)` to create a new message.
  */
 export const GameStartSchema: GenMessage<GameStart> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 4);
+  messageDesc(file_pingdost_v1_games, 8);
 
 /**
  * @generated from message pingdost.v1.GameSeat
@@ -255,7 +359,8 @@ export type GameSeat = Message<"pingdost.v1.GameSeat"> & {
   deviceId: Uint8Array;
 
   /**
-   * Ludo: 0 red, 1 green, 2 yellow, 3 blue.
+   * Ludo: 0 red, 1 green, 2 yellow, 3 blue. The other games: the seat's place at the table
+   * (0, 1, …; the host's order), which also picks its color.
    *
    * @generated from field: uint32 color = 3;
    */
@@ -277,7 +382,7 @@ export type GameSeat = Message<"pingdost.v1.GameSeat"> & {
  * Use `create(GameSeatSchema)` to create a new message.
  */
 export const GameSeatSchema: GenMessage<GameSeat> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 5);
+  messageDesc(file_pingdost_v1_games, 9);
 
 /**
  * A roll by the seat whose turn it is. `reveal` is the next secret of its chain (32 bytes);
@@ -295,6 +400,14 @@ export type GameRoll = Message<"pingdost.v1.GameRoll"> & {
    * @generated from field: bytes salt = 2;
    */
   salt: Uint8Array;
+
+  /**
+   * Games where the roll moves by itself (Snakes and Ladders): 8 bytes of the state after
+   * it, to catch a desync. Empty in Ludo (the move that follows carries it).
+   *
+   * @generated from field: bytes state_hash = 3;
+   */
+  stateHash: Uint8Array;
 };
 
 /**
@@ -302,12 +415,12 @@ export type GameRoll = Message<"pingdost.v1.GameRoll"> & {
  * Use `create(GameRollSchema)` to create a new message.
  */
 export const GameRollSchema: GenMessage<GameRoll> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 6);
+  messageDesc(file_pingdost_v1_games, 10);
 
 /**
- * The piece moved after a roll. Sent by the seat, or, once its time is up, by another player
- * as the move the rules choose for it (ADR 0049 amendment). `state_hash` is 8 bytes of the
- * state after the move, to catch a desync.
+ * A move. Ludo: the piece moved after a roll (`token`). The other games: `play`. Sent by the
+ * seat, or, once its time is up, by another player as the move the rules choose for it (ADR
+ * 0049 amendment). `state_hash` is 8 bytes of the state after the move, to catch a desync.
  *
  * @generated from message pingdost.v1.GameMove
  */
@@ -326,6 +439,29 @@ export type GameMove = Message<"pingdost.v1.GameMove"> & {
    * @generated from field: bytes state_hash = 3;
    */
   stateHash: Uint8Array;
+
+  /**
+   * @generated from oneof pingdost.v1.GameMove.play
+   */
+  play: {
+    /**
+     * @generated from field: pingdost.v1.TicTacToeMove tic_tac_toe = 4;
+     */
+    value: TicTacToeMove;
+    case: "ticTacToe";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.ConnectFourMove connect_four = 5;
+     */
+    value: ConnectFourMove;
+    case: "connectFour";
+  } | {
+    /**
+     * @generated from field: pingdost.v1.DotsMove dots = 6;
+     */
+    value: DotsMove;
+    case: "dots";
+  } | { case: undefined; value?: undefined };
 };
 
 /**
@@ -333,7 +469,65 @@ export type GameMove = Message<"pingdost.v1.GameMove"> & {
  * Use `create(GameMoveSchema)` to create a new message.
  */
 export const GameMoveSchema: GenMessage<GameMove> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 7);
+  messageDesc(file_pingdost_v1_games, 11);
+
+/**
+ * @generated from message pingdost.v1.TicTacToeMove
+ */
+export type TicTacToeMove = Message<"pingdost.v1.TicTacToeMove"> & {
+  /**
+   * 0 to 8, row by row from the top left.
+   *
+   * @generated from field: uint32 cell = 1;
+   */
+  cell: number;
+};
+
+/**
+ * Describes the message pingdost.v1.TicTacToeMove.
+ * Use `create(TicTacToeMoveSchema)` to create a new message.
+ */
+export const TicTacToeMoveSchema: GenMessage<TicTacToeMove> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 12);
+
+/**
+ * @generated from message pingdost.v1.ConnectFourMove
+ */
+export type ConnectFourMove = Message<"pingdost.v1.ConnectFourMove"> & {
+  /**
+   * 0 to 6, from the left.
+   *
+   * @generated from field: uint32 column = 1;
+   */
+  column: number;
+};
+
+/**
+ * Describes the message pingdost.v1.ConnectFourMove.
+ * Use `create(ConnectFourMoveSchema)` to create a new message.
+ */
+export const ConnectFourMoveSchema: GenMessage<ConnectFourMove> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 13);
+
+/**
+ * @generated from message pingdost.v1.DotsMove
+ */
+export type DotsMove = Message<"pingdost.v1.DotsMove"> & {
+  /**
+   * The line drawn: the rows of horizontal lines first (size + 1 rows of `size`, top to
+   * bottom, left to right), then the vertical ones (size rows of size + 1).
+   *
+   * @generated from field: uint32 line = 1;
+   */
+  line: number;
+};
+
+/**
+ * Describes the message pingdost.v1.DotsMove.
+ * Use `create(DotsMoveSchema)` to create a new message.
+ */
+export const DotsMoveSchema: GenMessage<DotsMove> = /*@__PURE__*/
+  messageDesc(file_pingdost_v1_games, 14);
 
 /**
  * Another player skips a turn whose roll never came (the roller's app was closed).
@@ -357,7 +551,7 @@ export type GameSkip = Message<"pingdost.v1.GameSkip"> & {
  * Use `create(GameSkipSchema)` to create a new message.
  */
 export const GameSkipSchema: GenMessage<GameSkip> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 8);
+  messageDesc(file_pingdost_v1_games, 15);
 
 /**
  * The sender leaves; it takes effect at their next turn.
@@ -372,7 +566,7 @@ export type GameLeave = Message<"pingdost.v1.GameLeave"> & {
  * Use `create(GameLeaveSchema)` to create a new message.
  */
 export const GameLeaveSchema: GenMessage<GameLeave> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 9);
+  messageDesc(file_pingdost_v1_games, 16);
 
 /**
  * The host ends the game for everyone (or cancels it before the start).
@@ -387,7 +581,7 @@ export type GameEnd = Message<"pingdost.v1.GameEnd"> & {
  * Use `create(GameEndSchema)` to create a new message.
  */
 export const GameEndSchema: GenMessage<GameEnd> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 10);
+  messageDesc(file_pingdost_v1_games, 17);
 
 /**
  * A quick reaction shown over the board for a moment. One emoji.
@@ -406,7 +600,7 @@ export type GameEmote = Message<"pingdost.v1.GameEmote"> & {
  * Use `create(GameEmoteSchema)` to create a new message.
  */
 export const GameEmoteSchema: GenMessage<GameEmote> = /*@__PURE__*/
-  messageDesc(file_pingdost_v1_games, 11);
+  messageDesc(file_pingdost_v1_games, 18);
 
 /**
  * @generated from enum pingdost.v1.GameType
@@ -421,6 +615,28 @@ export enum GameType {
    * @generated from enum value: GAME_TYPE_LUDO = 1;
    */
   LUDO = 1,
+
+  /**
+   * Phase 43: the quick games.
+   *
+   * @generated from enum value: GAME_TYPE_TIC_TAC_TOE = 2;
+   */
+  TIC_TAC_TOE = 2,
+
+  /**
+   * @generated from enum value: GAME_TYPE_CONNECT_FOUR = 3;
+   */
+  CONNECT_FOUR = 3,
+
+  /**
+   * @generated from enum value: GAME_TYPE_DOTS_AND_BOXES = 4;
+   */
+  DOTS_AND_BOXES = 4,
+
+  /**
+   * @generated from enum value: GAME_TYPE_SNAKES_AND_LADDERS = 5;
+   */
+  SNAKES_AND_LADDERS = 5,
 }
 
 /**

@@ -131,9 +131,15 @@ function Screens() {
       <Stack.Screen name="game/ludo-setup" options={{ title: 'Play Ludo' }} />
       <Stack.Screen name="game/ludo" options={{ title: 'Ludo' }} />
       <Stack.Screen name="game/[gameId]" options={{ title: 'Ludo' }} />
+      <Stack.Screen name="game/setup" options={{ title: 'Play' }} />
+      <Stack.Screen name="game/play" options={{ title: 'Game' }} />
       <Stack.Screen
         name="game/start"
-        options={{ title: 'Play Ludo', presentation: 'modal', ...MODAL }}
+        options={{ title: 'Play a game', presentation: 'modal', ...MODAL }}
+      />
+      <Stack.Screen
+        name="game/pick-chat"
+        options={{ title: 'Play with friends', presentation: 'modal', ...MODAL }}
       />
       <Stack.Screen
         name="approve-phone"

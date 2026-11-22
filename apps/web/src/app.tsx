@@ -96,11 +96,23 @@ const router = createBrowserRouter([
       },
       {
         path: 'games/play/:gameId',
-        ...page(() => import('@/features/games/ludo/ludo-net-page').then((m) => m.LudoNetPage)),
+        ...page(() => import('@/features/games/game-page').then((m) => m.GamePage)),
       },
       {
         path: 'games/ludo',
         ...page(() => import('@/features/games/ludo/ludo-page').then((m) => m.LudoPage)),
+      },
+      {
+        path: 'games/friends/:game',
+        ...page(() => import('@/features/games/pick-chat-page').then((m) => m.PickChatPage)),
+      },
+      {
+        path: 'games/:game/setup',
+        ...page(() => import('@/features/games/turn/turn-setup-page').then((m) => m.TurnSetupPage)),
+      },
+      {
+        path: 'games/:game',
+        ...page(() => import('@/features/games/turn/turn-page').then((m) => m.TurnPage)),
       },
       {
         path: 'settings',

@@ -31,7 +31,7 @@ export const GAME_CATALOG: readonly CatalogEntry[] = [
     minPlayers: 2,
     maxPlayers: 2,
     icon: 'grid',
-    available: false,
+    available: true,
   },
   {
     id: 'connect-four',
@@ -40,7 +40,7 @@ export const GAME_CATALOG: readonly CatalogEntry[] = [
     minPlayers: 2,
     maxPlayers: 2,
     icon: 'circles',
-    available: false,
+    available: true,
   },
   {
     id: 'dots-and-boxes',
@@ -49,7 +49,7 @@ export const GAME_CATALOG: readonly CatalogEntry[] = [
     minPlayers: 2,
     maxPlayers: 4,
     icon: 'dots',
-    available: false,
+    available: true,
   },
   {
     id: 'snakes-and-ladders',
@@ -58,7 +58,7 @@ export const GAME_CATALOG: readonly CatalogEntry[] = [
     minPlayers: 2,
     maxPlayers: 4,
     icon: 'ladder',
-    available: false,
+    available: true,
   },
   {
     id: 'chess',

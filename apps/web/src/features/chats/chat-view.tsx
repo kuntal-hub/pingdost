@@ -33,6 +33,7 @@ import { Avatar } from '@/components/avatar';
 import { Button, IconButton } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/controls';
 import { Dialog, Menu } from '@/components/ui/menu';
+import { BackToGamePill } from '@/features/games/net-parts';
 import { StartGameDialog } from '@/features/games/start-game-dialog';
 import { cn } from '@/lib/cn';
 import { api, useSession } from '@/session/session';
@@ -54,6 +55,7 @@ import {
 } from '@pingdost/chat-core';
 import { insertAt } from '@pingdost/chat-core/emoji';
 import { DEFAULT_LIMITS } from '@pingdost/config/public';
+import { isPlayableGameType } from '@pingdost/games';
 import {
   canDeleteForEveryone,
   canEdit,
@@ -176,7 +178,7 @@ function Composer({
   conversationId: string;
   isGroup: boolean;
   /** Opens the game dialog at once (Invite on the Games page). */
-  startGame: boolean;
+  startGame: string | null;
   replyTo: MessageRecord | undefined;
   editing: MessageRecord | undefined;
   names: ReturnType<typeof useNames>;
@@ -191,7 +193,7 @@ function Composer({
   const [error, setError] = useState<string>();
   const [picked, setPicked] = useState<File>();
   const [emojiOpen, setEmojiOpen] = useState(false);
-  const [gameOpen, setGameOpen] = useState(startGame);
+  const [gameOpen, setGameOpen] = useState(startGame !== null);
   const input = useRef<HTMLTextAreaElement>(null);
   const filePicker = useRef<HTMLInputElement>(null);
   // Where an emoji goes: the field's selection when it was last left.
@@ -308,6 +310,7 @@ function Composer({
         onOpenChange={setGameOpen}
         conversationId={conversationId}
         isGroup={isGroup}
+        initialGame={startGame && isPlayableGameType(startGame) ? startGame : undefined}
       />
       <div className="relative flex items-end gap-2">
         {emojiOpen && <EmojiPanel onPick={insertEmoji} onClose={closeEmoji} />}
@@ -776,6 +779,7 @@ export function ChatView() {
       ) : (
         <Header conversation={conversation} />
       )}
+      {!selecting && <BackToGamePill conversationId={conversation.conversationId} />}
       {status !== 'online' && (
         <p
           className="pd-rise absolute inset-x-6 top-22 z-10 rounded-lg bg-warning/20 px-4 py-1 text-center text-sm font-semibold backdrop-blur"
@@ -935,7 +939,7 @@ export function ChatView() {
         <Composer
           conversationId={conversationId}
           isGroup={isGroup}
-          startGame={params.get('startGame') === '1'}
+          startGame={params.get('startGame')}
           replyTo={replyTo}
           editing={editing}
           names={names}

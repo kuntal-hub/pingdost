@@ -1,7 +1,7 @@
 // Games with friends on the Games page (Phase 42, ADR 0049): games waiting for you, games in
 // play, invitations, and friends online to invite (circle members who share their presence).
 // Inviting opens the 1:1 chat with the game dialog; the game itself lives in that chat.
-import { Dices, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router';
 
@@ -10,11 +10,15 @@ import { useChat, useChatClient } from '@/chat/store';
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
+import { gameTypeLabel } from '@pingdost/games';
 
+import { gameIconFor } from './game-icons';
 import { useGameList, type GameEntry } from './network';
 
 function GameRow({ entry, chat }: { entry: GameEntry; chat: string }) {
   const { summary } = entry;
+  const Glyph = gameIconFor(entry.record.gameType);
+  const title = gameTypeLabel(entry.record.gameType);
   const action =
     summary.state === 'invite'
       ? 'Join'
@@ -31,10 +35,12 @@ function GameRow({ entry, chat }: { entry: GameEntry; chat: string }) {
           summary.state === 'your-turn' ? 'bg-primary text-on-primary' : 'bg-raised text-accent',
         )}
       >
-        <Dices aria-hidden size={24} />
+        <Glyph aria-hidden size={24} />
       </span>
       <span className="min-w-0 flex-1 leading-tight">
-        <span className="block truncate font-bold">Ludo · {chat}</span>
+        <span className="block truncate font-bold">
+          {title} · {chat}
+        </span>
         <span className="block truncate text-sm text-muted">{summary.text}</span>
       </span>
       <Button asChild variant={summary.state === 'your-turn' ? 'primary' : 'secondary'}>

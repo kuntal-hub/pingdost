@@ -576,6 +576,72 @@ h2 {
   }
 }
 
+/* Quick games (Phase 43): a mark or a closed box pops in; a Connect Four disc drops from the top
+   (`--pd-drop` is how far, set per disc) and bounces; a Dots and Boxes line draws itself (the
+   line has pathLength 1). Lengths are pixels. */
+.pd-mark-in {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pd-mark-in 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.pd-drop {
+  animation: pd-drop 420ms ease-in both;
+}
+
+.pd-draw-line {
+  stroke-dasharray: 1;
+  animation: pd-draw-line 360ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes pd-mark-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pd-drop {
+  0% {
+    transform: translateY(var(--pd-drop, -200px));
+  }
+  72% {
+    transform: translateY(0);
+  }
+  86% {
+    transform: translateY(-6px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes pd-draw-line {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+:root[data-motion='calm'] .pd-drop,
+:root[data-motion='calm'] .pd-draw-line {
+  animation: none;
+}
+
+:root[data-motion='calm'] .pd-mark-in {
+  animation: pd-fade-in 150ms ease-out both;
+}
+
 /* Calm: pieces jump instead of hopping; dice, pins and the yard keep still (the yard keeps its
    outline). */
 :root[data-motion='calm'] .pd-piece {

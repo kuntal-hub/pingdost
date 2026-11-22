@@ -11,7 +11,15 @@ import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { CryptoProvider } from '@pingdost/crypto';
-import { canonicalLudo, type LudoNetView, type LudoPace } from '@pingdost/games';
+import {
+  canonicalLudo,
+  CONNECT_FOUR,
+  SNAKES_AND_LADDERS,
+  ZERO_TURN_PACE,
+  type LudoNetView,
+  type LudoPace,
+  type SnakesState,
+} from '@pingdost/games';
 import { fromBase64, GameType } from '@pingdost/protocol';
 import {
   capturingSocket,
@@ -72,7 +80,12 @@ async function sim(linkTo: SimClient[] = []): Promise<SimClient> {
 
 function play(client: SimClient, autoJoin = true): SimGames {
   // 100 ms per action: quick, without starving the other suites that run beside this file.
-  const g = simGames(client, crypto, { autoJoin, thinkMs: 100, pace: INSTANT });
+  const g = simGames(client, crypto, {
+    autoJoin,
+    thinkMs: 100,
+    pace: INSTANT,
+    turnPace: ZERO_TURN_PACE,
+  });
   games.push(g);
   return g;
 }
@@ -100,6 +113,57 @@ async function agreed(
   await until(() => same(one.view(gameId), two.view(gameId)), 'both see the same end');
   return [one.view(gameId)!, two.view(gameId)!];
 }
+
+describe('Quick games with friends through the server (Phase 43)', () => {
+  it('plays Connect Four one to one to the end', async () => {
+    const alice = await sim();
+    const bob = await sim([alice]);
+    const ga = play(alice);
+    const gb = play(bob);
+    const { conversationId } = await alice.engine.openDirectConversation(bob.userId);
+    const gameId = await ga.createTurn(conversationId, 'connect-four');
+    await until(async () => (await bob.engine.getMessage(gameId))?.kind === 'game', 'the card');
+    expect((await bob.engine.getGame(gameId))?.gameType).toBe('connect-four');
+    const done = (phase?: string) => phase === 'over';
+    const a = await ga.untilTurn(gameId, (v) => done(v.game.phase), 60_000);
+    const b = await gb.untilTurn(
+      gameId,
+      (v) => done(v.game.phase) && v.game.entries.length === a.game.entries.length,
+      30_000,
+    );
+    expect(a.game.desync || b.game.desync).toBe(false);
+    expect(CONNECT_FOUR.canonical(b.game.state as never)).toBe(
+      CONNECT_FOUR.canonical(a.game.state as never),
+    );
+    expect(a.game.entries.every((e) => e.kind === 'move')).toBe(true);
+  }, 120_000);
+
+  it('plays Snakes and Ladders in a group of three with fair dice', async () => {
+    const alice = await sim();
+    const bob = await sim([alice]);
+    const carol = await sim([alice, bob]);
+    const { conversationId: groupId } = await alice.engine.createGroup({
+      name: 'Snakes',
+      memberUserIds: [bob.userId, carol.userId],
+    });
+    const [ga, gb, gc] = [play(alice), play(bob), play(carol)];
+    const gameId = await ga.createTurn(groupId, 'snakes-and-ladders', { maxPlayers: 3 });
+    const a = await ga.untilTurn(gameId, (v) => v.game.phase === 'over', 90_000);
+    const steps = a.game.entries.length;
+    for (const g of [gb, gc]) {
+      const v = await g.untilTurn(
+        gameId,
+        (x) => x.game.phase === 'over' && x.game.entries.length === steps,
+        30_000,
+      );
+      expect(v.game.desync).toBe(false);
+      expect(v.game.entries.map((e) => e.die)).toEqual(a.game.entries.map((e) => e.die));
+    }
+    expect(a.game.seats).toHaveLength(3);
+    expect((a.game.state as SnakesState).positions).toContain(100);
+    expect(SNAKES_AND_LADDERS.canonical(a.game.state as SnakesState)).toBeTruthy();
+  }, 150_000);
+});
 
 describe('Ludo with friends through the server', () => {
   it('plays one to one, catches up after going offline, and ends on the host', async () => {

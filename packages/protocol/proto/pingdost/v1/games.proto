@@ -12,6 +12,7 @@ message Game {
   bytes game_id = 1;
   // Turn events (`roll`, `move`, `skip`): the turn they belong to (0-based), and the roll
   // within that turn (0-based; a 6, a capture or a piece reaching home gives another roll).
+  // The other games count every move, roll and skip as a turn of its own (`index` 0).
   // `leave`: the turns the leaver had seen. Others: 0.
   uint32 turn = 2;
   uint32 index = 3;
@@ -32,16 +33,26 @@ message Game {
 enum GameType {
   GAME_TYPE_UNSPECIFIED = 0;
   GAME_TYPE_LUDO = 1;
+  // Phase 43: the quick games.
+  GAME_TYPE_TIC_TAC_TOE = 2;
+  GAME_TYPE_CONNECT_FOUR = 3;
+  GAME_TYPE_DOTS_AND_BOXES = 4;
+  GAME_TYPE_SNAKES_AND_LADDERS = 5;
 }
 
 // Opens a game in the chat; it shows as an invitation card. The creator (host) takes the
 // first seat at once.
 message GameCreate {
   GameType type = 1;
-  // 2 to 4 for Ludo; the game starts by itself when this many have joined.
+  // The table's size (Ludo, Dots and Boxes, Snakes and Ladders: 2 to 4; the others 2). The
+  // game starts by itself when this many have joined.
   uint32 max_players = 2;
   oneof settings {
     LudoSettings ludo = 3;
+    TicTacToeSettings tic_tac_toe = 6;
+    ConnectFourSettings connect_four = 7;
+    DotsSettings dots = 8;
+    SnakesSettings snakes = 9;
   }
   // The host's seat: see `GameJoin`.
   bytes anchor = 4;
@@ -56,6 +67,26 @@ message LudoSettings {
   bool blockades = 2;
   // The game ends when the first player has every piece home.
   bool stop_at_first_winner = 3;
+}
+
+// Classic 3 by 3; no options yet. Who plays first comes from the seats' salts; they play X.
+message TicTacToeSettings {}
+
+// Classic 7 columns by 6 rows; no options yet. Who drops first comes from the seats' salts.
+message ConnectFourSettings {}
+
+message DotsSettings {
+  // Boxes per side, 3 to 6 (0: 4).
+  uint32 size = 1;
+}
+
+// Defaults are the classic rules: one roll a turn, and an exact roll to reach 100 (a roll
+// past it does not move).
+message SnakesSettings {
+  // A 6 gives another roll.
+  bool six_rolls_again = 1;
+  // A roll past 100 bounces back by the squares left over.
+  bool bounce_back = 2;
 }
 
 // Takes a seat. `anchor` ends the seat's hash chain of roll secrets (32 bytes): every secret
@@ -74,7 +105,8 @@ message GameStart {
 message GameSeat {
   bytes user_id = 1;
   bytes device_id = 2;
-  // Ludo: 0 red, 1 green, 2 yellow, 3 blue.
+  // Ludo: 0 red, 1 green, 2 yellow, 3 blue. The other games: the seat's place at the table
+  // (0, 1, …; the host's order), which also picks its color.
   uint32 color = 3;
   bytes anchor = 4;
   bytes salt = 5;
@@ -85,15 +117,39 @@ message GameSeat {
 message GameRoll {
   bytes reveal = 1;
   bytes salt = 2;
+  // Games where the roll moves by itself (Snakes and Ladders): 8 bytes of the state after
+  // it, to catch a desync. Empty in Ludo (the move that follows carries it).
+  bytes state_hash = 3;
 }
 
-// The piece moved after a roll. Sent by the seat, or, once its time is up, by another player
-// as the move the rules choose for it (ADR 0049 amendment). `state_hash` is 8 bytes of the
-// state after the move, to catch a desync.
+// A move. Ludo: the piece moved after a roll (`token`). The other games: `play`. Sent by the
+// seat, or, once its time is up, by another player as the move the rules choose for it (ADR
+// 0049 amendment). `state_hash` is 8 bytes of the state after the move, to catch a desync.
 message GameMove {
   uint32 token = 1;
   bytes salt = 2;
   bytes state_hash = 3;
+  oneof play {
+    TicTacToeMove tic_tac_toe = 4;
+    ConnectFourMove connect_four = 5;
+    DotsMove dots = 6;
+  }
+}
+
+message TicTacToeMove {
+  // 0 to 8, row by row from the top left.
+  uint32 cell = 1;
+}
+
+message ConnectFourMove {
+  // 0 to 6, from the left.
+  uint32 column = 1;
+}
+
+message DotsMove {
+  // The line drawn: the rows of horizontal lines first (size + 1 rows of `size`, top to
+  // bottom, left to right), then the vertical ones (size rows of size + 1).
+  uint32 line = 1;
 }
 
 // Another player skips a turn whose roll never came (the roller's app was closed).

@@ -7,7 +7,7 @@ import { View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/button';
-import { DicesIcon, Icon, SendIcon } from '@/components/icon';
+import { DicesIcon, GAME_ICONS, Icon, SendIcon } from '@/components/icon';
 import { Tap } from '@/components/tap';
 import { Text } from '@/components/text';
 import { useCircle } from '@/engine/circle';
@@ -16,6 +16,7 @@ import { useChatRuntime, useConversations } from '@/engine/hooks';
 import { useChatStore, watchPresence } from '@/engine/runtime';
 import { useGameList, type GameEntry } from '@/games/network';
 import { useTheme } from '@/theme/theme-root';
+import { catalogEntry, gameTypeLabel, isPlayableGameType } from '@pingdost/games';
 import type { ConversationRecord } from '@pingdost/message-engine';
 
 function GameRow({
@@ -31,6 +32,9 @@ function GameRow({
   const chat =
     group?.name ?? (conversation?.peerUserId ? names.name(conversation.peerUserId) : 'Chat');
   const { summary } = entry;
+  const type = entry.record.gameType;
+  const title = gameTypeLabel(type);
+  const icon = isPlayableGameType(type) ? GAME_ICONS[catalogEntry(type).icon] : DicesIcon;
   const yours = summary.state === 'your-turn';
   const action =
     summary.state === 'invite' ? 'Join' : yours ? 'Play' : summary.live ? 'Open' : 'View';
@@ -45,7 +49,7 @@ function GameRow({
   return (
     <Tap
       accessibilityRole="button"
-      accessibilityLabel={`Ludo, ${chat}, ${summary.text}. ${action}`}
+      accessibilityLabel={`${title}, ${chat}, ${summary.text}. ${action}`}
       onPress={open}
       className="flex-row items-center gap-3 rounded-2xl bg-surface p-3"
       style={card}
@@ -53,11 +57,11 @@ function GameRow({
       <View
         className={`h-11 w-11 items-center justify-center rounded-xl ${yours ? 'bg-primary' : 'bg-raised'}`}
       >
-        <Icon icon={DicesIcon} size={24} color={yours ? 'on-primary' : 'accent'} />
+        <Icon icon={icon} size={24} color={yours ? 'on-primary' : 'accent'} />
       </View>
       <View className="min-w-0 flex-1">
         <Text numberOfLines={1} className="text-base font-bold text-foreground">
-          Ludo · {chat}
+          {title} · {chat}
         </Text>
         <Text numberOfLines={1} className="text-sm text-muted">
           {summary.text}

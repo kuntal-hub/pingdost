@@ -39,6 +39,18 @@ export interface GameBoardColors {
   /** Cell borders and the star outlines. */
   line: string;
   players: Record<GamePlayerColor, GamePlayerLook>;
+  /** Phase 43: the second cell color of a checkered board (Snakes and Ladders). */
+  cellAlt: string;
+  /** Square numbers and other small text on cells (4.5:1 on both cell colors). */
+  label: string;
+  /** The Connect Four frame around the holes (the holes show `board`). */
+  frame: string;
+  /** Ladders, readable on both cell colors. */
+  ladder: string;
+  /** Snakes, each readable on both cell colors. */
+  snakes: readonly [string, string, string];
+  /** Dots and Boxes: the dots, and lines not drawn yet (hints). */
+  dot: string;
 }
 
 // Vivid, Ludo-style colors (the user's list, ADR 0050).
@@ -80,6 +92,12 @@ const LIGHT: GameBoardColors = {
       soft: '#D2E5FF',
     },
   },
+  cellAlt: '#EEF3FA',
+  label: '#5B6778',
+  frame: '#2457D6',
+  ladder: '#93520F',
+  snakes: ['#0B8A5F', '#8B3FD9', '#D44A12'],
+  dot: '#334155',
 };
 
 const DARK: GameBoardColors = {
@@ -120,6 +138,12 @@ const DARK: GameBoardColors = {
       soft: '#142B47',
     },
   },
+  cellAlt: '#232B37',
+  label: '#9AA7B8',
+  frame: '#3A64C8',
+  ladder: '#E0A458',
+  snakes: ['#34D399', '#C084FC', '#FB923C'],
+  dot: '#CBD5E1',
 };
 
 /** The board and player colors for light or dark mode. */

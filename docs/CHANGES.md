@@ -4,6 +4,18 @@ This log records every change to, or deviation from, `privacy_first_messaging_ap
 
 ---
 
+### 2026-11-22 — Phase 43 built: quick games, decisions taken while building (ADR 0049 third amendment)
+1. **Four quick games** on phone and web: Tic-Tac-Toe and Connect Four (2 players), Dots and Boxes (2–4, boards 3×3 to 6×6) and Snakes and Ladders (2–4, toggles: a 6 rolls again, bounce back from 100). Solo play against 1 to (players − 1) computer players at Easy / Medium / Hard; Snakes and Ladders has no levels (the dice decide).
+   - *Affects:* 43.
+2. **Games with friends use Ludo's 30 s timers**, but an absent player's turn is played for them by the others (the Medium computer's move, which every client checks) instead of skipped; Snakes and Ladders skips, like Ludo. Three missed turns in a row take a player out. Chess (Phase 44) has no timers, as planned.
+   - *Affects:* 43, 44.
+3. **The Snakes and Ladders board is PingDost's own layout** (8 ladders, 8 snakes), drawn in code.
+   - *Affects:* 43.
+4. **Additive wire change:** new game types, settings and move messages in `games.proto`; `GameRoll.state_hash`. Older builds show "Update PingDost to play" for the new games.
+   - *Affects:* 43.
+5. **From Phase 42:** Play with friends from every game screen, an unread badge and message toasts on the game screen, a "Back to the game" pill in the chat, and Rematch, on both apps (Ludo included).
+   - *Affects:* 43.
+
 ### 2026-11-21 — Ludo look and feel; turn timers and invites for games with friends (ADR 0049 amended, ADR 0050)
 The user's 12-point list after trying Phase 41, plus four choices they made.
 1. **Look and feel (solo now, the same screens later for friends):**

@@ -17,6 +17,7 @@ import {
   RotateCcwIcon,
   Trash2Icon,
   TrophyIcon,
+  UsersRoundIcon,
   Volume2Icon,
 } from '@/components/icon';
 import { IconButton } from '@/components/icon-button';
@@ -150,6 +151,8 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
   useEffect(() => () => releaseGameSounds(), []);
 
   if (!view || !controller) return <View className="flex-1 bg-background" />;
+  const playWithFriends = () =>
+    router.push({ pathname: '/game/pick-chat', params: { game: 'ludo' } });
   const note = ludoRollNote(view);
   const active = view.waiting === 'over' ? null : view.state.players[view.state.current]!;
   const panelWidth = Math.floor((size - 8) / 2);
@@ -232,7 +235,12 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
       </View>
 
       {view.waiting === 'over' && (
-        <ResultCard view={view} onPlayAgain={onPlayAgain} onDone={() => router.back()} />
+        <ResultCard
+          view={view}
+          onPlayAgain={onPlayAgain}
+          onFriends={playWithFriends}
+          onDone={() => router.back()}
+        />
       )}
 
       <ActionSheet
@@ -244,6 +252,12 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
             detail: 'Change the players, difficulty or rules',
             icon: RotateCcwIcon,
             onPress: () => router.replace('/game/ludo-setup'),
+          },
+          {
+            label: 'Play with friends',
+            detail: 'Invite someone in a chat',
+            icon: UsersRoundIcon,
+            onPress: playWithFriends,
           },
           { label: 'Rules', icon: InfoIcon, onPress: () => setRules(true) },
           {
@@ -352,10 +366,12 @@ export function useLastDice(view: LudoView | null): Record<number, number> {
 function ResultCard({
   view,
   onPlayAgain,
+  onFriends,
   onDone,
 }: {
   view: LudoView;
   onPlayAgain: () => void;
+  onFriends: () => void;
   onDone: () => void;
 }) {
   const { card } = useTheme();
@@ -387,6 +403,12 @@ function ResultCard({
           ))}
         </View>
         <Button label="Play again" icon={RotateCcwIcon} onPress={onPlayAgain} />
+        <Button
+          label="Play with friends"
+          icon={UsersRoundIcon}
+          variant="secondary"
+          onPress={onFriends}
+        />
         <Button label="Back to Games" variant="ghost" onPress={onDone} />
       </View>
     </View>

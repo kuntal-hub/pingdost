@@ -125,7 +125,13 @@ export function previewText(message: MessageRecord, names?: Names): string {
   }
 }
 
-const GAME_NAMES: Record<string, string> = { ludo: 'Ludo' };
+const GAME_NAMES: Record<string, string> = {
+  ludo: 'Ludo',
+  'tic-tac-toe': 'Tic-Tac-Toe',
+  'connect-four': 'Connect Four',
+  'dots-and-boxes': 'Dots and Boxes',
+  'snakes-and-ladders': 'Snakes and Ladders',
+};
 
 /** A game invitation card (ADR 0049) in one line: "Ludo game". */
 export function gameCardText(message: Pick<MessageRecord, 'body'>): string {

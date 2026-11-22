@@ -1,9 +1,10 @@
 // Ludo's English UI text, shared by the phone and the web.
 import { HOME, YARD, type LudoColor } from './board';
 import type { LudoView } from './controller';
-import { ludoSeatOf, type GamePlayerRef, type LudoNetGame } from './network';
+import { ludoSeatOf, type LudoNetGame } from './network';
 import type { LudoNetView } from './network-controller';
 import { LUDO_TOKENS, type LudoSettings } from './rules';
+import type { GamePlayerRef } from '../core/net';
 import type { BotLevel, SeatKind } from '../core/types';
 
 export const LUDO_COLOR_NAMES: Record<LudoColor, string> = {

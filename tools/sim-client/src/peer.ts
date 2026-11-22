@@ -28,9 +28,10 @@
  * Files and voice notes (Phase 40): it downloads and decrypts each one, checks its size and that
  * audio is a real MP4 file, logs the duration and waveform, and replies with what it got.
  *
- * Games (Phase 42, ADR 0049): it joins every Ludo game it is invited to and plays its own turns
- * with the Medium computer's moves. `!ludo` makes it start a game in that chat (`!ludo 4` in a
- * group: up to 4 players). `--games false` turns this off.
+ * Games (Phases 42–43, ADR 0049): it joins every game it is invited to and plays its own turns
+ * with the Medium computer's moves. `!ludo` makes it start a Ludo game in that chat (`!ludo 4`
+ * in a group: up to 4 players); `!ttt`, `!c4`, `!dots [2-4] [3-6]` and `!snakes [2-4]` start the
+ * quick games. `--games false` turns this off.
  */
 import { parseArgs } from 'node:util';
 
@@ -42,6 +43,16 @@ import { attachmentDecryptInput, type MessageRecord } from '@pingdost/message-en
 import { simCalls } from './calls';
 import { SimClient } from './client';
 import { simGames, type SimGames } from './games';
+
+const QUICK_GAMES: Record<
+  string,
+  'tic-tac-toe' | 'connect-four' | 'dots-and-boxes' | 'snakes-and-ladders'
+> = {
+  ttt: 'tic-tac-toe',
+  c4: 'connect-four',
+  dots: 'dots-and-boxes',
+  snakes: 'snakes-and-ladders',
+};
 
 const { values } = parseArgs({
   options: {
@@ -112,7 +123,9 @@ async function main(): Promise<void> {
   let games: SimGames | undefined;
   if (values.games !== 'false') {
     games = simGames(peer, crypto, { thinkMs: 700, log: (line) => console.log(line) });
-    console.log('plays Ludo: joins invitations, `!ludo` starts a game');
+    console.log(
+      'plays games: joins invitations; `!ludo [2-4]`, `!ttt`, `!c4`, `!dots [2-4] [3-6]`, `!snakes [2-4]` start one',
+    );
   }
 
   const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -221,6 +234,19 @@ async function main(): Promise<void> {
               maxPlayers: Number(ludo[1] ?? 2),
             });
             console.log(`→ started a Ludo game (${gameId})`);
+            continue;
+          }
+          // Phase 43: `!ttt`, `!c4`, `!dots [2-4] [3-6]` (players, boxes per side), `!snakes [2-4]`.
+          const quick = /^!(ttt|c4|dots|snakes)(?:\s+([2-4]))?(?:\s+([3-6]))?/.exec(message.body);
+          if (quick && games) {
+            const type = QUICK_GAMES[quick[1]!]!;
+            const settings =
+              type === 'dots-and-boxes' ? { size: Number(quick[3] ?? 4) } : undefined;
+            const gameId = await games.createTurn(conversationId, type, {
+              maxPlayers: Number(quick[2] ?? 2),
+              settings,
+            });
+            console.log(`→ started a ${type} game (${gameId})`);
             continue;
           }
           const command = /^!(react|edit|delete)\b/.exec(message.body)?.[1];

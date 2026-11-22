@@ -30,6 +30,8 @@ export const SETTING_KEYS = {
   games: 'games',
   /** The unfinished solo game, saved after every roll and move (ADR 0049). */
   gameSolo: 'game_solo',
+  /** Unfinished solo turn games (Phase 43), one per game, saved after every step. */
+  gameTurnSolo: 'game_turn_solo',
 } as const;
 
 export async function readSetting<T>(

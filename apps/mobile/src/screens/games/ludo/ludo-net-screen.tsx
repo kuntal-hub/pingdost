@@ -2,7 +2,7 @@
 // with each person's name, a 30 s ring around the player on the clock, quick emotes and a way
 // back to the chat. Moves are E2EE game events in the chat; this phone folds them.
 import { router, Stack } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 
 import { ActionSheet, type SheetAction } from '@/components/action-sheet';
@@ -17,14 +17,10 @@ import {
   MedalIcon,
   MessageCircleIcon,
   OctagonXIcon,
-  PlayIcon,
-  TriangleAlertIcon,
   TrophyIcon,
-  UserPlusIcon,
   Volume2Icon,
 } from '@/components/icon';
 import { IconButton } from '@/components/icon-button';
-import { Tap } from '@/components/tap';
 import { Text } from '@/components/text';
 import { useNames } from '@/engine/groups';
 import { useLudoNetGame, useNow } from '@/games/network';
@@ -47,15 +43,20 @@ import {
   standings,
   type LudoNetView,
 } from '@pingdost/games';
-import { quickReactions } from '@pingdost/ui-tokens';
 
 import { LudoBoard } from './board';
 import { useEventHaptics, useGameSounds, useLastDice } from './ludo-screen';
 import { PlayerPanel } from './panels';
 import { LudoPieces, YardGlow } from './pieces';
-
-/** Emotes stay on screen this long. */
-const EMOTE_MS = 30_000;
+import {
+  ChatButton,
+  DesyncNotice,
+  MessageToasts,
+  NetEmotes,
+  NetLobby,
+  RematchButton,
+  useMarkActiveGame,
+} from '../net-parts';
 
 export function LudoNetScreen({ gameId, join }: { gameId: string; join: boolean }) {
   const { dark } = useTheme();
@@ -94,6 +95,17 @@ export function LudoNetScreen({ gameId, join }: { gameId: string; join: boolean 
       params: { conversationId: record.conversationId },
     });
   };
+  const state = board?.state;
+  useMarkActiveGame(
+    record && view && (view.game.phase === 'lobby' || view.game.phase === 'playing')
+      ? {
+          gameId,
+          conversationId: record.conversationId,
+          name: 'Ludo',
+          yourTurn: !!state && view.you >= 0 && state.current === view.you && playing,
+        }
+      : null,
+  );
 
   if (!view || !controller) {
     return (
@@ -146,7 +158,7 @@ export function LudoNetScreen({ gameId, join }: { gameId: string; join: boolean 
         options={{
           headerRight: () => (
             <View className="flex-row">
-              <IconButton icon={MessageCircleIcon} label="Open the chat" onPress={openChat} />
+              <ChatButton conversationId={record?.conversationId} onPress={openChat} />
               <IconButton
                 icon={EllipsisVerticalIcon}
                 label="Game menu"
@@ -156,18 +168,11 @@ export function LudoNetScreen({ gameId, join }: { gameId: string; join: boolean 
           ),
         }}
       />
-      {game.desync && (
-        <View className="mx-3 mt-2 flex-row items-center gap-2 rounded-xl bg-surface px-3 py-2">
-          <Icon icon={TriangleAlertIcon} size={18} color="danger" />
-          <Text className="flex-1 text-sm text-foreground">
-            This game is out of sync between the players.
-            {view.isHost ? ' You can end it from the menu.' : ''}
-          </Text>
-        </View>
-      )}
+      <DesyncNotice view={view} />
       {game.phase === 'lobby' || game.phase === 'missing' || game.phase === 'invalid' || !board ? (
-        <Lobby
+        <NetLobby
           view={view}
+          game="ludo"
           selfUserId={names.selfUserId}
           nameOf={nameOf}
           status={status}
@@ -188,7 +193,8 @@ export function LudoNetScreen({ gameId, join }: { gameId: string; join: boolean 
           onMove={(token) => controller.move(token)}
         />
       )}
-      <Emotes view={view} now={now} nameOf={nameOf} onEmote={(e) => controller.emote(e)} />
+      <NetEmotes view={view} now={now} nameOf={nameOf} onEmote={(e) => controller.emote(e)} />
+      <MessageToasts conversationId={record?.conversationId} onOpen={openChat} />
 
       {over && !resultSeen && board && (
         <ResultCard
@@ -197,6 +203,16 @@ export function LudoNetScreen({ gameId, join }: { gameId: string; join: boolean 
           status={status}
           onChat={openChat}
           onClose={() => setResultSeen(true)}
+          rematch={
+            view.you >= 0 ? (
+              <RematchButton
+                conversationId={record?.conversationId}
+                type="ludo"
+                settings={game.settings}
+                maxPlayers={game.maxPlayers}
+              />
+            ) : null
+          }
         />
       )}
       <ActionSheet visible={menu} onClose={() => setMenu(false)} actions={actions} />
@@ -218,80 +234,6 @@ export function LudoNetScreen({ gameId, join }: { gameId: string; join: boolean 
         }
         actions={[{ label: 'Close', onPress: () => setRules(false) }]}
       />
-    </View>
-  );
-}
-
-function Lobby({
-  view,
-  selfUserId,
-  nameOf,
-  status,
-  onJoin,
-  onStart,
-}: {
-  view: LudoNetView;
-  selfUserId: string;
-  nameOf: (userId: string) => string;
-  status: string;
-  onJoin: () => void;
-  onStart: () => void;
-}) {
-  const { card } = useTheme();
-  const { game } = view;
-  if (game.phase === 'invalid') {
-    return (
-      <EmptyState
-        icon={TriangleAlertIcon}
-        title="This game can't be played"
-        message="Start a new one from the chat."
-      />
-    );
-  }
-  const joined = game.lobby.some((e) => e.userId === selfUserId);
-  const full = game.lobby.length >= game.maxPlayers;
-  return (
-    <View className="flex-1 justify-center px-4">
-      <View className="gap-4 rounded-2xl bg-surface p-5" style={card}>
-        <Text
-          accessibilityLiveRegion="polite"
-          className="text-center text-base font-bold text-foreground"
-        >
-          {status}
-        </Text>
-        <View className="gap-2">
-          {Array.from({ length: game.maxPlayers }, (_, i) => {
-            const entry = game.lobby[i];
-            return (
-              <View key={entry?.userId ?? `seat-${i}`} className="flex-row items-center gap-3">
-                <View className="h-9 w-9 items-center justify-center rounded-full bg-raised">
-                  <Icon icon={entry ? DicesIcon : UserPlusIcon} size={18} color="accent" />
-                </View>
-                <Text className={`text-base ${entry ? 'font-bold text-foreground' : 'text-muted'}`}>
-                  {entry ? nameOf(entry.userId) : 'Open seat'}
-                  {entry && i === 0 ? ' (host)' : ''}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-        {view.canJoin && (
-          <Button label="Join" icon={UserPlusIcon} feedback="medium" onPress={onJoin} />
-        )}
-        {view.canStart && (
-          <Button
-            label={`Start with ${game.lobby.length} players`}
-            icon={PlayIcon}
-            variant={full ? 'primary' : 'secondary'}
-            onPress={onStart}
-          />
-        )}
-        {joined && !view.isHost && (
-          <Text className="text-center text-sm text-muted">
-            The game starts when the host starts it or the table is full.
-          </Text>
-        )}
-      </View>
     </View>
   );
 }
@@ -401,64 +343,20 @@ function Table({
   );
 }
 
-function Emotes({
-  view,
-  now,
-  nameOf,
-  onEmote,
-}: {
-  view: LudoNetView;
-  now: number;
-  nameOf: (userId: string) => string;
-  onEmote: (emoji: string) => void;
-}) {
-  const recent = view.game.emotes.filter((e) => now - e.receivedAt < EMOTE_MS).slice(-3);
-  const canSend = view.game.phase === 'lobby' || view.game.phase === 'playing';
-  return (
-    <View className="items-center gap-2 px-3 pb-4">
-      {recent.length > 0 && (
-        <View accessibilityLiveRegion="polite" className="flex-row flex-wrap justify-center gap-2">
-          {recent.map((e) => (
-            <View key={e.eventId} className="rounded-full bg-surface px-3 py-1">
-              <Text className="text-sm text-foreground">
-                <Text className="font-bold">{nameOf(e.userId)}</Text> {e.emoji}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-      {canSend && (
-        <View accessibilityLabel="Send a reaction" className="flex-row gap-1">
-          {quickReactions.map((emoji) => (
-            <Tap
-              key={emoji}
-              accessibilityRole="button"
-              accessibilityLabel={`Send ${emoji}`}
-              feedback="light"
-              onPress={() => onEmote(emoji)}
-              className="h-11 w-11 items-center justify-center rounded-full"
-            >
-              <Text className="text-xl">{emoji}</Text>
-            </Tap>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
-
 function ResultCard({
   view,
   nameOf,
   status,
   onChat,
   onClose,
+  rematch,
 }: {
   view: LudoNetView;
   nameOf: (userId: string) => string;
   status: string;
   onChat: () => void;
   onClose: () => void;
+  rematch: ReactNode;
 }) {
   const { card } = useTheme();
   const board = view.board!;
@@ -492,7 +390,13 @@ function ResultCard({
             );
           })}
         </View>
-        <Button label="Back to the chat" icon={MessageCircleIcon} onPress={onChat} />
+        {rematch}
+        <Button
+          label="Back to the chat"
+          icon={MessageCircleIcon}
+          variant={rematch ? 'secondary' : 'primary'}
+          onPress={onChat}
+        />
         <Button label="See the board" variant="ghost" onPress={onClose} />
       </View>
     </View>

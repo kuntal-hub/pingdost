@@ -1,11 +1,21 @@
 // @pingdost/games (ADR 0049): game rules, computer players and game state for the phone and
 // the web. Pure TypeScript: no React, no platform code, no network.
+export * from './any-game';
 export * from './core/catalog';
 export * from './core/fair-dice';
+export * from './core/net';
 export * from './core/random';
 export * from './core/sounds';
 export * from './core/stats';
+export * from './core/turn';
+export * from './core/turn-controller';
+export * from './core/turn-labels';
+export * from './core/turn-net-controller';
+export * from './core/turn-network';
+export * from './core/turn-solo';
 export * from './core/types';
+export * from './connect-four/rules';
+export * from './dots-and-boxes/rules';
 export * from './ludo/board';
 export * from './ludo/bot';
 export * from './ludo/controller';
@@ -15,3 +25,6 @@ export * from './ludo/network';
 export * from './ludo/network-controller';
 export * from './ludo/rules';
 export * from './ludo/solo';
+export * from './snakes-and-ladders/rules';
+export * from './tic-tac-toe/rules';
+export * from './turn-games';

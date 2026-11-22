@@ -17,6 +17,36 @@ Newest entry first. Each session prepends one entry. Keep it short: the next ses
 **Next:** phase NN, plus anything the next session must know first
 -->
 
+## 2026-11-22 — Phase 43: quick games (Tic-Tac-Toe, Connect Four, Dots and Boxes, Snakes and Ladders) — 🔄 code done, browser and phone runs open
+**Done:** details in the phase file's "As built" and ADR 0049's third amendment.
+- `@pingdost/games`: one frame for turn games (`TurnRules`, solo and friend controllers, fold with steps, proxy moves, skips, leaves), the four games with bots (Easy/Medium/Hard; none for Snakes and Ladders) and tests; the lobby moved to `core/net.ts` (Ludo uses it).
+- Wire: game types 2–5, settings and move messages, `GameRoll.state_hash`; vectors added. Engine type names, chat-core card text.
+- Both apps: setup, solo and friend screens, four boards each, invitation picker for every game, Games tab cards (Computer / Friends), Continue cards, records; Ludo's friend screen moved onto the shared pieces.
+- From Phase 42: Play with friends on game screens, unread badge and message toasts while playing, "Back to the game" pill in the chat, Rematch (Ludo too).
+- Sim client: `simGames` drives every game; `peer` answers `!ttt`, `!c4`, `!dots`, `!snakes`.
+
+**Remaining:**
+- [ ] Web (Chrome): each game solo at each difficulty, and a friend game against `sim-client peer` (`!ttt`, `!c4`, `!dots 2 3`, `!snakes`), including Rematch, the unread badge, a toast and the chat's pill.
+- [ ] Phone: the same on a device or the emulator.
+
+**Deviations / decisions:** ADR 0049 third amendment; CHANGES 2026-11-22.
+- Quick games keep Ludo's 30 s timers, but an absent player's turn is played for them (the Medium move, checked by every client) instead of skipped; dice games skip.
+- A leave applies at the first step after what the leaver saw, ordered by event ID; it is not a step.
+- Friend games are not counted in the local stats (a reopened finished game would count twice).
+
+**Verification results:**
+- Repo-wide: `pnpm typecheck` 22/22, `pnpm lint` 22/22, `turbo run test` 18/18 (games 13 files, 97 tests, about 2.5 minutes; mobile 205; web 25; protocol 130; ui-tokens 772), `pnpm format:check` clean.
+- `apps/server` `games.int.test.ts`: 5 passed (Ludo ×3, Connect Four one to one, Snakes and Ladders in a group of three, real server and E2EE).
+- Phone: typecheck, lint, tests; Metro bundled every new and changed route (`game/play`, `game/setup`, `game/pick-chat`, `game/[gameId]`, `game/start`, the Games tab, the chat).
+- Web: Vite compiled every new module.
+- **Not run:** no browser check (the Chrome extension was not connected) and no phone or emulator attached. Late in the session Claude Code stopped Metro, the API server, the web dev server and the sim peer because the PC ran low on memory.
+
+**Known issues / tech debt:**
+- The boards were never seen on screen: layout or animation slips are possible until the checks above run.
+- The fold re-reads all of a game's events on each new one (fine for these sizes).
+
+**Next:** Phase 44 (Chess), built on the same frame.
+
 ## 2026-11-22 — Phase 42: Ludo with friends in chats — ✅ done (device checks open for the user)
 **Done:** games with friends live in chats as E2EE game events; details in the phase file's "As built" and ADR 0049's second amendment.
 - Wire and engine: `games.proto` (`Content.game = 16`), `sendGameEvent` / `getGame` / `listGames` / `listGameEvents` / `onGameEvent`, card kind `game`, stores (memory and contract, phone migration 011, Dexie version 4), chat-core preview, notification text.

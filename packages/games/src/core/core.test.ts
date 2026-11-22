@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { GAME_CATALOG } from './catalog';
+import { catalogEntry, GAME_CATALOG } from './catalog';
+import { TURN_GAME_IDS, TURN_GAMES } from '../turn-games';
 import { cryptoRandom, seededRandom } from './random';
 import { encodeWav, GAME_SOUND_RATE, GAME_SOUNDS, synthesizeGameSound } from './sounds';
 import { normalizeStats, recordResult, totals } from './stats';
@@ -73,8 +74,17 @@ describe('sounds', () => {
 });
 
 describe('catalog', () => {
-  it('lists Ludo as playable and every game once', () => {
-    expect(GAME_CATALOG.filter((g) => g.available).map((g) => g.id)).toEqual(['ludo']);
+  it('lists the playable games, each with rules this build has, and every game once', () => {
+    const playable = GAME_CATALOG.filter((g) => g.available).map((g) => g.id);
+    expect(playable).toEqual(['ludo', ...TURN_GAME_IDS]);
     expect(new Set(GAME_CATALOG.map((g) => g.id)).size).toBe(GAME_CATALOG.length);
+    for (const id of TURN_GAME_IDS) {
+      const rules = TURN_GAMES[id];
+      expect(rules.id).toBe(id);
+      expect([catalogEntry(id).minPlayers, catalogEntry(id).maxPlayers]).toEqual([
+        rules.minPlayers,
+        rules.maxPlayers,
+      ]);
+    }
   });
 });

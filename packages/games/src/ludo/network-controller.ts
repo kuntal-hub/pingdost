@@ -23,8 +23,6 @@ import {
   ludoSeatOf,
   ludoStateHash,
   proxyLudoToken,
-  type GameEventLike,
-  type GamePlayerRef,
   type LudoNetGame,
 } from './network';
 import {
@@ -36,6 +34,7 @@ import {
   type LudoState,
 } from './rules';
 import { buildChain, revealAt, sameBytes, type Sha256 } from '../core/fair-dice';
+import type { GameEventLike, GamePlayerRef } from '../core/net';
 import type { SeatKind } from '../core/types';
 
 export type GameEventInit = MessageInitShape<typeof GameSchema>;

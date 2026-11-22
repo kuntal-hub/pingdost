@@ -152,6 +152,7 @@ import { takeForwardNotice } from './forward';
 import { GameCard } from './game-card';
 import { MicHold, useVoiceNote, VoiceBar, VoiceHint, type VoiceNote } from './voice-recorder';
 import { CircleAction } from '../circle/circle-action';
+import { BackToGamePill } from '../games/net-parts';
 
 /** Longest message; far inside one envelope even in 4-byte UTF-8. */
 const MAX_TEXT = 4_000;
@@ -1338,7 +1339,7 @@ function ComposerView({
             })),
             {
               label: 'Game',
-              detail: 'Play Ludo here',
+              detail: 'Ludo, Tic-Tac-Toe, Connect Four and more',
               icon: DicesIcon,
               onPress: () => router.push({ pathname: '/game/start', params: { conversationId } }),
             },
@@ -2148,6 +2149,7 @@ function ChatScreenView({
         <OfflineBanner
           peer={peerUserId ? { userId: peerUserId, name, reachable: offlineReachable } : undefined}
         />
+        {!selecting && <BackToGamePill conversationId={conversationId} />}
       </View>
 
       <ActionSheet

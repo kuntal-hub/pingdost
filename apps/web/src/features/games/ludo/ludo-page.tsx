@@ -11,9 +11,10 @@ import {
   Trophy,
   Volume2,
   VolumeX,
+  UsersRound,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 import { Button, IconButton } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/controls';
@@ -194,6 +195,11 @@ function LudoGame({ game, onPlayAgain }: { game: LudoSoloGame; onPlayAgain: () =
               icon: RotateCcw,
               onSelect: () => void navigate('/games/ludo/setup'),
             },
+            {
+              label: 'Play with friends',
+              icon: UsersRound,
+              onSelect: () => void navigate('/games/friends/ludo'),
+            },
             { label: 'Rules', icon: Info, onSelect: () => setRules(true) },
             {
               label: sounds ? 'Turn game sounds off' : 'Turn game sounds on',
@@ -335,6 +341,12 @@ function ResultBody({
       <Button onClick={onPlayAgain}>
         <RotateCcw aria-hidden size={18} />
         Play again
+      </Button>
+      <Button asChild variant="secondary">
+        <Link to="/games/friends/ludo">
+          <UsersRound aria-hidden size={18} />
+          Play with friends
+        </Link>
       </Button>
       <Button variant="ghost" onClick={onDone}>
         Back to Games

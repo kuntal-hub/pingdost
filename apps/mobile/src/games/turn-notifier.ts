@@ -6,7 +6,7 @@ import * as Notifications from 'expo-notifications';
 import { AppState, Platform } from 'react-native';
 
 import { getCryptoContext } from '@/crypto/bootstrap';
-import { foldLudoGame, ludoSeatOf } from '@pingdost/games';
+import { foldAnyGame, gameTypeLabel } from '@pingdost/games';
 import type { MessageEngine } from '@pingdost/message-engine';
 
 /** The notification of a game (also dismissed when its screen opens). */
@@ -23,19 +23,27 @@ async function check(engine: MessageEngine, gameId: string, channelId: string): 
   const record = await engine.getGame(gameId);
   if (!record) return;
   const { provider } = await getCryptoContext();
-  const game = foldLudoGame(gameId, await engine.listGameEvents(gameId), (data) =>
+  const folded = foldAnyGame(record.gameType, gameId, await engine.listGameEvents(gameId), (data) =>
     provider.sha256(data),
   );
-  const seat = ludoSeatOf(game, engine.self);
+  if (!folded) return;
+  const { game } = folded;
+  const seat = game.seats.findIndex(
+    (s) => s.userId === engine.self.userId && s.deviceId === engine.self.deviceId,
+  );
   if (game.phase !== 'playing' || seat < 0 || game.state?.current !== seat) return;
   const conversation = await engine.getConversation(record.conversationId);
   const mutedUntil = conversation?.mutedUntil ?? null;
   if (mutedUntil !== null && mutedUntil > Date.now()) return;
+  const timed = folded.type === 'ludo' || folded.rules.turnMs !== null;
+  const roll = folded.type === 'ludo' || folded.rules.dice;
   await Notifications.scheduleNotificationAsync({
     identifier: turnNotificationId(gameId),
     content: {
-      title: 'Your turn in Ludo',
-      body: 'You have 30 seconds to roll.',
+      title: `Your turn in ${gameTypeLabel(record.gameType)}`,
+      body: timed
+        ? `You have 30 seconds to ${roll ? 'roll' : 'play'}.`
+        : 'Make your move when you are ready.',
       data: { conversationId: record.conversationId, gameId },
     },
     trigger: Platform.OS === 'android' ? { channelId } : null,

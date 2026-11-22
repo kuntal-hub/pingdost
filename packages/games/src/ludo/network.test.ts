@@ -21,8 +21,6 @@ import {
   LUDO_GRACE_MS,
   LUDO_TURN_MS,
   ludoStateHash,
-  type GameEventLike,
-  type GamePlayerRef,
 } from './network';
 import {
   createLudoEvent,
@@ -32,6 +30,7 @@ import {
 } from './network-controller';
 import { DEFAULT_LUDO_SETTINGS } from './rules';
 import { buildChain, revealAt } from '../core/fair-dice';
+import type { GameEventLike, GamePlayerRef } from '../core/net';
 import { seededRandom } from '../core/random';
 
 const sha256 = (data: Uint8Array) => new Uint8Array(createHash('sha256').update(data).digest());

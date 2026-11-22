@@ -9,10 +9,7 @@ import {
   Medal,
   MessageCircle,
   OctagonX,
-  Play,
   Trophy,
-  TriangleAlert,
-  UserPlus,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -38,8 +35,16 @@ import {
   standings,
   type LudoNetView,
 } from '@pingdost/games';
-import { quickReactions } from '@pingdost/ui-tokens';
 
+import {
+  ChatButton,
+  DesyncNotice,
+  MessageToasts,
+  NetEmotes,
+  NetLobby,
+  RematchButton,
+  useMarkActiveGame,
+} from '../net-parts';
 import { useNow, useLudoNetGame } from '../network';
 import { useGames } from '../store';
 import { LudoBoard } from './board';
@@ -51,9 +56,6 @@ function useMotionLevel(): 'full' | 'calm' | 'off' {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   return setting === 'full' && reduced ? 'calm' : setting;
 }
-
-/** Emotes stay on screen this long. */
-const EMOTE_MS = 30_000;
 
 export function LudoNetPage() {
   const { gameId = '' } = useParams();
@@ -74,6 +76,7 @@ export function LudoNetPage() {
   const playing = view?.game.phase === 'playing';
   const now = useNow(playing || (view?.game.emotes.length ?? 0) > 0);
   const nameOf = (userId: string) => (userId === names.selfUserId ? 'You' : names.name(userId));
+  useMarkActiveGame(record ? { gameId, conversationId: record.conversationId } : null);
 
   // "Join" on the chat card opens the game and joins it.
   const joinAsked = params.get('join') === '1';
@@ -152,9 +155,10 @@ export function LudoNetPage() {
     <div className="mx-auto flex max-w-3xl flex-col items-center gap-2 p-4 md:p-5">
       <div className="flex w-full items-center gap-2">
         <h1 className="flex-1 font-display text-2xl font-extrabold">Ludo</h1>
-        <IconButton aria-label="Back to the chat" onClick={() => void navigate(chatLink)}>
-          <MessageCircle aria-hidden size={20} />
-        </IconButton>
+        <ChatButton
+          conversationId={record?.conversationId}
+          onOpen={() => void navigate(chatLink)}
+        />
         <Menu
           label="Game menu"
           trigger={
@@ -166,20 +170,12 @@ export function LudoNetPage() {
         />
       </div>
 
-      {game.desync && (
-        <p
-          role="alert"
-          className="flex w-full items-center gap-2 rounded-xl bg-surface px-3 py-2 text-sm"
-        >
-          <TriangleAlert aria-hidden size={18} className="shrink-0 text-danger" />
-          This game is out of sync between the players.
-          {view.isHost ? ' You can end it from the menu.' : ''}
-        </p>
-      )}
+      <DesyncNotice view={view} />
 
       {game.phase === 'lobby' || game.phase === 'missing' || game.phase === 'invalid' || !board ? (
-        <Lobby
+        <NetLobby
           view={view}
+          type="ludo"
           selfUserId={names.selfUserId}
           nameOf={nameOf}
           onJoin={() => controller.join()}
@@ -211,7 +207,16 @@ export function LudoNetPage() {
         </>
       )}
 
-      <Emotes view={view} now={now} nameOf={nameOf} onEmote={(emoji) => controller.emote(emoji)} />
+      <NetEmotes
+        view={view}
+        now={now}
+        nameOf={nameOf}
+        onEmote={(emoji) => controller.emote(emoji)}
+      />
+      <MessageToasts
+        conversationId={record?.conversationId}
+        onOpen={() => void navigate(chatLink)}
+      />
 
       <Dialog
         open={over && !resultSeen && board !== null}
@@ -239,7 +244,18 @@ export function LudoNetPage() {
             </ol>
           </>
         )}
-        <Button onClick={() => void navigate(chatLink)}>
+        {game.phase === 'over' && view.you >= 0 && (
+          <RematchButton
+            conversationId={record?.conversationId}
+            type="ludo"
+            settings={game.settings}
+            maxPlayers={game.maxPlayers}
+          />
+        )}
+        <Button
+          variant={game.phase === 'over' && view.you >= 0 ? 'secondary' : 'primary'}
+          onClick={() => void navigate(chatLink)}
+        >
           <MessageCircle aria-hidden size={18} />
           Back to the chat
         </Button>
@@ -258,73 +274,6 @@ export function LudoNetPage() {
           Close
         </Button>
       </Dialog>
-    </div>
-  );
-}
-
-function Lobby({
-  view,
-  selfUserId,
-  nameOf,
-  status,
-  onJoin,
-  onStart,
-}: {
-  view: LudoNetView;
-  selfUserId: string;
-  nameOf: (userId: string) => string;
-  status: string;
-  onJoin: () => void;
-  onStart: () => void;
-}) {
-  const { game } = view;
-  if (game.phase === 'invalid') {
-    return (
-      <EmptyState icon={TriangleAlert} title="This game can't be played">
-        <p className="text-muted">Start a new one from the chat.</p>
-      </EmptyState>
-    );
-  }
-  const joined = game.lobby.some((e) => e.userId === selfUserId);
-  const full = game.lobby.length >= game.maxPlayers;
-  return (
-    <div className="pd-card flex w-full max-w-md flex-col gap-4 rounded-2xl p-5">
-      <p aria-live="polite" className="text-center font-bold">
-        {status}
-      </p>
-      <ul className="flex flex-col gap-2">
-        {Array.from({ length: game.maxPlayers }, (_, i) => {
-          const entry = game.lobby[i];
-          return (
-            <li key={entry?.userId ?? `seat-${i}`} className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-accent/15 text-accent">
-                {entry ? <Dices aria-hidden size={18} /> : <UserPlus aria-hidden size={18} />}
-              </span>
-              <span className={entry ? 'font-bold' : 'text-muted'}>
-                {entry ? nameOf(entry.userId) : 'Open seat'}
-                {entry && i === 0 ? ' (host)' : ''}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-      {view.canJoin && (
-        <Button onClick={onJoin}>
-          <UserPlus aria-hidden size={18} />
-          Join
-        </Button>
-      )}
-      {view.canStart && (
-        <Button onClick={onStart} variant={full ? 'primary' : 'secondary'}>
-          <Play aria-hidden size={18} />
-          Start with {game.lobby.length} players
-        </Button>
-      )}
-      {joined && !view.isHost && !view.canJoin && (
-        <p className="text-center text-sm text-muted">
-          The game starts when the host starts it or the table is full.
-        </p>
-      )}
     </div>
   );
 }
@@ -398,49 +347,6 @@ function Table({
         {corner(false, true)}
         {corner(false, false)}
       </div>
-    </div>
-  );
-}
-
-function Emotes({
-  view,
-  now,
-  nameOf,
-  onEmote,
-}: {
-  view: LudoNetView;
-  now: number;
-  nameOf: (userId: string) => string;
-  onEmote: (emoji: string) => void;
-}) {
-  const recent = view.game.emotes.filter((e) => now - e.receivedAt < EMOTE_MS).slice(-4);
-  const canSend = view.game.phase === 'lobby' || view.game.phase === 'playing';
-  return (
-    <div className="flex w-full max-w-md flex-col items-center gap-2">
-      {recent.length > 0 && (
-        <ul aria-live="polite" className="flex flex-wrap justify-center gap-2">
-          {recent.map((e) => (
-            <li key={e.eventId} className="pd-rise rounded-full bg-surface px-3 py-1 text-sm">
-              <span className="font-bold">{nameOf(e.userId)}</span> {e.emoji}
-            </li>
-          ))}
-        </ul>
-      )}
-      {canSend && (
-        <div role="group" aria-label="Send a reaction" className="flex gap-1">
-          {quickReactions.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              aria-label={`Send ${emoji}`}
-              onClick={() => onEmote(emoji)}
-              className="pd-press size-10 cursor-pointer rounded-full text-xl hover:bg-surface"
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

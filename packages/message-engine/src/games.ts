@@ -11,6 +11,14 @@ export function gameTypeName(type: GameType): string {
   switch (type) {
     case GameType.LUDO:
       return 'ludo';
+    case GameType.TIC_TAC_TOE:
+      return 'tic-tac-toe';
+    case GameType.CONNECT_FOUR:
+      return 'connect-four';
+    case GameType.DOTS_AND_BOXES:
+      return 'dots-and-boxes';
+    case GameType.SNAKES_AND_LADDERS:
+      return 'snakes-and-ladders';
     default:
       return 'unknown';
   }
